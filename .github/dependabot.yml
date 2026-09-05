@@ -12,8 +12,14 @@ updates:
     schedule:
       interval: "weekly"
 
-  # dev tools (actionlint, golangci-lint, gofumpt) pinned in .tools/go.mod
+  # dev tools (golangci-lint, gofumpt) pinned in .tools/go.mod
   - package-ecosystem: "gomod"
     directory: "/.tools"
+    schedule:
+      interval: "weekly"
+
+  # actionlint has its own module (yaml dependency conflicts with golangci-lint's)
+  - package-ecosystem: "gomod"
+    directory: "/.tools/actionlint"
     schedule:
       interval: "weekly"

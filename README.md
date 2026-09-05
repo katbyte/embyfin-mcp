@@ -102,4 +102,6 @@ make            # fmt + build
 make check-all  # build + test + all linters + depscheck
 ```
 
-Dev tools are pinned in `.tools/go.mod` and built into `.tools/bin` by make.
+Dev tools are pinned in `.tools/go.mod` (actionlint in `.tools/actionlint/go.mod`) and built
+into `.tools/bin` by make. On a noexec checkout point `TOOLS_BIN` somewhere local, e.g.
+`make TOOLS_BIN=~/.cache/embyfin-mcp/bin lint`.

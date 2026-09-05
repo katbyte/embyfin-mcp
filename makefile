@@ -6,7 +6,8 @@ GIT_VERSION=$(shell git describe --tags --dirty 2>/dev/null | sed 's/-\([0-9]*\)
 TEST_TIMEOUT?=15m
 
 # dev tool binaries are built into .tools/bin (gitignored) from the versions pinned in
-# .tools/go.mod - the single source of truth for make and CI; dependabot keeps them updated.
+# .tools/go.mod (and .tools/actionlint/go.mod) - the single source of truth for make and CI;
+# dependabot keeps them updated.
 # overridable because binaries cannot execute from a noexec mount (e.g. an smb checkout):
 # make TOOLS_BIN=~/.cache/embyfin-mcp/bin lint
 TOOLS_BIN?=.tools/bin
@@ -33,7 +34,14 @@ $(TOOLS_BIN)/%: .tools/go.mod .tools/go.sum
 	@mkdir -p $(TOOLS_BIN)
 	@cd .tools && go build -o $(abspath $@) $$(go list tool | grep "/$*$$")
 
-# explicit rules take precedence over the pattern rule above for the non-Go tools.
+# actionlint lives in its own module (.tools/actionlint/go.mod): it pins an older go.yaml.in/yaml/v4
+# release candidate than golangci-lint's dependencies and does not compile against the newer one
+$(ACTIONLINT): .tools/actionlint/go.mod .tools/actionlint/go.sum
+	@echo "==> building actionlint (version pinned in .tools/actionlint/go.mod)..."
+	@mkdir -p $(TOOLS_BIN)
+	@cd .tools/actionlint && go build -o $(abspath $@) $$(go list tool)
+
+# explicit rules take precedence over the pattern rule above for the non-Go tools and actionlint.
 # `golangci-lint custom` always writes to .tools/bin (destination in .custom-gcl.yml), so move
 # the result when TOOLS_BIN points elsewhere (e.g. a local dir because the checkout is noexec)
 $(GOLANGCI_LINT_MODULES): .tools/.custom-gcl.yml $(GOLANGCI_LINT)
@@ -119,6 +127,10 @@ depscheck: ## Check that go.mod/go.sum and vendor/ are in sync
 	@cd .tools && go mod tidy
 	@git diff --exit-code -- .tools/go.mod .tools/go.sum || \
 		(echo; echo "Unexpected difference in .tools/go.mod/go.sum. Run 'cd .tools && go mod tidy' and commit."; exit 1)
+	@echo "==> Checking .tools/actionlint/go.mod with go mod tidy..."
+	@cd .tools/actionlint && go mod tidy
+	@git diff --exit-code -- .tools/actionlint/go.mod .tools/actionlint/go.sum || \
+		(echo; echo "Unexpected difference in .tools/actionlint/go.mod/go.sum. Run 'cd .tools/actionlint && go mod tidy' and commit."; exit 1)
 	@echo "==> Checking .tools/.custom-gcl.yml golangci-lint version matches .tools/go.mod..."
 	@modv=$$(cd .tools && go list -m -f '{{.Version}}' github.com/golangci/golangci-lint/v2); \
 		gclv=$$(grep '^version:' .tools/.custom-gcl.yml | awk '{print $$2}'); \
