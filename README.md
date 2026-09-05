@@ -1,0 +1,105 @@
+# embyfin-mcp
+
+[![GitHub release](https://img.shields.io/github/v/release/katbyte/embyfin-mcp?color=blueviolet)](https://github.com/katbyte/embyfin-mcp/releases/latest)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/katbyte/embyfin-mcp?color=00ADD8)](https://github.com/katbyte/embyfin-mcp/blob/main/go.mod)
+[![License](https://img.shields.io/github/license/katbyte/embyfin-mcp?color=blue)](https://github.com/katbyte/embyfin-mcp/blob/main/LICENSE)
+![build](https://github.com/katbyte/embyfin-mcp/actions/workflows/build.yaml/badge.svg)
+![test](https://github.com/katbyte/embyfin-mcp/actions/workflows/pr-tests.yaml/badge.svg)
+![lint](https://github.com/katbyte/embyfin-mcp/actions/workflows/pr-golangci-lint.yaml/badge.svg)
+
+An MCP server (and CLI) for curating [Emby](https://emby.media) and [Jellyfin](https://jellyfin.org)
+media libraries — search, inspect, audit, and fix metadata matches from an AI client such as Claude Code.
+
+The design principle: **detection is code, correction is judgment.** The server runs cheap
+deterministic checks over the whole library and produces worklists; the AI reasons only about
+the anomalies.
+
+## Installation
+
+```bash
+go install github.com/katbyte/embyfin-mcp@latest
+```
+
+## Configuration
+
+All options can be passed as command-line flags, environment variables, or via a configuration file.
+
+| Variable | Flag | Description |
+|---|---|---|
+| `EMBYFIN_BACKEND` | `--backend`, `-b` | `emby` (default) or `jellyfin` |
+| `EMBYFIN_SERVER` | `--server`, `-s` | media server URL, e.g. `http://nas:8096` |
+| `EMBYFIN_TOKEN` | `--token`, `-t` | API key (server dashboard → Advanced → API Keys) |
+| `EMBYFIN_LOG` | | log level (`WARN` default; `DEBUG`, `TRACE`, ...) |
+
+### Configuration File
+
+You can place a `.embyfin-mcp` file in your home directory `~/.embyfin-mcp` (for global settings)
+or in your current directory `./.embyfin-mcp` (for per-project settings). Keys match the long flag
+names using the `env` format:
+
+```env
+BACKEND=emby
+SERVER=http://nas:8096
+TOKEN=ey...
+```
+
+## Usage
+
+Quick connectivity check:
+
+```bash
+embyfin-mcp info
+```
+
+### Register with Claude Code
+
+`.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "emby": {
+      "command": "embyfin-mcp",
+      "args": ["serve"],
+      "env": {
+        "EMBYFIN_SERVER": "http://nas:8096",
+        "EMBYFIN_TOKEN": "..."
+      }
+    }
+  }
+}
+```
+
+## MCP Tools
+
+Tools are named resource-first (`library_*`, `item_*`, `session_*`...) so they group by what
+they act on. Tools that change server state say so in their descriptions. Timeframe-taking
+tools default to the last 60 days.
+
+| Resource | Tools |
+|---|---|
+| server | `server_info`, `server_stats`, `server_activity`, `server_devices`, `server_logs`, `server_log` |
+| tasks | `task_list`, `task_run` |
+| libraries | `library_list`, `library_get`, `library_search` (filters: library/genre/year/person), `library_recent`, `library_genres`, `library_people`, `library_scan` |
+| audits | `library_audit_missing_metadata_provider`, `library_audit_missing_poster`, `library_audit_missing_overview`, `library_audit_year_mismatch`, `library_duplicates` |
+| items | `item_get`, `item_find_by_metadata_id`, `item_similar`, `item_refresh`, `item_edit`, `item_instant_mix`, `item_last_watched`, `item_watch_history`, `item_set_watched`, `item_set_favourite` |
+| identify | `item_identify` (suggestions), `item_identify_apply` |
+| artwork | `item_artwork`, `item_artwork_set` |
+| subtitles | `item_subtitle_search`, `item_subtitle_download` |
+| shows | `show_seasons`, `show_episodes`, `show_missing` |
+| users | `user_list`, `user_history`, `user_next_up`, `user_favourites` |
+| sessions | `session_list`, `session_play`, `session_command`, `session_message` |
+| playlists | `playlist_list`, `playlist_get`, `playlist_create`, `playlist_add`, `playlist_remove` |
+| collections | `collection_list`, `collection_get`, `collection_create`, `collection_add`, `collection_remove` |
+
+`item_delete` (permanently removes media files) is only registered when
+`--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set.
+
+## Development
+
+```bash
+make            # fmt + build
+make check-all  # build + test + all linters + depscheck
+```
+
+Dev tools are pinned in `.tools/go.mod` and built into `.tools/bin` by make.

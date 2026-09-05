@@ -1,0 +1,25 @@
+---
+name: Vendor Dependencies Check
+on:
+  push:
+    branches: [ 'main' ]
+  pull_request:
+    types: ['opened', 'synchronize']
+    paths:
+      - '.github/**'
+      - '**.go'
+      - 'vendor/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  depscheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: ./.go-version
+      - run: make depscheck
