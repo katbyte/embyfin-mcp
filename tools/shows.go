@@ -20,7 +20,7 @@ func registerShowTools(server *mcp.Server, client *embyfin.Client) {
 		Series  string      `json:"series"`
 		Seasons []seasonRow `json:"seasons"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "show_seasons",
 		Description: "List a series' seasons.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in seasonsIn) (*mcp.CallToolResult, seasonsOut, error) {
@@ -50,7 +50,7 @@ func registerShowTools(server *mcp.Server, client *embyfin.Client) {
 		Series   string        `json:"series"`
 		Episodes []itemSummary `json:"episodes"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "show_episodes",
 		Description: "List a series' episodes with quality facts, optionally scoped to one season.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, episodesOut, error) {
@@ -80,9 +80,9 @@ func registerShowTools(server *mcp.Server, client *embyfin.Client) {
 		Series  string       `json:"series"`
 		Missing []missingRow `json:"missing" jsonschema:"episodes the metadata provider lists that the library lacks"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "show_missing",
-		Description: "Episodes the metadata provider knows about that the library does not have. Requires the server's missing-episode display to be enabled for the library.",
+		Description: "Episodes the metadata provider knows about that the library has no file for. Only reports anything when the server is set to display missing episodes for the library; an empty list otherwise means unknown, not complete.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in missingIn) (*mcp.CallToolResult, missingOut, error) {
 		series, err := client.ItemByID(ctx, in.SeriesID)
 		if err != nil {
@@ -94,8 +94,13 @@ func registerShowTools(server *mcp.Server, client *embyfin.Client) {
 			return nil, missingOut{}, err
 		}
 
-		out := missingOut{Series: series.Name}
+		// Emby ignores IsMissing (and the virtual-location filters) and returns every
+		// episode, so keep only the placeholder records: missing episodes have no file.
+		out := missingOut{Series: series.Name, Missing: []missingRow{}}
 		for _, e := range episodes {
+			if e.Path != "" {
+				continue
+			}
 			out.Missing = append(out.Missing, missingRow{
 				Season:  e.ParentIndexNumber,
 				Episode: e.IndexNumber,

@@ -36,7 +36,7 @@ func registerPlaylistTools(server *mcp.Server, client *embyfin.Client) {
 	type listOut struct {
 		Playlists []playlistRow `json:"playlists"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "playlist_list",
 		Description: "List all playlists.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, listOut, error) {
@@ -64,7 +64,7 @@ func registerPlaylistTools(server *mcp.Server, client *embyfin.Client) {
 		Name    string     `json:"name"`
 		Entries []entryRow `json:"entries" jsonschema:"in playlist order"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "playlist_get",
 		Description: "A playlist's entries in order.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getIn) (*mcp.CallToolResult, getOut, error) {
@@ -98,7 +98,7 @@ func registerPlaylistTools(server *mcp.Server, client *embyfin.Client) {
 		ID   string `json:"id"`
 		Name string `json:"name"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "playlist_create",
 		Description: "Create a new playlist, optionally pre-filled with items. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
@@ -118,7 +118,7 @@ func registerPlaylistTools(server *mcp.Server, client *embyfin.Client) {
 		Added int    `json:"added"`
 		To    string `json:"to"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "playlist_add",
 		Description: "Append items to a playlist. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in addIn) (*mcp.CallToolResult, addOut, error) {
@@ -142,7 +142,7 @@ func registerPlaylistTools(server *mcp.Server, client *embyfin.Client) {
 		Removed int    `json:"removed"`
 		From    string `json:"from"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "playlist_remove",
 		Description: "Remove entries from a playlist (the items stay in the library). Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in removeIn) (*mcp.CallToolResult, removeOut, error) {

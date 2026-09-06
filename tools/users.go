@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -17,7 +18,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 	type usersOut struct {
 		Users []userRow `json:"users"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "user_list",
 		Description: "List the server's user accounts.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, usersOut, error) {
@@ -46,16 +47,16 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 	}
 	type historyRow struct {
 		itemSummary
-		LastPlayed string `json:"last_played,omitempty"`
-		PlayCount  int    `json:"play_count,omitempty"`
+		LastPlayed string `json:"last_played"`
+		Event      string `json:"event"       jsonschema:"stop = finished or stopped playing, start = began playing (may still be in progress)"`
 	}
 	type historyOut struct {
 		User    string       `json:"user"`
 		Watched []historyRow `json:"watched" jsonschema:"most recently played first"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "user_history",
-		Description: "What a user has watched recently, most recent first, default last 60 days.",
+		Description: "What a user has played recently (from the activity log), most recent first, default last 60 days.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in historyIn) (*mcp.CallToolResult, historyOut, error) {
 		user, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
@@ -67,30 +68,55 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 			limit = 25
 		}
 
-		items, _, err := client.Search(ctx, embyfin.SearchOptions{
-			IncludeItemTypes: "Movie,Episode",
-			Filters:          "IsPlayed",
-			SortBy:           "DatePlayed",
-			SortOrder:        sortDescending,
-			UserID:           user.ID,
-			EnableUserData:   true,
-			Limit:            limit,
-		})
+		// Emby's list endpoints omit LastPlayedDate from UserData (only the single-item
+		// endpoint has it), so recent history comes from the activity log's playback
+		// events. Entries carry Emby's internal numeric user id, which /Users does not
+		// expose, so match on the "<user> has finished playing ..." text instead.
+		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), activityScanLimit)
 		if err != nil {
 			return nil, historyOut{}, err
 		}
 
-		cutoff := daysCutoff(in.Days)
-		out := historyOut{User: user.Name}
-		for i := range items {
-			ud := items[i].UserData
-			if ud == nil || !afterCutoff(ud.LastPlayedDate, cutoff) {
+		prefix := user.Name + " "
+		lastEvent := map[string]embyfin.ActivityEntry{}
+		var ids []string
+		for _, e := range entries { // newest first
+			if !strings.HasPrefix(e.Type, "playback.") || e.ItemID == "" || !strings.HasPrefix(e.Name, prefix) {
 				continue
 			}
+			if _, seen := lastEvent[e.ItemID]; seen {
+				continue
+			}
+			lastEvent[e.ItemID] = e
+			ids = append(ids, e.ItemID)
+			if len(ids) >= limit {
+				break
+			}
+		}
+
+		out := historyOut{User: user.Name, Watched: []historyRow{}}
+		if len(ids) == 0 {
+			return nil, out, nil
+		}
+
+		items, _, err := client.Search(ctx, embyfin.SearchOptions{IDs: strings.Join(ids, ","), Limit: len(ids)})
+		if err != nil {
+			return nil, historyOut{}, err
+		}
+		byID := make(map[string]*embyfin.Item, len(items))
+		for i := range items {
+			byID[items[i].ID] = &items[i]
+		}
+		for _, id := range ids {
+			it := byID[id]
+			if it == nil { // removed from the library since
+				continue
+			}
+			e := lastEvent[id]
 			out.Watched = append(out.Watched, historyRow{
-				itemSummary: summarise(&items[i]),
-				LastPlayed:  ud.LastPlayedDate,
-				PlayCount:   ud.PlayCount,
+				itemSummary: summarise(it),
+				LastPlayed:  e.Date,
+				Event:       strings.TrimPrefix(e.Type, "playback."),
 			})
 		}
 
@@ -106,7 +132,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 		NextUp []itemSummary `json:"next_up" jsonschema:"next unwatched episode per series"`
 		Resume []itemSummary `json:"resume"  jsonschema:"partially watched items"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "user_next_up",
 		Description: "What a user should continue watching: next episodes per series, plus partially-watched items.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in nextUpIn) (*mcp.CallToolResult, nextUpOut, error) {
@@ -145,7 +171,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 		User       string        `json:"user"`
 		Favourites []itemSummary `json:"favourites"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "user_favourites",
 		Description: "A user's favourite items.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in favouritesIn) (*mcp.CallToolResult, favouritesOut, error) {

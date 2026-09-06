@@ -53,7 +53,7 @@ func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields st
 		opts.ParentID = folder.ItemID
 	}
 
-	out := auditOut{}
+	out := auditOut{Findings: []auditFinding{}}
 	sweepErr := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
 		for i := range items {
 			out.Scanned++
@@ -85,7 +85,7 @@ func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields st
 var pathYearRe = regexp.MustCompile(`\((19|20)\d\d\)`)
 
 func registerAuditTools(server *mcp.Server, client *embyfin.Client) {
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_audit_missing_metadata_provider",
 		Description: "Sweep the library for items with no metadata provider ids (tmdb/imdb/tvdb) — unmatched items that need identification.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, auditOut, error) {
@@ -104,7 +104,7 @@ func registerAuditTools(server *mcp.Server, client *embyfin.Client) {
 		return nil, out, err
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_audit_missing_poster",
 		Description: "Sweep the library for items with no primary poster image.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, auditOut, error) {
@@ -118,7 +118,7 @@ func registerAuditTools(server *mcp.Server, client *embyfin.Client) {
 		return nil, out, err
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_audit_missing_overview",
 		Description: "Sweep the library for items with no overview/plot text — usually a sign of a failed metadata match.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, auditOut, error) {
@@ -132,7 +132,7 @@ func registerAuditTools(server *mcp.Server, client *embyfin.Client) {
 		return nil, out, err
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_audit_year_mismatch",
 		Description: "Sweep the library for items whose folder/file name contains a (year) that disagrees with the matched metadata year by 2+ — a strong wrong-match signal.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, auditOut, error) {
@@ -165,7 +165,7 @@ func registerAuditTools(server *mcp.Server, client *embyfin.Client) {
 		Scanned int             `json:"items_scanned"`
 		Groups  [][]itemSummary `json:"duplicate_groups" jsonschema:"each group shares one metadata provider id"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_duplicates",
 		Description: "Find items sharing the same tmdb/imdb id — multiple copies of the same movie or series.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, dupOut, error) {

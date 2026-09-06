@@ -106,7 +106,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		Overview string      `json:"overview,omitempty"`
 		People   []personOut `json:"people,omitempty"   jsonschema:"directors, writers, and top-billed cast"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_get",
 		Description: "Fetch one library item by id with full quality facts: video/audio/subtitle streams, container, size, runtime, path, metadata provider ids, overview, and people.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getItemIn) (*mcp.CallToolResult, getItemOut, error) {
@@ -134,7 +134,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		Found bool          `json:"found"`
 		Items []itemSummary `json:"items,omitempty" jsonschema:"can be multiple when the library has more than one copy"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_find_by_metadata_id",
 		Description: "Find library items matching a metadata provider id (tmdb/imdb/tvdb). The definitive 'do I already have this movie?' check; returns every copy.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in lookupIn) (*mcp.CallToolResult, lookupOut, error) {
@@ -150,11 +150,12 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	type similarIn struct {
 		ID    string `json:"id"              jsonschema:"the library item id"`
 		Limit int    `json:"limit,omitempty" jsonschema:"maximum results, default 10"`
+		User  string `json:"user,omitempty"  jsonschema:"user name or id whose library view to use; defaults to the first administrator"`
 	}
 	type similarOut struct {
 		Items []itemSummary `json:"items"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_similar",
 		Description: "Items in the library the server considers similar to the given one.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in similarIn) (*mcp.CallToolResult, similarOut, error) {
@@ -163,7 +164,12 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 			limit = 10
 		}
 
-		items, err := client.Similar(ctx, in.ID, limit)
+		user, err := client.ResolveUser(ctx, in.User)
+		if err != nil {
+			return nil, similarOut{}, err
+		}
+
+		items, err := client.Similar(ctx, in.ID, user.ID, limit)
 		if err != nil {
 			return nil, similarOut{}, err
 		}
@@ -178,7 +184,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	type refreshOut struct {
 		Refreshed string `json:"refreshed"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_refresh",
 		Description: "Ask the server to re-fetch metadata and images for one item. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in refreshIn) (*mcp.CallToolResult, refreshOut, error) {
@@ -201,7 +207,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	type editOut struct {
 		Updated []string `json:"updated_fields"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_edit",
 		Description: "Update an item's metadata fields (title, sort title, overview, year, genres, tags). Only provided fields change. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
@@ -248,7 +254,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	type mixOut struct {
 		Items []itemSummary `json:"items"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_instant_mix",
 		Description: "Generate a music mix seeded from a song, album, artist, or genre.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in mixIn) (*mcp.CallToolResult, mixOut, error) {
@@ -279,7 +285,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		Item  string     `json:"item"`
 		Users []watchRow `json:"users"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_last_watched",
 		Description: "Per-user watch state for one item: played, play count, last played date, resume point.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in lastWatchedIn) (*mcp.CallToolResult, lastWatchedOut, error) {
@@ -323,7 +329,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		Item    string   `json:"item"`
 		Entries []string `json:"entries" jsonschema:"activity log lines mentioning this item, newest first"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_watch_history",
 		Description: "Playback events for one item from the server activity log (who played it, when), default last 60 days.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in historyIn) (*mcp.CallToolResult, historyOut, error) {
@@ -332,7 +338,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 			return nil, historyOut{}, err
 		}
 
-		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), 1000)
+		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), activityScanLimit)
 		if err != nil {
 			return nil, historyOut{}, err
 		}
@@ -357,7 +363,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		User    string `json:"user"`
 		Watched bool   `json:"watched"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_set_watched",
 		Description: "Mark an item played or unplayed for a user. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setWatchedIn) (*mcp.CallToolResult, setWatchedOut, error) {
@@ -383,7 +389,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		User      string `json:"user"`
 		Favourite bool   `json:"favourite"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_set_favourite",
 		Description: "Favourite or unfavourite an item for a user. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setFavouriteIn) (*mcp.CallToolResult, setFavouriteOut, error) {
@@ -407,7 +413,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		type deleteOut struct {
 			Deleted string `json:"deleted"`
 		}
-		mcp.AddTool(server, &mcp.Tool{
+		addTool(server, &mcp.Tool{
 			Name:        "item_delete",
 			Description: "PERMANENTLY delete an item AND its media file from disk. Irreversible. Requires confirm=true.",
 		}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {

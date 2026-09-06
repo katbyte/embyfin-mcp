@@ -19,6 +19,28 @@ type librarySummary struct {
 
 // resolveLibrary finds a library by name (case-insensitive) or id; empty input
 // returns nil meaning "all libraries".
+// searchTypesAll is the search default when no single library kind applies.
+const searchTypesAll = "Movie,Series"
+
+// defaultSearchTypes picks the item types a search should return when the caller
+// did not say: the library's own kind, or movies and series across everything.
+func defaultSearchTypes(folder *embyfin.VirtualFolder) string {
+	if folder == nil {
+		return searchTypesAll
+	}
+
+	switch folder.CollectionType {
+	case "tvshows":
+		return "Series"
+	case "movies":
+		return "Movie"
+	case "music":
+		return "MusicAlbum"
+	default:
+		return searchTypesAll
+	}
+}
+
 func resolveLibrary(ctx context.Context, client *embyfin.Client, nameOrID string) (*embyfin.VirtualFolder, error) {
 	if nameOrID == "" {
 		return nil, nil //nolint:nilnil // nil folder means all libraries by design
@@ -44,7 +66,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 	type libraryListOut struct {
 		Libraries []librarySummary `json:"libraries"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_list",
 		Description: "List all libraries on the media server with their type and filesystem locations.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, libraryListOut, error) {
@@ -77,7 +99,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 		ItemCount      int            `json:"item_count"                jsonschema:"total items in the library, recursive"`
 		TypeCounts     map[string]int `json:"type_counts,omitempty"     jsonschema:"item counts by primary type, e.g. Movie, Series, Episode"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_get",
 		Description: "Get information about one library: type, filesystem locations, and item counts.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in libraryGetIn) (*mcp.CallToolResult, libraryGetOut, error) {
@@ -118,7 +140,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 
 	type searchIn struct {
 		Query   string `json:"query,omitempty"   jsonschema:"title or partial title to search for"`
-		Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types, e.g. Movie or Series,Episode; defaults to Movie"`
+		Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types, e.g. Movie or Series,Episode; defaults to the library's kind: Series in a TV library, Movie in a movie library, Movie,Series otherwise"`
 		Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
 		Genre   string `json:"genre,omitempty"   jsonschema:"restrict by genre name"`
 		Year    string `json:"year,omitempty"    jsonschema:"restrict by production year(s), comma-separated"`
@@ -130,14 +152,10 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 		TotalMatches int           `json:"total_matches"`
 		Items        []itemSummary `json:"items"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_search",
 		Description: "Search the media library by title with optional filters: library, genre, year, person. Returns trimmed summaries with metadata provider ids, runtime, and stream quality facts.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in searchIn) (*mcp.CallToolResult, searchOut, error) {
-		types := in.Types
-		if types == "" {
-			types = "Movie"
-		}
 		limit := in.Limit
 		if limit <= 0 {
 			limit = 10
@@ -145,7 +163,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 
 		opts := embyfin.SearchOptions{
 			SearchTerm:       in.Query,
-			IncludeItemTypes: types,
+			IncludeItemTypes: in.Types,
 			GenreNames:       in.Genre,
 			Years:            in.Year,
 			SortBy:           in.SortBy,
@@ -164,6 +182,9 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 		}
 		if folder != nil {
 			opts.ParentID = folder.ItemID
+		}
+		if opts.IncludeItemTypes == "" {
+			opts.IncludeItemTypes = defaultSearchTypes(folder)
 		}
 
 		if in.Person != "" {
@@ -194,7 +215,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 	type recentOut struct {
 		Items []itemSummary `json:"items" jsonschema:"newest additions first"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_recent",
 		Description: "Recently added items, newest first, default last 60 days.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in recentIn) (*mcp.CallToolResult, recentOut, error) {
@@ -245,7 +266,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 	type genresOut struct {
 		Genres []string `json:"genres"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_genres",
 		Description: "Genres present in the library.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in genresIn) (*mcp.CallToolResult, genresOut, error) {
@@ -277,7 +298,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 	type peopleOut struct {
 		People []personRow `json:"people" jsonschema:"use library_search with person to list their items"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_people",
 		Description: "Search actors, directors, and other people known to the library.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in peopleIn) (*mcp.CallToolResult, peopleOut, error) {
@@ -302,7 +323,7 @@ func registerLibraryTools(server *mcp.Server, client *embyfin.Client) {
 	type scanOut struct {
 		Started bool `json:"started"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "library_scan",
 		Description: "Trigger a scan of all libraries so new files are picked up. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, scanOut, error) {

@@ -97,6 +97,11 @@ func (c *Client) NextUp(ctx context.Context, userID string, limit int) ([]Item, 
 	q := url.Values{}
 	q.Set("UserId", userID)
 	q.Set("Fields", FieldsDefault)
+	if c.backend == Emby {
+		// Emby 4.10's default NextUp mode returns nothing for API-key callers; the legacy
+		// per-series "next unwatched episode" mode is what we want anyway.
+		q.Set("LegacyNextUp", "true")
+	}
 	if limit > 0 {
 		q.Set("Limit", strconv.Itoa(limit))
 	}
@@ -119,6 +124,9 @@ func (c *Client) Resume(ctx context.Context, userID string, limit int) ([]Item, 
 	}
 	q.Set("Fields", FieldsDefault)
 	q.Set("EnableUserData", "true")
+	// without these Emby answers with an empty list even when items are in progress
+	q.Set("Recursive", "true")
+	q.Set("MediaTypes", "Video")
 	if limit > 0 {
 		q.Set("Limit", strconv.Itoa(limit))
 	}

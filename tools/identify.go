@@ -27,7 +27,7 @@ func registerIdentifyTools(server *mcp.Server, client *embyfin.Client) {
 		Item       string      `json:"item"`
 		Candidates []candidate `json:"candidates" jsonschema:"suggestions only; nothing is changed until item_identify_apply"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_identify",
 		Description: "Ask the metadata providers for candidate matches for an item (suggestions only — verify year and runtime before applying with item_identify_apply).",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in identifyIn) (*mcp.CallToolResult, identifyOut, error) {
@@ -41,7 +41,7 @@ func registerIdentifyTools(server *mcp.Server, client *embyfin.Client) {
 			return nil, identifyOut{}, err
 		}
 
-		out := identifyOut{Item: it.Name}
+		out := identifyOut{Item: it.Name, Candidates: []candidate{}}
 		for i, r := range results {
 			overview := r.Overview
 			if len(overview) > 200 {
@@ -72,7 +72,7 @@ func registerIdentifyTools(server *mcp.Server, client *embyfin.Client) {
 		Applied             string            `json:"applied"`
 		MetadataProviderIDs map[string]string `json:"metadata_provider_ids,omitempty"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_identify_apply",
 		Description: "Apply a candidate from item_identify: rewrites the item's identity and re-fetches its metadata and images. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in applyIn) (*mcp.CallToolResult, applyOut, error) {

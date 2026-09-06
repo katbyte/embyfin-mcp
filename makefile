@@ -2,7 +2,8 @@
 SHELL := /bin/bash
 
 GIT_COMMIT=$(shell git describe --always --long --dirty)
-GIT_VERSION=$(shell git describe --tags --dirty 2>/dev/null | sed 's/-\([0-9]*\)-g/+\1@g/' || echo dev)
+# falls back to dev when there is no tag yet (the || must wrap git, not sed, or it never fires)
+GIT_VERSION=$(shell (git describe --tags --dirty 2>/dev/null || echo dev) | sed 's/-\([0-9]*\)-g/+\1@g/')
 TEST_TIMEOUT?=15m
 
 # dev tool binaries are built into .tools/bin (gitignored) from the versions pinned in

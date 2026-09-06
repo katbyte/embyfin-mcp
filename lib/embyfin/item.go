@@ -239,8 +239,10 @@ func (c *Client) ItemsByProviderID(ctx context.Context, provider, id string) ([]
 }
 
 // Similar returns items the server considers similar to the given one.
-func (c *Client) Similar(ctx context.Context, id string, limit int) ([]Item, error) {
+// userID is required: Emby returns HTTP 500 for /Similar without one.
+func (c *Client) Similar(ctx context.Context, id, userID string, limit int) ([]Item, error) {
 	q := url.Values{}
+	q.Set("UserId", userID)
 	q.Set("Fields", FieldsDefault)
 	if limit > 0 {
 		q.Set("Limit", strconv.Itoa(limit))

@@ -26,7 +26,7 @@ func registerArtworkTools(server *mcp.Server, client *embyfin.Client) {
 		Current    []embyfin.ImageInfo `json:"current"    jsonschema:"images the item has now"`
 		Candidates []remoteImageOut    `json:"candidates" jsonschema:"remote provider images that could replace them"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_artwork",
 		Description: "An item's current images plus remote provider candidates (posters, backdrops) that could replace them.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in artworkIn) (*mcp.CallToolResult, artworkOut, error) {
@@ -76,7 +76,7 @@ func registerArtworkTools(server *mcp.Server, client *embyfin.Client) {
 	type setOut struct {
 		Set string `json:"set"`
 	}
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, &mcp.Tool{
 		Name:        "item_artwork_set",
 		Description: "Apply a remote provider image (from item_artwork) as the item's poster/backdrop/etc. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setIn) (*mcp.CallToolResult, setOut, error) {

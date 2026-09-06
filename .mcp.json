@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "embyfin": {
+      "command": "embyfin-mcp",
+      "args": ["serve"]
+    }
+  }
+}

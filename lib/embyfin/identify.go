@@ -25,7 +25,8 @@ type remoteSearchBody struct {
 
 // RemoteSearch asks the metadata providers for candidate matches for an item.
 // kind is "Movie" or "Series". name/year are optional overrides; when empty
-// the server searches with the item's current metadata.
+// the item's current name and year are used (Emby returns nothing for an
+// empty SearchInfo, it does not fall back to the item itself).
 func (c *Client) RemoteSearch(ctx context.Context, kind, itemID, name string, year int) ([]RemoteSearchResult, error) {
 	switch strings.ToLower(kind) {
 	case "movie":
@@ -34,6 +35,19 @@ func (c *Client) RemoteSearch(ctx context.Context, kind, itemID, name string, ye
 		kind = "Series"
 	default:
 		return nil, fmt.Errorf("unsupported identify kind %q (want movie or series)", kind)
+	}
+
+	if name == "" || year <= 0 {
+		it, err := c.ItemByID(ctx, itemID)
+		if err != nil {
+			return nil, err
+		}
+		if name == "" {
+			name = it.Name
+		}
+		if year <= 0 {
+			year = it.ProductionYear
+		}
 	}
 
 	info := map[string]any{}
