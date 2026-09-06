@@ -17,6 +17,8 @@ type FlagData struct {
 	Server       string `mapstructure:"server"`
 	Token        string `mapstructure:"token"`
 	EnableDelete bool   `mapstructure:"enable-delete"`
+	Listen       string `mapstructure:"listen"`
+	AuthToken    string `mapstructure:"auth-token"`
 }
 
 func configureFlags(root *cobra.Command) error {
@@ -26,6 +28,8 @@ func configureFlags(root *cobra.Command) error {
 	pflags.StringP("server", "s", "", "the media server's url, e.g. http://nas:8096")
 	pflags.StringP("token", "t", "", "the media server API key (consider exporting to EMBYFIN_TOKEN instead)")
 	pflags.Bool("enable-delete", false, "register the item_delete tool, which permanently removes media files")
+	pflags.String("listen", "", "serve MCP over HTTP on this address (e.g. :8080) instead of stdio")
+	pflags.String("auth-token", "", "bearer token required on the HTTP endpoint (consider exporting to EMBYFIN_AUTH_TOKEN instead)")
 
 	// binding map for viper/pflag -> env
 	m := map[string]string{ //nolint:gosec // G101: these are env var names, not credentials
@@ -33,6 +37,8 @@ func configureFlags(root *cobra.Command) error {
 		"server":        "EMBYFIN_SERVER",
 		"token":         "EMBYFIN_TOKEN",
 		"enable-delete": "EMBYFIN_ENABLE_DELETE",
+		"listen":        "EMBYFIN_LISTEN",
+		"auth-token":    "EMBYFIN_AUTH_TOKEN",
 	}
 
 	for name, env := range m {

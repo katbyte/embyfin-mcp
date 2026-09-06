@@ -78,6 +78,10 @@ install: ## Install embyfin-mcp into GOPATH/bin with version info from git
 	@echo "==> installing..."
 	go install -ldflags "-X github.com/katbyte/embyfin-mcp/lib/version.GitCommit=${GIT_COMMIT} -X github.com/katbyte/embyfin-mcp/lib/version.Version=${GIT_VERSION}" .
 
+docker: ## Build the embyfin-mcp container image with version info from git
+	@echo "==> building docker image..."
+	docker build --build-arg VERSION=${GIT_VERSION} --build-arg COMMIT=${GIT_COMMIT} -t embyfin-mcp .
+
 tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(SHELLCHECK) $(YAMLLINT) ## Install all pinned dev tools into .tools/bin
 
 ##@ Formatting
@@ -143,4 +147,4 @@ test: build ## Run tests
 
 check-all: build test lint actionlint yamllint shellcheck depscheck ## Run build + test + all linters + depscheck
 
-.PHONY: default all help fmt goimports build lint lint-fix actionlint yamllint shellcheck depscheck check-all install tools test
+.PHONY: default all help fmt goimports build docker lint lint-fix actionlint yamllint shellcheck depscheck check-all install tools test

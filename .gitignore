@@ -5,3 +5,4 @@ dist/
 embyfin-mcp
 .tools/bin/
 .tools/venv/
+.env

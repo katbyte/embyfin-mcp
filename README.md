@@ -30,6 +30,8 @@ All options can be passed as command-line flags, environment variables, or via a
 | `EMBYFIN_SERVER` | `--server`, `-s` | media server URL, e.g. `http://nas:8096` |
 | `EMBYFIN_TOKEN` | `--token`, `-t` | API key (server dashboard → Advanced → API Keys) |
 | `EMBYFIN_LOG` | | log level (`WARN` default; `DEBUG`, `TRACE`, ...) |
+| `EMBYFIN_LISTEN` | `--listen` | serve MCP over HTTP on this address (e.g. `:8080`) instead of stdio |
+| `EMBYFIN_AUTH_TOKEN` | `--auth-token` | bearer token required on the HTTP endpoint |
 
 ### Configuration File
 
@@ -69,6 +71,35 @@ embyfin-mcp info
   }
 }
 ```
+
+### Run as a service (HTTP transport)
+
+`serve --listen :8080` serves the MCP Streamable HTTP transport at `/mcp` (plus `GET /healthz`)
+instead of stdio. Set `EMBYFIN_AUTH_TOKEN` so clients must send `Authorization: Bearer <token>`;
+without it anyone who can reach the port can use every tool. Register it from any machine:
+
+```bash
+claude mcp add --transport http embyfin http://nas:8080/mcp \
+  --header "Authorization: Bearer $EMBYFIN_AUTH_TOKEN"
+```
+
+### Docker
+
+Releases publish a multi-arch (amd64, arm64) image to `ghcr.io/katbyte/embyfin-mcp`, tagged
+`vX.Y.Z`, `vX.Y` and `latest`. `docker-compose.yml` is the default always-on deployment: it runs
+that image and reads secrets from a gitignored `.env` (copy `.env.example`). Adjust
+`EMBYFIN_SERVER`, `EMBYFIN_BACKEND` and `TZ` in the compose file, then:
+
+```bash
+cp .env.example .env      # fill in EMBYFIN_TOKEN and EMBYFIN_AUTH_TOKEN
+docker compose up -d
+```
+
+`make docker` builds the same image from source, tagged `embyfin-mcp`, with version info from
+git. The image is alpine-based (so `docker exec -it embyfin-mcp sh` works), runs as a non-root
+user and has a healthcheck against `/healthz`. The binary is the entrypoint, so `docker run --rm
+ghcr.io/katbyte/embyfin-mcp info` works as a connectivity check with the `EMBYFIN_*` variables
+passed via `-e`.
 
 ## MCP Tools
 

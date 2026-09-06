@@ -1,0 +1,35 @@
+# Default always-on deployment: runs the released image from ghcr.io and serves MCP over HTTP.
+# To run a local build instead: make docker, then set image: embyfin-mcp (or add build: .).
+# Secrets (EMBYFIN_TOKEN, EMBYFIN_AUTH_TOKEN) come from a gitignored .env next to this file,
+# see .env.example. Then register it in Claude Code:
+#   claude mcp add --transport http embyfin http://<host>:8080/mcp \
+#     --header "Authorization: Bearer <EMBYFIN_AUTH_TOKEN>"
+
+networks:
+  net:
+    name: net
+
+services:
+  embyfin-mcp:
+    image: ghcr.io/katbyte/embyfin-mcp:latest
+    container_name: embyfin-mcp
+    restart: always
+    logging:
+      options:
+        max-size: 100m
+        max-file: "1"
+    networks:
+      net:
+    dns:
+      - 1.1.1.1
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - "TZ=America/Vancouver"
+      - "EMBYFIN_BACKEND=emby"
+      - "EMBYFIN_SERVER=http://nas:8096"
+      - "EMBYFIN_LISTEN=:8080"
+      - "EMBYFIN_LOG=INFO"
+      # - "EMBYFIN_ENABLE_DELETE=true" # opt in to item_delete (permanently removes media files)

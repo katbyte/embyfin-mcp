@@ -10,6 +10,8 @@ on:
       - '**.go'
       - 'vendor/**'
       - '.github/workflows/**'
+      - 'Dockerfile'
+      - '.dockerignore'
 
 permissions:
   contents: read
@@ -23,3 +25,11 @@ jobs:
         with:
           go-version-file: ./.go-version
       - run: make build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --build-arg VERSION=ci --build-arg COMMIT="${GITHUB_SHA::7}" -t embyfin-mcp .
+      - name: smoke test the image
+        run: docker run --rm embyfin-mcp version

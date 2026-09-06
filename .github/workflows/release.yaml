@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  packages: write # ghcr.io image push
 
 jobs:
   goreleaser:
@@ -17,6 +18,15 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: ./.go-version
+      # dockers_v2 builds a multi-arch manifest with buildx and pushes it in one go, so it needs
+      # qemu for the non-native platform, a buildx builder, and a ghcr.io login before running
+      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           version: '~> v2'

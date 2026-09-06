@@ -1,0 +1,11 @@
+.git
+.github
+.idea
+.tools/bin
+.tools/venv
+dist
+docs
+embyfin-mcp
+*.md
+docker-compose.yml
+.env*

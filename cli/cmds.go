@@ -7,8 +7,6 @@ import (
 	"fmt"
 
 	"github.com/katbyte/embyfin-mcp/lib/version"
-	"github.com/katbyte/embyfin-mcp/tools"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,6 +23,9 @@ func ValidateParams(params []string) func(cmd *cobra.Command, args []string) err
 		return nil
 	}
 }
+
+// connectionParams are the flags every command that talks to the media server needs.
+var connectionParams = []string{"server", "token"}
 
 func Make() (*cobra.Command, error) {
 	root := &cobra.Command{
@@ -55,7 +56,7 @@ Complete documentation is available at https://github.com/katbyte/embyfin-mcp`,
 		Short:         "Check connectivity and print media server info",
 		Long:          `Connects to the configured media server and prints its name, version, and operating system.`,
 		Args:          cobra.NoArgs,
-		PreRunE:       ValidateParams([]string{"server", "token"}),
+		PreRunE:       ValidateParams(connectionParams),
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cmd.SilenceUsage = true
@@ -75,33 +76,7 @@ Complete documentation is available at https://github.com/katbyte/embyfin-mcp`,
 		},
 	})
 
-	root.AddCommand(&cobra.Command{
-		Use:           "serve",
-		Short:         "Run the MCP server over stdio",
-		Long:          `Runs the MCP server over stdio for AI clients such as Claude Code. Register it in .mcp.json with the EMBYFIN_* environment variables set.`,
-		Args:          cobra.NoArgs,
-		PreRunE:       ValidateParams([]string{"server", "token"}),
-		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			cmd.SilenceUsage = true
-
-			f := GetFlags()
-			client, err := f.NewClient()
-			if err != nil {
-				return err
-			}
-
-			server := mcp.NewServer(&mcp.Implementation{
-				Name:    "embyfin",
-				Title:   "Emby/Jellyfin Library Curator",
-				Version: version.Version,
-			}, nil)
-
-			tools.RegisterAll(server, client, tools.Options{EnableDelete: f.EnableDelete})
-
-			return server.Run(cmd.Context(), &mcp.StdioTransport{})
-		},
-	})
+	root.AddCommand(serveCmd())
 
 	if err := configureFlags(root); err != nil {
 		return nil, fmt.Errorf("unable to configure flags: %w", err)
