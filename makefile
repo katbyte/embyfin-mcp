@@ -73,11 +73,11 @@ help: ## Show this help
 ##@ Build
 build: ## Compile embyfin-mcp with version info from git
 	@echo "==> building..."
-	go build -ldflags "-X github.com/katbyte/embyfin-mcp/lib/version.GitCommit=${GIT_COMMIT} -X github.com/katbyte/embyfin-mcp/lib/version.Version=${GIT_VERSION}"
+	go build -ldflags "-X github.com/katbyte/go-kt/version.GitCommit=${GIT_COMMIT} -X github.com/katbyte/go-kt/version.Version=${GIT_VERSION}"
 
 install: ## Install embyfin-mcp into GOPATH/bin with version info from git
 	@echo "==> installing..."
-	go install -ldflags "-X github.com/katbyte/embyfin-mcp/lib/version.GitCommit=${GIT_COMMIT} -X github.com/katbyte/embyfin-mcp/lib/version.Version=${GIT_VERSION}" .
+	go install -ldflags "-X github.com/katbyte/go-kt/version.GitCommit=${GIT_COMMIT} -X github.com/katbyte/go-kt/version.Version=${GIT_VERSION}" .
 
 docker: ## Build the embyfin-mcp container image with version info from git
 	@echo "==> building docker image..."

@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/katbyte/embyfin-mcp/lib/clog"
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/go-kt/clog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

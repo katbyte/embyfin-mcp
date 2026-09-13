@@ -6,10 +6,13 @@ import (
 
 	c "github.com/gookit/color"
 	"github.com/katbyte/embyfin-mcp/cli"
-	"github.com/katbyte/embyfin-mcp/lib/clog"
+	"github.com/katbyte/go-kt/clog"
 )
 
 func main() {
+	// the log level comes from EMBYFIN_LOG; read it once here, before anything logs
+	clog.SetLevelFromEnv("EMBYFIN_LOG")
+
 	cmd, err := cli.Make()
 	if err != nil {
 		clog.Log.Error(c.Sprintf("<red>embyfin-mcp: building cmd</> %v", err))

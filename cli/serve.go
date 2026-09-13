@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/clog"
-	"github.com/katbyte/embyfin-mcp/lib/version"
 	"github.com/katbyte/embyfin-mcp/tools"
+	"github.com/katbyte/go-kt/clog"
+	"github.com/katbyte/go-kt/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )
