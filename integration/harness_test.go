@@ -273,7 +273,7 @@ func startProxy() error {
 	}
 	proxy = p
 
-	return nil
+	return checkProxyReachable(port)
 }
 
 func stopProxy() {
@@ -466,4 +466,28 @@ func containerAddresses() []string {
 	}
 
 	return strings.Fields(string(out))
+}
+
+// checkProxyReachable proves, from inside the container, that the media server
+// can reach the provider proxy. A server that cannot fails every provider
+// lookup with a timeout of its own, which reads as dozens of unrelated
+// assertion failures rather than the one plumbing problem it is - so say it
+// plainly, once, before the suite runs.
+func checkProxyReachable(port int) error {
+	name := os.Getenv("EMBYFIN_TEST_CONTAINER")
+	if name == "" {
+		return nil // not a container this suite started
+	}
+	// exit 3 says the image has no probe tool, which is not a failure
+	script := fmt.Sprintf("command -v nc >/dev/null || exit 3; nc -z -w 5 host.docker.internal %d", port)
+	out, err := exec.Command("docker", "exec", name, "sh", "-c", script).CombinedOutput()
+	switch {
+	case err == nil:
+		return nil
+	case strings.Contains(err.Error(), "exit status 3"):
+		return nil
+	default:
+		return fmt.Errorf("%s cannot reach the provider proxy on host.docker.internal:%d, so every provider lookup will time out: %w: %s",
+			name, port, err, out)
+	}
 }
