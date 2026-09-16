@@ -459,6 +459,19 @@ wait_for() {
   return 1
 }
 
+# logs prints what the server itself wrote. Emby logs to
+# /config/logs/embyserver.txt rather than stdout, so `docker logs` shows
+# almost nothing of what went wrong; Jellyfin writes /config/log/*.log.
+logs() {
+  echo "==> docker logs ${NAME}" >&2
+  docker logs "$NAME" 2>&1 | tail -40 >&2
+  for f in "${DATA}"/config/logs/*.txt "${DATA}"/config/log/*.log; do
+    [ -f "$f" ] || continue
+    echo "==> ${f}" >&2
+    tail -100 "$f" >&2
+  done
+}
+
 up() {
   command -v ffmpeg >/dev/null || { echo "ffmpeg is required to generate fixtures" >&2; exit 1; }
   command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
@@ -561,5 +574,6 @@ case "${1:-up}" in
   up) up ;;
   down) down ;;
   fixtures) fixtures ;;  # generate the media tree only, for inspecting the layout
-  *) echo "usage: EMBYFIN_TEST_BACKEND=emby|jellyfin $0 [up|down|fixtures]" >&2; exit 1 ;;
+  logs) logs ;;          # what the server wrote about itself, for a failing run
+  *) echo "usage: EMBYFIN_TEST_BACKEND=emby|jellyfin $0 [up|down|fixtures|logs]" >&2; exit 1 ;;
 esac

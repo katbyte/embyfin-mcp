@@ -210,11 +210,6 @@ func testMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "provider proxy:", err)
 		os.Exit(1)
 	}
-	if err := restartServer(); err != nil {
-		stopProxy()
-		fmt.Fprintln(os.Stderr, "restarting the media server:", err)
-		os.Exit(1)
-	}
 	if err := start(); err != nil {
 		stopProxy()
 		fmt.Fprintln(os.Stderr, "acceptance setup:", err)
@@ -344,6 +339,8 @@ func startProxy() error {
 		// a provider's login answers with a bearer token for the media
 		// server's own account; replay never needs one
 		RedactBodyFields: []string{"token"},
+		// the media server reaching itself is not provider traffic
+		IgnoreHosts: containerAddresses(),
 	}
 	if ca := os.Getenv("EMBYFIN_TEST_PROXY_CA"); ca != "" {
 		opts.CACert, opts.CAKey = filepath.Join(ca, "ca.pem"), filepath.Join(ca, "ca.key")
@@ -765,39 +762,20 @@ func mediaWrite(t *testing.T, path string, data []byte) {
 	}
 }
 
-// restartServer restarts the media server container, so that it comes up with
-// the provider proxy already listening. scripts/testenv.sh starts the
-// container before this process exists, so the server's own startup calls -
-// its catalogue, its providers - reach a port with nothing behind it. Emby
-// remembers a provider that did not answer ("due to a previous timeout") and
-// stops asking for the rest of the run, which leaves every provider lookup in
-// the suite empty on a machine where a closed port drops rather than refuses:
-// green on a laptop, red in CI. A restart is the cure we already knew about
-// from recording, and costs a few seconds.
-func restartServer() error {
+// containerAddresses are the addresses the media server reaches itself on:
+// Emby pings its own container address at startup, which goes through the
+// proxy because NO_PROXY is set before docker hands the container an address.
+// The proxy answers those without a cassette (Options.IgnoreHosts).
+func containerAddresses() []string {
 	name := os.Getenv("EMBYFIN_TEST_CONTAINER")
 	if name == "" {
-		return nil // not a container this suite started
+		return nil
 	}
-	if out, err := exec.Command("docker", "restart", name).CombinedOutput(); err != nil {
-		return fmt.Errorf("docker restart %s: %w: %s", name, err, out)
-	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	for range 90 {
-		req, err := http.NewRequest(http.MethodGet, os.Getenv("EMBYFIN_SERVER")+"/System/Info/Public", nil)
-		if err != nil {
-			return err
-		}
-		resp, err := client.Do(req)
-		if err == nil {
-			_ = resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return nil
-			}
-		}
-		time.Sleep(2 * time.Second)
+	out, err := exec.Command("docker", "inspect", "-f",
+		"{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}{{.Config.Hostname}}", name).Output()
+	if err != nil {
+		return nil // not our container to ask about
 	}
 
-	return fmt.Errorf("%s did not answer after a restart", name)
+	return strings.Fields(string(out))
 }

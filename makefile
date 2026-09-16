@@ -197,7 +197,7 @@ define live
 			EMBYFIN_TEST_DATA=$${HOME}/.cache/embyfin-mcp/testenv/$(1)-$(2) $(3); \
 		[ "$(1)" = "integration" ] && export EMBYFIN_TEST_PORT=$$(( $$( [ $(2) = emby ] && echo 18097 || echo 18096 ) + 100 )) EMBYFIN_TEST_PROXY_PORT=18180 || true; \
 		scripts/testenv.sh up | grep '^export' > "$$env"; \
-		trap 'st=$$?; [ $$st -eq 0 ] || docker logs embyfin-mcp-$(1)-$(2) 2>&1 | tail -60; \
+		trap 'st=$$?; [ $$st -eq 0 ] || scripts/testenv.sh logs; \
 			scripts/testenv.sh down; rm -f '"$$env"'; exit $$st' EXIT; \
 		. ./"$$env"; \
 		go test -tags integration -count=1 ./$(1)/... -timeout ${TEST_TIMEOUT} -v $(4)

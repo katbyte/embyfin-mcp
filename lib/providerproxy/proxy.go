@@ -66,6 +66,7 @@ type Proxy struct {
 	mode       Mode
 	redact     []string
 	redactBody []string
+	ignore     []string
 	store      *store
 	listener   net.Listener
 	srv        *http.Server
@@ -114,6 +115,12 @@ type Options struct {
 	// repository must not carry; replay needs none of it, because the proxy
 	// answers the calls that token would authorise.
 	RedactBodyFields []string
+	// IgnoreHosts are hosts this proxy answers 204 for and never records: the
+	// media server talking to itself. Emby pings its own container address on
+	// startup, which NO_PROXY cannot exclude because the address is only
+	// known once the container is running, and which is no part of what these
+	// cassettes are about.
+	IgnoreHosts []string
 }
 
 // New starts a proxy and returns it. Close stops it and, in Record mode,
@@ -143,6 +150,7 @@ func New(opts Options) (*Proxy, error) {
 		mode:       opts.Mode,
 		redact:     opts.RedactQuery,
 		redactBody: opts.RedactBodyFields,
+		ignore:     opts.IgnoreHosts,
 		store:      st,
 		logger:     opts.Logger,
 		ca:         ca,
@@ -286,6 +294,11 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 		defer func() { _ = r.Body.Close() }()
 	}
 
+	if p.ignored(host) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	path := r.URL.Path
 	if path == "" {
 		path = "/"
@@ -323,6 +336,22 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 	}
 	p.logger.Printf("recorded %s -> %d", k, i.Status)
 	writeInteraction(w, i)
+}
+
+// ignored reports whether host is one the proxy answers for without a
+// cassette: the media server reaching itself, which is not provider traffic.
+func (p *Proxy) ignored(host string) bool {
+	name, _, err := net.SplitHostPort(host)
+	if err != nil {
+		name = host
+	}
+	for _, h := range p.ignore {
+		if strings.EqualFold(h, host) || strings.EqualFold(h, name) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // redactQuery strips the RedactQuery parameters from the request, so they are
