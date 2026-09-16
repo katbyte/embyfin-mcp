@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-09-15)
+
+No code changes. 0.1.0 published its binaries and image but not the Homebrew
+formula, because the tap token was not set; this release runs that path with
+the token in place.
+
 ## 0.1.0 (2026-09-15)
 
 Initial release.
