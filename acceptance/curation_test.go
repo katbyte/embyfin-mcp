@@ -429,6 +429,20 @@ func TestAuditMissingEpisodes(t *testing.T) {
 	if n := num(t, out["items_scanned"], "items_scanned"); n != 5 {
 		t.Errorf("scanned %d episodes, want 5", n)
 	}
+	// A2: the sweep says how much of the answer it could know. Neither server
+	// records a series' full run out of the box, so a series it does not list
+	// is not a series proved complete, and the answer has to say so.
+	known, ok := out["runs_known"].(bool)
+	if !ok {
+		t.Fatalf("runs_known is %T, want a bool", out["runs_known"])
+	}
+	if known == (str(out["note"]) != "") {
+		t.Errorf("runs_known = %v with note %q: the note belongs with the weaker answer", known, out["note"])
+	}
+	if !known && !strings.Contains(str(out["note"]), "not known to be complete") {
+		t.Errorf("the note does not warn that absence is not completeness: %q", out["note"])
+	}
+
 	// the clean shows hold their episodes from the first without gaps
 	out = call(t, "audit_missing_episodes", map[string]any{"library": "Shows"})
 	for _, f := range rows(t, out["findings"], "findings") {

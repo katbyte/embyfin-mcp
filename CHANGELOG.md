@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+Comparing a download folder against a big TV library: reading every episode at once, asking whether one exists, and getting a straight answer about what a series is missing.
+
+- **`show_missing` works on Emby 4.10 again.** It used to answer `{"missing": []}` for every series, which reads as "nothing is missing". It now reads the run from TMDB when the server has no record of it (set `EMBYFIN_TMDB_KEY`), and when it still cannot tell, it says so: `supported` is false and `missing` is `null`, never an empty list.
+- **`library_episodes`**: every episode in a library in one paged call, with resolution, codec, bitrate, size and runtime on each row. Previously this meant one `show_episodes` call per series.
+- **`show_episodes_exist`**: ask whether a series has particular episodes without listing the whole series. A file holding two episodes counts for both.
+- **`show_resolve`**: turn a release name into a library series, scored, so a client can refuse a weak match instead of guessing. Handles scene names and FileBot names.
+- `show_episodes` rows now carry the same quality numbers, and take a season number as well as a season id.
+- `audit_missing_episodes` gained `runs_known`, for the same reason: when the server has no record of a series' run, a series it does not list is not a series proved complete.
+
 ## 0.1.1 (2026-09-15)
 
 No code changes. 0.1.0 published its binaries and image but not the Homebrew

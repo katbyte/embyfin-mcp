@@ -40,8 +40,9 @@ type Options struct {
 	Allow []string
 	// Deny removes matching tools from whatever Allow left.
 	Deny []string
-	// TMDBKey enables audits that need the metadata provider's own facts
-	// (audit_runtime for movies). Empty disables them.
+	// TMDBKey enables the tools that need the metadata provider's own facts:
+	// audit_runtime for movies, and show_missing's fallback for a server that
+	// keeps no record of a series' run. Empty disables them.
 	TMDBKey string
 	// ProviderTransport, when set, carries the calls embyfin-mcp itself
 	// makes to metadata providers (TMDB). The tests point it at a
@@ -80,8 +81,8 @@ var Toolsets = map[string][]string{
 		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "item_batch_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
-		"item_similar", "show_seasons", "show_episodes", "show_missing",
-		"library_recent", "library_genres", "library_filters", "library_people", "person_get",
+		"item_similar", "show_seasons", "show_episodes", "show_episodes_exist", "show_missing", "show_resolve",
+		"library_episodes", "library_recent", "library_genres", "library_filters", "library_people", "person_get",
 	},
 	// who watched what, and keeping watch state right: the users, their
 	// history, what is next and in progress, favourites, played flags
@@ -230,6 +231,7 @@ func RegisterAll(server *mcp.Server, client *embyfin.Client, opts Options) ([]st
 func queueTools(r *registry) {
 	registerServerTools(r)
 	registerLibraryTools(r)
+	registerEpisodeTools(r)
 	registerAuditTools(r)
 	registerSpellingTools(r)
 	registerMediaAudits(r)
@@ -239,6 +241,7 @@ func queueTools(r *registry) {
 	registerArtworkTools(r)
 	registerSubtitleTools(r)
 	registerShowTools(r)
+	registerResolveTools(r)
 	registerUserTools(r)
 	registerUserDetailTools(r)
 	registerPersonTools(r)
