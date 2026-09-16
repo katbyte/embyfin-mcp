@@ -1,0 +1,33 @@
+{
+  "host": "raw.github.com",
+  "interactions": [
+    {
+      "key": "GET raw.github.com/MediaBrowser/MediaBrowser.Resources/master/images/imagesbyname/studioposters.txt",
+      "method": "GET",
+      "host": "raw.github.com",
+      "path": "/MediaBrowser/MediaBrowser.Resources/master/images/imagesbyname/studioposters.txt",
+      "status": 301,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Location": "https://raw.githubusercontent.com/MediaBrowser/MediaBrowser.Resources/master/images/imagesbyname/studioposters.txt",
+        "Vary": "Accept-Encoding",
+        "Via": "1.1 varnish",
+        "X-Fastly-Request-Id": "e40deacb4faf3a170f4a2b9d07ff50fd2b6b0a07"
+      }
+    },
+    {
+      "key": "GET raw.github.com/MediaBrowser/MediaBrowser.Resources/master/images/imagesbyname/studiothumbs.txt",
+      "method": "GET",
+      "host": "raw.github.com",
+      "path": "/MediaBrowser/MediaBrowser.Resources/master/images/imagesbyname/studiothumbs.txt",
+      "status": 301,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Location": "https://raw.githubusercontent.com/MediaBrowser/MediaBrowser.Resources/master/images/imagesbyname/studiothumbs.txt",
+        "Vary": "Accept-Encoding",
+        "Via": "1.1 varnish",
+        "X-Fastly-Request-Id": "131c71d2de9da158706c3bdacd1c7e748ceefc1f"
+      }
+    }
+  ]
+}

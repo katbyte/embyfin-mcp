@@ -1,0 +1,629 @@
+{
+  "Name": "Dlna",
+  "Tag": "DlnaService",
+  "Operations": [
+    {
+      "Name": "DeleteDlnaProfilesById",
+      "OperationId": "deleteDlnaProfilesById",
+      "Method": "DELETE",
+      "Path": "/Dlna/Profiles/{Id}",
+      "Description": "Deletes a profile",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetDlnaProfileInfos",
+      "OperationId": "getDlnaProfileinfos",
+      "Method": "GET",
+      "Path": "/Dlna/ProfileInfos",
+      "Description": "Gets a list of profiles",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfilesDlnaProfile"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetDlnaProfilesById",
+      "OperationId": "getDlnaProfilesById",
+      "Method": "GET",
+      "Path": "/Dlna/Profiles/{Id}",
+      "Description": "Gets a single profile",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DlnaProfilesDlnaProfile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetDlnaProfilesDefault",
+      "OperationId": "getDlnaProfilesDefault",
+      "Method": "GET",
+      "Path": "/Dlna/Profiles/Default",
+      "Description": "Gets the default profile",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DlnaProfilesDlnaProfile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostDlnaProfiles",
+      "OperationId": "postDlnaProfiles",
+      "Method": "POST",
+      "Path": "/Dlna/Profiles",
+      "Description": "Creates a profile",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DlnaProfilesDlnaProfile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostDlnaProfilesById",
+      "OperationId": "postDlnaProfilesById",
+      "Method": "POST",
+      "Path": "/Dlna/Profiles/{Id}",
+      "Description": "Updates a profile",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DlnaProfilesDlnaProfile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DlnaProfilesDeviceIdentification",
+      "SchemaName": "Dlna.Profiles.DeviceIdentification",
+      "Fields": [
+        {
+          "Name": "DeviceDescription",
+          "JsonName": "DeviceDescription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FriendlyName",
+          "JsonName": "FriendlyName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Headers",
+          "JsonName": "Headers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DlnaProfilesHttpHeaderInfo"
+            }
+          }
+        },
+        {
+          "Name": "Manufacturer",
+          "JsonName": "Manufacturer",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ManufacturerUrl",
+          "JsonName": "ManufacturerUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ModelDescription",
+          "JsonName": "ModelDescription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ModelName",
+          "JsonName": "ModelName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ModelNumber",
+          "JsonName": "ModelNumber",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ModelUrl",
+          "JsonName": "ModelUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SerialNumber",
+          "JsonName": "SerialNumber",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DlnaProfilesDlnaProfile",
+      "SchemaName": "Dlna.Profiles.DlnaProfile",
+      "Fields": [
+        {
+          "Name": "AlbumArtPn",
+          "JsonName": "AlbumArtPn",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CodecProfiles",
+          "JsonName": "CodecProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CodecProfile"
+            }
+          }
+        },
+        {
+          "Name": "ContainerProfiles",
+          "JsonName": "ContainerProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ContainerProfile"
+            }
+          }
+        },
+        {
+          "Name": "DeclaredFeatures",
+          "JsonName": "DeclaredFeatures",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DirectPlayProfiles",
+          "JsonName": "DirectPlayProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DirectPlayProfile"
+            }
+          }
+        },
+        {
+          "Name": "EnableAlbumArtInDidl",
+          "JsonName": "EnableAlbumArtInDidl",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSingleAlbumArtLimit",
+          "JsonName": "EnableSingleAlbumArtLimit",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSingleSubtitleLimit",
+          "JsonName": "EnableSingleSubtitleLimit",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "FriendlyName",
+          "JsonName": "FriendlyName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Identification",
+          "JsonName": "Identification",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfilesDeviceIdentification"
+          }
+        },
+        {
+          "Name": "IgnoreTranscodeByteRangeRequests",
+          "JsonName": "IgnoreTranscodeByteRangeRequests",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Manufacturer",
+          "JsonName": "Manufacturer",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ManufacturerUrl",
+          "JsonName": "ManufacturerUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxAlbumArtHeight",
+          "JsonName": "MaxAlbumArtHeight",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxAlbumArtWidth",
+          "JsonName": "MaxAlbumArtWidth",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxIconHeight",
+          "JsonName": "MaxIconHeight",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxIconWidth",
+          "JsonName": "MaxIconWidth",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStaticMusicBitrate",
+          "JsonName": "MaxStaticMusicBitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStreamingBitrate",
+          "JsonName": "MaxStreamingBitrate",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ModelDescription",
+          "JsonName": "ModelDescription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ModelName",
+          "JsonName": "ModelName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ModelNumber",
+          "JsonName": "ModelNumber",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ModelUrl",
+          "JsonName": "ModelUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MusicStreamingTranscodingBitrate",
+          "JsonName": "MusicStreamingTranscodingBitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProtocolInfo",
+          "JsonName": "ProtocolInfo",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProtocolInfoDetection",
+          "JsonName": "ProtocolInfoDetection",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfilesProtocolInfoDetection"
+          }
+        },
+        {
+          "Name": "RequiresPlainFolders",
+          "JsonName": "RequiresPlainFolders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RequiresPlainVideoItems",
+          "JsonName": "RequiresPlainVideoItems",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ResponseProfiles",
+          "JsonName": "ResponseProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ResponseProfile"
+            }
+          }
+        },
+        {
+          "Name": "SerialNumber",
+          "JsonName": "SerialNumber",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SubtitleProfiles",
+          "JsonName": "SubtitleProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SubtitleProfile"
+            }
+          }
+        },
+        {
+          "Name": "SupportedMediaTypes",
+          "JsonName": "SupportedMediaTypes",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportsSamsungBookmark",
+          "JsonName": "SupportsSamsungBookmark",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "TimelineOffsetSeconds",
+          "JsonName": "TimelineOffsetSeconds",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TranscodingProfiles",
+          "JsonName": "TranscodingProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TranscodingProfile"
+            }
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfilesDeviceProfileType"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DlnaProfilesHttpHeaderInfo",
+      "SchemaName": "Dlna.Profiles.HttpHeaderInfo",
+      "Fields": [
+        {
+          "Name": "Match",
+          "JsonName": "Match",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfilesHeaderMatchType"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Value",
+          "JsonName": "Value",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DlnaProfilesProtocolInfoDetection",
+      "SchemaName": "Dlna.Profiles.ProtocolInfoDetection",
+      "Fields": [
+        {
+          "Name": "EnabledForAudio",
+          "JsonName": "EnabledForAudio",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnabledForPhotos",
+          "JsonName": "EnabledForPhotos",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnabledForVideo",
+          "JsonName": "EnabledForVideo",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "DlnaProfilesDeviceProfileType",
+      "SchemaName": "Dlna.Profiles.DeviceProfileType",
+      "Values": [
+        {
+          "Name": "DlnaProfilesDeviceProfileTypeSystem",
+          "Value": "System"
+        },
+        {
+          "Name": "DlnaProfilesDeviceProfileTypeUser",
+          "Value": "User"
+        }
+      ]
+    },
+    {
+      "Name": "DlnaProfilesHeaderMatchType",
+      "SchemaName": "Dlna.Profiles.HeaderMatchType",
+      "Values": [
+        {
+          "Name": "DlnaProfilesHeaderMatchTypeEquals",
+          "Value": "Equals"
+        },
+        {
+          "Name": "DlnaProfilesHeaderMatchTypeRegex",
+          "Value": "Regex"
+        },
+        {
+          "Name": "DlnaProfilesHeaderMatchTypeSubstring",
+          "Value": "Substring"
+        }
+      ]
+    }
+  ]
+}

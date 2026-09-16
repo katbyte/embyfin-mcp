@@ -1,0 +1,765 @@
+{
+  "Name": "MediaInfo",
+  "Tag": "MediaInfo",
+  "Operations": [
+    {
+      "Name": "CloseLiveStream",
+      "OperationId": "CloseLiveStream",
+      "Method": "POST",
+      "Path": "/LiveStreams/Close",
+      "Description": "Closes a media source.",
+      "Options": [
+        {
+          "Name": "liveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Description": "The livestream id.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetBitrateTestBytes",
+      "OperationId": "GetBitrateTestBytes",
+      "Method": "GET",
+      "Path": "/Playback/BitrateTest",
+      "Description": "Tests the network with a request with the size of the bitrate.",
+      "Options": [
+        {
+          "Name": "size",
+          "Field": "Size",
+          "In": "Query",
+          "Description": "The bitrate. Defaults to 102400.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPlaybackInfo",
+      "OperationId": "GetPlaybackInfo",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/PlaybackInfo",
+      "Description": "Gets live playback media info for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackInfoResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPostedPlaybackInfo",
+      "OperationId": "GetPostedPlaybackInfo",
+      "Method": "POST",
+      "Path": "/Items/{itemId}/PlaybackInfo",
+      "Description": "Gets live playback media info for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "maxStreamingBitrate",
+          "Field": "MaxStreamingBitrate",
+          "In": "Query",
+          "Description": "The maximum streaming bitrate.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "startTimeTicks",
+          "Field": "StartTimeTicks",
+          "In": "Query",
+          "Description": "The start time in ticks.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "audioStreamIndex",
+          "Field": "AudioStreamIndex",
+          "In": "Query",
+          "Description": "The audio stream index.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "subtitleStreamIndex",
+          "Field": "SubtitleStreamIndex",
+          "In": "Query",
+          "Description": "The subtitle stream index.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxAudioChannels",
+          "Field": "MaxAudioChannels",
+          "In": "Query",
+          "Description": "The maximum number of audio channels.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media source id.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "liveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Description": "The livestream id.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "autoOpenLiveStream",
+          "Field": "AutoOpenLiveStream",
+          "In": "Query",
+          "Description": "Whether to auto open the livestream.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableDirectPlay",
+          "Field": "EnableDirectPlay",
+          "In": "Query",
+          "Description": "Whether to enable direct play. Default: true.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableDirectStream",
+          "Field": "EnableDirectStream",
+          "In": "Query",
+          "Description": "Whether to enable direct stream. Default: true.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableTranscoding",
+          "Field": "EnableTranscoding",
+          "In": "Query",
+          "Description": "Whether to enable transcoding. Default: true.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "allowVideoStreamCopy",
+          "Field": "AllowVideoStreamCopy",
+          "In": "Query",
+          "Description": "Whether to allow to copy the video stream. Default: true.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "allowAudioStreamCopy",
+          "Field": "AllowAudioStreamCopy",
+          "In": "Query",
+          "Description": "Whether to allow to copy the audio stream. Default: true.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackInfoDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackInfoResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "OpenLiveStream",
+      "OperationId": "OpenLiveStream",
+      "Method": "POST",
+      "Path": "/LiveStreams/Open",
+      "Description": "Opens a media source.",
+      "Options": [
+        {
+          "Name": "openToken",
+          "Field": "OpenToken",
+          "In": "Query",
+          "Description": "The open token.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "playSessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Description": "The play session id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "maxStreamingBitrate",
+          "Field": "MaxStreamingBitrate",
+          "In": "Query",
+          "Description": "The maximum streaming bitrate.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "startTimeTicks",
+          "Field": "StartTimeTicks",
+          "In": "Query",
+          "Description": "The start time in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "audioStreamIndex",
+          "Field": "AudioStreamIndex",
+          "In": "Query",
+          "Description": "The audio stream index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "subtitleStreamIndex",
+          "Field": "SubtitleStreamIndex",
+          "In": "Query",
+          "Description": "The subtitle stream index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxAudioChannels",
+          "Field": "MaxAudioChannels",
+          "In": "Query",
+          "Description": "The maximum number of audio channels.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "itemId",
+          "Field": "ItemId",
+          "In": "Query",
+          "Description": "The item id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableDirectPlay",
+          "Field": "EnableDirectPlay",
+          "In": "Query",
+          "Description": "Whether to enable direct play. Default: true.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableDirectStream",
+          "Field": "EnableDirectStream",
+          "In": "Query",
+          "Description": "Whether to enable direct stream. Default: true.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "alwaysBurnInSubtitleWhenTranscoding",
+          "Field": "AlwaysBurnInSubtitleWhenTranscoding",
+          "In": "Query",
+          "Description": "Always burn-in subtitle when transcoding.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "OpenLiveStreamDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LiveStreamResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "LiveStreamResponse",
+      "SchemaName": "LiveStreamResponse",
+      "Fields": [
+        {
+          "Name": "MediaSource",
+          "JsonName": "MediaSource",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaSourceInfo"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "OpenLiveStreamDto",
+      "SchemaName": "OpenLiveStreamDto",
+      "Description": "Open live stream dto.",
+      "Fields": [
+        {
+          "Name": "AlwaysBurnInSubtitleWhenTranscoding",
+          "JsonName": "AlwaysBurnInSubtitleWhenTranscoding",
+          "Description": "Gets or sets a value indicating whether always burn in subtitles when transcoding.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Description": "Gets or sets the audio stream index.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DeviceProfile",
+          "JsonName": "DeviceProfile",
+          "Description": "Gets or sets the device profile.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DeviceProfile"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DirectPlayProtocols",
+          "JsonName": "DirectPlayProtocols",
+          "Description": "Gets or sets the device play protocols.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaProtocol"
+            }
+          }
+        },
+        {
+          "Name": "EnableDirectPlay",
+          "JsonName": "EnableDirectPlay",
+          "Description": "Gets or sets a value indicating whether to enable direct play.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableDirectStream",
+          "JsonName": "EnableDirectStream",
+          "Description": "Gets or sets a value indicating whether to enable direct stream.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the item id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxAudioChannels",
+          "JsonName": "MaxAudioChannels",
+          "Description": "Gets or sets the max audio channels.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStreamingBitrate",
+          "JsonName": "MaxStreamingBitrate",
+          "Description": "Gets or sets the max streaming bitrate.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OpenToken",
+          "JsonName": "OpenToken",
+          "Description": "Gets or sets the open token.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Description": "Gets or sets the play session id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "StartTimeTicks",
+          "JsonName": "StartTimeTicks",
+          "Description": "Gets or sets the start time in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Description": "Gets or sets the subtitle stream index.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Description": "Gets or sets the user id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackInfoDto",
+      "SchemaName": "PlaybackInfoDto",
+      "Description": "Playback info dto.",
+      "Fields": [
+        {
+          "Name": "AllowAudioStreamCopy",
+          "JsonName": "AllowAudioStreamCopy",
+          "Description": "Gets or sets a value indicating whether to allow audio stream copy.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AllowVideoStreamCopy",
+          "JsonName": "AllowVideoStreamCopy",
+          "Description": "Gets or sets a value indicating whether to enable video stream copy.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AlwaysBurnInSubtitleWhenTranscoding",
+          "JsonName": "AlwaysBurnInSubtitleWhenTranscoding",
+          "Description": "Gets or sets a value indicating whether always burn in subtitles when transcoding.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Description": "Gets or sets the audio stream index.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AutoOpenLiveStream",
+          "JsonName": "AutoOpenLiveStream",
+          "Description": "Gets or sets a value indicating whether to auto open the live stream.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DeviceProfile",
+          "JsonName": "DeviceProfile",
+          "Description": "Gets or sets the device profile.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DeviceProfile"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableDirectPlay",
+          "JsonName": "EnableDirectPlay",
+          "Description": "Gets or sets a value indicating whether to enable direct play.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableDirectStream",
+          "JsonName": "EnableDirectStream",
+          "Description": "Gets or sets a value indicating whether to enable direct stream.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableTranscoding",
+          "JsonName": "EnableTranscoding",
+          "Description": "Gets or sets a value indicating whether to enable transcoding.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Description": "Gets or sets the live stream id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxAudioChannels",
+          "JsonName": "MaxAudioChannels",
+          "Description": "Gets or sets the max audio channels.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStreamingBitrate",
+          "JsonName": "MaxStreamingBitrate",
+          "Description": "Gets or sets the max streaming bitrate.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Description": "Gets or sets the media source id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "StartTimeTicks",
+          "JsonName": "StartTimeTicks",
+          "Description": "Gets or sets the start time in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Description": "Gets or sets the subtitle stream index.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Description": "Gets or sets the playback userId.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackInfoResponse",
+      "SchemaName": "PlaybackInfoResponse",
+      "Description": "Class PlaybackInfoResponse.",
+      "Fields": [
+        {
+          "Name": "ErrorCode",
+          "JsonName": "ErrorCode",
+          "Description": "Gets or sets the error code.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlaybackErrorCode"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaSources",
+          "JsonName": "MediaSources",
+          "Description": "Gets or sets the media sources.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaSourceInfo"
+            }
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Description": "Gets or sets the play session identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "PlaybackErrorCode",
+      "SchemaName": "PlaybackErrorCode",
+      "Description": "The playback error code.",
+      "Values": [
+        {
+          "Name": "PlaybackErrorCodeNotAllowed",
+          "Value": "NotAllowed"
+        },
+        {
+          "Name": "PlaybackErrorCodeNoCompatibleStream",
+          "Value": "NoCompatibleStream"
+        },
+        {
+          "Name": "PlaybackErrorCodeRateLimitExceeded",
+          "Value": "RateLimitExceeded"
+        }
+      ]
+    }
+  ]
+}

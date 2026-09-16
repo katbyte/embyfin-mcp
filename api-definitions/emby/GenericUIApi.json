@@ -1,0 +1,432 @@
+{
+  "Name": "GenericUIApi",
+  "Tag": "GenericUIApiService",
+  "Operations": [
+    {
+      "Name": "GetUIView",
+      "OperationId": "getUIView",
+      "Method": "GET",
+      "Path": "/UI/View",
+      "Description": "Gets UI view data",
+      "Options": [
+        {
+          "Name": "PageId",
+          "Field": "PageId",
+          "In": "Query",
+          "Description": "Id of the page controller",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ClientLocale",
+          "Field": "ClientLocale",
+          "In": "Query",
+          "Description": "Locale identifier of the client",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UIViewInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUICommand",
+      "OperationId": "postUICommand",
+      "Method": "POST",
+      "Path": "/UI/Command",
+      "Description": "Execute a command in the context of tv setup",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RunUICommand"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UIViewInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "GenericEditIEditObjectContainer",
+      "SchemaName": "GenericEdit.IEditObjectContainer",
+      "Fields": [
+        {
+          "Name": "DefaultObject",
+          "JsonName": "DefaultObject",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "Any"
+            }
+          }
+        },
+        {
+          "Name": "Object",
+          "JsonName": "Object",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "Any"
+            }
+          }
+        },
+        {
+          "Name": "TypeName",
+          "JsonName": "TypeName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RunUICommand",
+      "SchemaName": "RunUICommand",
+      "Fields": [
+        {
+          "Name": "ClientLocale",
+          "JsonName": "ClientLocale",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CommandId",
+          "JsonName": "CommandId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Data",
+          "JsonName": "Data",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PageId",
+          "JsonName": "PageId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UICommand",
+      "SchemaName": "UICommand",
+      "Fields": [
+        {
+          "Name": "Caption",
+          "JsonName": "Caption",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CommandId",
+          "JsonName": "CommandId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CommandType",
+          "JsonName": "CommandType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EnumsUICommandType"
+          }
+        },
+        {
+          "Name": "ConfirmationPrompt",
+          "JsonName": "ConfirmationPrompt",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsEnabled",
+          "JsonName": "IsEnabled",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsVisible",
+          "JsonName": "IsVisible",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SetFocus",
+          "JsonName": "SetFocus",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UITabPageInfo",
+      "SchemaName": "UITabPageInfo",
+      "Fields": [
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Href",
+          "JsonName": "Href",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "JsonName": "Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NavKey",
+          "JsonName": "NavKey",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PageId",
+          "JsonName": "PageId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PluginId",
+          "JsonName": "PluginId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UIViewInfo",
+      "SchemaName": "UIViewInfo",
+      "Fields": [
+        {
+          "Name": "Caption",
+          "JsonName": "Caption",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Commands",
+          "JsonName": "Commands",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "UICommand"
+            }
+          }
+        },
+        {
+          "Name": "EditObjectContainer",
+          "JsonName": "EditObjectContainer",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GenericEditIEditObjectContainer"
+          }
+        },
+        {
+          "Name": "IsInSequence",
+          "JsonName": "IsInSequence",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPageChangeInfo",
+          "JsonName": "IsPageChangeInfo",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PageId",
+          "JsonName": "PageId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PluginId",
+          "JsonName": "PluginId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RedirectViewUrl",
+          "JsonName": "RedirectViewUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ShowDialogFullScreen",
+          "JsonName": "ShowDialogFullScreen",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SubCaption",
+          "JsonName": "SubCaption",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TabPageInfos",
+          "JsonName": "TabPageInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "UITabPageInfo"
+            }
+          }
+        },
+        {
+          "Name": "ViewId",
+          "JsonName": "ViewId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ViewType",
+          "JsonName": "ViewType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EnumsUIViewType"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "EnumsUICommandType",
+      "SchemaName": "Enums.UICommandType",
+      "Values": [
+        {
+          "Name": "EnumsUICommandTypeCustom",
+          "Value": "Custom"
+        },
+        {
+          "Name": "EnumsUICommandTypeWizardCancel",
+          "Value": "WizardCancel"
+        },
+        {
+          "Name": "EnumsUICommandTypeWizardBack",
+          "Value": "WizardBack"
+        },
+        {
+          "Name": "EnumsUICommandTypeWizardNext",
+          "Value": "WizardNext"
+        },
+        {
+          "Name": "EnumsUICommandTypeWizardFinish",
+          "Value": "WizardFinish"
+        },
+        {
+          "Name": "EnumsUICommandTypeDialogCancel",
+          "Value": "DialogCancel"
+        },
+        {
+          "Name": "EnumsUICommandTypeDialogOk",
+          "Value": "DialogOk"
+        },
+        {
+          "Name": "EnumsUICommandTypePageSave",
+          "Value": "PageSave"
+        },
+        {
+          "Name": "EnumsUICommandTypePageBack",
+          "Value": "PageBack"
+        },
+        {
+          "Name": "EnumsUICommandTypeWizardButton1",
+          "Value": "WizardButton1"
+        },
+        {
+          "Name": "EnumsUICommandTypeWizardButton2",
+          "Value": "WizardButton2"
+        },
+        {
+          "Name": "EnumsUICommandTypeWizardButton3",
+          "Value": "WizardButton3"
+        }
+      ]
+    },
+    {
+      "Name": "EnumsUIViewType",
+      "SchemaName": "Enums.UIViewType",
+      "Values": [
+        {
+          "Name": "EnumsUIViewTypeRegularPage",
+          "Value": "RegularPage"
+        },
+        {
+          "Name": "EnumsUIViewTypeDialog",
+          "Value": "Dialog"
+        },
+        {
+          "Name": "EnumsUIViewTypeWizard",
+          "Value": "Wizard"
+        }
+      ]
+    }
+  ]
+}

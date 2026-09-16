@@ -1,0 +1,565 @@
+{
+  "Name": "Channel",
+  "Tag": "Channel",
+  "Operations": [
+    {
+      "Name": "GetAllChannelFeatures",
+      "OperationId": "GetAllChannelFeatures",
+      "Method": "GET",
+      "Path": "/Channels/Features",
+      "Description": "Get all channel features.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ChannelFeatures"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetChannelFeatures",
+      "OperationId": "GetChannelFeatures",
+      "Method": "GET",
+      "Path": "/Channels/{channelId}/Features",
+      "Description": "Get channel features.",
+      "PathParameters": [
+        {
+          "Name": "channelId",
+          "Argument": "channelId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ChannelFeatures"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetChannelItems",
+      "OperationId": "GetChannelItems",
+      "Method": "GET",
+      "Path": "/Channels/{channelId}/Items",
+      "Description": "Get channel items.",
+      "PathParameters": [
+        {
+          "Name": "channelId",
+          "Argument": "channelId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "folderId",
+          "Field": "FolderId",
+          "In": "Query",
+          "Description": "Optional. Folder Id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. User Id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "sortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Optional. Sort Order - Ascending,Descending.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SortOrder"
+            }
+          }
+        },
+        {
+          "Name": "filters",
+          "Field": "Filters",
+          "In": "Query",
+          "Description": "Optional. Specify additional filters to apply.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFilter"
+            }
+          }
+        },
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Specify one or more sort orders, comma delimited. Options: Album, AlbumArtist, Artist, Budget, CommunityRating, CriticRating, DateCreated, DatePlayed, PlayCount, PremiereDate, ProductionYear, SortName, Random, Revenue, Runtime.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemSortBy"
+            }
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetChannels",
+      "OperationId": "GetChannels",
+      "Method": "GET",
+      "Path": "/Channels",
+      "Description": "Gets available channels.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id to filter by. Use System.Guid.Empty to not filter by user.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "supportsLatestItems",
+          "Field": "SupportsLatestItems",
+          "In": "Query",
+          "Description": "Optional. Filter by channels that support getting latest items.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "supportsMediaDeletion",
+          "Field": "SupportsMediaDeletion",
+          "In": "Query",
+          "Description": "Optional. Filter by channels that support media deletion.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isFavorite",
+          "Field": "IsFavorite",
+          "In": "Query",
+          "Description": "Optional. Filter by channels that are favorite.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetLatestChannelItems",
+      "OperationId": "GetLatestChannelItems",
+      "Method": "GET",
+      "Path": "/Channels/Items/Latest",
+      "Description": "Gets latest channel items.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. User Id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "filters",
+          "Field": "Filters",
+          "In": "Query",
+          "Description": "Optional. Specify additional filters to apply.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFilter"
+            }
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "channelIds",
+          "Field": "ChannelIds",
+          "In": "Query",
+          "Description": "Optional. Specify one or more channel id's, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ChannelFeatures",
+      "SchemaName": "ChannelFeatures",
+      "Fields": [
+        {
+          "Name": "AutoRefreshLevels",
+          "JsonName": "AutoRefreshLevels",
+          "Description": "Gets or sets the automatic refresh levels.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanFilter",
+          "JsonName": "CanFilter",
+          "Description": "Gets or sets a value indicating whether this instance can filter.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "CanSearch",
+          "JsonName": "CanSearch",
+          "Description": "Gets or sets a value indicating whether this instance can search.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ContentTypes",
+          "JsonName": "ContentTypes",
+          "Description": "Gets or sets the content types.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ChannelMediaContentType"
+            }
+          }
+        },
+        {
+          "Name": "DefaultSortFields",
+          "JsonName": "DefaultSortFields",
+          "Description": "Gets or sets the default sort orders.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ChannelItemSortField"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxPageSize",
+          "JsonName": "MaxPageSize",
+          "Description": "Gets or sets the maximum number of records the channel allows retrieving at a time.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaTypes",
+          "JsonName": "MediaTypes",
+          "Description": "Gets or sets the media types.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ChannelMediaType"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportsContentDownloading",
+          "JsonName": "SupportsContentDownloading",
+          "Description": "Gets or sets a value indicating whether [supports content downloading].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsLatestMedia",
+          "JsonName": "SupportsLatestMedia",
+          "Description": "Gets or sets a value indicating whether [supports latest media].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsSortOrderToggle",
+          "JsonName": "SupportsSortOrderToggle",
+          "Description": "Gets or sets a value indicating whether a sort ascending/descending toggle is supported.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ChannelItemSortField",
+      "SchemaName": "ChannelItemSortField",
+      "Values": [
+        {
+          "Name": "ChannelItemSortFieldName",
+          "Value": "Name"
+        },
+        {
+          "Name": "ChannelItemSortFieldCommunityRating",
+          "Value": "CommunityRating"
+        },
+        {
+          "Name": "ChannelItemSortFieldPremiereDate",
+          "Value": "PremiereDate"
+        },
+        {
+          "Name": "ChannelItemSortFieldDateCreated",
+          "Value": "DateCreated"
+        },
+        {
+          "Name": "ChannelItemSortFieldRuntime",
+          "Value": "Runtime"
+        },
+        {
+          "Name": "ChannelItemSortFieldPlayCount",
+          "Value": "PlayCount"
+        },
+        {
+          "Name": "ChannelItemSortFieldCommunityPlayCount",
+          "Value": "CommunityPlayCount"
+        }
+      ]
+    },
+    {
+      "Name": "ChannelMediaContentType",
+      "SchemaName": "ChannelMediaContentType",
+      "Values": [
+        {
+          "Name": "ChannelMediaContentTypeClip",
+          "Value": "Clip"
+        },
+        {
+          "Name": "ChannelMediaContentTypePodcast",
+          "Value": "Podcast"
+        },
+        {
+          "Name": "ChannelMediaContentTypeTrailer",
+          "Value": "Trailer"
+        },
+        {
+          "Name": "ChannelMediaContentTypeMovie",
+          "Value": "Movie"
+        },
+        {
+          "Name": "ChannelMediaContentTypeEpisode",
+          "Value": "Episode"
+        },
+        {
+          "Name": "ChannelMediaContentTypeSong",
+          "Value": "Song"
+        },
+        {
+          "Name": "ChannelMediaContentTypeMovieExtra",
+          "Value": "MovieExtra"
+        },
+        {
+          "Name": "ChannelMediaContentTypeTvExtra",
+          "Value": "TvExtra"
+        }
+      ]
+    },
+    {
+      "Name": "ChannelMediaType",
+      "SchemaName": "ChannelMediaType",
+      "Values": [
+        {
+          "Name": "ChannelMediaTypeAudio",
+          "Value": "Audio"
+        },
+        {
+          "Name": "ChannelMediaTypeVideo",
+          "Value": "Video"
+        },
+        {
+          "Name": "ChannelMediaTypePhoto",
+          "Value": "Photo"
+        }
+      ]
+    }
+  ]
+}

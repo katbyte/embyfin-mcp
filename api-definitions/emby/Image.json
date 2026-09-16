@@ -1,0 +1,3373 @@
+{
+  "Name": "Image",
+  "Tag": "ImageService",
+  "Operations": [
+    {
+      "Name": "DeleteItemsByIdImagesByType",
+      "OperationId": "deleteItemsByIdImagesByType",
+      "Method": "DELETE",
+      "Path": "/Items/{Id}/Images/{Type}",
+      "Description": "Requires authentication as administrator",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteItemsByIdImagesByTypeByIndex",
+      "OperationId": "deleteItemsByIdImagesByTypeByIndex",
+      "Method": "DELETE",
+      "Path": "/Items/{Id}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as administrator",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteUsersByIdImagesByType",
+      "OperationId": "deleteUsersByIdImagesByType",
+      "Method": "DELETE",
+      "Path": "/Users/{Id}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteUsersByIdImagesByTypeByIndex",
+      "OperationId": "deleteUsersByIdImagesByTypeByIndex",
+      "Method": "DELETE",
+      "Path": "/Users/{Id}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetArtistsByNameImagesByType",
+      "OperationId": "getArtistsByNameImagesByType",
+      "Method": "GET",
+      "Path": "/Artists/{Name}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetArtistsByNameImagesByTypeByIndex",
+      "OperationId": "getArtistsByNameImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/Artists/{Name}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetGameGenresByNameImagesByType",
+      "OperationId": "getGamegenresByNameImagesByType",
+      "Method": "GET",
+      "Path": "/GameGenres/{Name}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetGameGenresByNameImagesByTypeByIndex",
+      "OperationId": "getGamegenresByNameImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/GameGenres/{Name}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetGenresByNameImagesByType",
+      "OperationId": "getGenresByNameImagesByType",
+      "Method": "GET",
+      "Path": "/Genres/{Name}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetGenresByNameImagesByTypeByIndex",
+      "OperationId": "getGenresByNameImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/Genres/{Name}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemsByIdImages",
+      "OperationId": "getItemsByIdImages",
+      "Method": "GET",
+      "Path": "/Items/{Id}/Images",
+      "Description": "Gets information about an item's images",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ImageInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetItemsByIdImagesByType",
+      "OperationId": "getItemsByIdImagesByType",
+      "Method": "GET",
+      "Path": "/Items/{Id}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemsByIdImagesByTypeByIndex",
+      "OperationId": "getItemsByIdImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/Items/{Id}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCount",
+      "OperationId": "getItemsByIdImagesByTypeByIndexByTagByFormatByMaxwidthByMaxheightByPercentplayedByUnplayedcount",
+      "Method": "GET",
+      "Path": "/Items/{Id}/Images/{Type}/{Index}/{Tag}/{Format}/{MaxWidth}/{MaxHeight}/{PercentPlayed}/{UnPlayedCount}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Argument": "tag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Format",
+          "Argument": "format",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxWidth",
+          "Argument": "maxWidth",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Argument": "maxHeight",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PercentPlayed",
+          "Argument": "percentPlayed",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "UnPlayedCount",
+          "Argument": "unPlayedCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMusicGenresByNameImagesByType",
+      "OperationId": "getMusicgenresByNameImagesByType",
+      "Method": "GET",
+      "Path": "/MusicGenres/{Name}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMusicGenresByNameImagesByTypeByIndex",
+      "OperationId": "getMusicgenresByNameImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/MusicGenres/{Name}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPersonsByNameImagesByType",
+      "OperationId": "getPersonsByNameImagesByType",
+      "Method": "GET",
+      "Path": "/Persons/{Name}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPersonsByNameImagesByTypeByIndex",
+      "OperationId": "getPersonsByNameImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/Persons/{Name}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetStudiosByNameImagesByType",
+      "OperationId": "getStudiosByNameImagesByType",
+      "Method": "GET",
+      "Path": "/Studios/{Name}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetStudiosByNameImagesByTypeByIndex",
+      "OperationId": "getStudiosByNameImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/Studios/{Name}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUsersByIdImagesByType",
+      "OperationId": "getUsersByIdImagesByType",
+      "Method": "GET",
+      "Path": "/Users/{Id}/Images/{Type}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUsersByIdImagesByTypeByIndex",
+      "OperationId": "getUsersByIdImagesByTypeByIndex",
+      "Method": "GET",
+      "Path": "/Users/{Id}/Images/{Type}/{Index}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MaxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CropWhitespace",
+          "Field": "CropWhitespace",
+          "In": "Query",
+          "Description": "Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImageEnhancers",
+          "Field": "EnableImageEnhancers",
+          "In": "Query",
+          "Description": "Enable or disable image enhancers such as cover art.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output foramt of the image - original,gif,jpg,png",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BackgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ForegroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoOrient",
+          "Field": "AutoOrient",
+          "In": "Query",
+          "Description": "Set to true to force normalization of orientation in the event the renderer does not support it.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepAnimation",
+          "Field": "KeepAnimation",
+          "In": "Query",
+          "Description": "Set to true to retain image animation (when supported).",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PostItemsByIdImagesByType",
+      "OperationId": "postItemsByIdImagesByType",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Images/{Type}",
+      "Description": "Uploads an image for an item, must be base64 encoded.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdImagesByTypeByIndex",
+      "OperationId": "postItemsByIdImagesByTypeByIndex",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Images/{Type}/{Index}",
+      "Description": "Uploads an image for an item, must be base64 encoded.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdImagesByTypeByIndexDelete",
+      "OperationId": "postItemsByIdImagesByTypeByIndexDelete",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Images/{Type}/{Index}/Delete",
+      "Description": "Requires authentication as administrator",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdImagesByTypeByIndexIndex",
+      "OperationId": "postItemsByIdImagesByTypeByIndexIndex",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Images/{Type}/{Index}/Index",
+      "Description": "Updates the index for an item image",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "NewIndex",
+          "Field": "NewIndex",
+          "In": "Query",
+          "Description": "The new image index",
+          "Required": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdImagesByTypeByIndexUrl",
+      "OperationId": "postItemsByIdImagesByTypeByIndexUrl",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Images/{Type}/{Index}/Url",
+      "Description": "Updates the index for an item image",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Url",
+          "Field": "Url",
+          "In": "Query",
+          "Description": "The url for the new image",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdImagesByTypeDelete",
+      "OperationId": "postItemsByIdImagesByTypeDelete",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Images/{Type}/Delete",
+      "Description": "Requires authentication as administrator",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdImagesByType",
+      "OperationId": "postUsersByIdImagesByType",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Images/{Type}",
+      "Description": "Uploads an image for an item, must be base64 encoded.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdImagesByTypeByIndex",
+      "OperationId": "postUsersByIdImagesByTypeByIndex",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Images/{Type}/{Index}",
+      "Description": "Uploads an image for an item, must be base64 encoded.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdImagesByTypeByIndexDelete",
+      "OperationId": "postUsersByIdImagesByTypeByIndexDelete",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Images/{Type}/{Index}/Delete",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdImagesByTypeDelete",
+      "OperationId": "postUsersByIdImagesByTypeDelete",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Images/{Type}/Delete",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "Argument": "typeParam",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "Image Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ImageInfo",
+      "SchemaName": "ImageInfo",
+      "Fields": [
+        {
+          "Name": "Filename",
+          "JsonName": "Filename",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageIndex",
+          "JsonName": "ImageIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageType",
+          "JsonName": "ImageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Size",
+          "JsonName": "Size",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

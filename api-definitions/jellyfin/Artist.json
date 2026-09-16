@@ -1,0 +1,798 @@
+{
+  "Name": "Artist",
+  "Tag": "Artist",
+  "Operations": [
+    {
+      "Name": "GetAlbumArtists",
+      "OperationId": "GetAlbumArtists",
+      "Method": "GET",
+      "Path": "/Artists/AlbumArtists",
+      "Description": "Gets all album artists from a given item, folder, or the entire library.",
+      "Deprecated": true,
+      "Options": [
+        {
+          "Name": "minCommunityRating",
+          "Field": "MinCommunityRating",
+          "In": "Query",
+          "Description": "Optional filter by minimum community rating.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "searchTerm",
+          "Field": "SearchTerm",
+          "In": "Query",
+          "Description": "Optional. Search term.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Specify this to localize the search to a specific item or folder. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "excludeItemTypes",
+          "Field": "ExcludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered out based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "includeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "filters",
+          "Field": "Filters",
+          "In": "Query",
+          "Description": "Optional. Specify additional filters to apply.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFilter"
+            }
+          }
+        },
+        {
+          "Name": "isFavorite",
+          "Field": "IsFavorite",
+          "In": "Query",
+          "Description": "Optional filter by items that are marked as favorite, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "mediaTypes",
+          "Field": "MediaTypes",
+          "In": "Query",
+          "Description": "Optional filter by MediaType. Allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaType"
+            }
+          }
+        },
+        {
+          "Name": "genres",
+          "Field": "Genres",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on genre. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "genreIds",
+          "Field": "GenreIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on genre id. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "officialRatings",
+          "Field": "OfficialRatings",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on OfficialRating. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "tags",
+          "Field": "Tags",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on tag. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "years",
+          "Field": "Years",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on production year. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "person",
+          "Field": "Person",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered to include only those containing the specified person.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "personIds",
+          "Field": "PersonIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered to include only those containing the specified person ids.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "personTypes",
+          "Field": "PersonTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, along with Person, results will be filtered to include only those containing the specified person and PersonType. Allows multiple, comma-delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "studios",
+          "Field": "Studios",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on studio. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "studioIds",
+          "Field": "StudioIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on studio id. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameStartsWithOrGreater",
+          "Field": "NameStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameStartsWith",
+          "Field": "NameStartsWith",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameLessThan",
+          "Field": "NameLessThan",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is equally or lesser than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Specify one or more sort orders, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemSortBy"
+            }
+          }
+        },
+        {
+          "Name": "sortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SortOrder"
+            }
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableTotalRecordCount",
+          "Field": "EnableTotalRecordCount",
+          "In": "Query",
+          "Description": "Total record count.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetArtistByName",
+      "OperationId": "GetArtistByName",
+      "Method": "GET",
+      "Path": "/Artists/{name}",
+      "Description": "Gets an artist by name.",
+      "Deprecated": true,
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id, and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetArtists",
+      "OperationId": "GetArtists",
+      "Method": "GET",
+      "Path": "/Artists",
+      "Description": "Gets all artists from a given item, folder, or the entire library.",
+      "Deprecated": true,
+      "Options": [
+        {
+          "Name": "minCommunityRating",
+          "Field": "MinCommunityRating",
+          "In": "Query",
+          "Description": "Optional filter by minimum community rating.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "searchTerm",
+          "Field": "SearchTerm",
+          "In": "Query",
+          "Description": "Optional. Search term.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Specify this to localize the search to a specific item or folder. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "excludeItemTypes",
+          "Field": "ExcludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered out based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "includeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "filters",
+          "Field": "Filters",
+          "In": "Query",
+          "Description": "Optional. Specify additional filters to apply.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFilter"
+            }
+          }
+        },
+        {
+          "Name": "isFavorite",
+          "Field": "IsFavorite",
+          "In": "Query",
+          "Description": "Optional filter by items that are marked as favorite, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "mediaTypes",
+          "Field": "MediaTypes",
+          "In": "Query",
+          "Description": "Optional filter by MediaType. Allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaType"
+            }
+          }
+        },
+        {
+          "Name": "genres",
+          "Field": "Genres",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on genre. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "genreIds",
+          "Field": "GenreIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on genre id. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "officialRatings",
+          "Field": "OfficialRatings",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on OfficialRating. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "tags",
+          "Field": "Tags",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on tag. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "years",
+          "Field": "Years",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on production year. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "person",
+          "Field": "Person",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered to include only those containing the specified person.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "personIds",
+          "Field": "PersonIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered to include only those containing the specified person ids.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "personTypes",
+          "Field": "PersonTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, along with Person, results will be filtered to include only those containing the specified person and PersonType. Allows multiple, comma-delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "studios",
+          "Field": "Studios",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on studio. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "studioIds",
+          "Field": "StudioIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on studio id. This allows multiple, pipe delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameStartsWithOrGreater",
+          "Field": "NameStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameStartsWith",
+          "Field": "NameStartsWith",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameLessThan",
+          "Field": "NameLessThan",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is equally or lesser than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Specify one or more sort orders, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemSortBy"
+            }
+          }
+        },
+        {
+          "Name": "sortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SortOrder"
+            }
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableTotalRecordCount",
+          "Field": "EnableTotalRecordCount",
+          "In": "Query",
+          "Description": "Total record count.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    }
+  ]
+}

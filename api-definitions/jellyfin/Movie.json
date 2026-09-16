@@ -1,0 +1,152 @@
+{
+  "Name": "Movie",
+  "Tag": "Movie",
+  "Operations": [
+    {
+      "Name": "GetMovieRecommendations",
+      "OperationId": "GetMovieRecommendations",
+      "Method": "GET",
+      "Path": "/Movies/Recommendations",
+      "Description": "Gets movie recommendations.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id, and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Specify this to localize the search to a specific item or folder. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. The fields to return.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "categoryLimit",
+          "Field": "CategoryLimit",
+          "In": "Query",
+          "Description": "The max number of categories to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "itemLimit",
+          "Field": "ItemLimit",
+          "In": "Query",
+          "Description": "The max number of items to return per category.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RecommendationDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "RecommendationDto",
+      "SchemaName": "RecommendationDto",
+      "Fields": [
+        {
+          "Name": "BaselineItemName",
+          "JsonName": "BaselineItemName",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CategoryId",
+          "JsonName": "CategoryId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemDto"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RecommendationType",
+          "JsonName": "RecommendationType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RecommendationType"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "RecommendationType",
+      "SchemaName": "RecommendationType",
+      "Values": [
+        {
+          "Name": "RecommendationTypeSimilarToRecentlyPlayed",
+          "Value": "SimilarToRecentlyPlayed"
+        },
+        {
+          "Name": "RecommendationTypeSimilarToLikedItem",
+          "Value": "SimilarToLikedItem"
+        },
+        {
+          "Name": "RecommendationTypeHasDirectorFromRecentlyPlayed",
+          "Value": "HasDirectorFromRecentlyPlayed"
+        },
+        {
+          "Name": "RecommendationTypeHasActorFromRecentlyPlayed",
+          "Value": "HasActorFromRecentlyPlayed"
+        },
+        {
+          "Name": "RecommendationTypeHasLikedDirector",
+          "Value": "HasLikedDirector"
+        },
+        {
+          "Name": "RecommendationTypeHasLikedActor",
+          "Value": "HasLikedActor"
+        }
+      ]
+    }
+  ]
+}

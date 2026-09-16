@@ -1,0 +1,248 @@
+{
+  "Name": "DisplayPreference",
+  "Tag": "DisplayPreference",
+  "Operations": [
+    {
+      "Name": "GetDisplayPreferences",
+      "OperationId": "GetDisplayPreferences",
+      "Method": "GET",
+      "Path": "/DisplayPreferences/{displayPreferencesId}",
+      "Description": "Get Display Preferences.",
+      "PathParameters": [
+        {
+          "Name": "displayPreferencesId",
+          "Argument": "displayPreferencesId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "client",
+          "Field": "Client",
+          "In": "Query",
+          "Description": "Client.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DisplayPreferencesDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UpdateDisplayPreferences",
+      "OperationId": "UpdateDisplayPreferences",
+      "Method": "POST",
+      "Path": "/DisplayPreferences/{displayPreferencesId}",
+      "Description": "Update Display Preferences.",
+      "PathParameters": [
+        {
+          "Name": "displayPreferencesId",
+          "Argument": "displayPreferencesId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "client",
+          "Field": "Client",
+          "In": "Query",
+          "Description": "Client.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DisplayPreferencesDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DisplayPreferencesDto",
+      "SchemaName": "DisplayPreferencesDto",
+      "Description": "Defines the display preferences for any item that supports them (usually Folders).",
+      "Fields": [
+        {
+          "Name": "Client",
+          "JsonName": "Client",
+          "Description": "Gets or sets the client.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CustomPrefs",
+          "JsonName": "CustomPrefs",
+          "Description": "Gets or sets the custom prefs.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the user id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexBy",
+          "JsonName": "IndexBy",
+          "Description": "Gets or sets the index by.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PrimaryImageHeight",
+          "JsonName": "PrimaryImageHeight",
+          "Description": "Gets or sets the height of the primary image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PrimaryImageWidth",
+          "JsonName": "PrimaryImageWidth",
+          "Description": "Gets or sets the width of the primary image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "RememberIndexing",
+          "JsonName": "RememberIndexing",
+          "Description": "Gets or sets a value indicating whether [remember indexing].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RememberSorting",
+          "JsonName": "RememberSorting",
+          "Description": "Gets or sets a value indicating whether [remember sorting].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ScrollDirection",
+          "JsonName": "ScrollDirection",
+          "Description": "An enum representing the axis that should be scrolled.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ScrollDirection"
+          }
+        },
+        {
+          "Name": "ShowBackdrop",
+          "JsonName": "ShowBackdrop",
+          "Description": "Gets or sets a value indicating whether to show backdrops on this item.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ShowSidebar",
+          "JsonName": "ShowSidebar",
+          "Description": "Gets or sets a value indicating whether [show sidebar].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SortBy",
+          "JsonName": "SortBy",
+          "Description": "Gets or sets the sort by.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SortOrder",
+          "JsonName": "SortOrder",
+          "Description": "An enum representing the sorting order.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SortOrder"
+          }
+        },
+        {
+          "Name": "ViewType",
+          "JsonName": "ViewType",
+          "Description": "Gets or sets the type of the view.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ScrollDirection",
+      "SchemaName": "ScrollDirection",
+      "Description": "An enum representing the axis that should be scrolled.",
+      "Values": [
+        {
+          "Name": "ScrollDirectionHorizontal",
+          "Value": "Horizontal"
+        },
+        {
+          "Name": "ScrollDirectionVertical",
+          "Value": "Vertical"
+        }
+      ]
+    }
+  ]
+}

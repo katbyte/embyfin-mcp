@@ -1,0 +1,123 @@
+{
+  "Name": "UserView",
+  "Tag": "UserView",
+  "Operations": [
+    {
+      "Name": "GetGroupingOptions",
+      "OperationId": "GetGroupingOptions",
+      "Method": "GET",
+      "Path": "/UserViews/GroupingOptions",
+      "Description": "Get user view grouping options.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "SpecialViewOptionDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUserViews",
+      "OperationId": "GetUserViews",
+      "Method": "GET",
+      "Path": "/UserViews",
+      "Description": "Get user views.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "includeExternalContent",
+          "Field": "IncludeExternalContent",
+          "In": "Query",
+          "Description": "Whether or not to include external views such as channels or live tv.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "presetViews",
+          "Field": "PresetViews",
+          "In": "Query",
+          "Description": "Preset views.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CollectionType"
+            }
+          }
+        },
+        {
+          "Name": "includeHidden",
+          "Field": "IncludeHidden",
+          "In": "Query",
+          "Description": "Whether or not to include hidden content.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "SpecialViewOptionDto",
+      "SchemaName": "SpecialViewOptionDto",
+      "Description": "Special view option dto.",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets view option id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets view option name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

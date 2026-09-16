@@ -1,0 +1,57 @@
+{
+  "Name": "Branding",
+  "Tag": "Branding",
+  "Operations": [
+    {
+      "Name": "GetBrandingCss",
+      "OperationId": "GetBrandingCss",
+      "Method": "GET",
+      "Path": "/Branding/Css",
+      "Description": "Gets branding css.",
+      "Response": {
+        "ContentType": "text/css",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetBrandingCss2",
+      "OperationId": "GetBrandingCss_2",
+      "Method": "GET",
+      "Path": "/Branding/Css.css",
+      "Description": "Gets branding css.",
+      "Response": {
+        "ContentType": "text/css",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetBrandingOptions",
+      "OperationId": "GetBrandingOptions",
+      "Method": "GET",
+      "Path": "/Branding/Configuration",
+      "Description": "Gets branding configuration.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BrandingOptionsDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ]
+}

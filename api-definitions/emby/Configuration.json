@@ -1,0 +1,834 @@
+{
+  "Name": "Configuration",
+  "Tag": "ConfigurationService",
+  "Operations": [
+    {
+      "Name": "GetSystemConfiguration",
+      "OperationId": "getSystemConfiguration",
+      "Method": "GET",
+      "Path": "/System/Configuration",
+      "Description": "Gets application configuration",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ServerConfiguration"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSystemConfigurationByKey",
+      "OperationId": "getSystemConfigurationByKey",
+      "Method": "GET",
+      "Path": "/System/Configuration/{Key}",
+      "Description": "Gets a named configuration",
+      "PathParameters": [
+        {
+          "Name": "Key",
+          "Argument": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSystemConfiguration",
+      "OperationId": "postSystemConfiguration",
+      "Method": "POST",
+      "Path": "/System/Configuration",
+      "Description": "Updates application configuration",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ServerConfiguration"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSystemConfigurationByKey",
+      "OperationId": "postSystemConfigurationByKey",
+      "Method": "POST",
+      "Path": "/System/Configuration/{Key}",
+      "Description": "Updates named configuration",
+      "PathParameters": [
+        {
+          "Name": "Key",
+          "Argument": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSystemConfigurationPartial",
+      "OperationId": "postSystemConfigurationPartial",
+      "Method": "POST",
+      "Path": "/System/Configuration/Partial",
+      "Description": "Updates application configuration",
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "PathSubstitution",
+      "SchemaName": "PathSubstitution",
+      "Fields": [
+        {
+          "Name": "From",
+          "JsonName": "From",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "To",
+          "JsonName": "To",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ServerConfiguration",
+      "SchemaName": "ServerConfiguration",
+      "Fields": [
+        {
+          "Name": "AllowLegacyLocalNetworkPassword",
+          "JsonName": "AllowLegacyLocalNetworkPassword",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AutoRunWebApp",
+          "JsonName": "AutoRunWebApp",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BannerText",
+          "JsonName": "BannerText",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CachePath",
+          "JsonName": "CachePath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CertificatePassword",
+          "JsonName": "CertificatePassword",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CertificatePath",
+          "JsonName": "CertificatePath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CollapseVideoFolders",
+          "JsonName": "CollapseVideoFolders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "DashboardSourcePath",
+          "JsonName": "DashboardSourcePath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DatabaseAnalysisLimit",
+          "JsonName": "DatabaseAnalysisLimit",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "DatabaseCacheSizeMB",
+          "JsonName": "DatabaseCacheSizeMB",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "DisableAsyncIO",
+          "JsonName": "DisableAsyncIO",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "DisableOutgoingIPv6",
+          "JsonName": "DisableOutgoingIPv6",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAutoUpdate",
+          "JsonName": "EnableAutoUpdate",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAutomaticRestart",
+          "JsonName": "EnableAutomaticRestart",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableCaseSensitiveItemIds",
+          "JsonName": "EnableCaseSensitiveItemIds",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableDashboardResponseCaching",
+          "JsonName": "EnableDashboardResponseCaching",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableDebugLevelLogging",
+          "JsonName": "EnableDebugLevelLogging",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableExternalContentInSuggestions",
+          "JsonName": "EnableExternalContentInSuggestions",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableHttps",
+          "JsonName": "EnableHttps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableOriginalTrackTitles",
+          "JsonName": "EnableOriginalTrackTitles",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnablePeopleLetterSubFolders",
+          "JsonName": "EnablePeopleLetterSubFolders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableRemoteAccess",
+          "JsonName": "EnableRemoteAccess",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSavedMetadataForPeople",
+          "JsonName": "EnableSavedMetadataForPeople",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSqLiteMmio",
+          "JsonName": "EnableSqLiteMmio",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableUPnP",
+          "JsonName": "EnableUPnP",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HttpServerPortNumber",
+          "JsonName": "HttpServerPortNumber",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HttpsPortNumber",
+          "JsonName": "HttpsPortNumber",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ImageExtractionTimeoutMs",
+          "JsonName": "ImageExtractionTimeoutMs",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ImageExtractorUpgraded1",
+          "JsonName": "ImageExtractorUpgraded1",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageSavingConvention",
+          "JsonName": "ImageSavingConvention",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageSavingConvention"
+          }
+        },
+        {
+          "Name": "IsBehindProxy",
+          "JsonName": "IsBehindProxy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsInMaintenanceMode",
+          "JsonName": "IsInMaintenanceMode",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPortAuthorized",
+          "JsonName": "IsPortAuthorized",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsRemoteIPFilterBlacklist",
+          "JsonName": "IsRemoteIPFilterBlacklist",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsStartupWizardCompleted",
+          "JsonName": "IsStartupWizardCompleted",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "LibraryMonitorDelaySeconds",
+          "JsonName": "LibraryMonitorDelaySeconds",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LocalNetworkAddresses",
+          "JsonName": "LocalNetworkAddresses",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "LocalNetworkSubnets",
+          "JsonName": "LocalNetworkSubnets",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "LogAllQueryTimes",
+          "JsonName": "LogAllQueryTimes",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "LogFileRetentionDays",
+          "JsonName": "LogFileRetentionDays",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaintenanceModeMessage",
+          "JsonName": "MaintenanceModeMessage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxAuthDbConnections",
+          "JsonName": "MaxAuthDbConnections",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxLibraryDatabaseConnections",
+          "JsonName": "MaxLibraryDatabaseConnections",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxOtherDbConnections",
+          "JsonName": "MaxOtherDbConnections",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataNetworkPath",
+          "JsonName": "MetadataNetworkPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataPath",
+          "JsonName": "MetadataPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MigratedLibraryOptionsToDb",
+          "JsonName": "MigratedLibraryOptionsToDb",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MigratedToUserItemShares8",
+          "JsonName": "MigratedToUserItemShares8",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "OptimizeDatabaseOnShutdown",
+          "JsonName": "OptimizeDatabaseOnShutdown",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PathSubstitutions",
+          "JsonName": "PathSubstitutions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PathSubstitution"
+            }
+          }
+        },
+        {
+          "Name": "PlaylistsUpgradedToM3U",
+          "JsonName": "PlaylistsUpgradedToM3U",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PreferredDetectedRemoteAddressFamily",
+          "JsonName": "PreferredDetectedRemoteAddressFamily",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "NetSocketsAddressFamily"
+          }
+        },
+        {
+          "Name": "PreferredMetadataLanguage",
+          "JsonName": "PreferredMetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProxyHeaderMode",
+          "JsonName": "ProxyHeaderMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProxyHeaderMode"
+          }
+        },
+        {
+          "Name": "PublicHttpsPort",
+          "JsonName": "PublicHttpsPort",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PublicPort",
+          "JsonName": "PublicPort",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "RemoteClientBitrateLimit",
+          "JsonName": "RemoteClientBitrateLimit",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "RemoteIPFilter",
+          "JsonName": "RemoteIPFilter",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "RequireHttps",
+          "JsonName": "RequireHttps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RevertDebugLogging",
+          "JsonName": "RevertDebugLogging",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RunAtStartup",
+          "JsonName": "RunAtStartup",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ServerName",
+          "JsonName": "ServerName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SimultaneousStreamLimit",
+          "JsonName": "SimultaneousStreamLimit",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SortRemoveWords",
+          "JsonName": "SortRemoveWords",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "TvChannelsRefreshed",
+          "JsonName": "TvChannelsRefreshed",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UICulture",
+          "JsonName": "UICulture",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UninstalledPlugins",
+          "JsonName": "UninstalledPlugins",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "VacuumDatabaseOnStartup",
+          "JsonName": "VacuumDatabaseOnStartup",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ValidateImageTags",
+          "JsonName": "ValidateImageTags",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "WanDdns",
+          "JsonName": "WanDdns",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ImageSavingConvention",
+      "SchemaName": "ImageSavingConvention",
+      "Values": [
+        {
+          "Name": "ImageSavingConventionLegacy",
+          "Value": "Legacy"
+        },
+        {
+          "Name": "ImageSavingConventionCompatible",
+          "Value": "Compatible"
+        }
+      ]
+    },
+    {
+      "Name": "NetSocketsAddressFamily",
+      "SchemaName": "Net.Sockets.AddressFamily",
+      "Values": [
+        {
+          "Name": "NetSocketsAddressFamilyUnspecified",
+          "Value": "Unspecified"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyUnix",
+          "Value": "Unix"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyInterNetwork",
+          "Value": "InterNetwork"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyImpLink",
+          "Value": "ImpLink"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyPup",
+          "Value": "Pup"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyChaos",
+          "Value": "Chaos"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyNS",
+          "Value": "NS"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyIpx",
+          "Value": "Ipx"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyIso",
+          "Value": "Iso"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyOsi",
+          "Value": "Osi"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyEcma",
+          "Value": "Ecma"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyDataKit",
+          "Value": "DataKit"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyCcitt",
+          "Value": "Ccitt"
+        },
+        {
+          "Name": "NetSocketsAddressFamilySna",
+          "Value": "Sna"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyDecNet",
+          "Value": "DecNet"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyDataLink",
+          "Value": "DataLink"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyLat",
+          "Value": "Lat"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyHyperChannel",
+          "Value": "HyperChannel"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyAppleTalk",
+          "Value": "AppleTalk"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyNetBios",
+          "Value": "NetBios"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyVoiceView",
+          "Value": "VoiceView"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyFireFox",
+          "Value": "FireFox"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyBanyan",
+          "Value": "Banyan"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyAtm",
+          "Value": "Atm"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyInterNetworkV6",
+          "Value": "InterNetworkV6"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyCluster",
+          "Value": "Cluster"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyIeee12844",
+          "Value": "Ieee12844"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyIrda",
+          "Value": "Irda"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyNetworkDesigners",
+          "Value": "NetworkDesigners"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyMax",
+          "Value": "Max"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyPacket",
+          "Value": "Packet"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyControllerAreaNetwork",
+          "Value": "ControllerAreaNetwork"
+        },
+        {
+          "Name": "NetSocketsAddressFamilyUnknown",
+          "Value": "Unknown"
+        }
+      ]
+    },
+    {
+      "Name": "ProxyHeaderMode",
+      "SchemaName": "ProxyHeaderMode",
+      "Values": [
+        {
+          "Name": "ProxyHeaderModeNone",
+          "Value": "None"
+        },
+        {
+          "Name": "ProxyHeaderModeLanAddressesOnly",
+          "Value": "LanAddressesOnly"
+        },
+        {
+          "Name": "ProxyHeaderModeRemoteAddressesOnly",
+          "Value": "RemoteAddressesOnly"
+        },
+        {
+          "Name": "ProxyHeaderModeAllAddresses",
+          "Value": "AllAddresses"
+        }
+      ]
+    }
+  ]
+}

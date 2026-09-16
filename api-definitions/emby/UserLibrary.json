@@ -1,0 +1,1003 @@
+{
+  "Name": "UserLibrary",
+  "Tag": "UserLibraryService",
+  "Operations": [
+    {
+      "Name": "DeleteUsersByUserIdFavoriteItemsById",
+      "OperationId": "deleteUsersByUseridFavoriteitemsById",
+      "Method": "DELETE",
+      "Path": "/Users/{UserId}/FavoriteItems/{Id}",
+      "Description": "Unmarks an item as a favorite",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteUsersByUserIdItemsByIdRating",
+      "OperationId": "deleteUsersByUseridItemsByIdRating",
+      "Method": "DELETE",
+      "Path": "/Users/{UserId}/Items/{Id}/Rating",
+      "Description": "Deletes a user's saved personal rating for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetLiveTvProgramsById",
+      "OperationId": "getLivetvProgramsById",
+      "Method": "GET",
+      "Path": "/LiveTv/Programs/{Id}",
+      "Description": "Gets a live tv program",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersByUserIdItemsById",
+      "OperationId": "getUsersByUseridItemsById",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/Items/{Id}",
+      "Description": "Gets an item from a user's library",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersByUserIdItemsByIdIntros",
+      "OperationId": "getUsersByUseridItemsByIdIntros",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/Items/{Id}/Intros",
+      "Description": "Gets intros to play before the main media item plays",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimeted. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines, TrailerUrls",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EnableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultBaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersByUserIdItemsByIdLocalTrailers",
+      "OperationId": "getUsersByUseridItemsByIdLocaltrailers",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/Items/{Id}/LocalTrailers",
+      "Description": "Gets local trailers for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimeted. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines, TrailerUrls",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EnableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersByUserIdItemsByIdSpecialFeatures",
+      "OperationId": "getUsersByUseridItemsByIdSpecialfeatures",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/Items/{Id}/SpecialFeatures",
+      "Description": "Gets special features for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimeted. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines, TrailerUrls",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EnableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersByUserIdItemsLatest",
+      "OperationId": "getUsersByUseridItemsLatest",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/Items/Latest",
+      "Description": "Gets latest media",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Limit",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Specify this to localize the search to a specific item or folder. Omit to use the root",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimeted. Options: Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, SortName, Studios, Taglines",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IncludeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on item type. This allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaTypes",
+          "Field": "MediaTypes",
+          "In": "Query",
+          "Description": "Optional filter by MediaType. Allows multiple, comma delimited.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsFolder",
+          "Field": "IsFolder",
+          "In": "Query",
+          "Description": "Filter by items that are folders, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPlayed",
+          "Field": "IsPlayed",
+          "In": "Query",
+          "Description": "Filter by items that are played, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "GroupItems",
+          "Field": "GroupItems",
+          "In": "Query",
+          "Description": "Whether or not to group items into a parent container.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EnableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersByUserIdItemsRoot",
+      "OperationId": "getUsersByUseridItemsRoot",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/Items/Root",
+      "Description": "Gets the root folder from a user's library",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetVideosByIdAdditionalParts",
+      "OperationId": "getVideosByIdAdditionalparts",
+      "Method": "GET",
+      "Path": "/Videos/{Id}/AdditionalParts",
+      "Description": "Gets additional parts for a video.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id, and attach user data",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimeted. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines, TrailerUrls",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EnableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultBaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsAccess",
+      "OperationId": "postItemsAccess",
+      "Method": "POST",
+      "Path": "/Items/Access",
+      "Description": "Updates user item access",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserLibraryUpdateUserItemAccess"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdMakePrivate",
+      "OperationId": "postItemsByIdMakeprivate",
+      "Method": "POST",
+      "Path": "/Items/{Id}/MakePrivate",
+      "Description": "Makes an item private",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdMakePublic",
+      "OperationId": "postItemsByIdMakepublic",
+      "Method": "POST",
+      "Path": "/Items/{Id}/MakePublic",
+      "Description": "Makes an item public to all users",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsSharedLeave",
+      "OperationId": "postItemsSharedLeave",
+      "Method": "POST",
+      "Path": "/Items/Shared/Leave",
+      "Description": "Leaves a shared item",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserLibraryLeaveSharedItems"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdFavoriteItemsById",
+      "OperationId": "postUsersByUseridFavoriteitemsById",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/FavoriteItems/{Id}",
+      "Description": "Marks an item as a favorite",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdFavoriteItemsByIdDelete",
+      "OperationId": "postUsersByUseridFavoriteitemsByIdDelete",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/FavoriteItems/{Id}/Delete",
+      "Description": "Unmarks an item as a favorite",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdItemsByIdHideFromResume",
+      "OperationId": "postUsersByUseridItemsByIdHidefromresume",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/Items/{Id}/HideFromResume",
+      "Description": "Updates a user's hide from resume for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Hide",
+          "Field": "Hide",
+          "In": "Query",
+          "Description": "Whether the item should be hidden from reusme or not. true/false",
+          "Required": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdItemsByIdRating",
+      "OperationId": "postUsersByUseridItemsByIdRating",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/Items/{Id}/Rating",
+      "Description": "Updates a user's rating for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Likes",
+          "Field": "Likes",
+          "In": "Query",
+          "Description": "Whether the user likes the item or not. true/false",
+          "Required": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdItemsByIdRatingDelete",
+      "OperationId": "postUsersByUseridItemsByIdRatingDelete",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/Items/{Id}/Rating/Delete",
+      "Description": "Deletes a user's saved personal rating for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdSearchedItems",
+      "OperationId": "postUsersByUseridSearcheditems",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/SearchedItems/",
+      "Description": "Marks an item as a favorite",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserLibraryReportItemsSearched"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "UserLibraryLeaveSharedItems",
+      "SchemaName": "UserLibrary.LeaveSharedItems",
+      "Fields": [
+        {
+          "Name": "ItemIds",
+          "JsonName": "ItemIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UserLibraryReportItemsSearched",
+      "SchemaName": "UserLibrary.ReportItemsSearched",
+      "Fields": [
+        {
+          "Name": "WasSearched",
+          "JsonName": "WasSearched",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UserLibraryUpdateUserItemAccess",
+      "SchemaName": "UserLibrary.UpdateUserItemAccess",
+      "Fields": [
+        {
+          "Name": "ItemAccess",
+          "JsonName": "ItemAccess",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserItemShareLevel"
+          }
+        },
+        {
+          "Name": "ItemIds",
+          "JsonName": "ItemIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "UserIds",
+          "JsonName": "UserIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "Name": "FfmpegOptions",
+  "Tag": "FfmpegOptionsService",
+  "Operations": [
+    {
+      "Name": "GetEncodingFfmpegOptions",
+      "OperationId": "getEncodingFfmpegoptions",
+      "Method": "GET",
+      "Path": "/Encoding/FfmpegOptions",
+      "Description": "Gets the ffmpeg options",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "EditObjectContainer"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostEncodingFfmpegOptions",
+      "OperationId": "postEncodingFfmpegoptions",
+      "Method": "POST",
+      "Path": "/Encoding/FfmpegOptions",
+      "Description": "Updates the ffmpeg options",
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

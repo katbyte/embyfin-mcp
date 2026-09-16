@@ -1,0 +1,117 @@
+{
+  "Name": "ItemRefresh",
+  "Tag": "ItemRefreshService",
+  "Operations": [
+    {
+      "Name": "PostItemsByIdRefresh",
+      "OperationId": "postItemsByIdRefresh",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Refresh",
+      "Description": "Refreshes metadata for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Recursive",
+          "Field": "Recursive",
+          "In": "Query",
+          "Description": "Indicates if the refresh should occur recursively.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataRefreshMode",
+          "Field": "MetadataRefreshMode",
+          "In": "Query",
+          "Description": "Specifies the metadata refresh mode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MetadataRefreshMode"
+          }
+        },
+        {
+          "Name": "ImageRefreshMode",
+          "Field": "ImageRefreshMode",
+          "In": "Query",
+          "Description": "Specifies the image refresh mode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MetadataRefreshMode"
+          }
+        },
+        {
+          "Name": "ReplaceAllMetadata",
+          "Field": "ReplaceAllMetadata",
+          "In": "Query",
+          "Description": "Determines if metadata should be replaced. Only applicable if mode is FullRefresh",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ReplaceAllImages",
+          "Field": "ReplaceAllImages",
+          "In": "Query",
+          "Description": "Determines if images should be replaced. Only applicable if mode is FullRefresh",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseRefreshRequest"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "BaseRefreshRequest",
+      "SchemaName": "BaseRefreshRequest",
+      "Fields": [
+        {
+          "Name": "ReplaceThumbnailImages",
+          "JsonName": "ReplaceThumbnailImages",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "MetadataRefreshMode",
+      "SchemaName": "MetadataRefreshMode",
+      "Values": [
+        {
+          "Name": "MetadataRefreshModeValidationOnly",
+          "Value": "ValidationOnly"
+        },
+        {
+          "Name": "MetadataRefreshModeDefault",
+          "Value": "Default"
+        },
+        {
+          "Name": "MetadataRefreshModeFullRefresh",
+          "Value": "FullRefresh"
+        }
+      ]
+    }
+  ]
+}

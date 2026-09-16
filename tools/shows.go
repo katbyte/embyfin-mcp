@@ -3,11 +3,11 @@ package tools
 import (
 	"context"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func registerShowTools(server *mcp.Server, client *embyfin.Client) {
+func registerShowTools(r *registry) {
+	client := r.client
 	type seasonsIn struct {
 		SeriesID string `json:"series_id" jsonschema:"the series item id (find it with library_search types=Series)"`
 	}
@@ -20,7 +20,7 @@ func registerShowTools(server *mcp.Server, client *embyfin.Client) {
 		Series  string      `json:"series"`
 		Seasons []seasonRow `json:"seasons"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "show_seasons",
 		Description: "List a series' seasons.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in seasonsIn) (*mcp.CallToolResult, seasonsOut, error) {
@@ -50,7 +50,7 @@ func registerShowTools(server *mcp.Server, client *embyfin.Client) {
 		Series   string        `json:"series"`
 		Episodes []itemSummary `json:"episodes"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "show_episodes",
 		Description: "List a series' episodes with quality facts, optionally scoped to one season.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, episodesOut, error) {
@@ -80,9 +80,9 @@ func registerShowTools(server *mcp.Server, client *embyfin.Client) {
 		Series  string       `json:"series"`
 		Missing []missingRow `json:"missing" jsonschema:"episodes the metadata provider lists that the library lacks"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "show_missing",
-		Description: "Episodes the metadata provider knows about that the library has no file for. Only reports anything when the server is set to display missing episodes for the library; an empty list otherwise means unknown, not complete.",
+		Description: "Episodes the metadata provider knows about that the library has no file for, when the server records them: stock Jellyfin needs the TheTVDB plugin to, and Emby 4.10 no longer does. An empty list therefore means unknown, not complete.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in missingIn) (*mcp.CallToolResult, missingOut, error) {
 		series, err := client.ItemByID(ctx, in.SeriesID)
 		if err != nil {

@@ -1,0 +1,435 @@
+{
+  "Name": "UserData",
+  "Tag": "UserData",
+  "Operations": [
+    {
+      "Name": "DeleteUserItemRating",
+      "OperationId": "DeleteUserItemRating",
+      "Method": "DELETE",
+      "Path": "/UserItems/{itemId}/Rating",
+      "Description": "Deletes a user's saved personal rating for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemUserData",
+      "OperationId": "GetItemUserData",
+      "Method": "GET",
+      "Path": "/UserItems/{itemId}/UserData",
+      "Description": "Get Item User Data.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "MarkFavoriteItem",
+      "OperationId": "MarkFavoriteItem",
+      "Method": "POST",
+      "Path": "/UserFavoriteItems/{itemId}",
+      "Description": "Marks an item as a favorite.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "MarkPlayedItem",
+      "OperationId": "MarkPlayedItem",
+      "Method": "POST",
+      "Path": "/UserPlayedItems/{itemId}",
+      "Description": "Marks an item as played for user.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "datePlayed",
+          "Field": "DatePlayed",
+          "In": "Query",
+          "Description": "Optional. The date the item was played.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "MarkUnplayedItem",
+      "OperationId": "MarkUnplayedItem",
+      "Method": "DELETE",
+      "Path": "/UserPlayedItems/{itemId}",
+      "Description": "Marks an item as unplayed for user.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UnmarkFavoriteItem",
+      "OperationId": "UnmarkFavoriteItem",
+      "Method": "DELETE",
+      "Path": "/UserFavoriteItems/{itemId}",
+      "Description": "Unmarks item as a favorite.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UpdateItemUserData",
+      "OperationId": "UpdateItemUserData",
+      "Method": "POST",
+      "Path": "/UserItems/{itemId}/UserData",
+      "Description": "Update Item User Data.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UpdateUserItemDataDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UpdateUserItemRating",
+      "OperationId": "UpdateUserItemRating",
+      "Method": "POST",
+      "Path": "/UserItems/{itemId}/Rating",
+      "Description": "Updates a user's rating for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "likes",
+          "Field": "Likes",
+          "In": "Query",
+          "Description": "Whether this M:Jellyfin.Api.Controllers.UserLibraryController.UpdateUserItemRating(System.Nullable{System.Guid},System.Guid,System.Nullable{System.Boolean}) is likes.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "UpdateUserItemDataDto",
+      "SchemaName": "UpdateUserItemDataDto",
+      "Description": "This is used by the api to get information about a item user data.",
+      "Fields": [
+        {
+          "Name": "IsFavorite",
+          "JsonName": "IsFavorite",
+          "Description": "Gets or sets a value indicating whether this instance is favorite.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the item identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Key",
+          "JsonName": "Key",
+          "Description": "Gets or sets the key.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LastPlayedDate",
+          "JsonName": "LastPlayedDate",
+          "Description": "Gets or sets the last played date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Likes",
+          "JsonName": "Likes",
+          "Description": "Gets or sets a value indicating whether this MediaBrowser.Model.Dto.UpdateUserItemDataDto is likes.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlayCount",
+          "JsonName": "PlayCount",
+          "Description": "Gets or sets the play count.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaybackPositionTicks",
+          "JsonName": "PlaybackPositionTicks",
+          "Description": "Gets or sets the playback position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Played",
+          "JsonName": "Played",
+          "Description": "Gets or sets a value indicating whether this MediaBrowser.Model.Dto.UserItemDataDto is played.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlayedPercentage",
+          "JsonName": "PlayedPercentage",
+          "Description": "Gets or sets the played percentage.",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Rating",
+          "JsonName": "Rating",
+          "Description": "Gets or sets the rating.",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UnplayedItemCount",
+          "JsonName": "UnplayedItemCount",
+          "Description": "Gets or sets the unplayed item count.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,385 @@
+{
+  "Name": "RemoteImage",
+  "Tag": "RemoteImageService",
+  "Operations": [
+    {
+      "Name": "GetImagesRemote",
+      "OperationId": "getImagesRemote",
+      "Method": "GET",
+      "Path": "/Images/Remote",
+      "Description": "Gets a remote image",
+      "Options": [
+        {
+          "Name": "ImageUrl",
+          "Field": "ImageUrl",
+          "In": "Query",
+          "Description": "The image url",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemsByIdRemoteImages",
+      "OperationId": "getItemsByIdRemoteimages",
+      "Method": "GET",
+      "Path": "/Items/{Id}/RemoteImages",
+      "Description": "Gets available remote images for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Type",
+          "Field": "Type",
+          "In": "Query",
+          "Description": "The image type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "Field": "ProviderName",
+          "In": "Query",
+          "Description": "Optional. The image provider to use",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IncludeAllLanguages",
+          "Field": "IncludeAllLanguages",
+          "In": "Query",
+          "Description": "Optional.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSeriesImages",
+          "Field": "EnableSeriesImages",
+          "In": "Query",
+          "Description": "Optional.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteImageResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetItemsByIdRemoteImagesProviders",
+      "OperationId": "getItemsByIdRemoteimagesProviders",
+      "Method": "GET",
+      "Path": "/Items/{Id}/RemoteImages/Providers",
+      "Description": "Gets available remote image providers for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ImageProviderInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdRemoteImagesDownload",
+      "OperationId": "postItemsByIdRemoteimagesDownload",
+      "Method": "POST",
+      "Path": "/Items/{Id}/RemoteImages/Download",
+      "Description": "Downloads a remote image for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Type",
+          "Field": "Type",
+          "In": "Query",
+          "Description": "The image type",
+          "Required": true,
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "Field": "ProviderName",
+          "In": "Query",
+          "Description": "The image provider",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ImageUrl",
+          "Field": "ImageUrl",
+          "In": "Query",
+          "Description": "The image url",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ImagesBaseDownloadRemoteImage"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ImageProviderInfo",
+      "SchemaName": "ImageProviderInfo",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportedImages",
+          "JsonName": "SupportedImages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ImagesBaseDownloadRemoteImage",
+      "SchemaName": "Images.BaseDownloadRemoteImage",
+      "Fields": [
+        {
+          "Name": "ImageIndex",
+          "JsonName": "ImageIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "RemoteImageInfo",
+      "SchemaName": "RemoteImageInfo",
+      "Fields": [
+        {
+          "Name": "CommunityRating",
+          "JsonName": "CommunityRating",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DisplayLanguage",
+          "JsonName": "DisplayLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Language",
+          "JsonName": "Language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "ProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RatingType",
+          "JsonName": "RatingType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RatingType"
+          }
+        },
+        {
+          "Name": "ThumbnailUrl",
+          "JsonName": "ThumbnailUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Url",
+          "JsonName": "Url",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "VoteCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "RemoteImageResult",
+      "SchemaName": "RemoteImageResult",
+      "Fields": [
+        {
+          "Name": "Images",
+          "JsonName": "Images",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "RemoteImageInfo"
+            }
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "RatingType",
+      "SchemaName": "RatingType",
+      "Values": [
+        {
+          "Name": "RatingTypeScore",
+          "Value": "Score"
+        },
+        {
+          "Name": "RatingTypeLikes",
+          "Value": "Likes"
+        }
+      ]
+    }
+  ]
+}

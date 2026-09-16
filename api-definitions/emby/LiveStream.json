@@ -1,0 +1,227 @@
+{
+  "Name": "LiveStream",
+  "Tag": "LiveStreamService",
+  "Operations": [
+    {
+      "Name": "GetLiveTvLiveRecordingsByIdHlsBySegment",
+      "OperationId": "getLivetvLiverecordingsByIdHlsBySegment",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveRecordings/{Id}/hls/{Segment}",
+      "Description": "Gets a live recording",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Segment",
+          "Argument": "segment",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvLiveRecordingsByIdHlsLiveM3u8",
+      "OperationId": "getLivetvLiverecordingsByIdHlsLiveM3u8",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveRecordings/{Id}/hls/live.m3u8",
+      "Description": "Gets a live recording",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/x-mpegURL",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvLiveRecordingsByIdHlsMasterM3u8",
+      "OperationId": "getLivetvLiverecordingsByIdHlsMasterM3u8",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveRecordings/{Id}/hls/master.m3u8",
+      "Description": "Gets a live recording",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/x-mpegURL",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvLiveRecordingsByIdStream",
+      "OperationId": "getLivetvLiverecordingsByIdStream",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveRecordings/{Id}/stream",
+      "Description": "Gets a live tv channel",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "video/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvLiveStreamFilesByIdHlsBySegment",
+      "OperationId": "getLivetvLivestreamfilesByIdHlsBySegment",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveStreamFiles/{Id}/hls/{Segment}",
+      "Description": "Gets a live tv channel",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Segment",
+          "Argument": "segment",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvLiveStreamFilesByIdHlsLiveM3u8",
+      "OperationId": "getLivetvLivestreamfilesByIdHlsLiveM3u8",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveStreamFiles/{Id}/hls/live.m3u8",
+      "Description": "Gets a live tv channel",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/x-mpegURL",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvLiveStreamFilesByIdHlsMasterM3u8",
+      "OperationId": "getLivetvLivestreamfilesByIdHlsMasterM3u8",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveStreamFiles/{Id}/hls/master.m3u8",
+      "Description": "Gets a live tv channel",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/x-mpegURL",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvLiveStreamFilesByIdStreamByContainer",
+      "OperationId": "getLivetvLivestreamfilesByIdStreamByContainer",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveStreamFiles/{Id}/stream.{Container}",
+      "Description": "Gets a live tv channel",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Container",
+          "Argument": "container",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "video/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ]
+}

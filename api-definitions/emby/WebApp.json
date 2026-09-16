@@ -1,0 +1,249 @@
+{
+  "Name": "WebApp",
+  "Tag": "WebAppService",
+  "Operations": [
+    {
+      "Name": "GetWebConfigurationPage",
+      "OperationId": "getWebConfigurationpage",
+      "Method": "GET",
+      "Path": "/web/ConfigurationPage",
+      "Description": "Requires authentication as user",
+      "Response": {
+        "ContentType": "text/html",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetWebConfigurationPages",
+      "OperationId": "getWebConfigurationpages",
+      "Method": "GET",
+      "Path": "/web/ConfigurationPages",
+      "Description": "Requires authentication as user",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ApiConfigurationPageInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetWebStrings",
+      "OperationId": "getWebStrings",
+      "Method": "GET",
+      "Path": "/web/strings",
+      "Description": "Requires authentication as user",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetWebStringset",
+      "OperationId": "getWebStringset",
+      "Method": "GET",
+      "Path": "/web/stringset",
+      "Description": "Requires authentication as user",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "String"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ApiConfigurationPageInfo",
+      "SchemaName": "Api.ConfigurationPageInfo",
+      "Fields": [
+        {
+          "Name": "ConfigurationPageType",
+          "JsonName": "ConfigurationPageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PluginsConfigurationPageType"
+          }
+        },
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableInMainMenu",
+          "JsonName": "EnableInMainMenu",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableInUserMenu",
+          "JsonName": "EnableInUserMenu",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "FeatureId",
+          "JsonName": "FeatureId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Href",
+          "JsonName": "Href",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MenuIcon",
+          "JsonName": "MenuIcon",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MenuSection",
+          "JsonName": "MenuSection",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NavMenuId",
+          "JsonName": "NavMenuId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Plugin",
+          "JsonName": "Plugin",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CommonPluginsIPlugin"
+          }
+        },
+        {
+          "Name": "PluginId",
+          "JsonName": "PluginId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Translations",
+          "JsonName": "Translations",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CommonPluginsIPlugin",
+      "SchemaName": "Common.Plugins.IPlugin",
+      "Fields": [
+        {
+          "Name": "AssemblyFilePath",
+          "JsonName": "AssemblyFilePath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DataFolderPath",
+          "JsonName": "DataFolderPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "Version"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "PluginsConfigurationPageType",
+      "SchemaName": "Plugins.ConfigurationPageType",
+      "Values": [
+        {
+          "Name": "PluginsConfigurationPageTypePluginConfiguration",
+          "Value": "PluginConfiguration"
+        },
+        {
+          "Name": "PluginsConfigurationPageTypeNone",
+          "Value": "None"
+        }
+      ]
+    }
+  ]
+}

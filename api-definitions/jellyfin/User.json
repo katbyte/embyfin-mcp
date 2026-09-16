@@ -1,0 +1,330 @@
+{
+  "Name": "User",
+  "Tag": "User",
+  "Operations": [
+    {
+      "Name": "CreateUserByName",
+      "OperationId": "CreateUserByName",
+      "Method": "POST",
+      "Path": "/Users/New",
+      "Description": "Creates a user.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CreateUserByName"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "DeleteUser",
+      "OperationId": "DeleteUser",
+      "Method": "DELETE",
+      "Path": "/Users/{userId}",
+      "Description": "Deletes a user.",
+      "PathParameters": [
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetCurrentUser",
+      "OperationId": "GetCurrentUser",
+      "Method": "GET",
+      "Path": "/Users/Me",
+      "Description": "Gets the user based on auth token.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPublicUsers",
+      "OperationId": "GetPublicUsers",
+      "Method": "GET",
+      "Path": "/Users/Public",
+      "Description": "Gets a list of publicly visible users for display on a login screen.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "UserDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUserById",
+      "OperationId": "GetUserById",
+      "Method": "GET",
+      "Path": "/Users/{userId}",
+      "Description": "Gets a user by Id.",
+      "PathParameters": [
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUsers",
+      "OperationId": "GetUsers",
+      "Method": "GET",
+      "Path": "/Users",
+      "Description": "Gets a list of users.",
+      "Options": [
+        {
+          "Name": "isHidden",
+          "Field": "IsHidden",
+          "In": "Query",
+          "Description": "Optional filter by IsHidden=true or false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isDisabled",
+          "Field": "IsDisabled",
+          "In": "Query",
+          "Description": "Optional filter by IsDisabled=true or false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "UserDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UpdateUser",
+      "OperationId": "UpdateUser",
+      "Method": "POST",
+      "Path": "/Users",
+      "Description": "Updates a user.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateUserConfiguration",
+      "OperationId": "UpdateUserConfiguration",
+      "Method": "POST",
+      "Path": "/Users/Configuration",
+      "Description": "Updates a user configuration.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserConfiguration"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateUserPassword",
+      "OperationId": "UpdateUserPassword",
+      "Method": "POST",
+      "Path": "/Users/Password",
+      "Description": "Updates a user's password.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UpdateUserPassword"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateUserPolicy",
+      "OperationId": "UpdateUserPolicy",
+      "Method": "POST",
+      "Path": "/Users/{userId}/Policy",
+      "Description": "Updates a user policy.",
+      "PathParameters": [
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserPolicy"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "CreateUserByName",
+      "SchemaName": "CreateUserByName",
+      "Description": "The create user by name request body.",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the username.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Password",
+          "JsonName": "Password",
+          "Description": "Gets or sets the password.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "UpdateUserPassword",
+      "SchemaName": "UpdateUserPassword",
+      "Description": "The update user password request body.",
+      "Fields": [
+        {
+          "Name": "CurrentPassword",
+          "JsonName": "CurrentPassword",
+          "Description": "Gets or sets the current sha1-hashed password.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CurrentPw",
+          "JsonName": "CurrentPw",
+          "Description": "Gets or sets the current plain text password.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "NewPw",
+          "JsonName": "NewPw",
+          "Description": "Gets or sets the new plain text password.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ResetPassword",
+          "JsonName": "ResetPassword",
+          "Description": "Gets or sets a value indicating whether to reset the password.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ]
+}

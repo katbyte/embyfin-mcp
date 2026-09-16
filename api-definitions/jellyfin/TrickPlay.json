@@ -1,0 +1,99 @@
+{
+  "Name": "TrickPlay",
+  "Tag": "TrickPlay",
+  "Operations": [
+    {
+      "Name": "GetTrickplayHlsPlaylist",
+      "OperationId": "GetTrickplayHlsPlaylist",
+      "Method": "GET",
+      "Path": "/Videos/{itemId}/Trickplay/{width}/tiles.m3u8",
+      "Description": "Gets an image tiles playlist for trickplay.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "width",
+          "Argument": "width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media version id, if using an alternate version.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/x-mpegURL",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetTrickplayTileImage",
+      "OperationId": "GetTrickplayTileImage",
+      "Method": "GET",
+      "Path": "/Videos/{itemId}/Trickplay/{width}/{index}.jpg",
+      "Description": "Gets a trickplay tile image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "width",
+          "Argument": "width",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media version id, if using an alternate version.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ]
+}

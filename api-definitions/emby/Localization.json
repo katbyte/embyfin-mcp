@@ -1,0 +1,112 @@
+{
+  "Name": "Localization",
+  "Tag": "LocalizationService",
+  "Operations": [
+    {
+      "Name": "GetLocalizationCountries",
+      "OperationId": "getLocalizationCountries",
+      "Method": "GET",
+      "Path": "/Localization/Countries",
+      "Description": "Gets known countries",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "GlobalizationCountryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetLocalizationCultures",
+      "OperationId": "getLocalizationCultures",
+      "Method": "GET",
+      "Path": "/Localization/Cultures",
+      "Description": "Gets known cultures",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "GlobalizationCultureDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetLocalizationOptions",
+      "OperationId": "getLocalizationOptions",
+      "Method": "GET",
+      "Path": "/Localization/Options",
+      "Description": "Gets localization options",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "GlobalizationLocalizatonOption"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetLocalizationParentalRatings",
+      "OperationId": "getLocalizationParentalratings",
+      "Method": "GET",
+      "Path": "/Localization/ParentalRatings",
+      "Description": "Gets known parental ratings",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ParentalRating"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "GlobalizationLocalizatonOption",
+      "SchemaName": "Globalization.LocalizatonOption",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Value",
+          "JsonName": "Value",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -6,3 +6,6 @@ embyfin-mcp
 .tools/bin/
 .tools/venv/
 .env
+.embyfin-mcp
+.testenv*.sh
+.coverage/

@@ -1,0 +1,425 @@
+{
+  "Name": "Package",
+  "Tag": "PackageService",
+  "Operations": [
+    {
+      "Name": "DeletePackagesInstallingById",
+      "OperationId": "deletePackagesInstallingById",
+      "Method": "DELETE",
+      "Path": "/Packages/Installing/{Id}",
+      "Description": "Cancels a package installation",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPackages",
+      "OperationId": "getPackages",
+      "Method": "GET",
+      "Path": "/Packages",
+      "Description": "Gets available packages",
+      "Options": [
+        {
+          "Name": "PackageType",
+          "Field": "PackageType",
+          "In": "Query",
+          "Description": "Optional package type filter (System/UserInstalled)",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetSystems",
+          "Field": "TargetSystems",
+          "In": "Query",
+          "Description": "Optional. Filter by target system type. Allows multiple, comma delimited.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsPremium",
+          "Field": "IsPremium",
+          "In": "Query",
+          "Description": "Optional. Filter by premium status",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsAdult",
+          "Field": "IsAdult",
+          "In": "Query",
+          "Description": "Optional. Filter by package that contain adult content.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "PackageInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPackagesByName",
+      "OperationId": "getPackagesByName",
+      "Method": "GET",
+      "Path": "/Packages/{Name}",
+      "Description": "Gets a package, by name or assembly guid",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "AssemblyGuid",
+          "Field": "AssemblyGuid",
+          "In": "Query",
+          "Description": "The guid of the associated assembly",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PackageInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPackagesUpdates",
+      "OperationId": "getPackagesUpdates",
+      "Method": "GET",
+      "Path": "/Packages/Updates",
+      "Description": "Gets available package updates for currently installed packages",
+      "Options": [
+        {
+          "Name": "PackageType",
+          "Field": "PackageType",
+          "In": "Query",
+          "Description": "Package type filter (System/UserInstalled)",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "PackageVersionInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPackagesInstalledByName",
+      "OperationId": "postPackagesInstalledByName",
+      "Method": "POST",
+      "Path": "/Packages/Installed/{Name}",
+      "Description": "Installs a package",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "AssemblyGuid",
+          "Field": "AssemblyGuid",
+          "In": "Query",
+          "Description": "Guid of the associated assembly",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Version",
+          "Field": "Version",
+          "In": "Query",
+          "Description": "Optional version. Defaults to latest version.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UpdateClass",
+          "Field": "UpdateClass",
+          "In": "Query",
+          "Description": "Optional update class (Dev, Beta, Release). Defaults to Release.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PackageVersionClass"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPackagesInstallingByIdDelete",
+      "OperationId": "postPackagesInstallingByIdDelete",
+      "Method": "POST",
+      "Path": "/Packages/Installing/{Id}/Delete",
+      "Description": "Cancels a package installation",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "PackageInfo",
+      "SchemaName": "PackageInfo",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Category",
+          "JsonName": "category",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableInAppStore",
+          "JsonName": "enableInAppStore",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ExpDate",
+          "JsonName": "expDate",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FeatureId",
+          "JsonName": "featureId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Guid",
+          "JsonName": "guid",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Installs",
+          "JsonName": "installs",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IsPremium",
+          "JsonName": "isPremium",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsRegistered",
+          "JsonName": "isRegistered",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Owner",
+          "JsonName": "owner",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PreviewImage",
+          "JsonName": "previewImage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Price",
+          "JsonName": "price",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RichDescUrl",
+          "JsonName": "richDescUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ShortDescription",
+          "JsonName": "shortDescription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetFilename",
+          "JsonName": "targetFilename",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetSystem",
+          "JsonName": "targetSystem",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PackageTargetSystem"
+          }
+        },
+        {
+          "Name": "ThumbImage",
+          "JsonName": "thumbImage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TileColor",
+          "JsonName": "tileColor",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Versions",
+          "JsonName": "versions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PackageVersionInfo"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "PackageTargetSystem",
+      "SchemaName": "PackageTargetSystem",
+      "Values": [
+        {
+          "Name": "PackageTargetSystemServer",
+          "Value": "Server"
+        },
+        {
+          "Name": "PackageTargetSystemMBTheater",
+          "Value": "MBTheater"
+        },
+        {
+          "Name": "PackageTargetSystemMBClassic",
+          "Value": "MBClassic"
+        },
+        {
+          "Name": "PackageTargetSystemOther",
+          "Value": "Other"
+        }
+      ]
+    }
+  ]
+}

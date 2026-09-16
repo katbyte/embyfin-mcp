@@ -1,0 +1,203 @@
+{
+  "Name": "BackupApi",
+  "Tag": "BackupApi",
+  "Operations": [
+    {
+      "Name": "GetBackupRestoreBackupInfo",
+      "OperationId": "getBackuprestoreBackupinfo",
+      "Method": "GET",
+      "Path": "/BackupRestore/BackupInfo",
+      "Description": "Requires authentication as administrator",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MBBackupApiAllBackupsInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostBackupRestoreRestore",
+      "OperationId": "postBackuprestoreRestore",
+      "Method": "POST",
+      "Path": "/BackupRestore/Restore",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MBBackupApiRestoreOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostBackupRestoreRestoreData",
+      "OperationId": "postBackuprestoreRestoredata",
+      "Method": "POST",
+      "Path": "/BackupRestore/RestoreData",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MBBackupApiDataRestoreOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "MBBackupApiAllBackupsInfo",
+      "SchemaName": "MBBackup.Api.AllBackupsInfo",
+      "Fields": [
+        {
+          "Name": "FullBackupInfo",
+          "JsonName": "FullBackupInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MBBackupBackupInfo"
+          }
+        },
+        {
+          "Name": "LightBackups",
+          "JsonName": "LightBackups",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MBBackupBackupInfo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MBBackupApiDataRestoreOptions",
+      "SchemaName": "MBBackup.Api.DataRestoreOptions",
+      "Fields": [
+        {
+          "Name": "Users",
+          "JsonName": "Users",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MBBackupApiUserRestoreInfo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MBBackupApiRestoreOptions",
+      "SchemaName": "MBBackup.Api.RestoreOptions",
+      "Fields": [
+        {
+          "Name": "RestoreServerId",
+          "JsonName": "RestoreServerId",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UseFiles",
+          "JsonName": "UseFiles",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MBBackupApiUserRestoreInfo",
+      "SchemaName": "MBBackup.Api.UserRestoreInfo",
+      "Fields": [
+        {
+          "Name": "SourceUserId",
+          "JsonName": "SourceUserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetUserId",
+          "JsonName": "TargetUserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MBBackupBackupInfo",
+      "SchemaName": "MBBackup.BackupInfo",
+      "Fields": [
+        {
+          "Name": "CanRestore",
+          "JsonName": "CanRestore",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsFullBackup",
+          "JsonName": "IsFullBackup",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PluginVersion",
+          "JsonName": "PluginVersion",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerVersion",
+          "JsonName": "ServerVersion",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Users",
+          "JsonName": "Users",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameIdPair"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

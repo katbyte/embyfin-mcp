@@ -5,6 +5,8 @@ GIT_COMMIT=$(shell git describe --always --long --dirty)
 # falls back to dev when there is no tag yet (the || must wrap git, not sed, or it never fires)
 GIT_VERSION=$(shell (git describe --tags --dirty 2>/dev/null || echo dev) | sed 's/-\([0-9]*\)-g/+\1@g/')
 TEST_TIMEOUT?=15m
+empty:=
+space:=$(empty) $(empty)
 
 # dev tool binaries are built into .tools/bin (gitignored) from the versions pinned in
 # .tools/go.mod (and .tools/actionlint/go.mod) - the single source of truth for make and CI;
@@ -85,6 +87,20 @@ docker: ## Build the embyfin-mcp container image with version info from git
 
 tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(SHELLCHECK) $(YAMLLINT) ## Install all pinned dev tools into .tools/bin
 
+##@ SDK generation (internal/pandorest)
+generate: pandorest-import pandorest-generate ## Import the specs into api-definitions/, then generate lib/emby and lib/jf from them
+
+pandorest-import: ## Import docs/*-openapi.json into api-definitions/, applying the workarounds
+	@echo "==> importing the OpenAPI specs into api-definitions/..."
+	go run ./internal/pandorest import
+
+pandorest-generate: ## Generate lib/emby and lib/jf from api-definitions/
+	@echo "==> generating lib/emby and lib/jf from api-definitions/..."
+	go run ./internal/pandorest generate
+
+pandorest-diff: ## Report what the specs in docs/ change against the checked-in api-definitions/
+	@go run ./internal/pandorest diff -quiet
+
 ##@ Formatting
 fmt: $(GOFUMPT) $(GOLANGCI_LINT) ## Fix Go formatting (gofmt, gofumpt, goimports)
 	@echo "==> Fixing source code with gofmt..."
@@ -119,6 +135,15 @@ shellcheck: $(SHELLCHECK) ## Check shell scripts with shellcheck
 	@echo "==> Checking shell scripts with shellcheck..."
 	@$(SHELLCHECK) scripts/*.sh
 
+gencheck: generate ## Check that the definitions and generated SDKs match the specs (regenerate, then diff)
+	@test -z "$$(git status --porcelain -- api-definitions lib/emby lib/jf)" || \
+		(git status --short -- api-definitions lib/emby lib/jf; echo; \
+		echo "api-definitions/, lib/emby or lib/jf is stale. Run 'make generate' and commit."; exit 1)
+
+apicheck: ## Check that the definitions match the specs and every operation has a method in lib/emby and lib/jf
+	@echo "==> Checking API coverage of lib/emby and lib/jf..."
+	@go run ./internal/pandorest check -quiet
+
 depscheck: ## Check that go.mod/go.sum and vendor/ are in sync
 	@echo "==> Checking source code with go mod tidy..."
 	@go mod tidy
@@ -146,6 +171,119 @@ depscheck: ## Check that go.mod/go.sum and vendor/ are in sync
 test: build ## Run tests
 	go test ./... -timeout ${TEST_TIMEOUT}
 
-check-all: build test lint actionlint yamllint shellcheck depscheck ## Run build + test + all linters + depscheck
+# the live suites take the backend from EMBYFIN_TEST_BACKEND (emby or jellyfin), and every
+# target below runs for both unless BACKENDS narrows it: make testacc BACKENDS=jellyfin
+BACKENDS?=emby jellyfin
 
-.PHONY: default all help fmt goimports build docker lint lint-fix actionlint yamllint shellcheck depscheck check-all install tools test
+test-integration: ## Run the SDK tests (lib/emby, lib/jf) against an already-running server
+	@[ -n "${EMBYFIN_SERVER}" ] && [ -n "${EMBYFIN_TOKEN}" ] && [ -n "${EMBYFIN_BACKEND}" ] || \
+		(echo 'EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN must be set; or use "make testacc"'; exit 1)
+	go test -tags integration -count=1 ./integration/... -timeout ${TEST_TIMEOUT} -v
+
+test-acceptance: ## Run the tool tests (behaviour, audits, providers) against an already-running server
+	@[ -n "${EMBYFIN_SERVER}" ] && [ -n "${EMBYFIN_TOKEN}" ] && [ -n "${EMBYFIN_BACKEND}" ] || \
+		(echo 'EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN must be set; or use "make testacc"'; exit 1)
+	go test -tags integration -count=1 ./acceptance/... -timeout ${TEST_TIMEOUT} -v
+
+# each suite gets its own container per backend: the SDK tests create and delete libraries
+# of their own, which would trample the tool suite's fixtures. The SDK containers sit on
+# the acceptance port + 100, so both can run side by side.
+# live SUITE BACKEND [EXTRA ENV] - start a container, run one suite, tear it down
+define live
+	@echo "==> $(1) on $(2)..."
+	@set -e; \
+		env=".testenv-$(1)-$(2).sh"; \
+		export EMBYFIN_TEST_BACKEND=$(2) EMBYFIN_TEST_CONTAINER=embyfin-mcp-$(1)-$(2) \
+			EMBYFIN_TEST_DATA=$${HOME}/.cache/embyfin-mcp/testenv/$(1)-$(2) $(3); \
+		[ "$(1)" = "integration" ] && export EMBYFIN_TEST_PORT=$$(( $$( [ $(2) = emby ] && echo 18097 || echo 18096 ) + 100 )) EMBYFIN_TEST_PROXY_PORT=18180 || true; \
+		scripts/testenv.sh up | grep '^export' > "$$env"; \
+		trap 'st=$$?; [ $$st -eq 0 ] || docker logs embyfin-mcp-$(1)-$(2) 2>&1 | tail -60; \
+			scripts/testenv.sh down; rm -f '"$$env"'; exit $$st' EXIT; \
+		. ./"$$env"; \
+		go test -tags integration -count=1 ./$(1)/... -timeout ${TEST_TIMEOUT} -v $(4)
+endef
+
+testacc-integration: ## SDK tests in a throwaway container, for each backend
+	@for b in $(BACKENDS); do $(MAKE) --no-print-directory testacc-integration-$$b || exit 1; done
+
+testacc-integration-%:
+	$(call live,integration,$*)
+
+testacc-acceptance: ## Tool tests in a throwaway container, for each backend
+	@for b in $(BACKENDS); do $(MAKE) --no-print-directory testacc-acceptance-$$b || exit 1; done
+
+testacc-acceptance-%:
+	$(call live,acceptance,$*)
+
+testacc: testacc-integration testacc-acceptance ## Run both live suites for both backends, each in its own container
+
+# Coverage has to span all three suites or it lies: the unit tests alone report
+# a fraction for tools/, because almost everything real happens in the live
+# suites behind the integration tag. Each writes binary coverage into its own
+# directory and covdata merges them, which is stdlib tooling rather than a
+# third-party merger.
+COVERDIR?=.coverage
+COVERPKG=./tools/...,./lib/...,./cli/...,./internal/...
+SDKS=/lib/emby/\|/lib/jf/
+# (the comma leads each backend's pair: foreach joins its results with spaces, which the
+# recipes strip, so a trailing one would run two backends' directories together)
+COVERDIRS=$(COVERDIR)/unit$(foreach b,$(BACKENDS),,$(COVERDIR)/integration-$(b),$(COVERDIR)/acceptance-$(b))
+
+cover: ## Run every suite with coverage and report the total
+	@rm -rf $(COVERDIR)
+	@mkdir -p $(COVERDIR)/unit $(foreach b,$(BACKENDS),$(COVERDIR)/integration-$(b) $(COVERDIR)/acceptance-$(b))
+	@echo "==> unit..."
+	@go test -count=1 -coverpkg=$(COVERPKG) ./tools/ ./cli/ ./lib/... ./internal/... \
+		-args -test.gocoverdir=$(CURDIR)/$(COVERDIR)/unit >/dev/null
+	@for b in $(BACKENDS); do \
+		$(MAKE) --no-print-directory cover-integration-$$b || exit 1; \
+		$(MAKE) --no-print-directory cover-acceptance-$$b || exit 1; \
+	done
+	@go tool covdata textfmt -i=$(subst $(space),,$(COVERDIRS)) -o=$(COVERDIR)/coverage.all
+	@# lib/emby and lib/jf are generated, one mechanical method per operation (845 of
+	@# them); the suites exercise the ones the tools rely on, so the total is for the
+	@# hand-written code and the SDKs get a line of their own (the per-package
+	@# figures below include them)
+	@grep -v '$(SDKS)' $(COVERDIR)/coverage.all > $(COVERDIR)/coverage.out
+	@(head -1 $(COVERDIR)/coverage.all; grep '$(SDKS)' $(COVERDIR)/coverage.all) > $(COVERDIR)/coverage-sdk.out
+	@echo
+	@go tool cover -func=$(COVERDIR)/coverage.out | tail -1
+	@printf 'generated SDKs:\t\t\t\t\t\t(statements)\t%s\n' "$$(go tool cover -func=$(COVERDIR)/coverage-sdk.out | tail -1 | awk '{print $$NF}')"
+	@echo "==> per package"
+	@go tool covdata percent -i=$(subst $(space),,$(COVERDIRS))
+
+cover-integration-%:
+	$(call live,integration,$*,,-coverpkg=$(COVERPKG) -args -test.gocoverdir=$(CURDIR)/$(COVERDIR)/integration-$*)
+
+cover-acceptance-%:
+	$(call live,acceptance,$*,,-coverpkg=$(COVERPKG) -args -test.gocoverdir=$(CURDIR)/$(COVERDIR)/acceptance-$*)
+
+cover-html: cover ## Run every suite with coverage and open the HTML report
+	@go tool cover -html=$(COVERDIR)/coverage.out
+
+record: ## Re-record the provider cassettes against the real TMDB/TheTVDB/OMDb, for each backend (needs EMBYFIN_TMDB_KEY)
+	@for b in $(BACKENDS); do $(MAKE) --no-print-directory record-$$b || exit 1; done
+
+record-%:
+	@echo "==> recording against the real providers (this hits the network)..."
+	$(call live,acceptance,$*,EMBYFIN_TEST_RECORD=1)
+	$(call live,integration,$*,EMBYFIN_TEST_RECORD=1)
+
+record-check: ## Check the provider cassettes still match the real APIs, without rewriting them
+	@for b in $(BACKENDS); do \
+		echo "==> verifying cassettes against the real providers (this hits the network)..."; \
+		$(MAKE) --no-print-directory record-check-$$b || exit 1; \
+	done
+
+record-check-%:
+	$(call live,acceptance,$*,EMBYFIN_TEST_VERIFY=1)
+
+testenv-up: ## Start and seed a throwaway media server (EMBYFIN_TEST_BACKEND=emby|jellyfin)
+	@scripts/testenv.sh up
+
+testenv-down: ## Remove the throwaway media server (EMBYFIN_TEST_BACKEND=emby|jellyfin)
+	@scripts/testenv.sh down
+
+check-all: build test testacc lint actionlint yamllint shellcheck depscheck gencheck apicheck ## Run build + tests (incl. live) + all linters + depscheck
+
+.PHONY: default all help fmt goimports build docker generate pandorest-import pandorest-generate pandorest-diff lint lint-fix actionlint yamllint shellcheck gencheck apicheck depscheck check-all install tools test

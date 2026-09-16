@@ -1,0 +1,707 @@
+{
+  "Name": "Authentication",
+  "Tag": "Authentication",
+  "Operations": [
+    {
+      "Name": "AuthenticateUserByName",
+      "OperationId": "AuthenticateUserByName",
+      "Method": "POST",
+      "Path": "/Users/AuthenticateByName",
+      "Description": "Authenticates a user by name.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticateUserByName"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthenticateWithQuickConnect",
+      "OperationId": "AuthenticateWithQuickConnect",
+      "Method": "POST",
+      "Path": "/Users/AuthenticateWithQuickConnect",
+      "Description": "Authenticates a user with quick connect.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QuickConnectDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthorizeQuickConnect",
+      "OperationId": "AuthorizeQuickConnect",
+      "Method": "POST",
+      "Path": "/QuickConnect/Authorize",
+      "Description": "Authorizes a pending quick connect request.",
+      "Options": [
+        {
+          "Name": "code",
+          "Field": "Code",
+          "In": "Query",
+          "Description": "Quick connect code to authorize.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user the authorize. Access to the requested user is required.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Boolean"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "CreateKey",
+      "OperationId": "CreateKey",
+      "Method": "POST",
+      "Path": "/Auth/Keys",
+      "Description": "Create a new api key.",
+      "Options": [
+        {
+          "Name": "app",
+          "Field": "App",
+          "In": "Query",
+          "Description": "Name of the app using the authentication key.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "ForgotPassword",
+      "OperationId": "ForgotPassword",
+      "Method": "POST",
+      "Path": "/Users/ForgotPassword",
+      "Description": "Initiates the forgot password process for a local user.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ForgotPasswordDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ForgotPasswordResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ForgotPasswordPin",
+      "OperationId": "ForgotPasswordPin",
+      "Method": "POST",
+      "Path": "/Users/ForgotPassword/Pin",
+      "Description": "Redeems a forgot password pin.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ForgotPasswordPinDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PinRedeemResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetAuthProviders",
+      "OperationId": "GetAuthProviders",
+      "Method": "GET",
+      "Path": "/Auth/Providers",
+      "Description": "Get all auth providers.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "NameIdPair"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetKeys",
+      "OperationId": "GetKeys",
+      "Method": "GET",
+      "Path": "/Auth/Keys",
+      "Description": "Get all keys.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationInfoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPasswordResetProviders",
+      "OperationId": "GetPasswordResetProviders",
+      "Method": "GET",
+      "Path": "/Auth/PasswordResetProviders",
+      "Description": "Get all password reset providers.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "NameIdPair"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetQuickConnectEnabled",
+      "OperationId": "GetQuickConnectEnabled",
+      "Method": "GET",
+      "Path": "/QuickConnect/Enabled",
+      "Description": "Gets the current quick connect state.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Boolean"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetQuickConnectState",
+      "OperationId": "GetQuickConnectState",
+      "Method": "GET",
+      "Path": "/QuickConnect/Connect",
+      "Description": "Attempts to retrieve authentication information.",
+      "Options": [
+        {
+          "Name": "secret",
+          "Field": "Secret",
+          "In": "Query",
+          "Description": "Secret previously returned from the Initiate endpoint.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QuickConnectResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "InitiateQuickConnect",
+      "OperationId": "InitiateQuickConnect",
+      "Method": "POST",
+      "Path": "/QuickConnect/Initiate",
+      "Description": "Initiate a new quick connect request.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QuickConnectResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "RevokeKey",
+      "OperationId": "RevokeKey",
+      "Method": "DELETE",
+      "Path": "/Auth/Keys/{key}",
+      "Description": "Remove an api key.",
+      "PathParameters": [
+        {
+          "Name": "key",
+          "Argument": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "AuthenticateUserByName",
+      "SchemaName": "AuthenticateUserByName",
+      "Description": "The authenticate user by name request body.",
+      "Fields": [
+        {
+          "Name": "Pw",
+          "JsonName": "Pw",
+          "Description": "Gets or sets the plain text password.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Username",
+          "JsonName": "Username",
+          "Description": "Gets or sets the username.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationInfo",
+      "SchemaName": "AuthenticationInfo",
+      "Fields": [
+        {
+          "Name": "AccessToken",
+          "JsonName": "AccessToken",
+          "Description": "Gets or sets the access token.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AppName",
+          "JsonName": "AppName",
+          "Description": "Gets or sets the name of the application.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AppVersion",
+          "JsonName": "AppVersion",
+          "Description": "Gets or sets the application version.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Description": "Gets or sets the date created.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateLastActivity",
+          "JsonName": "DateLastActivity",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateRevoked",
+          "JsonName": "DateRevoked",
+          "Description": "Gets or sets the date revoked.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DeviceId",
+          "JsonName": "DeviceId",
+          "Description": "Gets or sets the device identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DeviceName",
+          "JsonName": "DeviceName",
+          "Description": "Gets or sets the name of the device.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the identifier.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "IsActive",
+          "JsonName": "IsActive",
+          "Description": "Gets or sets a value indicating whether this instance is active.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Description": "Gets or sets the user identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserName",
+          "JsonName": "UserName",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationInfoQueryResult",
+      "SchemaName": "AuthenticationInfoQueryResult",
+      "Description": "Query result container.",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Description": "Gets or sets the items.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AuthenticationInfo"
+            }
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "JsonName": "StartIndex",
+          "Description": "Gets or sets the index of the first record in Items.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Description": "Gets or sets the total number of records available.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationResult",
+      "SchemaName": "AuthenticationResult",
+      "Description": "A class representing an authentication result.",
+      "Fields": [
+        {
+          "Name": "AccessToken",
+          "JsonName": "AccessToken",
+          "Description": "Gets or sets the access token.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Description": "Gets or sets the server id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SessionInfo",
+          "JsonName": "SessionInfo",
+          "Description": "Session info DTO.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SessionInfoDto"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "User",
+          "JsonName": "User",
+          "Description": "Class UserDto.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserDto"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "ForgotPasswordDto",
+      "SchemaName": "ForgotPasswordDto",
+      "Description": "Forgot Password request body DTO.",
+      "Fields": [
+        {
+          "Name": "EnteredUsername",
+          "JsonName": "EnteredUsername",
+          "Description": "Gets or sets the entered username to have its password reset.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ForgotPasswordPinDto",
+      "SchemaName": "ForgotPasswordPinDto",
+      "Description": "Forgot Password Pin enter request body DTO.",
+      "Fields": [
+        {
+          "Name": "Pin",
+          "JsonName": "Pin",
+          "Description": "Gets or sets the entered pin to have the password reset.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ForgotPasswordResult",
+      "SchemaName": "ForgotPasswordResult",
+      "Fields": [
+        {
+          "Name": "Action",
+          "JsonName": "Action",
+          "Description": "Gets or sets the action.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ForgotPasswordAction"
+          }
+        },
+        {
+          "Name": "PinExpirationDate",
+          "JsonName": "PinExpirationDate",
+          "Description": "Gets or sets the pin expiration date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PinFile",
+          "JsonName": "PinFile",
+          "Description": "Gets or sets the pin file.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PinRedeemResult",
+      "SchemaName": "PinRedeemResult",
+      "Fields": [
+        {
+          "Name": "Success",
+          "JsonName": "Success",
+          "Description": "Gets or sets a value indicating whether this MediaBrowser.Model.Users.PinRedeemResult is success.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UsersReset",
+          "JsonName": "UsersReset",
+          "Description": "Gets or sets the users reset.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QuickConnectDto",
+      "SchemaName": "QuickConnectDto",
+      "Description": "The quick connect request body.",
+      "Fields": [
+        {
+          "Name": "Secret",
+          "JsonName": "Secret",
+          "Description": "Gets or sets the quick connect secret.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QuickConnectResult",
+      "SchemaName": "QuickConnectResult",
+      "Description": "Stores the state of an quick connect request.",
+      "Fields": [
+        {
+          "Name": "AppName",
+          "JsonName": "AppName",
+          "Description": "Gets the requesting app name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AppVersion",
+          "JsonName": "AppVersion",
+          "Description": "Gets the requesting app version.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Authenticated",
+          "JsonName": "Authenticated",
+          "Description": "Gets or sets a value indicating whether this request is authorized.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Code",
+          "JsonName": "Code",
+          "Description": "Gets the user facing code used so the user can quickly differentiate this request from others.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateAdded",
+          "JsonName": "DateAdded",
+          "Description": "Gets or sets the DateTime that this request was created.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceId",
+          "JsonName": "DeviceId",
+          "Description": "Gets the requesting device id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceName",
+          "JsonName": "DeviceName",
+          "Description": "Gets the requesting device name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Secret",
+          "JsonName": "Secret",
+          "Description": "Gets the secret value used to uniquely identify this request. Can be used to retrieve authentication information.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ForgotPasswordAction",
+      "SchemaName": "ForgotPasswordAction",
+      "Values": [
+        {
+          "Name": "ForgotPasswordActionContactAdmin",
+          "Value": "ContactAdmin"
+        },
+        {
+          "Name": "ForgotPasswordActionPinCode",
+          "Value": "PinCode"
+        },
+        {
+          "Name": "ForgotPasswordActionInNetworkRequired",
+          "Value": "InNetworkRequired"
+        }
+      ]
+    }
+  ]
+}

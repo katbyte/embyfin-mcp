@@ -1,0 +1,97 @@
+{
+  "Name": "Suggestion",
+  "Tag": "Suggestion",
+  "Operations": [
+    {
+      "Name": "GetSuggestions",
+      "OperationId": "GetSuggestions",
+      "Method": "GET",
+      "Path": "/Items/Suggestions",
+      "Description": "Gets suggestions.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "mediaType",
+          "Field": "MediaType",
+          "In": "Query",
+          "Description": "The media types.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaType"
+            }
+          }
+        },
+        {
+          "Name": "type",
+          "Field": "Type",
+          "In": "Query",
+          "Description": "The type.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The start index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The limit.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableTotalRecordCount",
+          "Field": "EnableTotalRecordCount",
+          "In": "Query",
+          "Description": "Whether to enable the total record count.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    }
+  ]
+}

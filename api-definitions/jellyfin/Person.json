@@ -1,0 +1,252 @@
+{
+  "Name": "Person",
+  "Tag": "Person",
+  "Operations": [
+    {
+      "Name": "GetPerson",
+      "OperationId": "GetPerson",
+      "Method": "GET",
+      "Path": "/Persons/{name}",
+      "Description": "Get person by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id, and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPersons",
+      "OperationId": "GetPersons",
+      "Method": "GET",
+      "Path": "/Persons",
+      "Description": "Gets all persons.",
+      "Options": [
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. All items with a lower index will be dropped from the response.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "searchTerm",
+          "Field": "SearchTerm",
+          "In": "Query",
+          "Description": "The search term.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameStartsWith",
+          "Field": "NameStartsWith",
+          "In": "Query",
+          "Description": "Optional. Filter by items whose name starts with the given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameLessThan",
+          "Field": "NameLessThan",
+          "In": "Query",
+          "Description": "Optional. Filter by items whose name will appear before this value when sorted alphabetically.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "nameStartsWithOrGreater",
+          "Field": "NameStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional. Filter by items whose name will appear after this value when sorted alphabetically.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "filters",
+          "Field": "Filters",
+          "In": "Query",
+          "Description": "Optional. Specify additional filters to apply.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFilter"
+            }
+          }
+        },
+        {
+          "Name": "isFavorite",
+          "Field": "IsFavorite",
+          "In": "Query",
+          "Description": "Optional filter by items that are marked as favorite, or not. userId is required.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "excludePersonTypes",
+          "Field": "ExcludePersonTypes",
+          "In": "Query",
+          "Description": "Optional. If specified results will be filtered to exclude those containing the specified PersonType. Allows multiple, comma-delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "personTypes",
+          "Field": "PersonTypes",
+          "In": "Query",
+          "Description": "Optional. If specified results will be filtered to include only those containing the specified PersonType. Allows multiple, comma-delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Optional. Specify this to localize the search to a specific library. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "appearsInItemId",
+          "Field": "AppearsInItemId",
+          "In": "Query",
+          "Description": "Optional. If specified, person results will be filtered on items related to said persons.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    }
+  ]
+}

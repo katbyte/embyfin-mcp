@@ -1,0 +1,1340 @@
+{
+  "Name": "Playstate",
+  "Tag": "PlaystateService",
+  "Operations": [
+    {
+      "Name": "DeleteUsersByUserIdPlayedItemsById",
+      "OperationId": "deleteUsersByUseridPlayeditemsById",
+      "Method": "DELETE",
+      "Path": "/Users/{UserId}/PlayedItems/{Id}",
+      "Description": "Marks an item as unplayed",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteUsersByUserIdPlayingItemsById",
+      "OperationId": "deleteUsersByUseridPlayingitemsById",
+      "Method": "DELETE",
+      "Path": "/Users/{UserId}/PlayingItems/{Id}",
+      "Description": "Reports that a user has stopped playing an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The id of the MediaSource",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NextMediaType",
+          "Field": "NextMediaType",
+          "In": "Query",
+          "Description": "The next media type that will play",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "Field": "PositionTicks",
+          "In": "Query",
+          "Description": "Optional. The position, in ticks, where playback stopped. 1ms = 10000 ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsPlaying",
+      "OperationId": "postSessionsPlaying",
+      "Method": "POST",
+      "Path": "/Sessions/Playing",
+      "Description": "Reports playback has started within a session",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackStartInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsPlayingPing",
+      "OperationId": "postSessionsPlayingPing",
+      "Method": "POST",
+      "Path": "/Sessions/Playing/Ping",
+      "Description": "Pings a playback session",
+      "Options": [
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsPlayingProgress",
+      "OperationId": "postSessionsPlayingProgress",
+      "Method": "POST",
+      "Path": "/Sessions/Playing/Progress",
+      "Description": "Reports playback progress within a session",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackProgressInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsPlayingStopped",
+      "OperationId": "postSessionsPlayingStopped",
+      "Method": "POST",
+      "Path": "/Sessions/Playing/Stopped",
+      "Description": "Reports playback has stopped within a session",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackStopInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdItemsByItemIdUserData",
+      "OperationId": "postUsersByUseridItemsByItemidUserdata",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/Items/{ItemId}/UserData",
+      "Description": "Updates userdata for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdPlayedItemsById",
+      "OperationId": "postUsersByUseridPlayeditemsById",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/PlayedItems/{Id}",
+      "Description": "Marks an item as played",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "DatePlayed",
+          "Field": "DatePlayed",
+          "In": "Query",
+          "Description": "The date the item was played (if any). Format = yyyyMMddHHmmss",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdPlayedItemsByIdDelete",
+      "OperationId": "postUsersByUseridPlayeditemsByIdDelete",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/PlayedItems/{Id}/Delete",
+      "Description": "Marks an item as unplayed",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserItemDataDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdPlayingItemsById",
+      "OperationId": "postUsersByUseridPlayingitemsById",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/PlayingItems/{Id}",
+      "Description": "Reports that a user has begun playing an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The id of the MediaSource",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CanSeek",
+          "Field": "CanSeek",
+          "In": "Query",
+          "Description": "Indicates if the client can seek",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "Field": "AudioStreamIndex",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "Field": "SubtitleStreamIndex",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlayMethod",
+          "Field": "PlayMethod",
+          "In": "Query",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayMethod"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdPlayingItemsByIdDelete",
+      "OperationId": "postUsersByUseridPlayingitemsByIdDelete",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/PlayingItems/{Id}/Delete",
+      "Description": "Reports that a user has stopped playing an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The id of the MediaSource",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NextMediaType",
+          "Field": "NextMediaType",
+          "In": "Query",
+          "Description": "The next media type that will play",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "Field": "PositionTicks",
+          "In": "Query",
+          "Description": "Optional. The position, in ticks, where playback stopped. 1ms = 10000 ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdPlayingItemsByIdProgress",
+      "OperationId": "postUsersByUseridPlayingitemsByIdProgress",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/PlayingItems/{Id}/Progress",
+      "Description": "Reports a user's playback progress",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The id of the MediaSource",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "Field": "PositionTicks",
+          "In": "Query",
+          "Description": "Optional. The current position, in ticks. 1ms = 10000 ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "IsPaused",
+          "Field": "IsPaused",
+          "In": "Query",
+          "Description": "Indicates if the player is paused.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsMuted",
+          "Field": "IsMuted",
+          "In": "Query",
+          "Description": "Indicates if the player is muted.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "Field": "AudioStreamIndex",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "Field": "SubtitleStreamIndex",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "VolumeLevel",
+          "Field": "VolumeLevel",
+          "In": "Query",
+          "Description": "Scale of 0-100",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlayMethod",
+          "Field": "PlayMethod",
+          "In": "Query",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayMethod"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RepeatMode",
+          "Field": "RepeatMode",
+          "In": "Query",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RepeatMode"
+          }
+        },
+        {
+          "Name": "SubtitleOffset",
+          "Field": "SubtitleOffset",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlaybackRate",
+          "Field": "PlaybackRate",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ApiOnPlaybackProgress"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ApiOnPlaybackProgress",
+      "SchemaName": "Api.OnPlaybackProgress",
+      "Fields": [
+        {
+          "Name": "EventName",
+          "JsonName": "EventName",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProgressEvent"
+          }
+        },
+        {
+          "Name": "PlaylistIndex",
+          "JsonName": "PlaylistIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlaylistLength",
+          "JsonName": "PlaylistLength",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Shuffle",
+          "JsonName": "Shuffle",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SleepTimerEndTime",
+          "JsonName": "SleepTimerEndTime",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SleepTimerMode",
+          "JsonName": "SleepTimerMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SleepTimerMode"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackProgressInfo",
+      "SchemaName": "PlaybackProgressInfo",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "AspectRatio",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Brightness",
+          "JsonName": "Brightness",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanSeek",
+          "JsonName": "CanSeek",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EventName",
+          "JsonName": "EventName",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProgressEvent"
+          }
+        },
+        {
+          "Name": "IsMuted",
+          "JsonName": "IsMuted",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPaused",
+          "JsonName": "IsPaused",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Item",
+          "JsonName": "Item",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NowPlayingQueue",
+          "JsonName": "NowPlayingQueue",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "QueueItem"
+            }
+          }
+        },
+        {
+          "Name": "PlayMethod",
+          "JsonName": "PlayMethod",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayMethod"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaybackRate",
+          "JsonName": "PlaybackRate",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PlaybackStartTimeTicks",
+          "JsonName": "PlaybackStartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaylistIndex",
+          "JsonName": "PlaylistIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaylistItemIds",
+          "JsonName": "PlaylistItemIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "PlaylistLength",
+          "JsonName": "PlaylistLength",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RepeatMode",
+          "JsonName": "RepeatMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RepeatMode"
+          }
+        },
+        {
+          "Name": "RunTimeTicks",
+          "JsonName": "RunTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SessionId",
+          "JsonName": "SessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Shuffle",
+          "JsonName": "Shuffle",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SleepTimerEndTime",
+          "JsonName": "SleepTimerEndTime",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SleepTimerMode",
+          "JsonName": "SleepTimerMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SleepTimerMode"
+          }
+        },
+        {
+          "Name": "SubtitleOffset",
+          "JsonName": "SubtitleOffset",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VolumeLevel",
+          "JsonName": "VolumeLevel",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackStartInfo",
+      "SchemaName": "PlaybackStartInfo",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "AspectRatio",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Brightness",
+          "JsonName": "Brightness",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanSeek",
+          "JsonName": "CanSeek",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EventName",
+          "JsonName": "EventName",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProgressEvent"
+          }
+        },
+        {
+          "Name": "IsMuted",
+          "JsonName": "IsMuted",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPaused",
+          "JsonName": "IsPaused",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Item",
+          "JsonName": "Item",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NowPlayingQueue",
+          "JsonName": "NowPlayingQueue",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "QueueItem"
+            }
+          }
+        },
+        {
+          "Name": "PlayMethod",
+          "JsonName": "PlayMethod",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayMethod"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaybackRate",
+          "JsonName": "PlaybackRate",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PlaybackStartTimeTicks",
+          "JsonName": "PlaybackStartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaylistIndex",
+          "JsonName": "PlaylistIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaylistItemIds",
+          "JsonName": "PlaylistItemIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "PlaylistLength",
+          "JsonName": "PlaylistLength",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RepeatMode",
+          "JsonName": "RepeatMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RepeatMode"
+          }
+        },
+        {
+          "Name": "RunTimeTicks",
+          "JsonName": "RunTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SessionId",
+          "JsonName": "SessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Shuffle",
+          "JsonName": "Shuffle",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SleepTimerEndTime",
+          "JsonName": "SleepTimerEndTime",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SleepTimerMode",
+          "JsonName": "SleepTimerMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SleepTimerMode"
+          }
+        },
+        {
+          "Name": "SubtitleOffset",
+          "JsonName": "SubtitleOffset",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VolumeLevel",
+          "JsonName": "VolumeLevel",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackStopInfo",
+      "SchemaName": "PlaybackStopInfo",
+      "Fields": [
+        {
+          "Name": "Failed",
+          "JsonName": "Failed",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Item",
+          "JsonName": "Item",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NextMediaType",
+          "JsonName": "NextMediaType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NowPlayingQueue",
+          "JsonName": "NowPlayingQueue",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "QueueItem"
+            }
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaylistIndex",
+          "JsonName": "PlaylistIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaylistLength",
+          "JsonName": "PlaylistLength",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SessionId",
+          "JsonName": "SessionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueueItem",
+      "SchemaName": "QueueItem",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ProgressEvent",
+      "SchemaName": "ProgressEvent",
+      "Values": [
+        {
+          "Name": "ProgressEventTimeUpdate",
+          "Value": "TimeUpdate"
+        },
+        {
+          "Name": "ProgressEventPause",
+          "Value": "Pause"
+        },
+        {
+          "Name": "ProgressEventUnpause",
+          "Value": "Unpause"
+        },
+        {
+          "Name": "ProgressEventVolumeChange",
+          "Value": "VolumeChange"
+        },
+        {
+          "Name": "ProgressEventRepeatModeChange",
+          "Value": "RepeatModeChange"
+        },
+        {
+          "Name": "ProgressEventAudioTrackChange",
+          "Value": "AudioTrackChange"
+        },
+        {
+          "Name": "ProgressEventSubtitleTrackChange",
+          "Value": "SubtitleTrackChange"
+        },
+        {
+          "Name": "ProgressEventPlaylistItemMove",
+          "Value": "PlaylistItemMove"
+        },
+        {
+          "Name": "ProgressEventPlaylistItemRemove",
+          "Value": "PlaylistItemRemove"
+        },
+        {
+          "Name": "ProgressEventPlaylistItemAdd",
+          "Value": "PlaylistItemAdd"
+        },
+        {
+          "Name": "ProgressEventQualityChange",
+          "Value": "QualityChange"
+        },
+        {
+          "Name": "ProgressEventStateChange",
+          "Value": "StateChange"
+        },
+        {
+          "Name": "ProgressEventSubtitleOffsetChange",
+          "Value": "SubtitleOffsetChange"
+        },
+        {
+          "Name": "ProgressEventPlaybackRateChange",
+          "Value": "PlaybackRateChange"
+        },
+        {
+          "Name": "ProgressEventShuffleChange",
+          "Value": "ShuffleChange"
+        },
+        {
+          "Name": "ProgressEventSleepTimerChange",
+          "Value": "SleepTimerChange"
+        }
+      ]
+    }
+  ]
+}

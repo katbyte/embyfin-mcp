@@ -1,0 +1,257 @@
+{
+  "Name": "Party",
+  "Tag": "PartyService",
+  "Operations": [
+    {
+      "Name": "GetParties",
+      "OperationId": "getParties",
+      "Method": "GET",
+      "Path": "/Parties",
+      "Description": "Gets a list of active parties",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPartiesInfo",
+      "OperationId": "getPartiesInfo",
+      "Method": "GET",
+      "Path": "/Parties/Info",
+      "Description": "Gets info about the session's current party",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SessionPartyInfoResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPartiesMessages",
+      "OperationId": "getPartiesMessages",
+      "Method": "GET",
+      "Path": "/Parties/Messages",
+      "Description": "Gets party messages",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultSessionPartyMessage"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostParties",
+      "OperationId": "postParties",
+      "Method": "POST",
+      "Path": "/Parties",
+      "Description": "Creates a party",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SessionPartyInfoResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPartiesByIdJoin",
+      "OperationId": "postPartiesByIdJoin",
+      "Method": "POST",
+      "Path": "/Parties/{Id}/Join",
+      "Description": "Joins a party",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SessionPartyInfoResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPartiesLeave",
+      "OperationId": "postPartiesLeave",
+      "Method": "POST",
+      "Path": "/Parties/Leave",
+      "Description": "Leaves a party",
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPartiesMessages",
+      "OperationId": "postPartiesMessages",
+      "Method": "POST",
+      "Path": "/Parties/Messages",
+      "Description": "Posts a message to the party",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SessionPartyMessage"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "QueryResultSessionPartyMessage",
+      "SchemaName": "QueryResult_Session.PartyMessage",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SessionPartyMessage"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SessionPartyInfo",
+      "SchemaName": "Session.PartyInfo",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsPlaying",
+          "JsonName": "IsPlaying",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MasterSession",
+          "JsonName": "MasterSession",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SessionSessionInfo"
+          }
+        },
+        {
+          "Name": "Messages",
+          "JsonName": "Messages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SessionPartyMessage"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Sessions",
+          "JsonName": "Sessions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SessionSessionInfo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SessionPartyInfoResult",
+      "SchemaName": "Session.PartyInfoResult",
+      "Fields": [
+        {
+          "Name": "PartyInfo",
+          "JsonName": "PartyInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SessionPartyInfo"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SessionPartyMessage",
+      "SchemaName": "Session.PartyMessage",
+      "Fields": [
+        {
+          "Name": "DateTime",
+          "JsonName": "DateTime",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Message",
+          "JsonName": "Message",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    }
+  ]
+}

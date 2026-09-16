@@ -1,0 +1,276 @@
+{
+  "Name": "DlnaServer",
+  "Tag": "DlnaServerService",
+  "Operations": [
+    {
+      "Name": "GetDlnaByUuIdConnectionmanagerConnectionmanager",
+      "OperationId": "getDlnaByUuidConnectionmanagerConnectionmanager",
+      "Method": "GET",
+      "Path": "/Dlna/{UuId}/connectionmanager/connectionmanager",
+      "Description": "Gets dlna connection manager xml",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/xml",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDlnaByUuIdConnectionmanagerConnectionmanagerXml",
+      "OperationId": "getDlnaByUuidConnectionmanagerConnectionmanagerXml",
+      "Method": "GET",
+      "Path": "/Dlna/{UuId}/connectionmanager/connectionmanager.xml",
+      "Description": "Gets dlna connection manager xml",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/xml",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDlnaByUuIdContentdirectoryContentdirectory",
+      "OperationId": "getDlnaByUuidContentdirectoryContentdirectory",
+      "Method": "GET",
+      "Path": "/Dlna/{UuId}/contentdirectory/contentdirectory",
+      "Description": "Gets dlna content directory xml",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/xml",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDlnaByUuIdContentdirectoryContentdirectoryXml",
+      "OperationId": "getDlnaByUuidContentdirectoryContentdirectoryXml",
+      "Method": "GET",
+      "Path": "/Dlna/{UuId}/contentdirectory/contentdirectory.xml",
+      "Description": "Gets dlna content directory xml",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/xml",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDlnaByUuIdDescription",
+      "OperationId": "getDlnaByUuidDescription",
+      "Method": "GET",
+      "Path": "/Dlna/{UuId}/description",
+      "Description": "Gets dlna server info",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/xml",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDlnaByUuIdDescriptionXml",
+      "OperationId": "getDlnaByUuidDescriptionXml",
+      "Method": "GET",
+      "Path": "/Dlna/{UuId}/description.xml",
+      "Description": "Gets dlna server info",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/xml",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDlnaByUuIdIconsByFilename",
+      "OperationId": "getDlnaByUuidIconsByFilename",
+      "Method": "GET",
+      "Path": "/Dlna/{UuId}/icons/{Filename}",
+      "Description": "Gets a server icon",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Filename",
+          "Argument": "filename",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDlnaIconsByFilename",
+      "OperationId": "getDlnaIconsByFilename",
+      "Method": "GET",
+      "Path": "/Dlna/icons/{Filename}",
+      "Description": "Gets a server icon",
+      "PathParameters": [
+        {
+          "Name": "Filename",
+          "Argument": "filename",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UuId",
+          "Field": "UuId",
+          "In": "Query",
+          "Description": "Server UuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PostDlnaByUuIdConnectionmanagerControl",
+      "OperationId": "postDlnaByUuidConnectionmanagerControl",
+      "Method": "POST",
+      "Path": "/Dlna/{UuId}/connectionmanager/control",
+      "Description": "Processes a control request",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostDlnaByUuIdContentdirectoryControl",
+      "OperationId": "postDlnaByUuidContentdirectoryControl",
+      "Method": "POST",
+      "Path": "/Dlna/{UuId}/contentdirectory/control",
+      "Description": "Processes a control request",
+      "PathParameters": [
+        {
+          "Name": "UuId",
+          "Argument": "uuId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

@@ -1,0 +1,426 @@
+{
+  "Name": "Device",
+  "Tag": "DeviceService",
+  "Operations": [
+    {
+      "Name": "DeleteDevices",
+      "OperationId": "deleteDevices",
+      "Method": "DELETE",
+      "Path": "/Devices",
+      "Description": "Deletes a device",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetDevices",
+      "OperationId": "getDevices",
+      "Method": "GET",
+      "Path": "/Devices",
+      "Description": "Gets all devices",
+      "Options": [
+        {
+          "Name": "SortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultDevicesDeviceInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetDevicesCameraUploads",
+      "OperationId": "getDevicesCamerauploads",
+      "Method": "GET",
+      "Path": "/Devices/CameraUploads",
+      "Description": "Gets camera upload history for a device",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DevicesContentUploadHistory"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetDevicesInfo",
+      "OperationId": "getDevicesInfo",
+      "Method": "GET",
+      "Path": "/Devices/Info",
+      "Description": "Gets info for a device",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DevicesDeviceInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetDevicesOptions",
+      "OperationId": "getDevicesOptions",
+      "Method": "GET",
+      "Path": "/Devices/Options",
+      "Description": "Gets options for a device",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DevicesDeviceOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostDevicesCameraUploads",
+      "OperationId": "postDevicesCamerauploads",
+      "Method": "POST",
+      "Path": "/Devices/CameraUploads",
+      "Description": "Uploads content",
+      "Options": [
+        {
+          "Name": "Album",
+          "Field": "Album",
+          "In": "Query",
+          "Description": "Album",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "Name",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostDevicesDelete",
+      "OperationId": "postDevicesDelete",
+      "Method": "POST",
+      "Path": "/Devices/Delete",
+      "Description": "Deletes a device",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostDevicesOptions",
+      "OperationId": "postDevicesOptions",
+      "Method": "POST",
+      "Path": "/Devices/Options",
+      "Description": "Updates device options",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DevicesDeviceOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DevicesContentUploadHistory",
+      "SchemaName": "Devices.ContentUploadHistory",
+      "Fields": [
+        {
+          "Name": "DeviceId",
+          "JsonName": "DeviceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FilesUploaded",
+          "JsonName": "FilesUploaded",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DevicesLocalFileInfo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DevicesDeviceInfo",
+      "SchemaName": "Devices.DeviceInfo",
+      "Fields": [
+        {
+          "Name": "AppName",
+          "JsonName": "AppName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AppVersion",
+          "JsonName": "AppVersion",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateLastActivity",
+          "JsonName": "DateLastActivity",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IconUrl",
+          "JsonName": "IconUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "InternalId",
+          "JsonName": "InternalId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "IpAddress",
+          "JsonName": "IpAddress",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LastUserId",
+          "JsonName": "LastUserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LastUserName",
+          "JsonName": "LastUserName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReportedDeviceId",
+          "JsonName": "ReportedDeviceId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DevicesDeviceOptions",
+      "SchemaName": "Devices.DeviceOptions",
+      "Fields": [
+        {
+          "Name": "CustomName",
+          "JsonName": "CustomName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DevicesLocalFileInfo",
+      "SchemaName": "Devices.LocalFileInfo",
+      "Fields": [
+        {
+          "Name": "Album",
+          "JsonName": "Album",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MimeType",
+          "JsonName": "MimeType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultDevicesDeviceInfo",
+      "SchemaName": "QueryResult_Devices.DeviceInfo",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DevicesDeviceInfo"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "Name": "Connect",
+  "Tag": "ConnectService",
+  "Operations": [
+    {
+      "Name": "DeleteUsersByIdConnectLink",
+      "OperationId": "deleteUsersByIdConnectLink",
+      "Method": "DELETE",
+      "Path": "/Users/{Id}/Connect/Link",
+      "Description": "Removes a Connect link for a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetConnectExchange",
+      "OperationId": "getConnectExchange",
+      "Method": "GET",
+      "Path": "/Connect/Exchange",
+      "Description": "Gets the corresponding local user from a connect user id",
+      "Options": [
+        {
+          "Name": "ConnectUserId",
+          "Field": "ConnectUserId",
+          "In": "Query",
+          "Description": "ConnectUserId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ConnectConnectAuthenticationExchangeResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetConnectPending",
+      "OperationId": "getConnectPending",
+      "Method": "GET",
+      "Path": "/Connect/Pending",
+      "Description": "Creates a Connect link for a user",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdConnectLink",
+      "OperationId": "postUsersByIdConnectLink",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Connect/Link",
+      "Description": "Creates a Connect link for a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ConnectUsername",
+          "Field": "ConnectUsername",
+          "In": "Query",
+          "Description": "Connect username",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ConnectUserLinkResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdConnectLinkDelete",
+      "OperationId": "postUsersByIdConnectLinkDelete",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Connect/Link/Delete",
+      "Description": "Removes a Connect link for a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ConnectConnectAuthenticationExchangeResult",
+      "SchemaName": "Connect.ConnectAuthenticationExchangeResult",
+      "Fields": [
+        {
+          "Name": "AccessToken",
+          "JsonName": "AccessToken",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LocalUserId",
+          "JsonName": "LocalUserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConnectUserLinkResult",
+      "SchemaName": "Connect.UserLinkResult",
+      "Fields": [
+        {
+          "Name": "GuestDisplayName",
+          "JsonName": "GuestDisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsNewUserInvitation",
+          "JsonName": "IsNewUserInvitation",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPending",
+          "JsonName": "IsPending",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ]
+}

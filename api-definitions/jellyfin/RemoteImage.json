@@ -1,0 +1,333 @@
+{
+  "Name": "RemoteImage",
+  "Tag": "RemoteImage",
+  "Operations": [
+    {
+      "Name": "DownloadRemoteImage",
+      "OperationId": "DownloadRemoteImage",
+      "Method": "POST",
+      "Path": "/Items/{itemId}/RemoteImages/Download",
+      "Description": "Downloads a remote image for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "type",
+          "Field": "Type",
+          "In": "Query",
+          "Description": "The image type.",
+          "Required": true,
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageUrl",
+          "Field": "ImageUrl",
+          "In": "Query",
+          "Description": "The image url.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetRemoteImageProviders",
+      "OperationId": "GetRemoteImageProviders",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/RemoteImages/Providers",
+      "Description": "Gets available remote image providers for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ImageProviderInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetRemoteImages",
+      "OperationId": "GetRemoteImages",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/RemoteImages",
+      "Description": "Gets available remote images for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "type",
+          "Field": "Type",
+          "In": "Query",
+          "Description": "The image type.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "providerName",
+          "Field": "ProviderName",
+          "In": "Query",
+          "Description": "Optional. The image provider to use.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "includeAllLanguages",
+          "Field": "IncludeAllLanguages",
+          "In": "Query",
+          "Description": "Optional. Include all languages.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteImageResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ImageProviderInfo",
+      "SchemaName": "ImageProviderInfo",
+      "Description": "Class ImageProviderInfo.",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets the name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportedImages",
+          "JsonName": "SupportedImages",
+          "Description": "Gets the supported image types.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteImageInfo",
+      "SchemaName": "RemoteImageInfo",
+      "Description": "Class RemoteImageInfo.",
+      "Fields": [
+        {
+          "Name": "CommunityRating",
+          "JsonName": "CommunityRating",
+          "Description": "Gets or sets the community rating.",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Description": "Gets or sets the height.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Language",
+          "JsonName": "Language",
+          "Description": "Gets or sets the language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "ProviderName",
+          "Description": "Gets or sets the name of the provider.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RatingType",
+          "JsonName": "RatingType",
+          "Description": "Gets or sets the type of the rating.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RatingType"
+          }
+        },
+        {
+          "Name": "ThumbnailUrl",
+          "JsonName": "ThumbnailUrl",
+          "Description": "Gets or sets a url used for previewing a smaller version.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Description": "Gets or sets the type.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Url",
+          "JsonName": "Url",
+          "Description": "Gets or sets the URL.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "VoteCount",
+          "Description": "Gets or sets the vote count.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Description": "Gets or sets the width.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "RemoteImageResult",
+      "SchemaName": "RemoteImageResult",
+      "Description": "Class RemoteImageResult.",
+      "Fields": [
+        {
+          "Name": "Images",
+          "JsonName": "Images",
+          "Description": "Gets or sets the images.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "RemoteImageInfo"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Description": "Gets or sets the providers.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Description": "Gets or sets the total record count.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "RatingType",
+      "SchemaName": "RatingType",
+      "Description": "The type of a community rating.",
+      "Values": [
+        {
+          "Name": "RatingTypeScore",
+          "Value": "Score"
+        },
+        {
+          "Name": "RatingTypeLikes",
+          "Value": "Likes"
+        }
+      ]
+    }
+  ]
+}

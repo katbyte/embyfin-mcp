@@ -1,0 +1,225 @@
+{
+  "Name": "DisplayPreferences",
+  "Tag": "DisplayPreferencesService",
+  "Operations": [
+    {
+      "Name": "GetDisplayPreferencesById",
+      "OperationId": "getDisplaypreferencesById",
+      "Method": "GET",
+      "Path": "/DisplayPreferences/{Id}",
+      "Description": "Gets a user's display preferences for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Client",
+          "Field": "Client",
+          "In": "Query",
+          "Description": "Client",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DisplayPreferences"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUserSettingsByUserId",
+      "OperationId": "getUsersettingsByUserid",
+      "Method": "GET",
+      "Path": "/UserSettings/{UserId}",
+      "Description": "Gets user settings",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Dictionary",
+          "NestedItem": {
+            "Type": "String"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostDisplayPreferencesByDisplayPreferencesId",
+      "OperationId": "postDisplaypreferencesByDisplaypreferencesid",
+      "Method": "POST",
+      "Path": "/DisplayPreferences/{DisplayPreferencesId}",
+      "Description": "Updates a user's display preferences for an item",
+      "PathParameters": [
+        {
+          "Name": "DisplayPreferencesId",
+          "Argument": "displayPreferencesId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DisplayPreferences"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUserSettingsByUserId",
+      "OperationId": "postUsersettingsByUserid",
+      "Method": "POST",
+      "Path": "/UserSettings/{UserId}",
+      "Description": "Updates a user's display preferences for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "String"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUserSettingsByUserIdPartial",
+      "OperationId": "postUsersettingsByUseridPartial",
+      "Method": "POST",
+      "Path": "/UserSettings/{UserId}/Partial",
+      "Description": "Updates a user's display preferences for an item",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DisplayPreferences",
+      "SchemaName": "DisplayPreferences",
+      "Fields": [
+        {
+          "Name": "Client",
+          "JsonName": "Client",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CustomPrefs",
+          "JsonName": "CustomPrefs",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortBy",
+          "JsonName": "SortBy",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortOrder",
+          "JsonName": "SortOrder",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SortOrder"
+          }
+        }
+      ]
+    }
+  ]
+}

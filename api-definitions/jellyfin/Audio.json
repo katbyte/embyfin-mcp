@@ -1,0 +1,1118 @@
+{
+  "Name": "Audio",
+  "Tag": "Audio",
+  "Operations": [
+    {
+      "Name": "GetAudioStream",
+      "OperationId": "GetAudioStream",
+      "Method": "GET",
+      "Path": "/Audio/{itemId}/stream",
+      "Description": "Gets an audio stream.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "container",
+          "Field": "Container",
+          "In": "Query",
+          "Description": "The audio container.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "static",
+          "Field": "Static",
+          "In": "Query",
+          "Description": "Optional. If true, the original file will be streamed statically without any encoding. Use either no url extension or the original file extension. true/false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "params",
+          "Field": "Params",
+          "In": "Query",
+          "Description": "The streaming parameters.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "The tag.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "deviceProfileId",
+          "Field": "DeviceProfileId",
+          "In": "Query",
+          "Description": "Optional. The dlna device profile id to utilize.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "playSessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Description": "The play session id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "segmentContainer",
+          "Field": "SegmentContainer",
+          "In": "Query",
+          "Description": "The segment container.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "segmentLength",
+          "Field": "SegmentLength",
+          "In": "Query",
+          "Description": "The segment length.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "minSegments",
+          "Field": "MinSegments",
+          "In": "Query",
+          "Description": "The minimum number of segments.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media version id, if playing an alternate version.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "deviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "The device id of the client requesting. Used to stop encoding processes when needed.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "audioCodec",
+          "Field": "AudioCodec",
+          "In": "Query",
+          "Description": "Optional. Specify an audio codec to encode to, e.g. mp3. If omitted the server will auto-select using the url's extension.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableAutoStreamCopy",
+          "Field": "EnableAutoStreamCopy",
+          "In": "Query",
+          "Description": "Whether or not to allow automatic stream copy if requested values match the original source. Defaults to true.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "allowVideoStreamCopy",
+          "Field": "AllowVideoStreamCopy",
+          "In": "Query",
+          "Description": "Whether or not to allow copying of the video stream url.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "allowAudioStreamCopy",
+          "Field": "AllowAudioStreamCopy",
+          "In": "Query",
+          "Description": "Whether or not to allow copying of the audio stream url.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "audioSampleRate",
+          "Field": "AudioSampleRate",
+          "In": "Query",
+          "Description": "Optional. Specify a specific audio sample rate, e.g. 44100.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxAudioBitDepth",
+          "Field": "MaxAudioBitDepth",
+          "In": "Query",
+          "Description": "Optional. The maximum audio bit depth.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "audioBitRate",
+          "Field": "AudioBitRate",
+          "In": "Query",
+          "Description": "Optional. Specify an audio bitrate to encode to, e.g. 128000. If omitted this will be left to encoder defaults.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "audioChannels",
+          "Field": "AudioChannels",
+          "In": "Query",
+          "Description": "Optional. Specify a specific number of audio channels to encode to, e.g. 2.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxAudioChannels",
+          "Field": "MaxAudioChannels",
+          "In": "Query",
+          "Description": "Optional. Specify a maximum number of audio channels to encode to, e.g. 2.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "profile",
+          "Field": "Profile",
+          "In": "Query",
+          "Description": "Optional. Specify a specific an encoder profile (varies by encoder), e.g. main, baseline, high.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "level",
+          "Field": "Level",
+          "In": "Query",
+          "Description": "Optional. Specify a level for the encoder profile (varies by encoder), e.g. 3, 3.1.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "framerate",
+          "Field": "Framerate",
+          "In": "Query",
+          "Description": "Optional. A specific video framerate to encode to, e.g. 23.976. Generally this should be omitted unless the device has specific requirements.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "maxFramerate",
+          "Field": "MaxFramerate",
+          "In": "Query",
+          "Description": "Optional. A specific maximum video framerate to encode to, e.g. 23.976. Generally this should be omitted unless the device has specific requirements.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "copyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "Whether or not to copy timestamps when transcoding with an offset. Defaults to false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "startTimeTicks",
+          "Field": "StartTimeTicks",
+          "In": "Query",
+          "Description": "Optional. Specify a starting offset, in ticks. 1 tick = 10000 ms.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "Optional. The fixed horizontal resolution of the encoded video.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "Optional. The fixed vertical resolution of the encoded video.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "videoBitRate",
+          "Field": "VideoBitRate",
+          "In": "Query",
+          "Description": "Optional. Specify a video bitrate to encode to, e.g. 500000. If omitted this will be left to encoder defaults.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "subtitleStreamIndex",
+          "Field": "SubtitleStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the subtitle stream to use. If omitted no subtitles will be used.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "subtitleMethod",
+          "Field": "SubtitleMethod",
+          "In": "Query",
+          "Description": "Optional. Specify the subtitle delivery method.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SubtitleDeliveryMethod"
+          }
+        },
+        {
+          "Name": "maxRefFrames",
+          "Field": "MaxRefFrames",
+          "In": "Query",
+          "Description": "Optional.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxVideoBitDepth",
+          "Field": "MaxVideoBitDepth",
+          "In": "Query",
+          "Description": "Optional. The maximum video bit depth.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "requireAvc",
+          "Field": "RequireAvc",
+          "In": "Query",
+          "Description": "Optional. Whether to require avc.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "deInterlace",
+          "Field": "DeInterlace",
+          "In": "Query",
+          "Description": "Optional. Whether to deinterlace the video.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "requireNonAnamorphic",
+          "Field": "RequireNonAnamorphic",
+          "In": "Query",
+          "Description": "Optional. Whether to require a non anamorphic stream.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "transcodingMaxAudioChannels",
+          "Field": "TranscodingMaxAudioChannels",
+          "In": "Query",
+          "Description": "Optional. The maximum number of audio channels to transcode.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "cpuCoreLimit",
+          "Field": "CpuCoreLimit",
+          "In": "Query",
+          "Description": "Optional. The limit of how many cpu cores to use.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "liveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Description": "The live stream id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableMpegtsM2TsMode",
+          "Field": "EnableMpegtsM2TsMode",
+          "In": "Query",
+          "Description": "Optional. Whether to enable the MpegtsM2Ts mode.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "videoCodec",
+          "Field": "VideoCodec",
+          "In": "Query",
+          "Description": "Optional. Specify a video codec to encode to, e.g. h264. If omitted the server will auto-select using the url's extension.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "subtitleCodec",
+          "Field": "SubtitleCodec",
+          "In": "Query",
+          "Description": "Optional. Specify a subtitle codec to encode to.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "transcodeReasons",
+          "Field": "TranscodeReasons",
+          "In": "Query",
+          "Description": "Optional. The transcoding reason.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "audioStreamIndex",
+          "Field": "AudioStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the audio stream to use. If omitted the first audio stream will be used.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "videoStreamIndex",
+          "Field": "VideoStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the video stream to use. If omitted the first video stream will be used.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "context",
+          "Field": "Context",
+          "In": "Query",
+          "Description": "Optional. The MediaBrowser.Model.Dlna.EncodingContext.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EncodingContext"
+          }
+        },
+        {
+          "Name": "streamOptions",
+          "Field": "StreamOptions",
+          "In": "Query",
+          "Description": "Optional. The streaming options.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "enableAudioVbrEncoding",
+          "Field": "EnableAudioVbrEncoding",
+          "In": "Query",
+          "Description": "Optional. Whether to enable Audio Encoding.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "audio/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetAudioStreamByContainer",
+      "OperationId": "GetAudioStreamByContainer",
+      "Method": "GET",
+      "Path": "/Audio/{itemId}/stream.{container}",
+      "Description": "Gets an audio stream.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "container",
+          "Argument": "container",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "static",
+          "Field": "Static",
+          "In": "Query",
+          "Description": "Optional. If true, the original file will be streamed statically without any encoding. Use either no url extension or the original file extension. true/false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "params",
+          "Field": "Params",
+          "In": "Query",
+          "Description": "The streaming parameters.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "The tag.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "deviceProfileId",
+          "Field": "DeviceProfileId",
+          "In": "Query",
+          "Description": "Optional. The dlna device profile id to utilize.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "playSessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Description": "The play session id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "segmentContainer",
+          "Field": "SegmentContainer",
+          "In": "Query",
+          "Description": "The segment container.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "segmentLength",
+          "Field": "SegmentLength",
+          "In": "Query",
+          "Description": "The segment length.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "minSegments",
+          "Field": "MinSegments",
+          "In": "Query",
+          "Description": "The minimum number of segments.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media version id, if playing an alternate version.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "deviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "The device id of the client requesting. Used to stop encoding processes when needed.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "audioCodec",
+          "Field": "AudioCodec",
+          "In": "Query",
+          "Description": "Optional. Specify an audio codec to encode to, e.g. mp3. If omitted the server will auto-select using the url's extension.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableAutoStreamCopy",
+          "Field": "EnableAutoStreamCopy",
+          "In": "Query",
+          "Description": "Whether or not to allow automatic stream copy if requested values match the original source. Defaults to true.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "allowVideoStreamCopy",
+          "Field": "AllowVideoStreamCopy",
+          "In": "Query",
+          "Description": "Whether or not to allow copying of the video stream url.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "allowAudioStreamCopy",
+          "Field": "AllowAudioStreamCopy",
+          "In": "Query",
+          "Description": "Whether or not to allow copying of the audio stream url.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "audioSampleRate",
+          "Field": "AudioSampleRate",
+          "In": "Query",
+          "Description": "Optional. Specify a specific audio sample rate, e.g. 44100.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxAudioBitDepth",
+          "Field": "MaxAudioBitDepth",
+          "In": "Query",
+          "Description": "Optional. The maximum audio bit depth.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "audioBitRate",
+          "Field": "AudioBitRate",
+          "In": "Query",
+          "Description": "Optional. Specify an audio bitrate to encode to, e.g. 128000. If omitted this will be left to encoder defaults.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "audioChannels",
+          "Field": "AudioChannels",
+          "In": "Query",
+          "Description": "Optional. Specify a specific number of audio channels to encode to, e.g. 2.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxAudioChannels",
+          "Field": "MaxAudioChannels",
+          "In": "Query",
+          "Description": "Optional. Specify a maximum number of audio channels to encode to, e.g. 2.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "profile",
+          "Field": "Profile",
+          "In": "Query",
+          "Description": "Optional. Specify a specific an encoder profile (varies by encoder), e.g. main, baseline, high.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "level",
+          "Field": "Level",
+          "In": "Query",
+          "Description": "Optional. Specify a level for the encoder profile (varies by encoder), e.g. 3, 3.1.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "framerate",
+          "Field": "Framerate",
+          "In": "Query",
+          "Description": "Optional. A specific video framerate to encode to, e.g. 23.976. Generally this should be omitted unless the device has specific requirements.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "maxFramerate",
+          "Field": "MaxFramerate",
+          "In": "Query",
+          "Description": "Optional. A specific maximum video framerate to encode to, e.g. 23.976. Generally this should be omitted unless the device has specific requirements.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "copyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "Whether or not to copy timestamps when transcoding with an offset. Defaults to false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "startTimeTicks",
+          "Field": "StartTimeTicks",
+          "In": "Query",
+          "Description": "Optional. Specify a starting offset, in ticks. 1 tick = 10000 ms.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "Optional. The fixed horizontal resolution of the encoded video.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "Optional. The fixed vertical resolution of the encoded video.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "videoBitRate",
+          "Field": "VideoBitRate",
+          "In": "Query",
+          "Description": "Optional. Specify a video bitrate to encode to, e.g. 500000. If omitted this will be left to encoder defaults.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "subtitleStreamIndex",
+          "Field": "SubtitleStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the subtitle stream to use. If omitted no subtitles will be used.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "subtitleMethod",
+          "Field": "SubtitleMethod",
+          "In": "Query",
+          "Description": "Optional. Specify the subtitle delivery method.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SubtitleDeliveryMethod"
+          }
+        },
+        {
+          "Name": "maxRefFrames",
+          "Field": "MaxRefFrames",
+          "In": "Query",
+          "Description": "Optional.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxVideoBitDepth",
+          "Field": "MaxVideoBitDepth",
+          "In": "Query",
+          "Description": "Optional. The maximum video bit depth.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "requireAvc",
+          "Field": "RequireAvc",
+          "In": "Query",
+          "Description": "Optional. Whether to require avc.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "deInterlace",
+          "Field": "DeInterlace",
+          "In": "Query",
+          "Description": "Optional. Whether to deinterlace the video.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "requireNonAnamorphic",
+          "Field": "RequireNonAnamorphic",
+          "In": "Query",
+          "Description": "Optional. Whether to require a non anamorphic stream.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "transcodingMaxAudioChannels",
+          "Field": "TranscodingMaxAudioChannels",
+          "In": "Query",
+          "Description": "Optional. The maximum number of audio channels to transcode.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "cpuCoreLimit",
+          "Field": "CpuCoreLimit",
+          "In": "Query",
+          "Description": "Optional. The limit of how many cpu cores to use.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "liveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Description": "The live stream id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableMpegtsM2TsMode",
+          "Field": "EnableMpegtsM2TsMode",
+          "In": "Query",
+          "Description": "Optional. Whether to enable the MpegtsM2Ts mode.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "videoCodec",
+          "Field": "VideoCodec",
+          "In": "Query",
+          "Description": "Optional. Specify a video codec to encode to, e.g. h264. If omitted the server will auto-select using the url's extension.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "subtitleCodec",
+          "Field": "SubtitleCodec",
+          "In": "Query",
+          "Description": "Optional. Specify a subtitle codec to encode to.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "transcodeReasons",
+          "Field": "TranscodeReasons",
+          "In": "Query",
+          "Description": "Optional. The transcoding reason.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "audioStreamIndex",
+          "Field": "AudioStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the audio stream to use. If omitted the first audio stream will be used.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "videoStreamIndex",
+          "Field": "VideoStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the video stream to use. If omitted the first video stream will be used.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "context",
+          "Field": "Context",
+          "In": "Query",
+          "Description": "Optional. The MediaBrowser.Model.Dlna.EncodingContext.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EncodingContext"
+          }
+        },
+        {
+          "Name": "streamOptions",
+          "Field": "StreamOptions",
+          "In": "Query",
+          "Description": "Optional. The streaming options.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "enableAudioVbrEncoding",
+          "Field": "EnableAudioVbrEncoding",
+          "In": "Query",
+          "Description": "Optional. Whether to enable Audio Encoding.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "audio/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUniversalAudioStream",
+      "OperationId": "GetUniversalAudioStream",
+      "Method": "GET",
+      "Path": "/Audio/{itemId}/universal",
+      "Description": "Gets an audio stream.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "container",
+          "Field": "Container",
+          "In": "Query",
+          "Description": "Optional. The audio container.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media version id, if playing an alternate version.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "deviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "The device id of the client requesting. Used to stop encoding processes when needed.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "audioCodec",
+          "Field": "AudioCodec",
+          "In": "Query",
+          "Description": "Optional. The audio codec to transcode to.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "maxAudioChannels",
+          "Field": "MaxAudioChannels",
+          "In": "Query",
+          "Description": "Optional. The maximum number of audio channels.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "transcodingAudioChannels",
+          "Field": "TranscodingAudioChannels",
+          "In": "Query",
+          "Description": "Optional. The number of how many audio channels to transcode to.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxStreamingBitrate",
+          "Field": "MaxStreamingBitrate",
+          "In": "Query",
+          "Description": "Optional. The maximum streaming bitrate.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "audioBitRate",
+          "Field": "AudioBitRate",
+          "In": "Query",
+          "Description": "Optional. Specify an audio bitrate to encode to, e.g. 128000. If omitted this will be left to encoder defaults.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "startTimeTicks",
+          "Field": "StartTimeTicks",
+          "In": "Query",
+          "Description": "Optional. Specify a starting offset, in ticks. 1 tick = 10000 ms.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "transcodingContainer",
+          "Field": "TranscodingContainer",
+          "In": "Query",
+          "Description": "Optional. The container to transcode to.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "transcodingProtocol",
+          "Field": "TranscodingProtocol",
+          "In": "Query",
+          "Description": "Optional. The transcoding protocol.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaStreamProtocol"
+          }
+        },
+        {
+          "Name": "maxAudioSampleRate",
+          "Field": "MaxAudioSampleRate",
+          "In": "Query",
+          "Description": "Optional. The maximum audio sample rate.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxAudioBitDepth",
+          "Field": "MaxAudioBitDepth",
+          "In": "Query",
+          "Description": "Optional. The maximum audio bit depth.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableRemoteMedia",
+          "Field": "EnableRemoteMedia",
+          "In": "Query",
+          "Description": "Optional. Whether to enable remote media.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableAudioVbrEncoding",
+          "Field": "EnableAudioVbrEncoding",
+          "In": "Query",
+          "Description": "Optional. Whether to enable Audio Encoding.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableRedirection",
+          "Field": "EnableRedirection",
+          "In": "Query",
+          "Description": "Whether to enable redirection. Defaults to true.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "audio/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ]
+}

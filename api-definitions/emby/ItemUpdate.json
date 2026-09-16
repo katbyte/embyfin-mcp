@@ -1,0 +1,123 @@
+{
+  "Name": "ItemUpdate",
+  "Tag": "ItemUpdateService",
+  "Operations": [
+    {
+      "Name": "GetItemsByItemIdMetadataEditor",
+      "OperationId": "getItemsByItemidMetadataeditor",
+      "Method": "GET",
+      "Path": "/Items/{ItemId}/MetadataEditor",
+      "Description": "Gets metadata editor info for an item",
+      "PathParameters": [
+        {
+          "Name": "ItemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MetadataEditorInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByItemId",
+      "OperationId": "postItemsByItemid",
+      "Method": "POST",
+      "Path": "/Items/{ItemId}",
+      "Description": "Updates an item",
+      "PathParameters": [
+        {
+          "Name": "ItemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "MetadataEditorInfo",
+      "SchemaName": "MetadataEditorInfo",
+      "Fields": [
+        {
+          "Name": "Countries",
+          "JsonName": "Countries",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCountryInfo"
+            }
+          }
+        },
+        {
+          "Name": "Cultures",
+          "JsonName": "Cultures",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "ExternalIdInfos",
+          "JsonName": "ExternalIdInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ExternalIdInfo"
+            }
+          }
+        },
+        {
+          "Name": "ParentalRatingOptions",
+          "JsonName": "ParentalRatingOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ParentalRating"
+            }
+          }
+        },
+        {
+          "Name": "PersonExternalIdInfos",
+          "JsonName": "PersonExternalIdInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ExternalIdInfo"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

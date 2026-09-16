@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
@@ -22,7 +23,7 @@ type itemSummary struct {
 	Episode             int               `json:"episode,omitempty"`
 	RuntimeMin          int               `json:"runtime_minutes,omitempty"`
 	Path                string            `json:"path,omitempty"`
-	MetadataProviderIDs map[string]string `json:"metadata_provider_ids,omitempty"`
+	MetadataProviderIDs map[string]string `json:"metadata_provider_ids,omitempty" jsonschema:"keyed tmdb, imdb, tvdb"`
 	Video               string            `json:"video,omitempty"                 jsonschema:"codec, resolution and bitrate of the primary video stream"`
 	Audio               []string          `json:"audio,omitempty"`
 	Subtitles           []string          `json:"subtitles,omitempty"`
@@ -42,7 +43,7 @@ func summarise(it *embyfin.Item) itemSummary {
 		Episode:             it.IndexNumber,
 		RuntimeMin:          it.RuntimeMinutes(),
 		Path:                it.Path,
-		MetadataProviderIDs: it.ProviderIDs,
+		MetadataProviderIDs: providerKeys(it.ProviderIDs),
 		Added:               it.DateCreated,
 	}
 	if len(it.MediaSources) == 0 {
@@ -83,6 +84,32 @@ func summarise(it *embyfin.Item) itemSummary {
 	return s
 }
 
+// providerKeys spells provider ids with lowercase keys (tmdb, imdb, tvdb):
+// the servers spell them three ways between them (Tmdb, IMDB, Imdb), and
+// item_find_by_metadata_id takes the lowercase form.
+func providerKeys(ids map[string]string) map[string]string {
+	if ids == nil {
+		return nil
+	}
+	out := make(map[string]string, len(ids))
+	for k, v := range ids {
+		out[strings.ToLower(k)] = v
+	}
+
+	return out
+}
+
+// nameRefs spells a list of names the way Emby's GenreItems and TagItems
+// want them.
+func nameRefs(names []string) []map[string]string {
+	out := make([]map[string]string, 0, len(names))
+	for _, n := range names {
+		out = append(out, map[string]string{"Name": n})
+	}
+
+	return out
+}
+
 func summariseAll(items []embyfin.Item) []itemSummary {
 	out := make([]itemSummary, 0, len(items))
 	for i := range items {
@@ -92,7 +119,38 @@ func summariseAll(items []embyfin.Item) []itemSummary {
 	return out
 }
 
-func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options) {
+// visibleTo reads an item and checks a user may see it, before a change is
+// made in their name: Emby stores watch state for an item in a library the
+// user cannot see, and Jellyfin answers the change with a bare 404.
+func visibleTo(ctx context.Context, client *embyfin.Client, user *embyfin.User, itemID string) (*embyfin.Item, error) {
+	it, err := client.ItemByID(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	_, seen, err := client.VisibleUserItem(ctx, user.ID, itemID)
+	if err != nil {
+		return nil, err
+	}
+	if !seen {
+		return nil, fmt.Errorf("%s cannot see %s: it is in a library they have no access to, or rated above what they may watch", user.Name, it.Name)
+	}
+
+	return it, nil
+}
+
+// libraryOf is the library whose folders hold an item's file, nil for an item
+// in none (a collection, a playlist).
+func libraryOf(ctx context.Context, client *embyfin.Client, it *embyfin.Item) (*embyfin.VirtualFolder, error) {
+	folders, err := client.VirtualFolders(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return embyfin.FolderOf(folders, it.Path), nil
+}
+
+func registerItemTools(r *registry) {
+	client := r.client
 	type getItemIn struct {
 		ID string `json:"id" jsonschema:"the library item id"`
 	}
@@ -103,19 +161,27 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	}
 	type getItemOut struct {
 		itemSummary
-		Overview string      `json:"overview,omitempty"`
-		People   []personOut `json:"people,omitempty"   jsonschema:"directors, writers, and top-billed cast"`
+		Overview        string      `json:"overview,omitempty"`
+		Genres          []string    `json:"genres"`
+		Tags            []string    `json:"tags"`
+		Studios         []string    `json:"studios"`
+		OfficialRating  string      `json:"official_rating,omitempty"  jsonschema:"the parental rating, e.g. PG-13"`
+		CommunityRating float64     `json:"community_rating,omitempty" jsonschema:"the provider's audience score, out of 10"`
+		People          []personOut `json:"people,omitempty"           jsonschema:"directors, writers, and top-billed cast"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "item_get",
-		Description: "Fetch one library item by id with full quality facts: video/audio/subtitle streams, container, size, runtime, path, metadata provider ids, overview, and people.",
+		Description: "Fetch one library item by id with full quality facts: video/audio/subtitle streams, container, size, runtime, path, metadata provider ids, overview, genres, tags, studios, ratings, and people.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getItemIn) (*mcp.CallToolResult, getItemOut, error) {
 		it, err := client.ItemByID(ctx, in.ID)
 		if err != nil {
 			return nil, getItemOut{}, err
 		}
 
-		out := getItemOut{itemSummary: summarise(it), Overview: it.Overview}
+		out := getItemOut{
+			itemSummary: summarise(it), Overview: it.Overview, Genres: it.Genres, Tags: it.TagNames(), Studios: it.StudioNames(),
+			OfficialRating: it.OfficialRating, CommunityRating: math.Round(it.CommunityRating*10) / 10, // the servers' float32, without its noise
+		}
 		for i, p := range it.People {
 			if i >= 15 {
 				break
@@ -134,7 +200,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		Found bool          `json:"found"`
 		Items []itemSummary `json:"items,omitempty" jsonschema:"can be multiple when the library has more than one copy"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "item_find_by_metadata_id",
 		Description: "Find library items matching a metadata provider id (tmdb/imdb/tvdb). The definitive 'do I already have this movie?' check; returns every copy.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in lookupIn) (*mcp.CallToolResult, lookupOut, error) {
@@ -155,7 +221,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	type similarOut struct {
 		Items []itemSummary `json:"items"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "item_similar",
 		Description: "Items in the library the server considers similar to the given one.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in similarIn) (*mcp.CallToolResult, similarOut, error) {
@@ -179,15 +245,30 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 
 	type refreshIn struct {
 		ID         string `json:"id"                    jsonschema:"the library item id"`
-		ReplaceAll bool   `json:"replace_all,omitempty" jsonschema:"replace all existing metadata and images instead of filling gaps"`
+		ReplaceAll bool   `json:"replace_all,omitempty" jsonschema:"replace all existing metadata and images instead of filling gaps; refused in a library whose metadata fetchers are off"`
 	}
 	type refreshOut struct {
 		Refreshed string `json:"refreshed"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "item_refresh",
-		Description: "Ask the server to re-fetch metadata and images for one item. Changes server state.",
+		Description: "Ask the server to re-fetch metadata and images for one item, filling what is missing (replace_all replaces everything). A library with its metadata fetchers off has nothing to fetch: there a refresh re-reads the files and nfo sidecars, and replace_all is refused. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in refreshIn) (*mcp.CallToolResult, refreshOut, error) {
+		if in.ReplaceAll {
+			it, err := client.ItemByID(ctx, in.ID)
+			if err != nil {
+				return nil, refreshOut{}, err
+			}
+			folder, err := libraryOf(ctx, client, it)
+			if err != nil {
+				return nil, refreshOut{}, err
+			}
+			// Jellyfin clears such an item rather than re-reading its files;
+			// Emby re-reads them. Refused on both, so the tool does one thing
+			if folder != nil && folder.FetchersOff(it.Type) {
+				return nil, refreshOut{}, fmt.Errorf("the %s library has its metadata fetchers off, so replace_all has nothing to fetch and would clear %s's metadata: refresh without replace_all to re-read its files and nfo, or set fields with item_edit", folder.Name, it.Name)
+			}
+		}
 		if err := client.RefreshItem(ctx, in.ID, in.ReplaceAll); err != nil {
 			return nil, refreshOut{}, err
 		}
@@ -207,7 +288,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	type editOut struct {
 		Updated []string `json:"updated_fields"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "item_edit",
 		Description: "Update an item's metadata fields (title, sort title, overview, year, genres, tags). Only provided fields change. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
@@ -216,31 +297,34 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 			return nil, editOut{}, err
 		}
 
-		full, err := client.FullItem(ctx, admin.ID, in.ID)
-		if err != nil {
-			return nil, editOut{}, err
-		}
-
 		var updated []string
-		setField := func(key string, val any, changed bool) {
-			if changed {
-				full[key] = val
-				updated = append(updated, key)
+		if _, err := client.EditItem(ctx, admin.ID, in.ID, func(full map[string]any) (bool, error) {
+			setField := func(key string, val any, changed bool) {
+				if changed {
+					full[key] = val
+					updated = append(updated, key)
+				}
 			}
-		}
-		setField("Name", in.Name, in.Name != "")
-		setField("SortName", in.SortName, in.SortName != "")
-		setField("ForcedSortName", in.SortName, in.SortName != "")
-		setField("Overview", in.Overview, in.Overview != "")
-		setField("ProductionYear", in.Year, in.Year > 0)
-		setField("Genres", in.Genres, len(in.Genres) > 0)
-		setField("Tags", in.Tags, len(in.Tags) > 0)
+			setField("Name", in.Name, in.Name != "")
+			setField("SortName", in.SortName, in.SortName != "")
+			setField("ForcedSortName", in.SortName, in.SortName != "")
+			setField("Overview", in.Overview, in.Overview != "")
+			setField("ProductionYear", in.Year, in.Year > 0)
+			// Jellyfin reads the plain lists; Emby reads the named records
+			setField("Genres", in.Genres, len(in.Genres) > 0)
+			if len(in.Genres) > 0 {
+				full["GenreItems"] = nameRefs(in.Genres)
+			}
+			setField("Tags", in.Tags, len(in.Tags) > 0)
+			if len(in.Tags) > 0 {
+				full["TagItems"] = nameRefs(in.Tags)
+			}
+			if len(updated) == 0 {
+				return false, errors.New("no fields to update were provided")
+			}
 
-		if len(updated) == 0 {
-			return nil, editOut{}, errors.New("no fields to update were provided")
-		}
-
-		if err := client.UpdateItem(ctx, in.ID, full); err != nil {
+			return true, nil
+		}); err != nil {
 			return nil, editOut{}, err
 		}
 
@@ -254,7 +338,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 	type mixOut struct {
 		Items []itemSummary `json:"items"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "item_instant_mix",
 		Description: "Generate a music mix seeded from a song, album, artist, or genre.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in mixIn) (*mcp.CallToolResult, mixOut, error) {
@@ -285,9 +369,9 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		Item  string     `json:"item"`
 		Users []watchRow `json:"users"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "item_last_watched",
-		Description: "Per-user watch state for one item: played, play count, last played date, resume point.",
+		Description: "Per-user watch state for one item: played, play count, last played date, resume point, for each user who can see it.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in lastWatchedIn) (*mcp.CallToolResult, lastWatchedOut, error) {
 		users, err := client.Users(ctx)
 		if err != nil {
@@ -296,18 +380,18 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 
 		out := lastWatchedOut{}
 		for _, u := range users {
-			items, _, err := client.Search(ctx, embyfin.SearchOptions{
-				IDs: in.ID, UserID: u.ID, EnableUserData: true, Fields: embyfin.FieldsLean,
-			})
+			// the single-item read: Emby's lists leave the play count and the
+			// last played date out
+			it, seen, err := client.VisibleUserItem(ctx, u.ID, in.ID)
 			if err != nil {
 				return nil, lastWatchedOut{}, err
 			}
-			if len(items) == 0 {
-				continue
+			if !seen {
+				continue // a user who cannot see the item
 			}
 
-			out.Item = items[0].Name
-			if ud := items[0].UserData; ud != nil {
+			out.Item = it.Name
+			if ud := it.UserData; ud != nil {
 				out.Users = append(out.Users, watchRow{
 					User:        u.Name,
 					Played:      ud.Played,
@@ -329,7 +413,7 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		Item    string   `json:"item"`
 		Entries []string `json:"entries" jsonschema:"activity log lines mentioning this item, newest first"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "item_watch_history",
 		Description: "Playback events for one item from the server activity log (who played it, when), default last 60 days.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in historyIn) (*mcp.CallToolResult, historyOut, error) {
@@ -345,7 +429,13 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 
 		out := historyOut{Item: it.Name}
 		for _, e := range entries {
-			if e.ItemID == in.ID || strings.Contains(e.Name, it.Name) || strings.Contains(e.ShortOverview, it.Name) {
+			// by id when the entry names its item: a title is a substring of
+			// others ("Dune" of "Dune: Part Two")
+			match := e.ItemID == in.ID
+			if e.ItemID == "" {
+				match = strings.Contains(e.Name, it.Name) || strings.Contains(e.ShortOverview, it.Name)
+			}
+			if match {
 				out.Entries = append(out.Entries, e.Date+" "+e.Name)
 			}
 		}
@@ -363,12 +453,15 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		User    string `json:"user"`
 		Watched bool   `json:"watched"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "item_set_watched",
-		Description: "Mark an item played or unplayed for a user. Changes server state.",
+		Description: "Mark an item played or unplayed for a user who can see it. Emby keeps watch state by metadata provider id, so there every copy of the film (or episode) is marked with it. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setWatchedIn) (*mcp.CallToolResult, setWatchedOut, error) {
 		user, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
+			return nil, setWatchedOut{}, err
+		}
+		if _, err := visibleTo(ctx, client, user, in.ID); err != nil {
 			return nil, setWatchedOut{}, err
 		}
 
@@ -389,12 +482,15 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		User      string `json:"user"`
 		Favourite bool   `json:"favourite"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "item_set_favourite",
-		Description: "Favourite or unfavourite an item for a user. Changes server state.",
+		Description: "Favourite or unfavourite an item for a user who can see it. Emby keeps this by metadata provider id, so there every copy of the film is marked with it. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setFavouriteIn) (*mcp.CallToolResult, setFavouriteOut, error) {
 		user, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
+			return nil, setFavouriteOut{}, err
+		}
+		if _, err := visibleTo(ctx, client, user, in.ID); err != nil {
 			return nil, setFavouriteOut{}, err
 		}
 
@@ -405,32 +501,30 @@ func registerItemTools(server *mcp.Server, client *embyfin.Client, opts Options)
 		return nil, setFavouriteOut{Item: in.ID, User: user.Name, Favourite: in.Favourite}, nil
 	})
 
-	if opts.EnableDelete {
-		type deleteIn struct {
-			ID      string `json:"id"      jsonschema:"the library item id"`
-			Confirm bool   `json:"confirm" jsonschema:"must be true; acknowledges the media FILE is permanently deleted from disk"`
-		}
-		type deleteOut struct {
-			Deleted string `json:"deleted"`
-		}
-		addTool(server, &mcp.Tool{
-			Name:        "item_delete",
-			Description: "PERMANENTLY delete an item AND its media file from disk. Irreversible. Requires confirm=true.",
-		}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
-			if !in.Confirm {
-				return nil, deleteOut{}, errors.New("refusing to delete without confirm=true")
-			}
-
-			it, err := client.ItemByID(ctx, in.ID)
-			if err != nil {
-				return nil, deleteOut{}, err
-			}
-
-			if err := client.DeleteItem(ctx, in.ID); err != nil {
-				return nil, deleteOut{}, err
-			}
-
-			return nil, deleteOut{Deleted: it.Name + " (" + it.Path + ")"}, nil
-		})
+	type deleteIn struct {
+		ID      string `json:"id"      jsonschema:"the library item id"`
+		Confirm bool   `json:"confirm" jsonschema:"must be true; acknowledges the media FILE is permanently deleted from disk"`
 	}
+	type deleteOut struct {
+		Deleted string `json:"deleted"`
+	}
+	add(r, deleteTool, &mcp.Tool{
+		Name:        "item_delete",
+		Description: "PERMANENTLY delete an item AND its media file from disk. Irreversible. Requires confirm=true.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
+		if !in.Confirm {
+			return nil, deleteOut{}, errors.New("refusing to delete without confirm=true")
+		}
+
+		it, err := client.ItemByID(ctx, in.ID)
+		if err != nil {
+			return nil, deleteOut{}, err
+		}
+
+		if err := client.DeleteItem(ctx, in.ID); err != nil {
+			return nil, deleteOut{}, err
+		}
+
+		return nil, deleteOut{Deleted: it.Name + " (" + it.Path + ")"}, nil
+	})
 }

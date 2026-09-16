@@ -1,0 +1,2088 @@
+{
+  "Name": "ItemLookup",
+  "Tag": "ItemLookupService",
+  "Operations": [
+    {
+      "Name": "GetItemsByIdExternalIdInfos",
+      "OperationId": "getItemsByIdExternalidinfos",
+      "Method": "GET",
+      "Path": "/Items/{Id}/ExternalIdInfos",
+      "Description": "Gets external id infos for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ExternalIdInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetItemsRemoteSearchImage",
+      "OperationId": "getItemsRemotesearchImage",
+      "Method": "GET",
+      "Path": "/Items/RemoteSearch/Image",
+      "Description": "Gets a remote image",
+      "Options": [
+        {
+          "Name": "ImageUrl",
+          "Field": "ImageUrl",
+          "In": "Query",
+          "Description": "The image url",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "Field": "ProviderName",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PostItemsMetadataReset",
+      "OperationId": "postItemsMetadataReset",
+      "Method": "POST",
+      "Path": "/Items/Metadata/Reset",
+      "Description": "Resets metadata for one or more items",
+      "Options": [
+        {
+          "Name": "ItemIds",
+          "Field": "ItemIds",
+          "In": "Query",
+          "Description": "The item ids",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchApplyById",
+      "OperationId": "postItemsRemotesearchApplyById",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Apply/{Id}",
+      "Description": "Applies search criteria to an item and refreshes metadata",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ReplaceAllImages",
+          "Field": "ReplaceAllImages",
+          "In": "Query",
+          "Description": "Whether or not to replace all images",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchBook",
+      "OperationId": "postItemsRemotesearchBook",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Book",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryBookInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchBoxSet",
+      "OperationId": "postItemsRemotesearchBoxset",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/BoxSet",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryItemLookupInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchGame",
+      "OperationId": "postItemsRemotesearchGame",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Game",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryGameInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchMovie",
+      "OperationId": "postItemsRemotesearchMovie",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Movie",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryMovieInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchMusicAlbum",
+      "OperationId": "postItemsRemotesearchMusicalbum",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/MusicAlbum",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryAlbumInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchMusicArtist",
+      "OperationId": "postItemsRemotesearchMusicartist",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/MusicArtist",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryArtistInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchMusicVideo",
+      "OperationId": "postItemsRemotesearchMusicvideo",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/MusicVideo",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryMusicVideoInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchPerson",
+      "OperationId": "postItemsRemotesearchPerson",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Person",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryPersonLookupInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchSeries",
+      "OperationId": "postItemsRemotesearchSeries",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Series",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQuerySeriesInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsRemoteSearchTrailer",
+      "OperationId": "postItemsRemotesearchTrailer",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Trailer",
+      "Description": "Requires authentication as user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchQueryTrailerInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "AlbumInfo",
+      "SchemaName": "AlbumInfo",
+      "Fields": [
+        {
+          "Name": "AlbumArtists",
+          "JsonName": "AlbumArtists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SongInfos",
+          "JsonName": "SongInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SongInfo"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "ArtistInfo",
+      "SchemaName": "ArtistInfo",
+      "Fields": [
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "BookInfo",
+      "SchemaName": "BookInfo",
+      "Fields": [
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SeriesName",
+          "JsonName": "SeriesName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "GameInfo",
+      "SchemaName": "GameInfo",
+      "Fields": [
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "ItemLookupInfo",
+      "SchemaName": "ItemLookupInfo",
+      "Fields": [
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MovieInfo",
+      "SchemaName": "MovieInfo",
+      "Fields": [
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MusicVideoInfo",
+      "SchemaName": "MusicVideoInfo",
+      "Fields": [
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PersonLookupInfo",
+      "SchemaName": "PersonLookupInfo",
+      "Fields": [
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryAlbumInfo",
+      "SchemaName": "RemoteSearchQuery_AlbumInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "AlbumInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryArtistInfo",
+      "SchemaName": "RemoteSearchQuery_ArtistInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ArtistInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryBookInfo",
+      "SchemaName": "RemoteSearchQuery_BookInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BookInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryGameInfo",
+      "SchemaName": "RemoteSearchQuery_GameInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GameInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryItemLookupInfo",
+      "SchemaName": "RemoteSearchQuery_ItemLookupInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ItemLookupInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryMovieInfo",
+      "SchemaName": "RemoteSearchQuery_MovieInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MovieInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryMusicVideoInfo",
+      "SchemaName": "RemoteSearchQuery_MusicVideoInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MusicVideoInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryPersonLookupInfo",
+      "SchemaName": "RemoteSearchQuery_PersonLookupInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PersonLookupInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQuerySeriesInfo",
+      "SchemaName": "RemoteSearchQuery_SeriesInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SeriesInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchQueryTrailerInfo",
+      "SchemaName": "RemoteSearchQuery_TrailerInfo",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Providers",
+          "JsonName": "Providers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TrailerInfo"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SeriesInfo",
+      "SchemaName": "SeriesInfo",
+      "Fields": [
+        {
+          "Name": "DisplayOrder",
+          "JsonName": "DisplayOrder",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SeriesDisplayOrder"
+          }
+        },
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EpisodeAirDate",
+          "JsonName": "EpisodeAirDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "SongInfo",
+      "SchemaName": "SongInfo",
+      "Fields": [
+        {
+          "Name": "Album",
+          "JsonName": "Album",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AlbumArtists",
+          "JsonName": "AlbumArtists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Composers",
+          "JsonName": "Composers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "TrailerInfo",
+      "SchemaName": "TrailerInfo",
+      "Fields": [
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataLanguages",
+          "JsonName": "MetadataLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GlobalizationCultureDto"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "SeriesDisplayOrder",
+      "SchemaName": "SeriesDisplayOrder",
+      "Values": [
+        {
+          "Name": "SeriesDisplayOrderAired",
+          "Value": "Aired"
+        },
+        {
+          "Name": "SeriesDisplayOrderDvd",
+          "Value": "Dvd"
+        },
+        {
+          "Name": "SeriesDisplayOrderAbsolute",
+          "Value": "Absolute"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,960 @@
+{
+  "Name": "LibraryStructure",
+  "Tag": "LibraryStructure",
+  "Operations": [
+    {
+      "Name": "AddMediaPath",
+      "OperationId": "AddMediaPath",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Paths",
+      "Description": "Add a media path to a library.",
+      "Options": [
+        {
+          "Name": "refreshLibrary",
+          "Field": "RefreshLibrary",
+          "In": "Query",
+          "Description": "Whether to refresh the library.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MediaPathDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "AddVirtualFolder",
+      "OperationId": "AddVirtualFolder",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders",
+      "Description": "Adds a virtual folder.",
+      "Options": [
+        {
+          "Name": "name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The name of the virtual folder.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "collectionType",
+          "Field": "CollectionType",
+          "In": "Query",
+          "Description": "The type of the collection.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CollectionTypeOptions"
+          }
+        },
+        {
+          "Name": "paths",
+          "Field": "Paths",
+          "In": "Query",
+          "Description": "The paths of the virtual folder.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "refreshLibrary",
+          "Field": "RefreshLibrary",
+          "In": "Query",
+          "Description": "Whether to refresh the library.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AddVirtualFolderDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetVirtualFolders",
+      "OperationId": "GetVirtualFolders",
+      "Method": "GET",
+      "Path": "/Library/VirtualFolders",
+      "Description": "Gets all virtual folders.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "VirtualFolderInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "RemoveMediaPath",
+      "OperationId": "RemoveMediaPath",
+      "Method": "DELETE",
+      "Path": "/Library/VirtualFolders/Paths",
+      "Description": "Remove a media path.",
+      "Options": [
+        {
+          "Name": "name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The name of the library.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "path",
+          "Field": "Path",
+          "In": "Query",
+          "Description": "The path to remove.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "refreshLibrary",
+          "Field": "RefreshLibrary",
+          "In": "Query",
+          "Description": "Whether to refresh the library.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "RemoveVirtualFolder",
+      "OperationId": "RemoveVirtualFolder",
+      "Method": "DELETE",
+      "Path": "/Library/VirtualFolders",
+      "Description": "Removes a virtual folder.",
+      "Options": [
+        {
+          "Name": "name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The name of the folder.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "refreshLibrary",
+          "Field": "RefreshLibrary",
+          "In": "Query",
+          "Description": "Whether to refresh the library.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "RenameVirtualFolder",
+      "OperationId": "RenameVirtualFolder",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Name",
+      "Description": "Renames a virtual folder.",
+      "Options": [
+        {
+          "Name": "name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The name of the virtual folder.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "newName",
+          "Field": "NewName",
+          "In": "Query",
+          "Description": "The new name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "refreshLibrary",
+          "Field": "RefreshLibrary",
+          "In": "Query",
+          "Description": "Whether to refresh the library.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateLibraryOptions",
+      "OperationId": "UpdateLibraryOptions",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/LibraryOptions",
+      "Description": "Update library options.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UpdateLibraryOptionsDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateMediaPath",
+      "OperationId": "UpdateMediaPath",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Paths/Update",
+      "Description": "Updates a media path.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UpdateMediaPathRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "AddVirtualFolderDto",
+      "SchemaName": "AddVirtualFolderDto",
+      "Description": "Add virtual folder dto.",
+      "Fields": [
+        {
+          "Name": "LibraryOptions",
+          "JsonName": "LibraryOptions",
+          "Description": "Gets or sets library options.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LibraryOptions"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "LibraryOptions",
+      "SchemaName": "LibraryOptions",
+      "Fields": [
+        {
+          "Name": "AllowEmbeddedSubtitles",
+          "JsonName": "AllowEmbeddedSubtitles",
+          "Description": "An enum representing the options to disable embedded subs.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EmbeddedSubtitleOptions"
+          }
+        },
+        {
+          "Name": "AutomaticRefreshIntervalDays",
+          "JsonName": "AutomaticRefreshIntervalDays",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AutomaticallyAddToCollection",
+          "JsonName": "AutomaticallyAddToCollection",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "CustomTagDelimiters",
+          "JsonName": "CustomTagDelimiters",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DelimiterWhitelist",
+          "JsonName": "DelimiterWhitelist",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DisabledLocalMetadataReaders",
+          "JsonName": "DisabledLocalMetadataReaders",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DisabledLyricFetchers",
+          "JsonName": "DisabledLyricFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DisabledMediaSegmentProviders",
+          "JsonName": "DisabledMediaSegmentProviders",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DisabledSubtitleFetchers",
+          "JsonName": "DisabledSubtitleFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnableAutomaticSeriesGrouping",
+          "JsonName": "EnableAutomaticSeriesGrouping",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableChapterImageExtraction",
+          "JsonName": "EnableChapterImageExtraction",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableEmbeddedEpisodeInfos",
+          "JsonName": "EnableEmbeddedEpisodeInfos",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableEmbeddedExtrasTitles",
+          "JsonName": "EnableEmbeddedExtrasTitles",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableEmbeddedTitles",
+          "JsonName": "EnableEmbeddedTitles",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableInternetProviders",
+          "JsonName": "EnableInternetProviders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableLUFSScan",
+          "JsonName": "EnableLUFSScan",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnablePhotos",
+          "JsonName": "EnablePhotos",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableRealtimeMonitor",
+          "JsonName": "EnableRealtimeMonitor",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableTrickplayImageExtraction",
+          "JsonName": "EnableTrickplayImageExtraction",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Enabled",
+          "JsonName": "Enabled",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ExtractChapterImagesDuringLibraryScan",
+          "JsonName": "ExtractChapterImagesDuringLibraryScan",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ExtractTrickplayImagesDuringLibraryScan",
+          "JsonName": "ExtractTrickplayImagesDuringLibraryScan",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "LocalMetadataReaderOrder",
+          "JsonName": "LocalMetadataReaderOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LyricFetcherOrder",
+          "JsonName": "LyricFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "MediaSegmentProviderOrder",
+          "JsonName": "MediaSegmentProviderOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataSavers",
+          "JsonName": "MetadataSavers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PathInfos",
+          "JsonName": "PathInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaPathInfo"
+            }
+          }
+        },
+        {
+          "Name": "PreferNonstandardArtistsTag",
+          "JsonName": "PreferNonstandardArtistsTag",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PreferredMetadataLanguage",
+          "JsonName": "PreferredMetadataLanguage",
+          "Description": "Gets or sets the preferred metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RequirePerfectSubtitleMatch",
+          "JsonName": "RequirePerfectSubtitleMatch",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveLocalMetadata",
+          "JsonName": "SaveLocalMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveLyricsWithMedia",
+          "JsonName": "SaveLyricsWithMedia",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveSubtitlesWithMedia",
+          "JsonName": "SaveSubtitlesWithMedia",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveTrickplayWithMedia",
+          "JsonName": "SaveTrickplayWithMedia",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SeasonZeroDisplayName",
+          "JsonName": "SeasonZeroDisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SkipSubtitlesIfAudioTrackMatches",
+          "JsonName": "SkipSubtitlesIfAudioTrackMatches",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SkipSubtitlesIfEmbeddedSubtitlesPresent",
+          "JsonName": "SkipSubtitlesIfEmbeddedSubtitlesPresent",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SubtitleDownloadLanguages",
+          "JsonName": "SubtitleDownloadLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleFetcherOrder",
+          "JsonName": "SubtitleFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "TypeOptions",
+          "JsonName": "TypeOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TypeOptions"
+            }
+          }
+        },
+        {
+          "Name": "UseCustomTagDelimiters",
+          "JsonName": "UseCustomTagDelimiters",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MediaPathDto",
+      "SchemaName": "MediaPathDto",
+      "Description": "Media Path dto.",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name of the library.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path to add.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PathInfo",
+          "JsonName": "PathInfo",
+          "Description": "Gets or sets the path info.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaPathInfo"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MediaPathInfo",
+      "SchemaName": "MediaPathInfo",
+      "Fields": [
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TypeOptions",
+      "SchemaName": "TypeOptions",
+      "Fields": [
+        {
+          "Name": "ImageFetcherOrder",
+          "JsonName": "ImageFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageFetchers",
+          "JsonName": "ImageFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageOptions",
+          "JsonName": "ImageOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageOption"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataFetcherOrder",
+          "JsonName": "MetadataFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataFetchers",
+          "JsonName": "MetadataFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SimilarItemProviderOrder",
+          "JsonName": "SimilarItemProviderOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SimilarItemProviders",
+          "JsonName": "SimilarItemProviders",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "UpdateLibraryOptionsDto",
+      "SchemaName": "UpdateLibraryOptionsDto",
+      "Description": "Update library options dto.",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the library item id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LibraryOptions",
+          "JsonName": "LibraryOptions",
+          "Description": "Gets or sets library options.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LibraryOptions"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "UpdateMediaPathRequestDto",
+      "SchemaName": "UpdateMediaPathRequestDto",
+      "Description": "Update library options dto.",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the library name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PathInfo",
+          "JsonName": "PathInfo",
+          "Description": "Gets or sets library folder path information.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaPathInfo"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "VirtualFolderInfo",
+      "SchemaName": "VirtualFolderInfo",
+      "Description": "Used to hold information about a user's list of configured virtual folders.",
+      "Fields": [
+        {
+          "Name": "CollectionType",
+          "JsonName": "CollectionType",
+          "Description": "Gets or sets the type of the collection.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CollectionTypeOptions"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the item identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LibraryOptions",
+          "JsonName": "LibraryOptions",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LibraryOptions"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Locations",
+          "JsonName": "Locations",
+          "Description": "Gets or sets the locations.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PrimaryImageItemId",
+          "JsonName": "PrimaryImageItemId",
+          "Description": "Gets or sets the primary image item identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RefreshProgress",
+          "JsonName": "RefreshProgress",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RefreshStatus",
+          "JsonName": "RefreshStatus",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "CollectionTypeOptions",
+      "SchemaName": "CollectionTypeOptions",
+      "Description": "The collection type options.",
+      "Values": [
+        {
+          "Name": "CollectionTypeOptionsMovies",
+          "Value": "movies"
+        },
+        {
+          "Name": "CollectionTypeOptionsTvshows",
+          "Value": "tvshows"
+        },
+        {
+          "Name": "CollectionTypeOptionsMusic",
+          "Value": "music"
+        },
+        {
+          "Name": "CollectionTypeOptionsMusicvideos",
+          "Value": "musicvideos"
+        },
+        {
+          "Name": "CollectionTypeOptionsHomevideos",
+          "Value": "homevideos"
+        },
+        {
+          "Name": "CollectionTypeOptionsBoxsets",
+          "Value": "boxsets"
+        },
+        {
+          "Name": "CollectionTypeOptionsBooks",
+          "Value": "books"
+        },
+        {
+          "Name": "CollectionTypeOptionsMixed",
+          "Value": "mixed"
+        }
+      ]
+    },
+    {
+      "Name": "EmbeddedSubtitleOptions",
+      "SchemaName": "EmbeddedSubtitleOptions",
+      "Description": "An enum representing the options to disable embedded subs.",
+      "Values": [
+        {
+          "Name": "EmbeddedSubtitleOptionsAllowAll",
+          "Value": "AllowAll"
+        },
+        {
+          "Name": "EmbeddedSubtitleOptionsAllowText",
+          "Value": "AllowText"
+        },
+        {
+          "Name": "EmbeddedSubtitleOptionsAllowImage",
+          "Value": "AllowImage"
+        },
+        {
+          "Name": "EmbeddedSubtitleOptionsAllowNone",
+          "Value": "AllowNone"
+        }
+      ]
+    }
+  ]
+}

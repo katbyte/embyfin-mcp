@@ -1,0 +1,3426 @@
+{
+  "Name": "LiveTv",
+  "Tag": "LiveTv",
+  "Operations": [
+    {
+      "Name": "AddListingProvider",
+      "OperationId": "AddListingProvider",
+      "Method": "POST",
+      "Path": "/LiveTv/ListingProviders",
+      "Description": "Adds a listings provider.",
+      "Options": [
+        {
+          "Name": "pw",
+          "Field": "Pw",
+          "In": "Query",
+          "Description": "Password.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "validateListings",
+          "Field": "ValidateListings",
+          "In": "Query",
+          "Description": "Validate listings.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "validateLogin",
+          "Field": "ValidateLogin",
+          "In": "Query",
+          "Description": "Validate login.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListingsProviderInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListingsProviderInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AddTunerHost",
+      "OperationId": "AddTunerHost",
+      "Method": "POST",
+      "Path": "/LiveTv/TunerHosts",
+      "Description": "Adds a tuner host.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TunerHostInfo"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TunerHostInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "CancelSeriesTimer",
+      "OperationId": "CancelSeriesTimer",
+      "Method": "DELETE",
+      "Path": "/LiveTv/SeriesTimers/{timerId}",
+      "Description": "Cancels a live tv series timer.",
+      "PathParameters": [
+        {
+          "Name": "timerId",
+          "Argument": "timerId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "CancelTimer",
+      "OperationId": "CancelTimer",
+      "Method": "DELETE",
+      "Path": "/LiveTv/Timers/{timerId}",
+      "Description": "Cancels a live tv timer.",
+      "PathParameters": [
+        {
+          "Name": "timerId",
+          "Argument": "timerId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "CreateSeriesTimer",
+      "OperationId": "CreateSeriesTimer",
+      "Method": "POST",
+      "Path": "/LiveTv/SeriesTimers",
+      "Description": "Creates a live tv series timer.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SeriesTimerInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "CreateTimer",
+      "OperationId": "CreateTimer",
+      "Method": "POST",
+      "Path": "/LiveTv/Timers",
+      "Description": "Creates a live tv timer.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TimerInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DeleteListingProvider",
+      "OperationId": "DeleteListingProvider",
+      "Method": "DELETE",
+      "Path": "/LiveTv/ListingProviders",
+      "Description": "Delete listing provider.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Listing provider id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DeleteRecording",
+      "OperationId": "DeleteRecording",
+      "Method": "DELETE",
+      "Path": "/LiveTv/Recordings/{recordingId}",
+      "Description": "Deletes a live tv recording.",
+      "PathParameters": [
+        {
+          "Name": "recordingId",
+          "Argument": "recordingId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DeleteTunerHost",
+      "OperationId": "DeleteTunerHost",
+      "Method": "DELETE",
+      "Path": "/LiveTv/TunerHosts",
+      "Description": "Deletes a tuner host.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Tuner host id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DiscoverTuners",
+      "OperationId": "DiscoverTuners",
+      "Method": "GET",
+      "Path": "/LiveTv/Tuners/Discover",
+      "Description": "Discover tuners.",
+      "Options": [
+        {
+          "Name": "newDevicesOnly",
+          "Field": "NewDevicesOnly",
+          "In": "Query",
+          "Description": "Only discover new tuners.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "TunerHostInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "DiscvoverTuners",
+      "OperationId": "DiscvoverTuners",
+      "Method": "GET",
+      "Path": "/LiveTv/Tuners/Discvover",
+      "Description": "Discover tuners.",
+      "Options": [
+        {
+          "Name": "newDevicesOnly",
+          "Field": "NewDevicesOnly",
+          "In": "Query",
+          "Description": "Only discover new tuners.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "TunerHostInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetChannel",
+      "OperationId": "GetChannel",
+      "Method": "GET",
+      "Path": "/LiveTv/Channels/{channelId}",
+      "Description": "Gets a live tv channel.",
+      "PathParameters": [
+        {
+          "Name": "channelId",
+          "Argument": "channelId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetChannelMappingOptions",
+      "OperationId": "GetChannelMappingOptions",
+      "Method": "GET",
+      "Path": "/LiveTv/ChannelMappingOptions",
+      "Description": "Get channel mapping options.",
+      "Options": [
+        {
+          "Name": "providerId",
+          "Field": "ProviderId",
+          "In": "Query",
+          "Description": "Provider id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ChannelMappingOptionsDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDefaultListingProvider",
+      "OperationId": "GetDefaultListingProvider",
+      "Method": "GET",
+      "Path": "/LiveTv/ListingProviders/Default",
+      "Description": "Gets default listings provider info.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListingsProviderInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDefaultTimer",
+      "OperationId": "GetDefaultTimer",
+      "Method": "GET",
+      "Path": "/LiveTv/Timers/Defaults",
+      "Description": "Gets the default values for a new timer.",
+      "Options": [
+        {
+          "Name": "programId",
+          "Field": "ProgramId",
+          "In": "Query",
+          "Description": "Optional. To attach default values based on a program.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SeriesTimerInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetGuideInfo",
+      "OperationId": "GetGuideInfo",
+      "Method": "GET",
+      "Path": "/LiveTv/GuideInfo",
+      "Description": "Get guide info.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GuideInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLineups",
+      "OperationId": "GetLineups",
+      "Method": "GET",
+      "Path": "/LiveTv/ListingProviders/Lineups",
+      "Description": "Gets available lineups.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Provider id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "type",
+          "Field": "Type",
+          "In": "Query",
+          "Description": "Provider type.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "location",
+          "Field": "Location",
+          "In": "Query",
+          "Description": "Location.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "country",
+          "Field": "Country",
+          "In": "Query",
+          "Description": "Country.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "NameIdPair"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveRecordingFile",
+      "OperationId": "GetLiveRecordingFile",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveRecordings/{recordingId}/stream",
+      "Description": "Gets a live tv recording stream.",
+      "PathParameters": [
+        {
+          "Name": "recordingId",
+          "Argument": "recordingId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "video/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveStreamFile",
+      "OperationId": "GetLiveStreamFile",
+      "Method": "GET",
+      "Path": "/LiveTv/LiveStreamFiles/{streamId}/stream.{container}",
+      "Description": "Gets a live tv channel stream.",
+      "PathParameters": [
+        {
+          "Name": "streamId",
+          "Argument": "streamId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "container",
+          "Argument": "container",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "video/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvChannels",
+      "OperationId": "GetLiveTvChannels",
+      "Method": "GET",
+      "Path": "/LiveTv/Channels",
+      "Description": "Gets available live tv channels.",
+      "Options": [
+        {
+          "Name": "type",
+          "Field": "Type",
+          "In": "Query",
+          "Description": "Optional. Filter by channel type.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ChannelType"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "isMovie",
+          "Field": "IsMovie",
+          "In": "Query",
+          "Description": "Optional. Filter for movies.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSeries",
+          "Field": "IsSeries",
+          "In": "Query",
+          "Description": "Optional. Filter for series.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isNews",
+          "Field": "IsNews",
+          "In": "Query",
+          "Description": "Optional. Filter for news.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isKids",
+          "Field": "IsKids",
+          "In": "Query",
+          "Description": "Optional. Filter for kids.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSports",
+          "Field": "IsSports",
+          "In": "Query",
+          "Description": "Optional. Filter for sports.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "isFavorite",
+          "Field": "IsFavorite",
+          "In": "Query",
+          "Description": "Optional. Filter by channels that are favorites, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isLiked",
+          "Field": "IsLiked",
+          "In": "Query",
+          "Description": "Optional. Filter by channels that are liked, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isDisliked",
+          "Field": "IsDisliked",
+          "In": "Query",
+          "Description": "Optional. Filter by channels that are disliked, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "\"Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Key to sort by.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemSortBy"
+            }
+          }
+        },
+        {
+          "Name": "sortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Optional. Sort order.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SortOrder"
+          }
+        },
+        {
+          "Name": "enableFavoriteSorting",
+          "Field": "EnableFavoriteSorting",
+          "In": "Query",
+          "Description": "Optional. Incorporate favorite and like status into channel sorting.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "addCurrentProgram",
+          "Field": "AddCurrentProgram",
+          "In": "Query",
+          "Description": "Optional. Adds current program info to each channel.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetLiveTvInfo",
+      "OperationId": "GetLiveTvInfo",
+      "Method": "GET",
+      "Path": "/LiveTv/Info",
+      "Description": "Gets available live tv services.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LiveTvInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLiveTvPrograms",
+      "OperationId": "GetLiveTvPrograms",
+      "Method": "GET",
+      "Path": "/LiveTv/Programs",
+      "Description": "Gets available live tv epgs.",
+      "Options": [
+        {
+          "Name": "channelIds",
+          "Field": "ChannelIds",
+          "In": "Query",
+          "Description": "The channels to return guide information for.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "minStartDate",
+          "Field": "MinStartDate",
+          "In": "Query",
+          "Description": "Optional. The minimum premiere start date.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "hasAired",
+          "Field": "HasAired",
+          "In": "Query",
+          "Description": "Optional. Filter by programs that have completed airing, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isAiring",
+          "Field": "IsAiring",
+          "In": "Query",
+          "Description": "Optional. Filter by programs that are currently airing, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "maxStartDate",
+          "Field": "MaxStartDate",
+          "In": "Query",
+          "Description": "Optional. The maximum premiere start date.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "minEndDate",
+          "Field": "MinEndDate",
+          "In": "Query",
+          "Description": "Optional. The minimum premiere end date.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "maxEndDate",
+          "Field": "MaxEndDate",
+          "In": "Query",
+          "Description": "Optional. The maximum premiere end date.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "isMovie",
+          "Field": "IsMovie",
+          "In": "Query",
+          "Description": "Optional. Filter for movies.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSeries",
+          "Field": "IsSeries",
+          "In": "Query",
+          "Description": "Optional. Filter for series.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isNews",
+          "Field": "IsNews",
+          "In": "Query",
+          "Description": "Optional. Filter for news.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isKids",
+          "Field": "IsKids",
+          "In": "Query",
+          "Description": "Optional. Filter for kids.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSports",
+          "Field": "IsSports",
+          "In": "Query",
+          "Description": "Optional. Filter for sports.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Specify one or more sort orders, comma delimited. Options: Name, StartDate.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemSortBy"
+            }
+          }
+        },
+        {
+          "Name": "sortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SortOrder"
+            }
+          }
+        },
+        {
+          "Name": "genres",
+          "Field": "Genres",
+          "In": "Query",
+          "Description": "The genres to return guide information for.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "genreIds",
+          "Field": "GenreIds",
+          "In": "Query",
+          "Description": "The genre ids to return guide information for.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "seriesTimerId",
+          "Field": "SeriesTimerId",
+          "In": "Query",
+          "Description": "Optional. Filter by series timer id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "librarySeriesId",
+          "Field": "LibrarySeriesId",
+          "In": "Query",
+          "Description": "Optional. Filter by library series id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "enableTotalRecordCount",
+          "Field": "EnableTotalRecordCount",
+          "In": "Query",
+          "Description": "Retrieve total record count.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetProgram",
+      "OperationId": "GetProgram",
+      "Method": "GET",
+      "Path": "/LiveTv/Programs/{programId}",
+      "Description": "Gets a live tv program.",
+      "PathParameters": [
+        {
+          "Name": "programId",
+          "Argument": "programId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPrograms",
+      "OperationId": "GetPrograms",
+      "Method": "POST",
+      "Path": "/LiveTv/Programs",
+      "Description": "Gets available live tv epgs.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GetProgramsDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetRecommendedPrograms",
+      "OperationId": "GetRecommendedPrograms",
+      "Method": "GET",
+      "Path": "/LiveTv/Programs/Recommended",
+      "Description": "Gets recommended live tv epgs.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. filter by user id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "isAiring",
+          "Field": "IsAiring",
+          "In": "Query",
+          "Description": "Optional. Filter by programs that are currently airing, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "hasAired",
+          "Field": "HasAired",
+          "In": "Query",
+          "Description": "Optional. Filter by programs that have completed airing, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSeries",
+          "Field": "IsSeries",
+          "In": "Query",
+          "Description": "Optional. Filter for series.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isMovie",
+          "Field": "IsMovie",
+          "In": "Query",
+          "Description": "Optional. Filter for movies.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isNews",
+          "Field": "IsNews",
+          "In": "Query",
+          "Description": "Optional. Filter for news.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isKids",
+          "Field": "IsKids",
+          "In": "Query",
+          "Description": "Optional. Filter for kids.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSports",
+          "Field": "IsSports",
+          "In": "Query",
+          "Description": "Optional. Filter for sports.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "genreIds",
+          "Field": "GenreIds",
+          "In": "Query",
+          "Description": "The genres to return guide information for.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableTotalRecordCount",
+          "Field": "EnableTotalRecordCount",
+          "In": "Query",
+          "Description": "Retrieve total record count.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetRecording",
+      "OperationId": "GetRecording",
+      "Method": "GET",
+      "Path": "/LiveTv/Recordings/{recordingId}",
+      "Description": "Gets a live tv recording.",
+      "PathParameters": [
+        {
+          "Name": "recordingId",
+          "Argument": "recordingId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetRecordingFolders",
+      "OperationId": "GetRecordingFolders",
+      "Method": "GET",
+      "Path": "/LiveTv/Recordings/Folders",
+      "Description": "Gets recording folders.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetRecordings",
+      "OperationId": "GetRecordings",
+      "Method": "GET",
+      "Path": "/LiveTv/Recordings",
+      "Description": "Gets live tv recordings.",
+      "Options": [
+        {
+          "Name": "channelId",
+          "Field": "ChannelId",
+          "In": "Query",
+          "Description": "Optional. Filter by channel id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "status",
+          "Field": "Status",
+          "In": "Query",
+          "Description": "Optional. Filter by recording status.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RecordingStatus"
+          }
+        },
+        {
+          "Name": "isInProgress",
+          "Field": "IsInProgress",
+          "In": "Query",
+          "Description": "Optional. Filter by recordings that are in progress, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "seriesTimerId",
+          "Field": "SeriesTimerId",
+          "In": "Query",
+          "Description": "Optional. Filter by recordings belonging to a series timer.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isMovie",
+          "Field": "IsMovie",
+          "In": "Query",
+          "Description": "Optional. Filter for movies.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSeries",
+          "Field": "IsSeries",
+          "In": "Query",
+          "Description": "Optional. Filter for series.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isKids",
+          "Field": "IsKids",
+          "In": "Query",
+          "Description": "Optional. Filter for kids.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSports",
+          "Field": "IsSports",
+          "In": "Query",
+          "Description": "Optional. Filter for sports.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isNews",
+          "Field": "IsNews",
+          "In": "Query",
+          "Description": "Optional. Filter for news.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isLibraryItem",
+          "Field": "IsLibraryItem",
+          "In": "Query",
+          "Description": "Optional. Filter for is library item.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableTotalRecordCount",
+          "Field": "EnableTotalRecordCount",
+          "In": "Query",
+          "Description": "Optional. Return total record count.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetSchedulesDirectCountries",
+      "OperationId": "GetSchedulesDirectCountries",
+      "Method": "GET",
+      "Path": "/LiveTv/ListingProviders/SchedulesDirect/Countries",
+      "Description": "Gets available countries.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSeriesTimer",
+      "OperationId": "GetSeriesTimer",
+      "Method": "GET",
+      "Path": "/LiveTv/SeriesTimers/{timerId}",
+      "Description": "Gets a live tv series timer.",
+      "PathParameters": [
+        {
+          "Name": "timerId",
+          "Argument": "timerId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SeriesTimerInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSeriesTimers",
+      "OperationId": "GetSeriesTimers",
+      "Method": "GET",
+      "Path": "/LiveTv/SeriesTimers",
+      "Description": "Gets live tv series timers.",
+      "Options": [
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Sort by SortName or Priority.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Optional. Sort in Ascending or Descending order.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SortOrder"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SeriesTimerInfoDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetTimer",
+      "OperationId": "GetTimer",
+      "Method": "GET",
+      "Path": "/LiveTv/Timers/{timerId}",
+      "Description": "Gets a timer.",
+      "PathParameters": [
+        {
+          "Name": "timerId",
+          "Argument": "timerId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TimerInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetTimers",
+      "OperationId": "GetTimers",
+      "Method": "GET",
+      "Path": "/LiveTv/Timers",
+      "Description": "Gets the live tv timers.",
+      "Options": [
+        {
+          "Name": "channelId",
+          "Field": "ChannelId",
+          "In": "Query",
+          "Description": "Optional. Filter by channel id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "seriesTimerId",
+          "Field": "SeriesTimerId",
+          "In": "Query",
+          "Description": "Optional. Filter by timers belonging to a series timer.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "isActive",
+          "Field": "IsActive",
+          "In": "Query",
+          "Description": "Optional. Filter by timers that are active.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isScheduled",
+          "Field": "IsScheduled",
+          "In": "Query",
+          "Description": "Optional. Filter by timers that are scheduled.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TimerInfoDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetTunerHostTypes",
+      "OperationId": "GetTunerHostTypes",
+      "Method": "GET",
+      "Path": "/LiveTv/TunerHosts/Types",
+      "Description": "Get tuner host types.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "NameIdPair"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ResetTuner",
+      "OperationId": "ResetTuner",
+      "Method": "POST",
+      "Path": "/LiveTv/Tuners/{tunerId}/Reset",
+      "Description": "Resets a tv tuner.",
+      "PathParameters": [
+        {
+          "Name": "tunerId",
+          "Argument": "tunerId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SetChannelMapping",
+      "OperationId": "SetChannelMapping",
+      "Method": "POST",
+      "Path": "/LiveTv/ChannelMappings",
+      "Description": "Set channel mappings.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SetChannelMappingDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TunerChannelMapping"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UpdateSeriesTimer",
+      "OperationId": "UpdateSeriesTimer",
+      "Method": "POST",
+      "Path": "/LiveTv/SeriesTimers/{timerId}",
+      "Description": "Updates a live tv series timer.",
+      "PathParameters": [
+        {
+          "Name": "timerId",
+          "Argument": "timerId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SeriesTimerInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateTimer",
+      "OperationId": "UpdateTimer",
+      "Method": "POST",
+      "Path": "/LiveTv/Timers/{timerId}",
+      "Description": "Updates a live tv timer.",
+      "PathParameters": [
+        {
+          "Name": "timerId",
+          "Argument": "timerId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TimerInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ChannelMappingOptionsDto",
+      "SchemaName": "ChannelMappingOptionsDto",
+      "Description": "Channel mapping options dto.",
+      "Fields": [
+        {
+          "Name": "Mappings",
+          "JsonName": "Mappings",
+          "Description": "Gets or sets list of mappings.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameValuePair"
+            }
+          }
+        },
+        {
+          "Name": "ProviderChannels",
+          "JsonName": "ProviderChannels",
+          "Description": "Gets or sets list of provider channels.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameIdPair"
+            }
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "ProviderName",
+          "Description": "Gets or sets provider name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "TunerChannels",
+          "JsonName": "TunerChannels",
+          "Description": "Gets or sets list of tuner channels.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TunerChannelMapping"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GetProgramsDto",
+      "SchemaName": "GetProgramsDto",
+      "Description": "Get programs dto.",
+      "Fields": [
+        {
+          "Name": "ChannelIds",
+          "JsonName": "ChannelIds",
+          "Description": "Gets or sets the channels to return guide information for.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableImageTypes",
+          "JsonName": "EnableImageTypes",
+          "Description": "Gets or sets the image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableImages",
+          "JsonName": "EnableImages",
+          "Description": "Gets or sets include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableTotalRecordCount",
+          "JsonName": "EnableTotalRecordCount",
+          "Description": "Gets or sets a value indicating whether retrieve total record count.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "JsonName": "EnableUserData",
+          "Description": "Gets or sets include user data.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Fields",
+          "JsonName": "Fields",
+          "Description": "Gets or sets specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "GenreIds",
+          "Description": "Gets or sets the genre ids to return guide information for.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Genres",
+          "JsonName": "Genres",
+          "Description": "Gets or sets the genres to return guide information for.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "HasAired",
+          "JsonName": "HasAired",
+          "Description": "Gets or sets filter by programs that have completed airing, or not.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "JsonName": "ImageTypeLimit",
+          "Description": "Gets or sets the max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAiring",
+          "JsonName": "IsAiring",
+          "Description": "Gets or sets filter by programs that are currently airing, or not.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsKids",
+          "JsonName": "IsKids",
+          "Description": "Gets or sets filter for kids.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsMovie",
+          "JsonName": "IsMovie",
+          "Description": "Gets or sets filter for movies.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsNews",
+          "JsonName": "IsNews",
+          "Description": "Gets or sets filter for news.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsSeries",
+          "JsonName": "IsSeries",
+          "Description": "Gets or sets filter for series.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsSports",
+          "JsonName": "IsSports",
+          "Description": "Gets or sets filter for sports.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LibrarySeriesId",
+          "JsonName": "LibrarySeriesId",
+          "Description": "Gets or sets filter by library series id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Limit",
+          "JsonName": "Limit",
+          "Description": "Gets or sets the maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxEndDate",
+          "JsonName": "MaxEndDate",
+          "Description": "Gets or sets the maximum premiere end date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStartDate",
+          "JsonName": "MaxStartDate",
+          "Description": "Gets or sets the maximum premiere start date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MinEndDate",
+          "JsonName": "MinEndDate",
+          "Description": "Gets or sets the minimum premiere end date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MinStartDate",
+          "JsonName": "MinStartDate",
+          "Description": "Gets or sets the minimum premiere start date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SeriesTimerId",
+          "JsonName": "SeriesTimerId",
+          "Description": "Gets or sets filter by series timer id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SortBy",
+          "JsonName": "SortBy",
+          "Description": "Gets or sets specify one or more sort orders, comma delimited. Options: Name, StartDate.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemSortBy"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SortOrder",
+          "JsonName": "SortOrder",
+          "Description": "Gets or sets sort order.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SortOrder"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "StartIndex",
+          "JsonName": "StartIndex",
+          "Description": "Gets or sets the record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Description": "Gets or sets optional. Filter by user id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "GuideInfo",
+      "SchemaName": "GuideInfo",
+      "Fields": [
+        {
+          "Name": "EndDate",
+          "JsonName": "EndDate",
+          "Description": "Gets or sets the end date.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartDate",
+          "JsonName": "StartDate",
+          "Description": "Gets or sets the start date.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListingsProviderInfo",
+      "SchemaName": "ListingsProviderInfo",
+      "Fields": [
+        {
+          "Name": "ChannelMappings",
+          "JsonName": "ChannelMappings",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameValuePair"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Country",
+          "JsonName": "Country",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableAllTuners",
+          "JsonName": "EnableAllTuners",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnabledTuners",
+          "JsonName": "EnabledTuners",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "KidsCategories",
+          "JsonName": "KidsCategories",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ListingsId",
+          "JsonName": "ListingsId",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MovieCategories",
+          "JsonName": "MovieCategories",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MoviePrefix",
+          "JsonName": "MoviePrefix",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "NewsCategories",
+          "JsonName": "NewsCategories",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Password",
+          "JsonName": "Password",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PreferredLanguage",
+          "JsonName": "PreferredLanguage",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SportsCategories",
+          "JsonName": "SportsCategories",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UserAgent",
+          "JsonName": "UserAgent",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Username",
+          "JsonName": "Username",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ZipCode",
+          "JsonName": "ZipCode",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "LiveTvInfo",
+      "SchemaName": "LiveTvInfo",
+      "Fields": [
+        {
+          "Name": "EnabledUsers",
+          "JsonName": "EnabledUsers",
+          "Description": "Gets or sets the enabled users.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "IsEnabled",
+          "JsonName": "IsEnabled",
+          "Description": "Gets or sets a value indicating whether this instance is enabled.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Services",
+          "JsonName": "Services",
+          "Description": "Gets or sets the services.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "LiveTvServiceInfo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LiveTvServiceInfo",
+      "SchemaName": "LiveTvServiceInfo",
+      "Description": "Class ServiceInfo.",
+      "Fields": [
+        {
+          "Name": "HasUpdateAvailable",
+          "JsonName": "HasUpdateAvailable",
+          "Description": "Gets or sets a value indicating whether this instance has update available.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HomePageUrl",
+          "JsonName": "HomePageUrl",
+          "Description": "Gets or sets the home page URL.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsVisible",
+          "JsonName": "IsVisible",
+          "Description": "Gets or sets a value indicating whether this instance is visible.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Description": "Gets or sets the status.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LiveTvServiceStatus"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "StatusMessage",
+          "Description": "Gets or sets the status message.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Tuners",
+          "JsonName": "Tuners",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Description": "Gets or sets the version.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "SeriesTimerInfoDto",
+      "SchemaName": "SeriesTimerInfoDto",
+      "Description": "Class SeriesTimerInfoDto.",
+      "Fields": [
+        {
+          "Name": "ChannelId",
+          "JsonName": "ChannelId",
+          "Description": "Gets or sets the channel id of the recording.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ChannelName",
+          "JsonName": "ChannelName",
+          "Description": "Gets or sets the channel name of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ChannelPrimaryImageTag",
+          "JsonName": "ChannelPrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DayPattern",
+          "JsonName": "DayPattern",
+          "Description": "Gets or sets the day pattern.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DayPattern"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Days",
+          "JsonName": "Days",
+          "Description": "Gets or sets the days.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DayOfWeek"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EndDate",
+          "JsonName": "EndDate",
+          "Description": "Gets or sets the end date of the recording, in UTC.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExternalChannelId",
+          "JsonName": "ExternalChannelId",
+          "Description": "Gets or sets the external channel identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ExternalId",
+          "JsonName": "ExternalId",
+          "Description": "Gets or sets the external identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ExternalProgramId",
+          "JsonName": "ExternalProgramId",
+          "Description": "Gets or sets the external program identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the Id of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageTags",
+          "JsonName": "ImageTags",
+          "Description": "Gets or sets the image tags.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsPostPaddingRequired",
+          "JsonName": "IsPostPaddingRequired",
+          "Description": "Gets or sets a value indicating whether this instance is post padding required.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPrePaddingRequired",
+          "JsonName": "IsPrePaddingRequired",
+          "Description": "Gets or sets a value indicating whether this instance is pre padding required.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepUntil",
+          "JsonName": "KeepUntil",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "KeepUntil"
+          }
+        },
+        {
+          "Name": "KeepUpTo",
+          "JsonName": "KeepUpTo",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "Overview",
+          "Description": "Gets or sets the description of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentBackdropImageTags",
+          "JsonName": "ParentBackdropImageTags",
+          "Description": "Gets or sets the parent backdrop image tags.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentBackdropItemId",
+          "JsonName": "ParentBackdropItemId",
+          "Description": "Gets or sets the Id of the Parent that has a backdrop if the item does not have one.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentPrimaryImageItemId",
+          "JsonName": "ParentPrimaryImageItemId",
+          "Description": "Gets or sets the parent primary image item identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentPrimaryImageTag",
+          "JsonName": "ParentPrimaryImageTag",
+          "Description": "Gets or sets the parent primary image tag.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentThumbImageTag",
+          "JsonName": "ParentThumbImageTag",
+          "Description": "Gets or sets the parent thumb image tag.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentThumbItemId",
+          "JsonName": "ParentThumbItemId",
+          "Description": "Gets or sets the parent thumb item id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PostPaddingSeconds",
+          "JsonName": "PostPaddingSeconds",
+          "Description": "Gets or sets the post padding seconds.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PrePaddingSeconds",
+          "JsonName": "PrePaddingSeconds",
+          "Description": "Gets or sets the pre padding seconds.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Priority",
+          "JsonName": "Priority",
+          "Description": "Gets or sets the priority.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ProgramId",
+          "JsonName": "ProgramId",
+          "Description": "Gets or sets the program identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RecordAnyChannel",
+          "JsonName": "RecordAnyChannel",
+          "Description": "Gets or sets a value indicating whether [record any channel].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RecordAnyTime",
+          "JsonName": "RecordAnyTime",
+          "Description": "Gets or sets a value indicating whether [record any time].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RecordNewOnly",
+          "JsonName": "RecordNewOnly",
+          "Description": "Gets or sets a value indicating whether [record new only].",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Description": "Gets or sets the server identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServiceName",
+          "JsonName": "ServiceName",
+          "Description": "Gets or sets the name of the service.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SkipEpisodesInLibrary",
+          "JsonName": "SkipEpisodesInLibrary",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "StartDate",
+          "JsonName": "StartDate",
+          "Description": "Gets or sets the start date of the recording, in UTC.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "SeriesTimerInfoDtoQueryResult",
+      "SchemaName": "SeriesTimerInfoDtoQueryResult",
+      "Description": "Query result container.",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Description": "Gets or sets the items.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SeriesTimerInfoDto"
+            }
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "JsonName": "StartIndex",
+          "Description": "Gets or sets the index of the first record in Items.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Description": "Gets or sets the total number of records available.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SetChannelMappingDto",
+      "SchemaName": "SetChannelMappingDto",
+      "Description": "Set channel mapping dto.",
+      "Fields": [
+        {
+          "Name": "ProviderChannelId",
+          "JsonName": "ProviderChannelId",
+          "Description": "Gets or sets the provider channel id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProviderId",
+          "JsonName": "ProviderId",
+          "Description": "Gets or sets the provider id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TunerChannelId",
+          "JsonName": "TunerChannelId",
+          "Description": "Gets or sets the tuner channel id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TimerInfoDto",
+      "SchemaName": "TimerInfoDto",
+      "Fields": [
+        {
+          "Name": "ChannelId",
+          "JsonName": "ChannelId",
+          "Description": "Gets or sets the channel id of the recording.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ChannelName",
+          "JsonName": "ChannelName",
+          "Description": "Gets or sets the channel name of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ChannelPrimaryImageTag",
+          "JsonName": "ChannelPrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EndDate",
+          "JsonName": "EndDate",
+          "Description": "Gets or sets the end date of the recording, in UTC.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExternalChannelId",
+          "JsonName": "ExternalChannelId",
+          "Description": "Gets or sets the external channel identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ExternalId",
+          "JsonName": "ExternalId",
+          "Description": "Gets or sets the external identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ExternalProgramId",
+          "JsonName": "ExternalProgramId",
+          "Description": "Gets or sets the external program identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ExternalSeriesTimerId",
+          "JsonName": "ExternalSeriesTimerId",
+          "Description": "Gets or sets the external series timer identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the Id of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsPostPaddingRequired",
+          "JsonName": "IsPostPaddingRequired",
+          "Description": "Gets or sets a value indicating whether this instance is post padding required.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPrePaddingRequired",
+          "JsonName": "IsPrePaddingRequired",
+          "Description": "Gets or sets a value indicating whether this instance is pre padding required.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "KeepUntil",
+          "JsonName": "KeepUntil",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "KeepUntil"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "Overview",
+          "Description": "Gets or sets the description of the recording.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentBackdropImageTags",
+          "JsonName": "ParentBackdropImageTags",
+          "Description": "Gets or sets the parent backdrop image tags.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentBackdropItemId",
+          "JsonName": "ParentBackdropItemId",
+          "Description": "Gets or sets the Id of the Parent that has a backdrop if the item does not have one.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PostPaddingSeconds",
+          "JsonName": "PostPaddingSeconds",
+          "Description": "Gets or sets the post padding seconds.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PrePaddingSeconds",
+          "JsonName": "PrePaddingSeconds",
+          "Description": "Gets or sets the pre padding seconds.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Priority",
+          "JsonName": "Priority",
+          "Description": "Gets or sets the priority.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ProgramId",
+          "JsonName": "ProgramId",
+          "Description": "Gets or sets the program identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProgramInfo",
+          "JsonName": "ProgramInfo",
+          "Description": "Gets or sets the program information.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RunTimeTicks",
+          "JsonName": "RunTimeTicks",
+          "Description": "Gets or sets the run time ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SeriesTimerId",
+          "JsonName": "SeriesTimerId",
+          "Description": "Gets or sets the series timer identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Description": "Gets or sets the server identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServiceName",
+          "JsonName": "ServiceName",
+          "Description": "Gets or sets the name of the service.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "StartDate",
+          "JsonName": "StartDate",
+          "Description": "Gets or sets the start date of the recording, in UTC.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Description": "Gets or sets the status.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RecordingStatus"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "TimerInfoDtoQueryResult",
+      "SchemaName": "TimerInfoDtoQueryResult",
+      "Description": "Query result container.",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Description": "Gets or sets the items.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TimerInfoDto"
+            }
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "JsonName": "StartIndex",
+          "Description": "Gets or sets the index of the first record in Items.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Description": "Gets or sets the total number of records available.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TunerChannelMapping",
+      "SchemaName": "TunerChannelMapping",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderChannelId",
+          "JsonName": "ProviderChannelId",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderChannelName",
+          "JsonName": "ProviderChannelName",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "TunerHostInfo",
+      "SchemaName": "TunerHostInfo",
+      "Fields": [
+        {
+          "Name": "AllowFmp4TranscodingContainer",
+          "JsonName": "AllowFmp4TranscodingContainer",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowHWTranscoding",
+          "JsonName": "AllowHWTranscoding",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowStreamSharing",
+          "JsonName": "AllowStreamSharing",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "DeviceId",
+          "JsonName": "DeviceId",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableStreamLooping",
+          "JsonName": "EnableStreamLooping",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "FallbackMaxStreamingBitrate",
+          "JsonName": "FallbackMaxStreamingBitrate",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "FriendlyName",
+          "JsonName": "FriendlyName",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IgnoreDts",
+          "JsonName": "IgnoreDts",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImportFavoritesOnly",
+          "JsonName": "ImportFavoritesOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ReadAtNativeFramerate",
+          "JsonName": "ReadAtNativeFramerate",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Source",
+          "JsonName": "Source",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "TunerCount",
+          "JsonName": "TunerCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Url",
+          "JsonName": "Url",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UserAgent",
+          "JsonName": "UserAgent",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "DayPattern",
+      "SchemaName": "DayPattern",
+      "Description": "The day pattern of a recurring timer.",
+      "Values": [
+        {
+          "Name": "DayPatternDaily",
+          "Value": "Daily"
+        },
+        {
+          "Name": "DayPatternWeekdays",
+          "Value": "Weekdays"
+        },
+        {
+          "Name": "DayPatternWeekends",
+          "Value": "Weekends"
+        }
+      ]
+    },
+    {
+      "Name": "KeepUntil",
+      "SchemaName": "KeepUntil",
+      "Values": [
+        {
+          "Name": "KeepUntilUntilDeleted",
+          "Value": "UntilDeleted"
+        },
+        {
+          "Name": "KeepUntilUntilSpaceNeeded",
+          "Value": "UntilSpaceNeeded"
+        },
+        {
+          "Name": "KeepUntilUntilWatched",
+          "Value": "UntilWatched"
+        },
+        {
+          "Name": "KeepUntilUntilDate",
+          "Value": "UntilDate"
+        }
+      ]
+    },
+    {
+      "Name": "LiveTvServiceStatus",
+      "SchemaName": "LiveTvServiceStatus",
+      "Description": "The status of a live TV service.",
+      "Values": [
+        {
+          "Name": "LiveTvServiceStatusOk",
+          "Value": "Ok"
+        },
+        {
+          "Name": "LiveTvServiceStatusUnavailable",
+          "Value": "Unavailable"
+        }
+      ]
+    },
+    {
+      "Name": "RecordingStatus",
+      "SchemaName": "RecordingStatus",
+      "Values": [
+        {
+          "Name": "RecordingStatusNew",
+          "Value": "New"
+        },
+        {
+          "Name": "RecordingStatusInProgress",
+          "Value": "InProgress"
+        },
+        {
+          "Name": "RecordingStatusCompleted",
+          "Value": "Completed"
+        },
+        {
+          "Name": "RecordingStatusCancelled",
+          "Value": "Cancelled"
+        },
+        {
+          "Name": "RecordingStatusConflictedOk",
+          "Value": "ConflictedOk"
+        },
+        {
+          "Name": "RecordingStatusConflictedNotOk",
+          "Value": "ConflictedNotOk"
+        },
+        {
+          "Name": "RecordingStatusError",
+          "Value": "Error"
+        }
+      ]
+    }
+  ]
+}

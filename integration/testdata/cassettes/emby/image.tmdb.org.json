@@ -1,0 +1,65 @@
+{
+  "host": "image.tmdb.org",
+  "interactions": [
+    {
+      "key": "GET image.tmdb.org/t/p/original/vfrQk5IPloGg1v9Rzbh2Eg3VGyM.jpg",
+      "method": "GET",
+      "host": "image.tmdb.org",
+      "path": "/t/p/original/vfrQk5IPloGg1v9Rzbh2Eg3VGyM.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=31919000",
+        "Cdn-Cache": "HIT",
+        "Cdn-Cachedat": "09/30/2025 21:17:01",
+        "Cdn-Edgestorageid": "1000",
+        "Cdn-Fileserver": "859",
+        "Cdn-Proxyver": "1.36",
+        "Cdn-Pullzone": "775336",
+        "Cdn-Requestcountrycode": "CA",
+        "Cdn-Requestid": "fa2f5af96f20be0251c8662f7c229f1c",
+        "Cdn-Requestpullcode": "200",
+        "Cdn-Requestpullsuccess": "True",
+        "Cdn-Requesttime": "0",
+        "Cdn-Status": "200",
+        "Cdn-Storageserver": "NY-753",
+        "Content-Type": "image/jpeg",
+        "Perma-Cache": "HIT",
+        "Server": "BunnyCDN-LA1-1108"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 219086
+    },
+    {
+      "key": "GET image.tmdb.org/t/p/original/zABJmN9opmqD4orWl3KSdCaSo7Q.jpg",
+      "method": "GET",
+      "host": "image.tmdb.org",
+      "path": "/t/p/original/zABJmN9opmqD4orWl3KSdCaSo7Q.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=31919000",
+        "Cdn-Cache": "HIT",
+        "Cdn-Cachedat": "11/18/2025 04:42:57",
+        "Cdn-Edgestorageid": "994",
+        "Cdn-Fileserver": "918",
+        "Cdn-Proxyver": "1.40",
+        "Cdn-Pullzone": "775336",
+        "Cdn-Requestcountrycode": "CA",
+        "Cdn-Requestid": "b50d99906ab8d40a19478764b81ada8a",
+        "Cdn-Requestpullcode": "200",
+        "Cdn-Requestpullsuccess": "True",
+        "Cdn-Requesttime": "0",
+        "Cdn-Status": "200",
+        "Cdn-Storageserver": "NY-346",
+        "Content-Type": "image/jpeg",
+        "Perma-Cache": "HIT",
+        "Server": "BunnyCDN-LA1-997"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 856862
+    }
+  ]
+}

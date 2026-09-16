@@ -1,0 +1,496 @@
+{
+  "Name": "Search",
+  "Tag": "Search",
+  "Operations": [
+    {
+      "Name": "GetSearchHints",
+      "OperationId": "GetSearchHints",
+      "Method": "GET",
+      "Path": "/Search/Hints",
+      "Description": "Gets the search hint result.",
+      "Options": [
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Supply a user id to search within a user's library or omit to search all.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "searchTerm",
+          "Field": "SearchTerm",
+          "In": "Query",
+          "Description": "The search term to filter on.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "includeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "If specified, only results with the specified item types are returned. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "excludeItemTypes",
+          "Field": "ExcludeItemTypes",
+          "In": "Query",
+          "Description": "If specified, results with these item types are filtered out. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "mediaTypes",
+          "Field": "MediaTypes",
+          "In": "Query",
+          "Description": "If specified, only results with the specified media types are returned. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaType"
+            }
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "If specified, only children of the parent are returned.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "isMovie",
+          "Field": "IsMovie",
+          "In": "Query",
+          "Description": "Optional filter for movies.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSeries",
+          "Field": "IsSeries",
+          "In": "Query",
+          "Description": "Optional filter for series.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isNews",
+          "Field": "IsNews",
+          "In": "Query",
+          "Description": "Optional filter for news.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isKids",
+          "Field": "IsKids",
+          "In": "Query",
+          "Description": "Optional filter for kids.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSports",
+          "Field": "IsSports",
+          "In": "Query",
+          "Description": "Optional filter for sports.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "includePeople",
+          "Field": "IncludePeople",
+          "In": "Query",
+          "Description": "Optional filter whether to include people.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "includeMedia",
+          "Field": "IncludeMedia",
+          "In": "Query",
+          "Description": "Optional filter whether to include media.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "includeGenres",
+          "Field": "IncludeGenres",
+          "In": "Query",
+          "Description": "Optional filter whether to include genres.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "includeStudios",
+          "Field": "IncludeStudios",
+          "In": "Query",
+          "Description": "Optional filter whether to include studios.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "includeArtists",
+          "Field": "IncludeArtists",
+          "In": "Query",
+          "Description": "Optional filter whether to include artists.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchHintResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "SearchHint",
+      "SchemaName": "SearchHint",
+      "Description": "Class SearchHintResult.",
+      "Fields": [
+        {
+          "Name": "Album",
+          "JsonName": "Album",
+          "Description": "Gets or sets the album.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AlbumArtist",
+          "JsonName": "AlbumArtist",
+          "Description": "Gets or sets the album artist.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AlbumId",
+          "JsonName": "AlbumId",
+          "Description": "Gets or sets the album id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Description": "Gets or sets the artists.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "BackdropImageItemId",
+          "JsonName": "BackdropImageItemId",
+          "Description": "Gets or sets the backdrop image item identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "BackdropImageTag",
+          "JsonName": "BackdropImageTag",
+          "Description": "Gets or sets the backdrop image tag.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ChannelId",
+          "JsonName": "ChannelId",
+          "Description": "Gets or sets the channel identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ChannelName",
+          "JsonName": "ChannelName",
+          "Description": "Gets or sets the name of the channel.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EndDate",
+          "JsonName": "EndDate",
+          "Description": "Gets or sets the end date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EpisodeCount",
+          "JsonName": "EpisodeCount",
+          "Description": "Gets or sets the episode count.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the item id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Description": "Gets or sets the index number.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsFolder",
+          "JsonName": "IsFolder",
+          "Description": "Gets or sets a value indicating whether this instance is folder.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the item id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MatchedTerm",
+          "JsonName": "MatchedTerm",
+          "Description": "Gets or sets the matched term.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "MediaType",
+          "Description": "Media types.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaType"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Description": "Gets or sets the parent index number.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PrimaryImageAspectRatio",
+          "JsonName": "PrimaryImageAspectRatio",
+          "Description": "Gets or sets the primary image aspect ratio.",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PrimaryImageTag",
+          "JsonName": "PrimaryImageTag",
+          "Description": "Gets or sets the image tag.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProductionYear",
+          "JsonName": "ProductionYear",
+          "Description": "Gets or sets the production year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RunTimeTicks",
+          "JsonName": "RunTimeTicks",
+          "Description": "Gets or sets the run time ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Series",
+          "JsonName": "Series",
+          "Description": "Gets or sets the series.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SongCount",
+          "JsonName": "SongCount",
+          "Description": "Gets or sets the song count.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "StartDate",
+          "JsonName": "StartDate",
+          "Description": "Gets or sets the start date.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Description": "Gets or sets the status.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ThumbImageItemId",
+          "JsonName": "ThumbImageItemId",
+          "Description": "Gets or sets the thumb image item identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ThumbImageTag",
+          "JsonName": "ThumbImageTag",
+          "Description": "Gets or sets the thumb image tag.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Description": "The base item kind.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemKind"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchHintResult",
+      "SchemaName": "SearchHintResult",
+      "Description": "Class SearchHintResult.",
+      "Fields": [
+        {
+          "Name": "SearchHints",
+          "JsonName": "SearchHints",
+          "Description": "Gets the search hints.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchHint"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Description": "Gets the total record count.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

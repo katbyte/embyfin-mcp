@@ -1,0 +1,110 @@
+{
+  "Name": "Localization",
+  "Tag": "Localization",
+  "Operations": [
+    {
+      "Name": "GetCountries",
+      "OperationId": "GetCountries",
+      "Method": "GET",
+      "Path": "/Localization/Countries",
+      "Description": "Gets known countries.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "CountryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetCultures",
+      "OperationId": "GetCultures",
+      "Method": "GET",
+      "Path": "/Localization/Cultures",
+      "Description": "Gets known cultures.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "CultureDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLocalizationOptions",
+      "OperationId": "GetLocalizationOptions",
+      "Method": "GET",
+      "Path": "/Localization/Options",
+      "Description": "Gets localization options.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "LocalizationOption"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetParentalRatings",
+      "OperationId": "GetParentalRatings",
+      "Method": "GET",
+      "Path": "/Localization/ParentalRatings",
+      "Description": "Gets known parental ratings.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ParentalRating"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "LocalizationOption",
+      "SchemaName": "LocalizationOption",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Value",
+          "JsonName": "Value",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

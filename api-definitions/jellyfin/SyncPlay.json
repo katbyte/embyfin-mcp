@@ -1,0 +1,847 @@
+{
+  "Name": "SyncPlay",
+  "Tag": "SyncPlay",
+  "Operations": [
+    {
+      "Name": "SyncPlayBuffering",
+      "OperationId": "SyncPlayBuffering",
+      "Method": "POST",
+      "Path": "/SyncPlay/Buffering",
+      "Description": "Notify SyncPlay group that member is buffering.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BufferRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayCreateGroup",
+      "OperationId": "SyncPlayCreateGroup",
+      "Method": "POST",
+      "Path": "/SyncPlay/New",
+      "Description": "Create a new SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "NewGroupRequestDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GroupInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayGetGroup",
+      "OperationId": "SyncPlayGetGroup",
+      "Method": "GET",
+      "Path": "/SyncPlay/{id}",
+      "Description": "Gets a SyncPlay group by id.",
+      "PathParameters": [
+        {
+          "Name": "id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GroupInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SyncPlayGetGroups",
+      "OperationId": "SyncPlayGetGroups",
+      "Method": "GET",
+      "Path": "/SyncPlay/List",
+      "Description": "Gets all SyncPlay groups.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "GroupInfoDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SyncPlayJoinGroup",
+      "OperationId": "SyncPlayJoinGroup",
+      "Method": "POST",
+      "Path": "/SyncPlay/Join",
+      "Description": "Join an existing SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "JoinGroupRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayLeaveGroup",
+      "OperationId": "SyncPlayLeaveGroup",
+      "Method": "POST",
+      "Path": "/SyncPlay/Leave",
+      "Description": "Leave the joined SyncPlay group.",
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayMovePlaylistItem",
+      "OperationId": "SyncPlayMovePlaylistItem",
+      "Method": "POST",
+      "Path": "/SyncPlay/MovePlaylistItem",
+      "Description": "Request to move an item in the playlist in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MovePlaylistItemRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayNextItem",
+      "OperationId": "SyncPlayNextItem",
+      "Method": "POST",
+      "Path": "/SyncPlay/NextItem",
+      "Description": "Request next item in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "NextItemRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayPause",
+      "OperationId": "SyncPlayPause",
+      "Method": "POST",
+      "Path": "/SyncPlay/Pause",
+      "Description": "Request pause in SyncPlay group.",
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayPing",
+      "OperationId": "SyncPlayPing",
+      "Method": "POST",
+      "Path": "/SyncPlay/Ping",
+      "Description": "Update session ping.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PingRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayPreviousItem",
+      "OperationId": "SyncPlayPreviousItem",
+      "Method": "POST",
+      "Path": "/SyncPlay/PreviousItem",
+      "Description": "Request previous item in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PreviousItemRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayQueue",
+      "OperationId": "SyncPlayQueue",
+      "Method": "POST",
+      "Path": "/SyncPlay/Queue",
+      "Description": "Request to queue items to the playlist of a SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueueRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayReady",
+      "OperationId": "SyncPlayReady",
+      "Method": "POST",
+      "Path": "/SyncPlay/Ready",
+      "Description": "Notify SyncPlay group that member is ready for playback.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ReadyRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayRemoveFromPlaylist",
+      "OperationId": "SyncPlayRemoveFromPlaylist",
+      "Method": "POST",
+      "Path": "/SyncPlay/RemoveFromPlaylist",
+      "Description": "Request to remove items from the playlist in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoveFromPlaylistRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlaySeek",
+      "OperationId": "SyncPlaySeek",
+      "Method": "POST",
+      "Path": "/SyncPlay/Seek",
+      "Description": "Request seek in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SeekRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlaySetIgnoreWait",
+      "OperationId": "SyncPlaySetIgnoreWait",
+      "Method": "POST",
+      "Path": "/SyncPlay/SetIgnoreWait",
+      "Description": "Request SyncPlay group to ignore member during group-wait.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "IgnoreWaitRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlaySetNewQueue",
+      "OperationId": "SyncPlaySetNewQueue",
+      "Method": "POST",
+      "Path": "/SyncPlay/SetNewQueue",
+      "Description": "Request to set new playlist in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlayRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlaySetPlaylistItem",
+      "OperationId": "SyncPlaySetPlaylistItem",
+      "Method": "POST",
+      "Path": "/SyncPlay/SetPlaylistItem",
+      "Description": "Request to change playlist item in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SetPlaylistItemRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlaySetRepeatMode",
+      "OperationId": "SyncPlaySetRepeatMode",
+      "Method": "POST",
+      "Path": "/SyncPlay/SetRepeatMode",
+      "Description": "Request to set repeat mode in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SetRepeatModeRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlaySetShuffleMode",
+      "OperationId": "SyncPlaySetShuffleMode",
+      "Method": "POST",
+      "Path": "/SyncPlay/SetShuffleMode",
+      "Description": "Request to set shuffle mode in SyncPlay group.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SetShuffleModeRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayStop",
+      "OperationId": "SyncPlayStop",
+      "Method": "POST",
+      "Path": "/SyncPlay/Stop",
+      "Description": "Request stop in SyncPlay group.",
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SyncPlayUnpause",
+      "OperationId": "SyncPlayUnpause",
+      "Method": "POST",
+      "Path": "/SyncPlay/Unpause",
+      "Description": "Request unpause in SyncPlay group.",
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "BufferRequestDto",
+      "SchemaName": "BufferRequestDto",
+      "Description": "Class BufferRequestDto.",
+      "Fields": [
+        {
+          "Name": "IsPlaying",
+          "JsonName": "IsPlaying",
+          "Description": "Gets or sets a value indicating whether the client playback is unpaused.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Description": "Gets or sets the playlist item identifier of the playing item.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Description": "Gets or sets the position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "When",
+          "JsonName": "When",
+          "Description": "Gets or sets when the request has been made by the client.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GroupInfoDto",
+      "SchemaName": "GroupInfoDto",
+      "Description": "Class GroupInfoDto.",
+      "Fields": [
+        {
+          "Name": "GroupId",
+          "JsonName": "GroupId",
+          "Description": "Gets the group identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GroupName",
+          "JsonName": "GroupName",
+          "Description": "Gets the group name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LastUpdatedAt",
+          "JsonName": "LastUpdatedAt",
+          "Description": "Gets the date when this DTO has been created.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Participants",
+          "JsonName": "Participants",
+          "Description": "Gets the participants.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "State",
+          "JsonName": "State",
+          "Description": "Gets the group state.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GroupStateType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "IgnoreWaitRequestDto",
+      "SchemaName": "IgnoreWaitRequestDto",
+      "Description": "Class IgnoreWaitRequestDto.",
+      "Fields": [
+        {
+          "Name": "IgnoreWait",
+          "JsonName": "IgnoreWait",
+          "Description": "Gets or sets a value indicating whether the client should be ignored.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "JoinGroupRequestDto",
+      "SchemaName": "JoinGroupRequestDto",
+      "Description": "Class JoinGroupRequestDto.",
+      "Fields": [
+        {
+          "Name": "GroupId",
+          "JsonName": "GroupId",
+          "Description": "Gets or sets the group identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MovePlaylistItemRequestDto",
+      "SchemaName": "MovePlaylistItemRequestDto",
+      "Description": "Class MovePlaylistItemRequestDto.",
+      "Fields": [
+        {
+          "Name": "NewIndex",
+          "JsonName": "NewIndex",
+          "Description": "Gets or sets the new position.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Description": "Gets or sets the playlist identifier of the item.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NewGroupRequestDto",
+      "SchemaName": "NewGroupRequestDto",
+      "Description": "Class NewGroupRequestDto.",
+      "Fields": [
+        {
+          "Name": "GroupName",
+          "JsonName": "GroupName",
+          "Description": "Gets or sets the group name.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NextItemRequestDto",
+      "SchemaName": "NextItemRequestDto",
+      "Description": "Class NextItemRequestDto.",
+      "Fields": [
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Description": "Gets or sets the playing item identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PingRequestDto",
+      "SchemaName": "PingRequestDto",
+      "Description": "Class PingRequestDto.",
+      "Fields": [
+        {
+          "Name": "Ping",
+          "JsonName": "Ping",
+          "Description": "Gets or sets the ping time.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlayRequestDto",
+      "SchemaName": "PlayRequestDto",
+      "Description": "Class PlayRequestDto.",
+      "Fields": [
+        {
+          "Name": "PlayingItemPosition",
+          "JsonName": "PlayingItemPosition",
+          "Description": "Gets or sets the position of the playing item in the queue.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlayingQueue",
+          "JsonName": "PlayingQueue",
+          "Description": "Gets or sets the playing queue.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "StartPositionTicks",
+          "JsonName": "StartPositionTicks",
+          "Description": "Gets or sets the start position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PreviousItemRequestDto",
+      "SchemaName": "PreviousItemRequestDto",
+      "Description": "Class PreviousItemRequestDto.",
+      "Fields": [
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Description": "Gets or sets the playing item identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueueRequestDto",
+      "SchemaName": "QueueRequestDto",
+      "Description": "Class QueueRequestDto.",
+      "Fields": [
+        {
+          "Name": "ItemIds",
+          "JsonName": "ItemIds",
+          "Description": "Gets or sets the items to enqueue.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Mode",
+          "JsonName": "Mode",
+          "Description": "Gets or sets the mode in which to add the new items.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GroupQueueMode"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ReadyRequestDto",
+      "SchemaName": "ReadyRequestDto",
+      "Description": "Class ReadyRequest.",
+      "Fields": [
+        {
+          "Name": "IsPlaying",
+          "JsonName": "IsPlaying",
+          "Description": "Gets or sets a value indicating whether the client playback is unpaused.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Description": "Gets or sets the playlist item identifier of the playing item.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Description": "Gets or sets the position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "When",
+          "JsonName": "When",
+          "Description": "Gets or sets when the request has been made by the client.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoveFromPlaylistRequestDto",
+      "SchemaName": "RemoveFromPlaylistRequestDto",
+      "Description": "Class RemoveFromPlaylistRequestDto.",
+      "Fields": [
+        {
+          "Name": "ClearPlayingItem",
+          "JsonName": "ClearPlayingItem",
+          "Description": "Gets or sets a value indicating whether the playing item should be removed as well. Used only when clearing the playlist.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ClearPlaylist",
+          "JsonName": "ClearPlaylist",
+          "Description": "Gets or sets a value indicating whether the entire playlist should be cleared.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PlaylistItemIds",
+          "JsonName": "PlaylistItemIds",
+          "Description": "Gets or sets the playlist identifiers of the items. Ignored when clearing the playlist.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SeekRequestDto",
+      "SchemaName": "SeekRequestDto",
+      "Description": "Class SeekRequestDto.",
+      "Fields": [
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Description": "Gets or sets the position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SetPlaylistItemRequestDto",
+      "SchemaName": "SetPlaylistItemRequestDto",
+      "Description": "Class SetPlaylistItemRequestDto.",
+      "Fields": [
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Description": "Gets or sets the playlist identifier of the playing item.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SetRepeatModeRequestDto",
+      "SchemaName": "SetRepeatModeRequestDto",
+      "Description": "Class SetRepeatModeRequestDto.",
+      "Fields": [
+        {
+          "Name": "Mode",
+          "JsonName": "Mode",
+          "Description": "Gets or sets the repeat mode.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GroupRepeatMode"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SetShuffleModeRequestDto",
+      "SchemaName": "SetShuffleModeRequestDto",
+      "Description": "Class SetShuffleModeRequestDto.",
+      "Fields": [
+        {
+          "Name": "Mode",
+          "JsonName": "Mode",
+          "Description": "Gets or sets the shuffle mode.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GroupShuffleMode"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "GroupQueueMode",
+      "SchemaName": "GroupQueueMode",
+      "Description": "Enum GroupQueueMode.",
+      "Values": [
+        {
+          "Name": "GroupQueueModeQueue",
+          "Value": "Queue"
+        },
+        {
+          "Name": "GroupQueueModeQueueNext",
+          "Value": "QueueNext"
+        }
+      ]
+    },
+    {
+      "Name": "GroupRepeatMode",
+      "SchemaName": "GroupRepeatMode",
+      "Description": "Enum GroupRepeatMode.",
+      "Values": [
+        {
+          "Name": "GroupRepeatModeRepeatOne",
+          "Value": "RepeatOne"
+        },
+        {
+          "Name": "GroupRepeatModeRepeatAll",
+          "Value": "RepeatAll"
+        },
+        {
+          "Name": "GroupRepeatModeRepeatNone",
+          "Value": "RepeatNone"
+        }
+      ]
+    },
+    {
+      "Name": "GroupShuffleMode",
+      "SchemaName": "GroupShuffleMode",
+      "Description": "Enum GroupShuffleMode.",
+      "Values": [
+        {
+          "Name": "GroupShuffleModeSorted",
+          "Value": "Sorted"
+        },
+        {
+          "Name": "GroupShuffleModeShuffle",
+          "Value": "Shuffle"
+        }
+      ]
+    },
+    {
+      "Name": "GroupStateType",
+      "SchemaName": "GroupStateType",
+      "Description": "Enum GroupState.",
+      "Values": [
+        {
+          "Name": "GroupStateTypeIdle",
+          "Value": "Idle"
+        },
+        {
+          "Name": "GroupStateTypeWaiting",
+          "Value": "Waiting"
+        },
+        {
+          "Name": "GroupStateTypePaused",
+          "Value": "Paused"
+        },
+        {
+          "Name": "GroupStateTypePlaying",
+          "Value": "Playing"
+        }
+      ]
+    }
+  ]
+}

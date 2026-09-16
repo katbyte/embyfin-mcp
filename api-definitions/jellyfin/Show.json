@@ -1,0 +1,577 @@
+{
+  "Name": "Show",
+  "Tag": "Show",
+  "Operations": [
+    {
+      "Name": "GetEpisodes",
+      "OperationId": "GetEpisodes",
+      "Method": "GET",
+      "Path": "/Shows/{seriesId}/Episodes",
+      "Description": "Gets episodes for a tv season.",
+      "PathParameters": [
+        {
+          "Name": "seriesId",
+          "Argument": "seriesId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimited. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines, TrailerUrls.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "season",
+          "Field": "Season",
+          "In": "Query",
+          "Description": "Optional filter by season number.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "seasonId",
+          "Field": "SeasonId",
+          "In": "Query",
+          "Description": "Optional. Filter by season id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "isMissing",
+          "Field": "IsMissing",
+          "In": "Query",
+          "Description": "Optional. Filter by items that are missing episodes or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "adjacentTo",
+          "Field": "AdjacentTo",
+          "In": "Query",
+          "Description": "Optional. Return items that are siblings of a supplied item.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startItemId",
+          "Field": "StartItemId",
+          "In": "Query",
+          "Description": "Optional. Skip through the list until a given item is found.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Specify one or more sort orders, comma delimited. Options: Album, AlbumArtist, Artist, Budget, CommunityRating, CriticRating, DateCreated, DatePlayed, PlayCount, PremiereDate, ProductionYear, SortName, Random, Revenue, Runtime.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ItemSortBy"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetNextUp",
+      "OperationId": "GetNextUp",
+      "Method": "GET",
+      "Path": "/Shows/NextUp",
+      "Description": "Gets a list of next up episodes.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id of the user to get the next up episodes for.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "seriesId",
+          "Field": "SeriesId",
+          "In": "Query",
+          "Description": "Optional. Filter by series id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Optional. Specify this to localize the search to a specific item or folder. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "nextUpDateCutoff",
+          "Field": "NextUpDateCutoff",
+          "In": "Query",
+          "Description": "Optional. Starting date of shows to show in Next Up section.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableTotalRecordCount",
+          "Field": "EnableTotalRecordCount",
+          "In": "Query",
+          "Description": "Whether to enable the total records count. Defaults to true.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableResumable",
+          "Field": "EnableResumable",
+          "In": "Query",
+          "Description": "Whether to include resumable episodes in next up results.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableRewatching",
+          "Field": "EnableRewatching",
+          "In": "Query",
+          "Description": "Whether to include watched episodes in next up results.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetSeasons",
+      "OperationId": "GetSeasons",
+      "Method": "GET",
+      "Path": "/Shows/{seriesId}/Seasons",
+      "Description": "Gets seasons for a tv series.",
+      "PathParameters": [
+        {
+          "Name": "seriesId",
+          "Argument": "seriesId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimited. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines, TrailerUrls.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "isSpecialSeason",
+          "Field": "IsSpecialSeason",
+          "In": "Query",
+          "Description": "Optional. Filter by special season.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isMissing",
+          "Field": "IsMissing",
+          "In": "Query",
+          "Description": "Optional. Filter by items that are missing episodes or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "adjacentTo",
+          "Field": "AdjacentTo",
+          "In": "Query",
+          "Description": "Optional. Return items that are siblings of a supplied item.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUpcomingEpisodes",
+      "OperationId": "GetUpcomingEpisodes",
+      "Method": "GET",
+      "Path": "/Shows/Upcoming",
+      "Description": "Gets a list of upcoming episodes.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user id of the user to get the upcoming episodes for.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Optional. Specify this to localize the search to a specific item or folder. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    }
+  ]
+}

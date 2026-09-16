@@ -1,0 +1,11 @@
+{
+  "Name": "jellyfin",
+  "Package": "jf",
+  "Title": "Jellyfin API",
+  "ApiVersion": "12.0.0",
+  "Source": "docs/jellyfin-openapi.json",
+  "Auth": "Jellyfin",
+  "Workarounds": [
+    "jellyfin-create-playlist-query"
+  ]
+}

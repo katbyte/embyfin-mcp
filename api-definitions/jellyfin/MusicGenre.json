@@ -1,0 +1,44 @@
+{
+  "Name": "MusicGenre",
+  "Tag": "MusicGenre",
+  "Operations": [
+    {
+      "Name": "GetMusicGenre",
+      "OperationId": "GetMusicGenre",
+      "Method": "GET",
+      "Path": "/MusicGenres/{genreName}",
+      "Description": "Gets a music genre, by name.",
+      "Deprecated": true,
+      "PathParameters": [
+        {
+          "Name": "genreName",
+          "Argument": "genreName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id, and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ]
+}

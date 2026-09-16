@@ -8,7 +8,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func registerUserTools(server *mcp.Server, client *embyfin.Client) {
+func registerUserTools(r *registry) {
+	client := r.client
 	type userRow struct {
 		Name         string `json:"name"`
 		ID           string `json:"id"`
@@ -18,7 +19,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 	type usersOut struct {
 		Users []userRow `json:"users"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "user_list",
 		Description: "List the server's user accounts.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, usersOut, error) {
@@ -54,7 +55,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 		User    string       `json:"user"`
 		Watched []historyRow `json:"watched" jsonschema:"most recently played first"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "user_history",
 		Description: "What a user has played recently (from the activity log), most recent first, default last 60 days.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in historyIn) (*mcp.CallToolResult, historyOut, error) {
@@ -81,7 +82,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 		lastEvent := map[string]embyfin.ActivityEntry{}
 		var ids []string
 		for _, e := range entries { // newest first
-			if !strings.HasPrefix(e.Type, "playback.") || e.ItemID == "" || !strings.HasPrefix(e.Name, prefix) {
+			if _, ok := playbackEvent(e.Type); !ok || e.ItemID == "" || !strings.HasPrefix(e.Name, prefix) {
 				continue
 			}
 			if _, seen := lastEvent[e.ItemID]; seen {
@@ -113,10 +114,11 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 				continue
 			}
 			e := lastEvent[id]
+			event, _ := playbackEvent(e.Type)
 			out.Watched = append(out.Watched, historyRow{
 				itemSummary: summarise(it),
 				LastPlayed:  e.Date,
-				Event:       strings.TrimPrefix(e.Type, "playback."),
+				Event:       event,
 			})
 		}
 
@@ -132,7 +134,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 		NextUp []itemSummary `json:"next_up" jsonschema:"next unwatched episode per series"`
 		Resume []itemSummary `json:"resume"  jsonschema:"partially watched items"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "user_next_up",
 		Description: "What a user should continue watching: next episodes per series, plus partially-watched items.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in nextUpIn) (*mcp.CallToolResult, nextUpOut, error) {
@@ -171,7 +173,7 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 		User       string        `json:"user"`
 		Favourites []itemSummary `json:"favourites"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "user_favourites",
 		Description: "A user's favourite items.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in favouritesIn) (*mcp.CallToolResult, favouritesOut, error) {
@@ -197,4 +199,18 @@ func registerUserTools(server *mcp.Server, client *embyfin.Client) {
 
 		return nil, favouritesOut{User: user.Name, Favourites: summariseAll(items)}, nil
 	})
+}
+
+// playbackEvent reads an activity entry's type as a playback start or stop:
+// Emby types them playback.start and playback.stop, Jellyfin VideoPlayback
+// and VideoPlaybackStopped (Audio... for music).
+func playbackEvent(entryType string) (string, bool) {
+	switch entryType {
+	case "playback.start", "VideoPlayback", "AudioPlayback":
+		return "start", true
+	case "playback.stop", "VideoPlaybackStopped", "AudioPlaybackStopped":
+		return "stop", true
+	}
+
+	return "", false
 }

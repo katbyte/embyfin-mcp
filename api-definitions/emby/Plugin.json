@@ -1,0 +1,194 @@
+{
+  "Name": "Plugin",
+  "Tag": "PluginService",
+  "Operations": [
+    {
+      "Name": "DeletePluginsById",
+      "OperationId": "deletePluginsById",
+      "Method": "DELETE",
+      "Path": "/Plugins/{Id}",
+      "Description": "Uninstalls a plugin",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPlugins",
+      "OperationId": "getPlugins",
+      "Method": "GET",
+      "Path": "/Plugins",
+      "Description": "Gets a list of currently installed plugins",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "PluginsPluginInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPluginsByIdConfiguration",
+      "OperationId": "getPluginsByIdConfiguration",
+      "Method": "GET",
+      "Path": "/Plugins/{Id}/Configuration",
+      "Description": "Gets a plugin's configuration",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPluginsByIdThumb",
+      "OperationId": "getPluginsByIdThumb",
+      "Method": "GET",
+      "Path": "/Plugins/{Id}/Thumb",
+      "Description": "Gets a plugin thumb image",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PostPluginsByIdConfiguration",
+      "OperationId": "postPluginsByIdConfiguration",
+      "Method": "POST",
+      "Path": "/Plugins/{Id}/Configuration",
+      "Description": "Updates a plugin's configuration",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPluginsByIdDelete",
+      "OperationId": "postPluginsByIdDelete",
+      "Method": "POST",
+      "Path": "/Plugins/{Id}/Delete",
+      "Description": "Uninstalls a plugin",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "PluginsPluginInfo",
+      "SchemaName": "Plugins.PluginInfo",
+      "Fields": [
+        {
+          "Name": "ConfigurationFileName",
+          "JsonName": "ConfigurationFileName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ImageTag",
+          "JsonName": "ImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

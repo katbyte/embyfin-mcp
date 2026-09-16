@@ -1,0 +1,1915 @@
+{
+  "Name": "ItemLookup",
+  "Tag": "ItemLookup",
+  "Operations": [
+    {
+      "Name": "ApplySearchCriteria",
+      "OperationId": "ApplySearchCriteria",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Apply/{itemId}",
+      "Description": "Applies search criteria to an item and refreshes metadata.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "replaceAllImages",
+          "Field": "ReplaceAllImages",
+          "In": "Query",
+          "Description": "Optional. Whether or not to replace all images. Default: True.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RemoteSearchResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetBookRemoteSearchResults",
+      "OperationId": "GetBookRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Book",
+      "Description": "Get book remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BookInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetBoxSetRemoteSearchResults",
+      "OperationId": "GetBoxSetRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/BoxSet",
+      "Description": "Get box set remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BoxSetInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetExternalIdInfos",
+      "OperationId": "GetExternalIdInfos",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/ExternalIdInfos",
+      "Description": "Get the item's external id info.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ExternalIdInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMovieRemoteSearchResults",
+      "OperationId": "GetMovieRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Movie",
+      "Description": "Get movie remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MovieInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMusicAlbumRemoteSearchResults",
+      "OperationId": "GetMusicAlbumRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/MusicAlbum",
+      "Description": "Get music album remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AlbumInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMusicArtistRemoteSearchResults",
+      "OperationId": "GetMusicArtistRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/MusicArtist",
+      "Description": "Get music artist remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ArtistInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMusicVideoRemoteSearchResults",
+      "OperationId": "GetMusicVideoRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/MusicVideo",
+      "Description": "Get music video remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MusicVideoInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPersonRemoteSearchResults",
+      "OperationId": "GetPersonRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Person",
+      "Description": "Get person remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonLookupInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSeriesRemoteSearchResults",
+      "OperationId": "GetSeriesRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Series",
+      "Description": "Get series remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SeriesInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetTrailerRemoteSearchResults",
+      "OperationId": "GetTrailerRemoteSearchResults",
+      "Method": "POST",
+      "Path": "/Items/RemoteSearch/Trailer",
+      "Description": "Get trailer remote search.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TrailerInfoRemoteSearchQuery"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "AlbumInfo",
+      "SchemaName": "AlbumInfo",
+      "Fields": [
+        {
+          "Name": "AlbumArtists",
+          "JsonName": "AlbumArtists",
+          "Description": "Gets or sets the album artist.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ArtistProviderIds",
+          "JsonName": "ArtistProviderIds",
+          "Description": "Gets or sets the artist provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SongInfos",
+          "JsonName": "SongInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SongInfo"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "AlbumInfoRemoteSearchQuery",
+      "SchemaName": "AlbumInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "AlbumInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "ArtistInfo",
+      "SchemaName": "ArtistInfo",
+      "Fields": [
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SongInfos",
+          "JsonName": "SongInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SongInfo"
+            }
+          }
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "ArtistInfoRemoteSearchQuery",
+      "SchemaName": "ArtistInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ArtistInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "BookInfo",
+      "SchemaName": "BookInfo",
+      "Description": "The lookup info for books.",
+      "Fields": [
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SeriesName",
+          "JsonName": "SeriesName",
+          "Description": "Gets or sets the name of the series the book belongs to.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "BookInfoRemoteSearchQuery",
+      "SchemaName": "BookInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Description": "The lookup info for books.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BookInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "BoxSetInfo",
+      "SchemaName": "BoxSetInfo",
+      "Description": "The lookup info for box sets.",
+      "Fields": [
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "BoxSetInfoRemoteSearchQuery",
+      "SchemaName": "BoxSetInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Description": "The lookup info for box sets.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BoxSetInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MovieInfo",
+      "SchemaName": "MovieInfo",
+      "Description": "The lookup info for movies.",
+      "Fields": [
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MovieInfoRemoteSearchQuery",
+      "SchemaName": "MovieInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Description": "The lookup info for movies.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MovieInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MusicVideoInfo",
+      "SchemaName": "MusicVideoInfo",
+      "Fields": [
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MusicVideoInfoRemoteSearchQuery",
+      "SchemaName": "MusicVideoInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MusicVideoInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PersonLookupInfo",
+      "SchemaName": "PersonLookupInfo",
+      "Description": "The lookup info for persons.",
+      "Fields": [
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PersonLookupInfoRemoteSearchQuery",
+      "SchemaName": "PersonLookupInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Description": "The lookup info for persons.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PersonLookupInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchResult",
+      "SchemaName": "RemoteSearchResult",
+      "Fields": [
+        {
+          "Name": "AlbumArtist",
+          "JsonName": "AlbumArtist",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "RemoteSearchResult"
+            }
+          }
+        },
+        {
+          "Name": "ImageUrl",
+          "JsonName": "ImageUrl",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexNumberEnd",
+          "JsonName": "IndexNumberEnd",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "Overview",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProductionYear",
+          "JsonName": "ProductionYear",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "SeriesInfo",
+      "SchemaName": "SeriesInfo",
+      "Description": "The lookup info for series.",
+      "Fields": [
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "SeriesInfoRemoteSearchQuery",
+      "SchemaName": "SeriesInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Description": "The lookup info for series.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SeriesInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "SongInfo",
+      "SchemaName": "SongInfo",
+      "Fields": [
+        {
+          "Name": "Album",
+          "JsonName": "Album",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AlbumArtists",
+          "JsonName": "AlbumArtists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "TrailerInfo",
+      "SchemaName": "TrailerInfo",
+      "Description": "The lookup info for trailers.",
+      "Fields": [
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAutomated",
+          "JsonName": "IsAutomated",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MetadataLanguage",
+          "JsonName": "MetadataLanguage",
+          "Description": "Gets or sets the metadata language.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Description": "Gets or sets the original title.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Description": "Gets or sets the provider ids.",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Year",
+          "JsonName": "Year",
+          "Description": "Gets or sets the year.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "TrailerInfoRemoteSearchQuery",
+      "SchemaName": "TrailerInfoRemoteSearchQuery",
+      "Fields": [
+        {
+          "Name": "IncludeDisabledProviders",
+          "JsonName": "IncludeDisabledProviders",
+          "Description": "Gets or sets a value indicating whether disabled providers should be included.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchInfo",
+          "JsonName": "SearchInfo",
+          "Description": "The lookup info for trailers.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TrailerInfo"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Description": "Gets or sets the provider name to search within if set.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

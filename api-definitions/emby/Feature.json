@@ -1,0 +1,73 @@
+{
+  "Name": "Feature",
+  "Tag": "FeatureService",
+  "Operations": [
+    {
+      "Name": "GetFeatures",
+      "OperationId": "getFeatures",
+      "Method": "GET",
+      "Path": "/Features",
+      "Description": "Gets a list of installed features",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "FeatureInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "FeatureInfo",
+      "SchemaName": "FeatureInfo",
+      "Fields": [
+        {
+          "Name": "FeatureType",
+          "JsonName": "FeatureType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "FeatureType"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "FeatureType",
+      "SchemaName": "FeatureType",
+      "Values": [
+        {
+          "Name": "FeatureTypeSystem",
+          "Value": "System"
+        },
+        {
+          "Name": "FeatureTypeUser",
+          "Value": "User"
+        }
+      ]
+    }
+  ]
+}

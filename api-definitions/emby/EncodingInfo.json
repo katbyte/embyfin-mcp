@@ -1,0 +1,2263 @@
+{
+  "Name": "EncodingInfo",
+  "Tag": "EncodingInfoService",
+  "Operations": [
+    {
+      "Name": "GetEncodingCodecConfigurationDefaults",
+      "OperationId": "getEncodingCodecconfigurationDefaults",
+      "Method": "GET",
+      "Path": "/Encoding/CodecConfiguration/Defaults",
+      "Description": "Gets default codec configurations",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "CodecConfiguration"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEncodingCodecInformationVideo",
+      "OperationId": "getEncodingCodecinformationVideo",
+      "Method": "GET",
+      "Path": "/Encoding/CodecInformation/Video",
+      "Description": "Gets details about available video encoders and decoders",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "VideoCodecBase"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEncodingToneMapOptions",
+      "OperationId": "getEncodingTonemapoptions",
+      "Method": "GET",
+      "Path": "/Encoding/ToneMapOptions",
+      "Description": "Gets available tone mapping options",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ConfigurationToneMappingToneMapOptionsVisibility"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "CodecConfiguration",
+      "SchemaName": "CodecConfiguration",
+      "Fields": [
+        {
+          "Name": "CodecId",
+          "JsonName": "CodecId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsEnabled",
+          "JsonName": "IsEnabled",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Priority",
+          "JsonName": "Priority",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CommonInterfacesICodecDeviceCapabilities",
+      "SchemaName": "Common.Interfaces.ICodecDeviceCapabilities",
+      "Fields": [
+        {
+          "Name": "Supports10BitProcessing",
+          "JsonName": "Supports10BitProcessing",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsHwDownload",
+          "JsonName": "SupportsHwDownload",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsHwUpload",
+          "JsonName": "SupportsHwUpload",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsNativeToneMapping",
+          "JsonName": "SupportsNativeToneMapping",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsStandaloneDeviceInit",
+          "JsonName": "SupportsStandaloneDeviceInit",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CommonInterfacesICodecDeviceInfo",
+      "SchemaName": "Common.Interfaces.ICodecDeviceInfo",
+      "Fields": [
+        {
+          "Name": "Adapter",
+          "JsonName": "Adapter",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ApiVersion",
+          "JsonName": "ApiVersion",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "Version"
+          }
+        },
+        {
+          "Name": "Capabilities",
+          "JsonName": "Capabilities",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CommonInterfacesICodecDeviceCapabilities"
+          }
+        },
+        {
+          "Name": "Desription",
+          "JsonName": "Desription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DevPath",
+          "JsonName": "DevPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceId",
+          "JsonName": "DeviceId",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "DeviceIdentifier",
+          "JsonName": "DeviceIdentifier",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceName",
+          "JsonName": "DeviceName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Driver",
+          "JsonName": "Driver",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DriverVersion",
+          "JsonName": "DriverVersion",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "Version"
+          }
+        },
+        {
+          "Name": "DrmNode",
+          "JsonName": "DrmNode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "HardwareContextFramework",
+          "JsonName": "HardwareContextFramework",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SecondaryFrameworks"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VendorId",
+          "JsonName": "VendorId",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "VendorName",
+          "JsonName": "VendorName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConfigurationToneMappingToneMapOptionsVisibility",
+      "SchemaName": "Configuration.ToneMapping.ToneMapOptionsVisibility",
+      "Fields": [
+        {
+          "Name": "IsAnyHardwareToneMappingAvailable",
+          "JsonName": "IsAnyHardwareToneMappingAvailable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsOpenClAvailable",
+          "JsonName": "IsOpenClAvailable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsOpenClSuperTAvailable",
+          "JsonName": "IsOpenClSuperTAvailable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsQuickSyncNativeAvailable",
+          "JsonName": "IsQuickSyncNativeAvailable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsSoftwareToneMappingAvailable",
+          "JsonName": "IsSoftwareToneMappingAvailable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsVaapiNativeAvailable",
+          "JsonName": "IsVaapiNativeAvailable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "OperatingSystem",
+          "JsonName": "OperatingSystem",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "OperatingSystem"
+          }
+        },
+        {
+          "Name": "ShowAdvanced",
+          "JsonName": "ShowAdvanced",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ShowNvidiaOptions",
+          "JsonName": "ShowNvidiaOptions",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ShowQuickSyncOptions",
+          "JsonName": "ShowQuickSyncOptions",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ShowVaapiOptions",
+          "JsonName": "ShowVaapiOptions",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LevelInformation",
+      "SchemaName": "LevelInformation",
+      "Fields": [
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxBitRate",
+          "JsonName": "MaxBitRate",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxBitRateDisplay",
+          "JsonName": "MaxBitRateDisplay",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Ordinal",
+          "JsonName": "Ordinal",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ResolutionRateStrings",
+          "JsonName": "ResolutionRateStrings",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ResolutionRates",
+          "JsonName": "ResolutionRates",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ResolutionRatesDisplay",
+          "JsonName": "ResolutionRatesDisplay",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ShortName",
+          "JsonName": "ShortName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProfileInformation",
+      "SchemaName": "ProfileInformation",
+      "Fields": [
+        {
+          "Name": "BitDepths",
+          "JsonName": "BitDepths",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Details",
+          "JsonName": "Details",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ShortName",
+          "JsonName": "ShortName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProfileLevelInformation",
+      "SchemaName": "ProfileLevelInformation",
+      "Fields": [
+        {
+          "Name": "Level",
+          "JsonName": "Level",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LevelInformation"
+          }
+        },
+        {
+          "Name": "Profile",
+          "JsonName": "Profile",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProfileInformation"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "VideoCodecBase",
+      "SchemaName": "VideoCodecBase",
+      "Fields": [
+        {
+          "Name": "CodecDeviceInfo",
+          "JsonName": "CodecDeviceInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CommonInterfacesICodecDeviceInfo"
+          }
+        },
+        {
+          "Name": "CodecKind",
+          "JsonName": "CodecKind",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CodecKinds"
+          }
+        },
+        {
+          "Name": "DefaultPriority",
+          "JsonName": "DefaultPriority",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Direction",
+          "JsonName": "Direction",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CodecDirections"
+          }
+        },
+        {
+          "Name": "FrameworkCodec",
+          "JsonName": "FrameworkCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "HeightAlignment",
+          "JsonName": "HeightAlignment",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsEnabledByDefault",
+          "JsonName": "IsEnabledByDefault",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHardwareCodec",
+          "JsonName": "IsHardwareCodec",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MaxBitRate",
+          "JsonName": "MaxBitRate",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "JsonName": "MaxHeight",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxInstanceCount",
+          "JsonName": "MaxInstanceCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxWidth",
+          "JsonName": "MaxWidth",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaTypeName",
+          "JsonName": "MediaTypeName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MinHeight",
+          "JsonName": "MinHeight",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MinWidth",
+          "JsonName": "MinWidth",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProfileAndLevelInformation",
+          "JsonName": "ProfileAndLevelInformation",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ProfileLevelInformation"
+            }
+          }
+        },
+        {
+          "Name": "SecondaryFramework",
+          "JsonName": "SecondaryFramework",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SecondaryFrameworks"
+          }
+        },
+        {
+          "Name": "SecondaryFrameworkCodec",
+          "JsonName": "SecondaryFrameworkCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportedColorFormatStrings",
+          "JsonName": "SupportedColorFormatStrings",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SupportedColorFormats",
+          "JsonName": "SupportedColorFormats",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ColorFormats"
+            }
+          }
+        },
+        {
+          "Name": "VideoMediaType",
+          "JsonName": "VideoMediaType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "VideoMediaTypes"
+          }
+        },
+        {
+          "Name": "WidthAlignment",
+          "JsonName": "WidthAlignment",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "CodecDirections",
+      "SchemaName": "CodecDirections",
+      "Values": [
+        {
+          "Name": "CodecDirectionsEncoder",
+          "Value": "Encoder"
+        },
+        {
+          "Name": "CodecDirectionsDecoder",
+          "Value": "Decoder"
+        }
+      ]
+    },
+    {
+      "Name": "CodecKinds",
+      "SchemaName": "CodecKinds",
+      "Values": [
+        {
+          "Name": "CodecKindsAudio",
+          "Value": "Audio"
+        },
+        {
+          "Name": "CodecKindsVideo",
+          "Value": "Video"
+        },
+        {
+          "Name": "CodecKindsSubTitles",
+          "Value": "SubTitles"
+        }
+      ]
+    },
+    {
+      "Name": "ColorFormats",
+      "SchemaName": "ColorFormats",
+      "Values": [
+        {
+          "Name": "ColorFormatsUnknown",
+          "Value": "Unknown"
+        },
+        {
+          "Name": "ColorFormatsYuv420p",
+          "Value": "yuv420p"
+        },
+        {
+          "Name": "ColorFormatsYuyv422",
+          "Value": "yuyv422"
+        },
+        {
+          "Name": "ColorFormatsRgb24",
+          "Value": "rgb24"
+        },
+        {
+          "Name": "ColorFormatsBgr24",
+          "Value": "bgr24"
+        },
+        {
+          "Name": "ColorFormatsYuv422p",
+          "Value": "yuv422p"
+        },
+        {
+          "Name": "ColorFormatsYuv444p",
+          "Value": "yuv444p"
+        },
+        {
+          "Name": "ColorFormatsYuv410p",
+          "Value": "yuv410p"
+        },
+        {
+          "Name": "ColorFormatsYuv411p",
+          "Value": "yuv411p"
+        },
+        {
+          "Name": "ColorFormatsGray",
+          "Value": "gray"
+        },
+        {
+          "Name": "ColorFormatsMonow",
+          "Value": "monow"
+        },
+        {
+          "Name": "ColorFormatsMonob",
+          "Value": "monob"
+        },
+        {
+          "Name": "ColorFormatsPal8",
+          "Value": "pal8"
+        },
+        {
+          "Name": "ColorFormatsYuvj420p",
+          "Value": "yuvj420p"
+        },
+        {
+          "Name": "ColorFormatsYuvj422p",
+          "Value": "yuvj422p"
+        },
+        {
+          "Name": "ColorFormatsYuvj444p",
+          "Value": "yuvj444p"
+        },
+        {
+          "Name": "ColorFormatsUyvy422",
+          "Value": "uyvy422"
+        },
+        {
+          "Name": "ColorFormatsUyyvyy411",
+          "Value": "uyyvyy411"
+        },
+        {
+          "Name": "ColorFormatsBgr8",
+          "Value": "bgr8"
+        },
+        {
+          "Name": "ColorFormatsBgr4",
+          "Value": "bgr4"
+        },
+        {
+          "Name": "ColorFormatsBgr4Byte",
+          "Value": "bgr4_byte"
+        },
+        {
+          "Name": "ColorFormatsRgb8",
+          "Value": "rgb8"
+        },
+        {
+          "Name": "ColorFormatsRgb4",
+          "Value": "rgb4"
+        },
+        {
+          "Name": "ColorFormatsRgb4Byte",
+          "Value": "rgb4_byte"
+        },
+        {
+          "Name": "ColorFormatsNv12",
+          "Value": "nv12"
+        },
+        {
+          "Name": "ColorFormatsNv21",
+          "Value": "nv21"
+        },
+        {
+          "Name": "ColorFormatsArgb",
+          "Value": "argb"
+        },
+        {
+          "Name": "ColorFormatsRgba",
+          "Value": "rgba"
+        },
+        {
+          "Name": "ColorFormatsAbgr",
+          "Value": "abgr"
+        },
+        {
+          "Name": "ColorFormatsBgra",
+          "Value": "bgra"
+        },
+        {
+          "Name": "ColorFormatsGray16",
+          "Value": "gray16"
+        },
+        {
+          "Name": "ColorFormatsYuv440p",
+          "Value": "yuv440p"
+        },
+        {
+          "Name": "ColorFormatsYuvj440p",
+          "Value": "yuvj440p"
+        },
+        {
+          "Name": "ColorFormatsYuva420p",
+          "Value": "yuva420p"
+        },
+        {
+          "Name": "ColorFormatsRgb48",
+          "Value": "rgb48"
+        },
+        {
+          "Name": "ColorFormatsRgb565",
+          "Value": "rgb565"
+        },
+        {
+          "Name": "ColorFormatsRgb555",
+          "Value": "rgb555"
+        },
+        {
+          "Name": "ColorFormatsBgr565",
+          "Value": "bgr565"
+        },
+        {
+          "Name": "ColorFormatsBgr555",
+          "Value": "bgr555"
+        },
+        {
+          "Name": "ColorFormatsVaapiMoco",
+          "Value": "vaapi_moco"
+        },
+        {
+          "Name": "ColorFormatsVaapiIdct",
+          "Value": "vaapi_idct"
+        },
+        {
+          "Name": "ColorFormatsVaapiVld",
+          "Value": "vaapi_vld"
+        },
+        {
+          "Name": "ColorFormatsYuv420p16",
+          "Value": "yuv420p16"
+        },
+        {
+          "Name": "ColorFormatsYuv422p16",
+          "Value": "yuv422p16"
+        },
+        {
+          "Name": "ColorFormatsYuv444p16",
+          "Value": "yuv444p16"
+        },
+        {
+          "Name": "ColorFormatsDxva2Vld",
+          "Value": "dxva2_vld"
+        },
+        {
+          "Name": "ColorFormatsRgb444",
+          "Value": "rgb444"
+        },
+        {
+          "Name": "ColorFormatsBgr444",
+          "Value": "bgr444"
+        },
+        {
+          "Name": "ColorFormatsYa8",
+          "Value": "ya8"
+        },
+        {
+          "Name": "ColorFormatsBgr48",
+          "Value": "bgr48"
+        },
+        {
+          "Name": "ColorFormatsYuv420p9",
+          "Value": "yuv420p9"
+        },
+        {
+          "Name": "ColorFormatsYuv420p10",
+          "Value": "yuv420p10"
+        },
+        {
+          "Name": "ColorFormatsYuv422p10",
+          "Value": "yuv422p10"
+        },
+        {
+          "Name": "ColorFormatsYuv444p9",
+          "Value": "yuv444p9"
+        },
+        {
+          "Name": "ColorFormatsYuv444p10",
+          "Value": "yuv444p10"
+        },
+        {
+          "Name": "ColorFormatsYuv422p9",
+          "Value": "yuv422p9"
+        },
+        {
+          "Name": "ColorFormatsGbrp",
+          "Value": "gbrp"
+        },
+        {
+          "Name": "ColorFormatsGbrp9",
+          "Value": "gbrp9"
+        },
+        {
+          "Name": "ColorFormatsGbrp10",
+          "Value": "gbrp10"
+        },
+        {
+          "Name": "ColorFormatsGbrp16",
+          "Value": "gbrp16"
+        },
+        {
+          "Name": "ColorFormatsYuva422p",
+          "Value": "yuva422p"
+        },
+        {
+          "Name": "ColorFormatsYuva444p",
+          "Value": "yuva444p"
+        },
+        {
+          "Name": "ColorFormatsYuva420p9",
+          "Value": "yuva420p9"
+        },
+        {
+          "Name": "ColorFormatsYuva422p9",
+          "Value": "yuva422p9"
+        },
+        {
+          "Name": "ColorFormatsYuva444p9",
+          "Value": "yuva444p9"
+        },
+        {
+          "Name": "ColorFormatsYuva420p10",
+          "Value": "yuva420p10"
+        },
+        {
+          "Name": "ColorFormatsYuva422p10",
+          "Value": "yuva422p10"
+        },
+        {
+          "Name": "ColorFormatsYuva444p10",
+          "Value": "yuva444p10"
+        },
+        {
+          "Name": "ColorFormatsYuva420p16",
+          "Value": "yuva420p16"
+        },
+        {
+          "Name": "ColorFormatsYuva422p16",
+          "Value": "yuva422p16"
+        },
+        {
+          "Name": "ColorFormatsYuva444p16",
+          "Value": "yuva444p16"
+        },
+        {
+          "Name": "ColorFormatsVdpau",
+          "Value": "vdpau"
+        },
+        {
+          "Name": "ColorFormatsXyz12",
+          "Value": "xyz12"
+        },
+        {
+          "Name": "ColorFormatsNv16",
+          "Value": "nv16"
+        },
+        {
+          "Name": "ColorFormatsNv20",
+          "Value": "nv20"
+        },
+        {
+          "Name": "ColorFormatsRgba64",
+          "Value": "rgba64"
+        },
+        {
+          "Name": "ColorFormatsBgra64",
+          "Value": "bgra64"
+        },
+        {
+          "Name": "ColorFormatsYvyu422",
+          "Value": "yvyu422"
+        },
+        {
+          "Name": "ColorFormatsYa16",
+          "Value": "ya16"
+        },
+        {
+          "Name": "ColorFormatsGbrap",
+          "Value": "gbrap"
+        },
+        {
+          "Name": "ColorFormatsGbrap16",
+          "Value": "gbrap16"
+        },
+        {
+          "Name": "ColorFormatsQsv",
+          "Value": "qsv"
+        },
+        {
+          "Name": "ColorFormatsMmal",
+          "Value": "mmal"
+        },
+        {
+          "Name": "ColorFormatsD3d11vaVld",
+          "Value": "d3d11va_vld"
+        },
+        {
+          "Name": "ColorFormatsCuda",
+          "Value": "cuda"
+        },
+        {
+          "Name": "ColorFormatsN0rgb",
+          "Value": "_0rgb"
+        },
+        {
+          "Name": "ColorFormatsRgb0",
+          "Value": "rgb0"
+        },
+        {
+          "Name": "ColorFormatsN0bgr",
+          "Value": "_0bgr"
+        },
+        {
+          "Name": "ColorFormatsBgr0",
+          "Value": "bgr0"
+        },
+        {
+          "Name": "ColorFormatsYuv420p12",
+          "Value": "yuv420p12"
+        },
+        {
+          "Name": "ColorFormatsYuv420p14",
+          "Value": "yuv420p14"
+        },
+        {
+          "Name": "ColorFormatsYuv422p12",
+          "Value": "yuv422p12"
+        },
+        {
+          "Name": "ColorFormatsYuv422p14",
+          "Value": "yuv422p14"
+        },
+        {
+          "Name": "ColorFormatsYuv444p12",
+          "Value": "yuv444p12"
+        },
+        {
+          "Name": "ColorFormatsYuv444p14",
+          "Value": "yuv444p14"
+        },
+        {
+          "Name": "ColorFormatsGbrp12",
+          "Value": "gbrp12"
+        },
+        {
+          "Name": "ColorFormatsGbrp14",
+          "Value": "gbrp14"
+        },
+        {
+          "Name": "ColorFormatsYuvj411p",
+          "Value": "yuvj411p"
+        },
+        {
+          "Name": "ColorFormatsBayerBggr8",
+          "Value": "bayer_bggr8"
+        },
+        {
+          "Name": "ColorFormatsBayerRggb8",
+          "Value": "bayer_rggb8"
+        },
+        {
+          "Name": "ColorFormatsBayerGbrg8",
+          "Value": "bayer_gbrg8"
+        },
+        {
+          "Name": "ColorFormatsBayerGrbg8",
+          "Value": "bayer_grbg8"
+        },
+        {
+          "Name": "ColorFormatsBayerBggr16",
+          "Value": "bayer_bggr16"
+        },
+        {
+          "Name": "ColorFormatsBayerRggb16",
+          "Value": "bayer_rggb16"
+        },
+        {
+          "Name": "ColorFormatsBayerGbrg16",
+          "Value": "bayer_gbrg16"
+        },
+        {
+          "Name": "ColorFormatsBayerGrbg16",
+          "Value": "bayer_grbg16"
+        },
+        {
+          "Name": "ColorFormatsXvmc",
+          "Value": "xvmc"
+        },
+        {
+          "Name": "ColorFormatsYuv440p10",
+          "Value": "yuv440p10"
+        },
+        {
+          "Name": "ColorFormatsYuv440p12",
+          "Value": "yuv440p12"
+        },
+        {
+          "Name": "ColorFormatsAyuv64",
+          "Value": "ayuv64"
+        },
+        {
+          "Name": "ColorFormatsVideotoolboxVld",
+          "Value": "videotoolbox_vld"
+        },
+        {
+          "Name": "ColorFormatsP010",
+          "Value": "p010"
+        },
+        {
+          "Name": "ColorFormatsGbrap12",
+          "Value": "gbrap12"
+        },
+        {
+          "Name": "ColorFormatsGbrap10",
+          "Value": "gbrap10"
+        },
+        {
+          "Name": "ColorFormatsMediacodec",
+          "Value": "mediacodec"
+        },
+        {
+          "Name": "ColorFormatsGray12",
+          "Value": "gray12"
+        },
+        {
+          "Name": "ColorFormatsGray10",
+          "Value": "gray10"
+        },
+        {
+          "Name": "ColorFormatsGray14",
+          "Value": "gray14"
+        },
+        {
+          "Name": "ColorFormatsP016",
+          "Value": "p016"
+        },
+        {
+          "Name": "ColorFormatsD3d11",
+          "Value": "d3d11"
+        },
+        {
+          "Name": "ColorFormatsGray9",
+          "Value": "gray9"
+        },
+        {
+          "Name": "ColorFormatsGbrpf32",
+          "Value": "gbrpf32"
+        },
+        {
+          "Name": "ColorFormatsGbrapf32",
+          "Value": "gbrapf32"
+        },
+        {
+          "Name": "ColorFormatsDrmPrime",
+          "Value": "drm_prime"
+        },
+        {
+          "Name": "ColorFormatsOpencl",
+          "Value": "opencl"
+        },
+        {
+          "Name": "ColorFormatsGrayf32",
+          "Value": "grayf32"
+        },
+        {
+          "Name": "ColorFormatsYuva422p12",
+          "Value": "yuva422p12"
+        },
+        {
+          "Name": "ColorFormatsYuva444p12",
+          "Value": "yuva444p12"
+        },
+        {
+          "Name": "ColorFormatsNv24",
+          "Value": "nv24"
+        },
+        {
+          "Name": "ColorFormatsNv42",
+          "Value": "nv42"
+        }
+      ]
+    },
+    {
+      "Name": "OperatingSystem",
+      "SchemaName": "OperatingSystem",
+      "Values": [
+        {
+          "Name": "OperatingSystemWindows",
+          "Value": "Windows"
+        },
+        {
+          "Name": "OperatingSystemLinux",
+          "Value": "Linux"
+        },
+        {
+          "Name": "OperatingSystemOSX",
+          "Value": "OSX"
+        },
+        {
+          "Name": "OperatingSystemBSD",
+          "Value": "BSD"
+        },
+        {
+          "Name": "OperatingSystemAndroid",
+          "Value": "Android"
+        }
+      ]
+    },
+    {
+      "Name": "SecondaryFrameworks",
+      "SchemaName": "SecondaryFrameworks",
+      "Values": [
+        {
+          "Name": "SecondaryFrameworksUnknown",
+          "Value": "Unknown"
+        },
+        {
+          "Name": "SecondaryFrameworksNone",
+          "Value": "None"
+        },
+        {
+          "Name": "SecondaryFrameworksAmdAmf",
+          "Value": "AmdAmf"
+        },
+        {
+          "Name": "SecondaryFrameworksMediaCodec",
+          "Value": "MediaCodec"
+        },
+        {
+          "Name": "SecondaryFrameworksNvEncDec",
+          "Value": "NvEncDec"
+        },
+        {
+          "Name": "SecondaryFrameworksOpenMax",
+          "Value": "OpenMax"
+        },
+        {
+          "Name": "SecondaryFrameworksQuickSync",
+          "Value": "QuickSync"
+        },
+        {
+          "Name": "SecondaryFrameworksVaApi",
+          "Value": "VaApi"
+        },
+        {
+          "Name": "SecondaryFrameworksV4L2",
+          "Value": "V4L2"
+        },
+        {
+          "Name": "SecondaryFrameworksDxVa",
+          "Value": "DxVa"
+        },
+        {
+          "Name": "SecondaryFrameworksD3d11va",
+          "Value": "D3d11va"
+        },
+        {
+          "Name": "SecondaryFrameworksVideoToolbox",
+          "Value": "VideoToolbox"
+        },
+        {
+          "Name": "SecondaryFrameworksMmal",
+          "Value": "Mmal"
+        }
+      ]
+    },
+    {
+      "Name": "VideoMediaTypes",
+      "SchemaName": "VideoMediaTypes",
+      "Values": [
+        {
+          "Name": "VideoMediaTypesUnknown",
+          "Value": "Unknown"
+        },
+        {
+          "Name": "VideoMediaTypesCopy",
+          "Value": "copy"
+        },
+        {
+          "Name": "VideoMediaTypesFlv1",
+          "Value": "flv1"
+        },
+        {
+          "Name": "VideoMediaTypesH263",
+          "Value": "h263"
+        },
+        {
+          "Name": "VideoMediaTypesH263p",
+          "Value": "h263p"
+        },
+        {
+          "Name": "VideoMediaTypesH264",
+          "Value": "h264"
+        },
+        {
+          "Name": "VideoMediaTypesHevc",
+          "Value": "hevc"
+        },
+        {
+          "Name": "VideoMediaTypesMjpeg",
+          "Value": "mjpeg"
+        },
+        {
+          "Name": "VideoMediaTypesMpeg1video",
+          "Value": "mpeg1video"
+        },
+        {
+          "Name": "VideoMediaTypesMpeg2video",
+          "Value": "mpeg2video"
+        },
+        {
+          "Name": "VideoMediaTypesMpeg4",
+          "Value": "mpeg4"
+        },
+        {
+          "Name": "VideoMediaTypesMsvideo1",
+          "Value": "msvideo1"
+        },
+        {
+          "Name": "VideoMediaTypesTheora",
+          "Value": "theora"
+        },
+        {
+          "Name": "VideoMediaTypesVc1image",
+          "Value": "vc1image"
+        },
+        {
+          "Name": "VideoMediaTypesVc1",
+          "Value": "vc1"
+        },
+        {
+          "Name": "VideoMediaTypesVp8",
+          "Value": "vp8"
+        },
+        {
+          "Name": "VideoMediaTypesVp9",
+          "Value": "vp9"
+        },
+        {
+          "Name": "VideoMediaTypesWmv1",
+          "Value": "wmv1"
+        },
+        {
+          "Name": "VideoMediaTypesWmv2",
+          "Value": "wmv2"
+        },
+        {
+          "Name": "VideoMediaTypesWmv3",
+          "Value": "wmv3"
+        },
+        {
+          "Name": "VideoMediaTypesN012v",
+          "Value": "_012v"
+        },
+        {
+          "Name": "VideoMediaTypesN4xm",
+          "Value": "_4xm"
+        },
+        {
+          "Name": "VideoMediaTypesN8bps",
+          "Value": "_8bps"
+        },
+        {
+          "Name": "VideoMediaTypesA64Multi",
+          "Value": "a64_multi"
+        },
+        {
+          "Name": "VideoMediaTypesA64Multi5",
+          "Value": "a64_multi5"
+        },
+        {
+          "Name": "VideoMediaTypesAasc",
+          "Value": "aasc"
+        },
+        {
+          "Name": "VideoMediaTypesAic",
+          "Value": "aic"
+        },
+        {
+          "Name": "VideoMediaTypesAliasPix",
+          "Value": "alias_pix"
+        },
+        {
+          "Name": "VideoMediaTypesAmv",
+          "Value": "amv"
+        },
+        {
+          "Name": "VideoMediaTypesAnm",
+          "Value": "anm"
+        },
+        {
+          "Name": "VideoMediaTypesAnsi",
+          "Value": "ansi"
+        },
+        {
+          "Name": "VideoMediaTypesApng",
+          "Value": "apng"
+        },
+        {
+          "Name": "VideoMediaTypesAsv1",
+          "Value": "asv1"
+        },
+        {
+          "Name": "VideoMediaTypesAsv2",
+          "Value": "asv2"
+        },
+        {
+          "Name": "VideoMediaTypesAura",
+          "Value": "aura"
+        },
+        {
+          "Name": "VideoMediaTypesAura2",
+          "Value": "aura2"
+        },
+        {
+          "Name": "VideoMediaTypesAv1",
+          "Value": "av1"
+        },
+        {
+          "Name": "VideoMediaTypesAvrn",
+          "Value": "avrn"
+        },
+        {
+          "Name": "VideoMediaTypesAvrp",
+          "Value": "avrp"
+        },
+        {
+          "Name": "VideoMediaTypesAvs",
+          "Value": "avs"
+        },
+        {
+          "Name": "VideoMediaTypesAvui",
+          "Value": "avui"
+        },
+        {
+          "Name": "VideoMediaTypesAyuv",
+          "Value": "ayuv"
+        },
+        {
+          "Name": "VideoMediaTypesBethsoftvid",
+          "Value": "bethsoftvid"
+        },
+        {
+          "Name": "VideoMediaTypesBfi",
+          "Value": "bfi"
+        },
+        {
+          "Name": "VideoMediaTypesBinkvideo",
+          "Value": "binkvideo"
+        },
+        {
+          "Name": "VideoMediaTypesBintext",
+          "Value": "bintext"
+        },
+        {
+          "Name": "VideoMediaTypesBitpacked",
+          "Value": "bitpacked"
+        },
+        {
+          "Name": "VideoMediaTypesBmp",
+          "Value": "bmp"
+        },
+        {
+          "Name": "VideoMediaTypesBmvVideo",
+          "Value": "bmv_video"
+        },
+        {
+          "Name": "VideoMediaTypesBrenderPix",
+          "Value": "brender_pix"
+        },
+        {
+          "Name": "VideoMediaTypesC93",
+          "Value": "c93"
+        },
+        {
+          "Name": "VideoMediaTypesCavs",
+          "Value": "cavs"
+        },
+        {
+          "Name": "VideoMediaTypesCdgraphics",
+          "Value": "cdgraphics"
+        },
+        {
+          "Name": "VideoMediaTypesCdxl",
+          "Value": "cdxl"
+        },
+        {
+          "Name": "VideoMediaTypesCfhd",
+          "Value": "cfhd"
+        },
+        {
+          "Name": "VideoMediaTypesCinepak",
+          "Value": "cinepak"
+        },
+        {
+          "Name": "VideoMediaTypesClearvideo",
+          "Value": "clearvideo"
+        },
+        {
+          "Name": "VideoMediaTypesCljr",
+          "Value": "cljr"
+        },
+        {
+          "Name": "VideoMediaTypesCllc",
+          "Value": "cllc"
+        },
+        {
+          "Name": "VideoMediaTypesCmv",
+          "Value": "cmv"
+        },
+        {
+          "Name": "VideoMediaTypesCpia",
+          "Value": "cpia"
+        },
+        {
+          "Name": "VideoMediaTypesCscd",
+          "Value": "cscd"
+        },
+        {
+          "Name": "VideoMediaTypesCyuv",
+          "Value": "cyuv"
+        },
+        {
+          "Name": "VideoMediaTypesDaala",
+          "Value": "daala"
+        },
+        {
+          "Name": "VideoMediaTypesDds",
+          "Value": "dds"
+        },
+        {
+          "Name": "VideoMediaTypesDfa",
+          "Value": "dfa"
+        },
+        {
+          "Name": "VideoMediaTypesDirac",
+          "Value": "dirac"
+        },
+        {
+          "Name": "VideoMediaTypesDnxhd",
+          "Value": "dnxhd"
+        },
+        {
+          "Name": "VideoMediaTypesDpx",
+          "Value": "dpx"
+        },
+        {
+          "Name": "VideoMediaTypesDsicinvideo",
+          "Value": "dsicinvideo"
+        },
+        {
+          "Name": "VideoMediaTypesDvvideo",
+          "Value": "dvvideo"
+        },
+        {
+          "Name": "VideoMediaTypesDxa",
+          "Value": "dxa"
+        },
+        {
+          "Name": "VideoMediaTypesDxtory",
+          "Value": "dxtory"
+        },
+        {
+          "Name": "VideoMediaTypesDxv",
+          "Value": "dxv"
+        },
+        {
+          "Name": "VideoMediaTypesEscape124",
+          "Value": "escape124"
+        },
+        {
+          "Name": "VideoMediaTypesEscape130",
+          "Value": "escape130"
+        },
+        {
+          "Name": "VideoMediaTypesExr",
+          "Value": "exr"
+        },
+        {
+          "Name": "VideoMediaTypesFfv1",
+          "Value": "ffv1"
+        },
+        {
+          "Name": "VideoMediaTypesFfvhuff",
+          "Value": "ffvhuff"
+        },
+        {
+          "Name": "VideoMediaTypesFic",
+          "Value": "fic"
+        },
+        {
+          "Name": "VideoMediaTypesFits",
+          "Value": "fits"
+        },
+        {
+          "Name": "VideoMediaTypesFlashsv",
+          "Value": "flashsv"
+        },
+        {
+          "Name": "VideoMediaTypesFlashsv2",
+          "Value": "flashsv2"
+        },
+        {
+          "Name": "VideoMediaTypesFlic",
+          "Value": "flic"
+        },
+        {
+          "Name": "VideoMediaTypesFmvc",
+          "Value": "fmvc"
+        },
+        {
+          "Name": "VideoMediaTypesFraps",
+          "Value": "fraps"
+        },
+        {
+          "Name": "VideoMediaTypesFrwu",
+          "Value": "frwu"
+        },
+        {
+          "Name": "VideoMediaTypesG2m",
+          "Value": "g2m"
+        },
+        {
+          "Name": "VideoMediaTypesGdv",
+          "Value": "gdv"
+        },
+        {
+          "Name": "VideoMediaTypesGif",
+          "Value": "gif"
+        },
+        {
+          "Name": "VideoMediaTypesH261",
+          "Value": "h261"
+        },
+        {
+          "Name": "VideoMediaTypesH263i",
+          "Value": "h263i"
+        },
+        {
+          "Name": "VideoMediaTypesHap",
+          "Value": "hap"
+        },
+        {
+          "Name": "VideoMediaTypesHnm4video",
+          "Value": "hnm4video"
+        },
+        {
+          "Name": "VideoMediaTypesHqHqa",
+          "Value": "hq_hqa"
+        },
+        {
+          "Name": "VideoMediaTypesHqx",
+          "Value": "hqx"
+        },
+        {
+          "Name": "VideoMediaTypesHuffyuv",
+          "Value": "huffyuv"
+        },
+        {
+          "Name": "VideoMediaTypesIdcin",
+          "Value": "idcin"
+        },
+        {
+          "Name": "VideoMediaTypesIdf",
+          "Value": "idf"
+        },
+        {
+          "Name": "VideoMediaTypesIffIlbm",
+          "Value": "iff_ilbm"
+        },
+        {
+          "Name": "VideoMediaTypesIndeo2",
+          "Value": "indeo2"
+        },
+        {
+          "Name": "VideoMediaTypesIndeo3",
+          "Value": "indeo3"
+        },
+        {
+          "Name": "VideoMediaTypesIndeo4",
+          "Value": "indeo4"
+        },
+        {
+          "Name": "VideoMediaTypesIndeo5",
+          "Value": "indeo5"
+        },
+        {
+          "Name": "VideoMediaTypesInterplayvideo",
+          "Value": "interplayvideo"
+        },
+        {
+          "Name": "VideoMediaTypesJpeg2000",
+          "Value": "jpeg2000"
+        },
+        {
+          "Name": "VideoMediaTypesJpegls",
+          "Value": "jpegls"
+        },
+        {
+          "Name": "VideoMediaTypesJv",
+          "Value": "jv"
+        },
+        {
+          "Name": "VideoMediaTypesKgv1",
+          "Value": "kgv1"
+        },
+        {
+          "Name": "VideoMediaTypesKmvc",
+          "Value": "kmvc"
+        },
+        {
+          "Name": "VideoMediaTypesLagarith",
+          "Value": "lagarith"
+        },
+        {
+          "Name": "VideoMediaTypesLjpeg",
+          "Value": "ljpeg"
+        },
+        {
+          "Name": "VideoMediaTypesLoco",
+          "Value": "loco"
+        },
+        {
+          "Name": "VideoMediaTypesM101",
+          "Value": "m101"
+        },
+        {
+          "Name": "VideoMediaTypesMad",
+          "Value": "mad"
+        },
+        {
+          "Name": "VideoMediaTypesMagicyuv",
+          "Value": "magicyuv"
+        },
+        {
+          "Name": "VideoMediaTypesMdec",
+          "Value": "mdec"
+        },
+        {
+          "Name": "VideoMediaTypesMimic",
+          "Value": "mimic"
+        },
+        {
+          "Name": "VideoMediaTypesMjpegb",
+          "Value": "mjpegb"
+        },
+        {
+          "Name": "VideoMediaTypesMmvideo",
+          "Value": "mmvideo"
+        },
+        {
+          "Name": "VideoMediaTypesMotionpixels",
+          "Value": "motionpixels"
+        },
+        {
+          "Name": "VideoMediaTypesMsa1",
+          "Value": "msa1"
+        },
+        {
+          "Name": "VideoMediaTypesMscc",
+          "Value": "mscc"
+        },
+        {
+          "Name": "VideoMediaTypesMsmpeg4v1",
+          "Value": "msmpeg4v1"
+        },
+        {
+          "Name": "VideoMediaTypesMsmpeg4v2",
+          "Value": "msmpeg4v2"
+        },
+        {
+          "Name": "VideoMediaTypesMsmpeg4v3",
+          "Value": "msmpeg4v3"
+        },
+        {
+          "Name": "VideoMediaTypesMsrle",
+          "Value": "msrle"
+        },
+        {
+          "Name": "VideoMediaTypesMss1",
+          "Value": "mss1"
+        },
+        {
+          "Name": "VideoMediaTypesMss2",
+          "Value": "mss2"
+        },
+        {
+          "Name": "VideoMediaTypesMszh",
+          "Value": "mszh"
+        },
+        {
+          "Name": "VideoMediaTypesMts2",
+          "Value": "mts2"
+        },
+        {
+          "Name": "VideoMediaTypesMvc1",
+          "Value": "mvc1"
+        },
+        {
+          "Name": "VideoMediaTypesMvc2",
+          "Value": "mvc2"
+        },
+        {
+          "Name": "VideoMediaTypesMxpeg",
+          "Value": "mxpeg"
+        },
+        {
+          "Name": "VideoMediaTypesNuv",
+          "Value": "nuv"
+        },
+        {
+          "Name": "VideoMediaTypesPafVideo",
+          "Value": "paf_video"
+        },
+        {
+          "Name": "VideoMediaTypesPam",
+          "Value": "pam"
+        },
+        {
+          "Name": "VideoMediaTypesPbm",
+          "Value": "pbm"
+        },
+        {
+          "Name": "VideoMediaTypesPcx",
+          "Value": "pcx"
+        },
+        {
+          "Name": "VideoMediaTypesPgm",
+          "Value": "pgm"
+        },
+        {
+          "Name": "VideoMediaTypesPgmyuv",
+          "Value": "pgmyuv"
+        },
+        {
+          "Name": "VideoMediaTypesPictor",
+          "Value": "pictor"
+        },
+        {
+          "Name": "VideoMediaTypesPixlet",
+          "Value": "pixlet"
+        },
+        {
+          "Name": "VideoMediaTypesPng",
+          "Value": "png"
+        },
+        {
+          "Name": "VideoMediaTypesPpm",
+          "Value": "ppm"
+        },
+        {
+          "Name": "VideoMediaTypesProres",
+          "Value": "prores"
+        },
+        {
+          "Name": "VideoMediaTypesPsd",
+          "Value": "psd"
+        },
+        {
+          "Name": "VideoMediaTypesPtx",
+          "Value": "ptx"
+        },
+        {
+          "Name": "VideoMediaTypesQdraw",
+          "Value": "qdraw"
+        },
+        {
+          "Name": "VideoMediaTypesQpeg",
+          "Value": "qpeg"
+        },
+        {
+          "Name": "VideoMediaTypesQtrle",
+          "Value": "qtrle"
+        },
+        {
+          "Name": "VideoMediaTypesR10k",
+          "Value": "r10k"
+        },
+        {
+          "Name": "VideoMediaTypesR210",
+          "Value": "r210"
+        },
+        {
+          "Name": "VideoMediaTypesRawvideo",
+          "Value": "rawvideo"
+        },
+        {
+          "Name": "VideoMediaTypesRl2",
+          "Value": "rl2"
+        },
+        {
+          "Name": "VideoMediaTypesRoq",
+          "Value": "roq"
+        },
+        {
+          "Name": "VideoMediaTypesRpza",
+          "Value": "rpza"
+        },
+        {
+          "Name": "VideoMediaTypesRscc",
+          "Value": "rscc"
+        },
+        {
+          "Name": "VideoMediaTypesRv10",
+          "Value": "rv10"
+        },
+        {
+          "Name": "VideoMediaTypesRv20",
+          "Value": "rv20"
+        },
+        {
+          "Name": "VideoMediaTypesRv30",
+          "Value": "rv30"
+        },
+        {
+          "Name": "VideoMediaTypesRv40",
+          "Value": "rv40"
+        },
+        {
+          "Name": "VideoMediaTypesSanm",
+          "Value": "sanm"
+        },
+        {
+          "Name": "VideoMediaTypesScpr",
+          "Value": "scpr"
+        },
+        {
+          "Name": "VideoMediaTypesScreenpresso",
+          "Value": "screenpresso"
+        },
+        {
+          "Name": "VideoMediaTypesSgi",
+          "Value": "sgi"
+        },
+        {
+          "Name": "VideoMediaTypesSgirle",
+          "Value": "sgirle"
+        },
+        {
+          "Name": "VideoMediaTypesSheervideo",
+          "Value": "sheervideo"
+        },
+        {
+          "Name": "VideoMediaTypesSmackvideo",
+          "Value": "smackvideo"
+        },
+        {
+          "Name": "VideoMediaTypesSmc",
+          "Value": "smc"
+        },
+        {
+          "Name": "VideoMediaTypesSmvjpeg",
+          "Value": "smvjpeg"
+        },
+        {
+          "Name": "VideoMediaTypesSnow",
+          "Value": "snow"
+        },
+        {
+          "Name": "VideoMediaTypesSp5x",
+          "Value": "sp5x"
+        },
+        {
+          "Name": "VideoMediaTypesSpeedhq",
+          "Value": "speedhq"
+        },
+        {
+          "Name": "VideoMediaTypesSrgc",
+          "Value": "srgc"
+        },
+        {
+          "Name": "VideoMediaTypesSunrast",
+          "Value": "sunrast"
+        },
+        {
+          "Name": "VideoMediaTypesSvg",
+          "Value": "svg"
+        },
+        {
+          "Name": "VideoMediaTypesSvq1",
+          "Value": "svq1"
+        },
+        {
+          "Name": "VideoMediaTypesSvq3",
+          "Value": "svq3"
+        },
+        {
+          "Name": "VideoMediaTypesTarga",
+          "Value": "targa"
+        },
+        {
+          "Name": "VideoMediaTypesTargaY216",
+          "Value": "targa_y216"
+        },
+        {
+          "Name": "VideoMediaTypesTdsc",
+          "Value": "tdsc"
+        },
+        {
+          "Name": "VideoMediaTypesTgq",
+          "Value": "tgq"
+        },
+        {
+          "Name": "VideoMediaTypesTgv",
+          "Value": "tgv"
+        },
+        {
+          "Name": "VideoMediaTypesThp",
+          "Value": "thp"
+        },
+        {
+          "Name": "VideoMediaTypesTiertexseqvideo",
+          "Value": "tiertexseqvideo"
+        },
+        {
+          "Name": "VideoMediaTypesTiff",
+          "Value": "tiff"
+        },
+        {
+          "Name": "VideoMediaTypesTmv",
+          "Value": "tmv"
+        },
+        {
+          "Name": "VideoMediaTypesTqi",
+          "Value": "tqi"
+        },
+        {
+          "Name": "VideoMediaTypesTruemotion1",
+          "Value": "truemotion1"
+        },
+        {
+          "Name": "VideoMediaTypesTruemotion2",
+          "Value": "truemotion2"
+        },
+        {
+          "Name": "VideoMediaTypesTruemotion2rt",
+          "Value": "truemotion2rt"
+        },
+        {
+          "Name": "VideoMediaTypesTscc",
+          "Value": "tscc"
+        },
+        {
+          "Name": "VideoMediaTypesTscc2",
+          "Value": "tscc2"
+        },
+        {
+          "Name": "VideoMediaTypesTxd",
+          "Value": "txd"
+        },
+        {
+          "Name": "VideoMediaTypesUlti",
+          "Value": "ulti"
+        },
+        {
+          "Name": "VideoMediaTypesUtvideo",
+          "Value": "utvideo"
+        },
+        {
+          "Name": "VideoMediaTypesV210",
+          "Value": "v210"
+        },
+        {
+          "Name": "VideoMediaTypesV210x",
+          "Value": "v210x"
+        },
+        {
+          "Name": "VideoMediaTypesV308",
+          "Value": "v308"
+        },
+        {
+          "Name": "VideoMediaTypesV408",
+          "Value": "v408"
+        },
+        {
+          "Name": "VideoMediaTypesV410",
+          "Value": "v410"
+        },
+        {
+          "Name": "VideoMediaTypesVb",
+          "Value": "vb"
+        },
+        {
+          "Name": "VideoMediaTypesVble",
+          "Value": "vble"
+        },
+        {
+          "Name": "VideoMediaTypesVcr1",
+          "Value": "vcr1"
+        },
+        {
+          "Name": "VideoMediaTypesVixl",
+          "Value": "vixl"
+        },
+        {
+          "Name": "VideoMediaTypesVmdvideo",
+          "Value": "vmdvideo"
+        },
+        {
+          "Name": "VideoMediaTypesVmnc",
+          "Value": "vmnc"
+        },
+        {
+          "Name": "VideoMediaTypesVp3",
+          "Value": "vp3"
+        },
+        {
+          "Name": "VideoMediaTypesVp5",
+          "Value": "vp5"
+        },
+        {
+          "Name": "VideoMediaTypesVp6",
+          "Value": "vp6"
+        },
+        {
+          "Name": "VideoMediaTypesVp6a",
+          "Value": "vp6a"
+        },
+        {
+          "Name": "VideoMediaTypesVp6f",
+          "Value": "vp6f"
+        },
+        {
+          "Name": "VideoMediaTypesVp7",
+          "Value": "vp7"
+        },
+        {
+          "Name": "VideoMediaTypesWebp",
+          "Value": "webp"
+        },
+        {
+          "Name": "VideoMediaTypesWmv3image",
+          "Value": "wmv3image"
+        },
+        {
+          "Name": "VideoMediaTypesWnv1",
+          "Value": "wnv1"
+        },
+        {
+          "Name": "VideoMediaTypesWrappedAvframe",
+          "Value": "wrapped_avframe"
+        },
+        {
+          "Name": "VideoMediaTypesWsVqa",
+          "Value": "ws_vqa"
+        },
+        {
+          "Name": "VideoMediaTypesXanWc3",
+          "Value": "xan_wc3"
+        },
+        {
+          "Name": "VideoMediaTypesXanWc4",
+          "Value": "xan_wc4"
+        },
+        {
+          "Name": "VideoMediaTypesXbin",
+          "Value": "xbin"
+        },
+        {
+          "Name": "VideoMediaTypesXbm",
+          "Value": "xbm"
+        },
+        {
+          "Name": "VideoMediaTypesXface",
+          "Value": "xface"
+        },
+        {
+          "Name": "VideoMediaTypesXpm",
+          "Value": "xpm"
+        },
+        {
+          "Name": "VideoMediaTypesXwd",
+          "Value": "xwd"
+        },
+        {
+          "Name": "VideoMediaTypesY41p",
+          "Value": "y41p"
+        },
+        {
+          "Name": "VideoMediaTypesYlc",
+          "Value": "ylc"
+        },
+        {
+          "Name": "VideoMediaTypesYop",
+          "Value": "yop"
+        },
+        {
+          "Name": "VideoMediaTypesYuv4",
+          "Value": "yuv4"
+        },
+        {
+          "Name": "VideoMediaTypesZerocodec",
+          "Value": "zerocodec"
+        },
+        {
+          "Name": "VideoMediaTypesZlib",
+          "Value": "zlib"
+        },
+        {
+          "Name": "VideoMediaTypesZmbv",
+          "Value": "zmbv"
+        }
+      ]
+    }
+  ]
+}

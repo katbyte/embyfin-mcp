@@ -1,0 +1,103 @@
+{
+  "Name": "UniversalAudio",
+  "Tag": "UniversalAudioService",
+  "Operations": [
+    {
+      "Name": "GetAudioByIdUniversal",
+      "OperationId": "getAudioByIdUniversal",
+      "Method": "GET",
+      "Path": "/Audio/{Id}/universal",
+      "Description": "Gets an audio stream",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "DeviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "The device id of the client requesting. Used to stop encoding processes when needed.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartTimeTicks",
+          "Field": "StartTimeTicks",
+          "In": "Query",
+          "Description": "Optional. Specify a starting offset, in ticks. 1ms = 10000 ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "audio/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetAudioByIdUniversalByContainer",
+      "OperationId": "getAudioByIdUniversalByContainer",
+      "Method": "GET",
+      "Path": "/Audio/{Id}/universal.{Container}",
+      "Description": "Gets an audio stream",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Container",
+          "Argument": "container",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "DeviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "The device id of the client requesting. Used to stop encoding processes when needed.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartTimeTicks",
+          "Field": "StartTimeTicks",
+          "In": "Query",
+          "Description": "Optional. Specify a starting offset, in ticks. 1ms = 10000 ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "audio/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ]
+}

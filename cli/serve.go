@@ -32,9 +32,10 @@ func serveCmd() *cobra.Command {
 Without --listen it speaks MCP over stdio: register it in .mcp.json with the EMBYFIN_*
 environment variables set. With --listen (EMBYFIN_LISTEN, e.g. :8080) it serves the
 Streamable HTTP transport at /mcp instead, for an always-on deployment such as the
-docker-compose.yml in this repo. Set --auth-token (EMBYFIN_AUTH_TOKEN) to require
-"Authorization: Bearer <token>" on that endpoint; without it anyone who can reach the
-port can use every tool.`,
+docker-compose.yml in this repo. --auth-token (EMBYFIN_AUTH_TOKEN) is then required, and
+clients must send "Authorization: Bearer <token>"; to serve with no token at all, which
+lets anyone who can reach the port use every tool, say so with --allow-no-auth
+(EMBYFIN_ALLOW_NO_AUTH=true).`,
 		Args:          cobra.NoArgs,
 		PreRunE:       ValidateParams(connectionParams),
 		SilenceErrors: true,
@@ -53,10 +54,17 @@ port can use every tool.`,
 				Version: version.Version,
 			}, nil)
 
-			tools.RegisterAll(server, client, tools.Options{EnableDelete: f.EnableDelete})
+			registered, err := tools.RegisterAll(server, client, f.ToolOptions())
+			if err != nil {
+				return err
+			}
+			clog.Log.Infof("registered %d tools", len(registered))
 
 			if f.Listen == "" {
 				return server.Run(cmd.Context(), &mcp.StdioTransport{})
+			}
+			if err := checkAuth(f.AuthToken, f.AllowNoAuth); err != nil {
+				return err
 			}
 
 			return serveHTTP(cmd.Context(), server, f.Listen, f.AuthToken)
@@ -64,13 +72,24 @@ port can use every tool.`,
 	}
 }
 
-// serveHTTP serves the MCP server over Streamable HTTP at /mcp (plus GET /healthz for
-// container health checks) until the context is cancelled or SIGINT/SIGTERM arrives,
-// then drains in-flight requests.
-func serveHTTP(ctx context.Context, server *mcp.Server, addr, authToken string) error {
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+// checkAuth is what stands between --listen and an open port: with no bearer
+// token the server refuses to start unless the operator said, in so many
+// words, that no auth is wanted. A blank EMBYFIN_AUTH_TOKEN in a copied .env
+// would otherwise come up serving every tool to the whole network with one
+// WARN line.
+func checkAuth(token string, allowNoAuth bool) error {
+	if token != "" || allowNoAuth {
+		return nil
+	}
 
+	return errors.New("--listen needs --auth-token (EMBYFIN_AUTH_TOKEN); to serve with no token at all, pass --allow-no-auth (EMBYFIN_ALLOW_NO_AUTH=true)")
+}
+
+// newMux builds the HTTP routes: the MCP endpoint behind the bearer check, and
+// an unauthenticated health probe for a container or a load balancer. It is
+// separate from serveHTTP so the routing and the auth can be tested without
+// binding a port.
+func newMux(server *mcp.Server, authToken string) *http.ServeMux {
 	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, nil)
 
 	mux := http.NewServeMux()
@@ -80,9 +99,19 @@ func serveHTTP(ctx context.Context, server *mcp.Server, addr, authToken string) 
 		_, _ = w.Write([]byte("ok\n"))
 	})
 
+	return mux
+}
+
+// serveHTTP serves the MCP server over Streamable HTTP at /mcp (plus GET /healthz for
+// container health checks) until the context is cancelled or SIGINT/SIGTERM arrives,
+// then drains in-flight requests.
+func serveHTTP(ctx context.Context, server *mcp.Server, addr, authToken string) error {
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           newMux(server, authToken),
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 

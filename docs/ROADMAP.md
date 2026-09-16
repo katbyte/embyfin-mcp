@@ -5,81 +5,45 @@ Design rules, in priority order:
 1. **Wrap judgment, not plumbing.** A tool exists only where an AI has a decision to
    make. Transcoding, image delivery, session heartbeats stay unwrapped.
 2. **Trim every response.** Tools return the fields a decision needs, never raw DTOs
-   (`BaseItemDto` is 150+ fields; `item_get` returns ~12).
+   (`BaseItemDto` is 150+ fields; `item_get` returns ~15).
 3. **Composite over chatty.** If a task always takes N calls (search candidates →
    pick → apply → verify), it is one tool, not N.
-4. **Resource-first names** (`library_*`, `item_*`, `session_*`) so tools group by
-   what they act on.
-5. **Reads are cheap, writes are explicit, destructive is opt-in.** Anything that
-   changes the server says so in its description; anything irreversible is disabled
-   unless the operator sets a flag.
+4. **Names, not just ids.** Every tool that takes a library, user, session, playlist
+   or collection resolves a name, and an unknown one lists what exists.
+5. **Resource-first names** (`library_*`, `item_*`, `audit_*`, `session_*`) so tools
+   group by what they act on.
+6. **Reads are cheap, writes are explicit, destructive is opt-in.** Every tool carries
+   MCP annotations; anything that changes the server says so in its description;
+   anything that deletes records or files is disabled unless the operator sets
+   `--enable-delete`.
+7. **Both servers, one behaviour.** A tool answers the same way on Emby and Jellyfin;
+   the differences live in `lib/embyfin`, and the acceptance suite runs against both.
 
-## Phase 1 — know the library (done)
+## Done
+
+| Area | Tools | Answers |
+|---|---|---|
+| know the library | `server_info`, `library_list`, `library_get`, `library_search`, `library_items`, `library_filters`, `library_recent`, `library_genres`, `library_people`, `person_get`, `item_get`, `item_find_by_metadata_id`, `item_similar`, `show_seasons`, `show_episodes`, `show_missing` | "what do I have, and what shape is it in" |
+| curation | `audit_all` + 11 audits, `item_identify` → `item_identify_apply`, `item_refresh`, `item_edit`, `item_batch_edit`, `metadata_rename`, `item_artwork` → `item_artwork_set`, `item_subtitle_search` → `item_subtitle_download` | "what is wrong, and fix it" |
+| watching | `user_list`, `user_get`, `user_history`, `user_next_up`, `user_in_progress`, `user_favourites`, `user_stats`, `item_last_watched`, `item_watch_history`, `item_set_watched`, `item_set_progress`, `item_set_favourite`, `item_instant_mix` | "who watched what, what is next" |
+| organise | `collection_*`, `playlist_*` (create, edit, add, remove, delete) | "group these" |
+| remote | `session_list`, `session_play`, `session_command`, `session_message` | "play Dune on the living-room TV" |
+| admin | `server_stats`, `server_activity`, `server_devices`, `server_logs`, `server_log`, `task_list`, `task_run`, `library_scan`, `library_create`, `library_edit`, `library_delete`, `item_delete` | "keep it healthy" |
+
+## Candidates
 
 | Tool | Endpoints | Answers |
 |---|---|---|
-| `server_info` | `/System/Info` | "is it up, what version" |
-| `library_list` | `/Library/VirtualFolders` | "what libraries exist" |
-| `library_get` | `/Library/VirtualFolders` + `/Items` counts | "how big is Movies" |
-| `library_search` | `/Items?SearchTerm` | "do I have Dune" |
-| `item_get` | `/Items?Ids` | "what quality is my copy" |
-| `item_lookup_provider` | `/Items?AnyProviderIdEquals` | "do I have tmdb 89998" |
-
-## Phase 2 — curation core (the reason this server exists)
-
-| Tool | Endpoints | Answers |
-|---|---|---|
-| `library_audit` | paged `/Items` + detectors (+ TMDB API) | "what's mismatched or unmatched" |
-| `item_identify` | `/Items/RemoteSearch/{Movie,Series}` + `/Items/RemoteSearch/Apply/{Id}` | "fix this wrong match" (composite: search → apply → verify) |
-| `item_refresh` | `/Items/{Id}/Refresh` | "re-pull metadata for this" |
-| `library_scan` | `/Library/Refresh` | "pick up the files I just added" |
-| `library_recent` | `/Items?SortBy=DateCreated` | "what got added this week" |
-| `library_stats` | `/Items/Counts` | "how much stuff do I have" |
-| `library_duplicates` | audit detector (same provider id, 2+ items) | "what do I have two copies of" |
-
-Supporting non-tool work: `lib/audit` detector functions, `lib/tmdb` client,
-state file for verified/unmatchable checkpoints, `audit` CLI subcommand.
-
-## Phase 3 — watch state and playback
-
-User-context tools take an optional `user` (name or id, via `/Users`); sessions are
-live devices.
-
-| Tool | Endpoints | Answers |
-|---|---|---|
-| `user_list` | `/Users` | "who has accounts" |
-| `item_set_watched` | `POST/DELETE /Users/{UserId}/PlayedItems/{Id}` | "mark season 2 watched" |
-| `item_set_favourite` | `POST/DELETE /Users/{UserId}/FavoriteItems/{Id}` | "favourite this" |
-| `user_next_up` | `/Shows/NextUp`, `/Users/{UserId}/Items/Resume` | "what should I continue" |
-| `session_list` | `/Sessions` | "who's watching what right now" |
-| `session_play` | `POST /Sessions/{Id}/Playing` | "play Dune on the living-room TV" |
-| `session_command` | `/Sessions/{Id}/Playing/{Command}` | "pause the bedroom TV" |
-
-## Phase 4 — organise and polish
-
-| Tool | Endpoints | Answers |
-|---|---|---|
-| `playlist_create` / `playlist_edit` | `POST /Playlists`, `/Playlists/{Id}/Items` | "make a Halloween playlist" |
-| `collection_create` / `collection_edit` | `POST /Collections`, `/Collections/{Id}/Items` | "group the Bond films" |
-| `item_similar` | `/Items/{Id}/Similar` | "what's like this" |
-| `item_subtitle_search` / `item_subtitle_download` | `/Items/{Id}/RemoteSearch/Subtitles/{Language}` | "get English subs for this" |
-| `task_list` / `task_run` | `/ScheduledTasks`, `POST /ScheduledTasks/Running/{Id}` | "run the library scan task" |
-| `activity_log` | `/System/ActivityLog/Entries` | "what happened on the server" |
-
-## Phase 5 — intake (needs filesystem access next to the files)
-
-| Tool | Mechanism | Answers |
-|---|---|---|
-| `intake_scan` | local ffprobe + parse + `item_lookup_provider` | "what's in this download folder" |
-| `intake_compare` | probe vs library `MediaSources` + quality ranking | "is this better than my copy" |
+| `library_edit` options | `POST /Library/VirtualFolders/LibraryOptions` | switch a library's fetchers, metadata language or country (nfo saving is done as `save_nfo`, which posts the whole options object back through the typed models without losing a field on either server; these can go the same way) |
+| `user_create` / `user_edit` | `/Users/New`, `/Users/{id}/Policy` | account admin |
+| `intake_scan` / `intake_compare` | local ffprobe + `item_find_by_metadata_id` + `MediaSources` | "what's in this download folder, is it better than my copy" (needs filesystem access next to the files) |
 
 ## Guarded / deliberately excluded
 
-- `item_delete` (`DELETE /Items/{Id}`): only registered when `--enable-delete`
-  (`EMBYFIN_ENABLE_DELETE`) is set; description warns it removes the file.
-- Not wrapping, ever: streaming/transcode endpoints, image byte delivery, DLNA,
-  Sync, device pairing, server configuration mutation, user creation/passwords,
-  Live TV (revisit only if a real use case shows up).
-
-Rough coverage math: ~28 tools over ~35 of Emby's 443 operations. The other ~408
-are plumbing for Emby's own client apps, not decisions.
+- `item_delete` (removes the media file) and `library_delete`: only registered
+  when `--enable-delete` (`EMBYFIN_ENABLE_DELETE`) is set.
+- Not wrapping **as tools**, ever: streaming and transcoding, image byte
+  delivery, DLNA, Sync, device pairing, server configuration and auth settings,
+  user passwords, Live TV, SyncPlay, plugins and packages. `lib/emby` and
+  `lib/jf` cover all of it - they are complete clients - but none of it is
+  judgment an AI should be making.

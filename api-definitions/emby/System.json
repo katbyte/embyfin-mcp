@@ -1,0 +1,794 @@
+{
+  "Name": "System",
+  "Tag": "SystemService",
+  "Operations": [
+    {
+      "Name": "GetSystemEndpoint",
+      "OperationId": "getSystemEndpoint",
+      "Method": "GET",
+      "Path": "/System/Endpoint",
+      "Description": "Gets information about the request endpoint",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "NetEndPointInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSystemInfo",
+      "OperationId": "getSystemInfo",
+      "Method": "GET",
+      "Path": "/System/Info",
+      "Description": "Gets information about the server",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SystemInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSystemInfoPublic",
+      "OperationId": "getSystemInfoPublic",
+      "Method": "GET",
+      "Path": "/System/Info/Public",
+      "Description": "Gets public information about the server",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PublicSystemInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSystemLogsByName",
+      "OperationId": "getSystemLogsByName",
+      "Method": "GET",
+      "Path": "/System/Logs/{Name}",
+      "Description": "Gets a log file",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Sanitize",
+          "Field": "Sanitize",
+          "In": "Query",
+          "Description": "Return sanitized log",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/plain",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSystemLogsByNameLines",
+      "OperationId": "getSystemLogsByNameLines",
+      "Method": "GET",
+      "Path": "/System/Logs/{Name}/Lines",
+      "Description": "Gets a log file",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultString"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSystemLogsQuery",
+      "OperationId": "getSystemLogsQuery",
+      "Method": "GET",
+      "Path": "/System/Logs/Query",
+      "Description": "Gets a list of available server log files",
+      "Options": [
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultLogFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "LogFile"
+        }
+      }
+    },
+    {
+      "Name": "GetSystemPing",
+      "OperationId": "getSystemPing",
+      "Method": "GET",
+      "Path": "/System/Ping",
+      "Description": "Requires authentication as user",
+      "Response": {
+        "ContentType": "text/plain",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSystemReleaseNotes",
+      "OperationId": "getSystemReleasenotes",
+      "Method": "GET",
+      "Path": "/System/ReleaseNotes",
+      "Description": "Gets release notes",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PackageVersionInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSystemReleaseNotesVersions",
+      "OperationId": "getSystemReleasenotesVersions",
+      "Method": "GET",
+      "Path": "/System/ReleaseNotes/Versions",
+      "Description": "Gets release notes",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "PackageVersionInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSystemWakeOnLanInfo",
+      "OperationId": "getSystemWakeonlaninfo",
+      "Method": "GET",
+      "Path": "/System/WakeOnLanInfo",
+      "Description": "Gets wake on lan information",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "WakeOnLanInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSystemPing",
+      "OperationId": "postSystemPing",
+      "Method": "POST",
+      "Path": "/System/Ping",
+      "Description": "Requires authentication as user",
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSystemRestart",
+      "OperationId": "postSystemRestart",
+      "Method": "POST",
+      "Path": "/System/Restart",
+      "Description": "Restarts the application, if needed",
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSystemShutdown",
+      "OperationId": "postSystemShutdown",
+      "Method": "POST",
+      "Path": "/System/Shutdown",
+      "Description": "Shuts down the application",
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "InstallationInfo",
+      "SchemaName": "InstallationInfo",
+      "Fields": [
+        {
+          "Name": "AssemblyGuid",
+          "JsonName": "AssemblyGuid",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PercentComplete",
+          "JsonName": "PercentComplete",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UpdateClass",
+          "JsonName": "UpdateClass",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PackageVersionClass"
+          }
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LogFile",
+      "SchemaName": "LogFile",
+      "Fields": [
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateModified",
+          "JsonName": "DateModified",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Size",
+          "JsonName": "Size",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NetEndPointInfo",
+      "SchemaName": "Net.EndPointInfo",
+      "Fields": [
+        {
+          "Name": "IsInNetwork",
+          "JsonName": "IsInNetwork",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsLocal",
+          "JsonName": "IsLocal",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PublicSystemInfo",
+      "SchemaName": "PublicSystemInfo",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LocalAddress",
+          "JsonName": "LocalAddress",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LocalAddresses",
+          "JsonName": "LocalAddresses",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "RemoteAddresses",
+          "JsonName": "RemoteAddresses",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ServerName",
+          "JsonName": "ServerName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "WanAddress",
+          "JsonName": "WanAddress",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultLogFile",
+      "SchemaName": "QueryResult_LogFile",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "LogFile"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultString",
+      "SchemaName": "QueryResult_String",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SystemInfo",
+      "SchemaName": "SystemInfo",
+      "Fields": [
+        {
+          "Name": "CachePath",
+          "JsonName": "CachePath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CanLaunchWebBrowser",
+          "JsonName": "CanLaunchWebBrowser",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "CanSelfRestart",
+          "JsonName": "CanSelfRestart",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "CanSelfUpdate",
+          "JsonName": "CanSelfUpdate",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "CompletedInstallations",
+          "JsonName": "CompletedInstallations",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "InstallationInfo"
+            }
+          }
+        },
+        {
+          "Name": "HardwareAccelerationRequiresPremiere",
+          "JsonName": "HardwareAccelerationRequiresPremiere",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasImageEnhancers",
+          "JsonName": "HasImageEnhancers",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasPendingRestart",
+          "JsonName": "HasPendingRestart",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasUpdateAvailable",
+          "JsonName": "HasUpdateAvailable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HttpServerPortNumber",
+          "JsonName": "HttpServerPortNumber",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HttpsPortNumber",
+          "JsonName": "HttpsPortNumber",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "InternalMetadataPath",
+          "JsonName": "InternalMetadataPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsInMaintenanceMode",
+          "JsonName": "IsInMaintenanceMode",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsShuttingDown",
+          "JsonName": "IsShuttingDown",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemsByNamePath",
+          "JsonName": "ItemsByNamePath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LocalAddress",
+          "JsonName": "LocalAddress",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LocalAddresses",
+          "JsonName": "LocalAddresses",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "LogPath",
+          "JsonName": "LogPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OperatingSystem",
+          "JsonName": "OperatingSystem",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OperatingSystemDisplayName",
+          "JsonName": "OperatingSystemDisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PackageName",
+          "JsonName": "PackageName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProgramDataPath",
+          "JsonName": "ProgramDataPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RemoteAddresses",
+          "JsonName": "RemoteAddresses",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ServerName",
+          "JsonName": "ServerName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportsAutoRunAtStartup",
+          "JsonName": "SupportsAutoRunAtStartup",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsHttps",
+          "JsonName": "SupportsHttps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsLibraryMonitor",
+          "JsonName": "SupportsLibraryMonitor",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsLocalPortConfiguration",
+          "JsonName": "SupportsLocalPortConfiguration",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsWakeServer",
+          "JsonName": "SupportsWakeServer",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SystemUpdateLevel",
+          "JsonName": "SystemUpdateLevel",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PackageVersionClass"
+          }
+        },
+        {
+          "Name": "TranscodingTempPath",
+          "JsonName": "TranscodingTempPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "WakeOnLanInfo",
+          "JsonName": "WakeOnLanInfo",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "WakeOnLanInfo"
+            }
+          }
+        },
+        {
+          "Name": "WanAddress",
+          "JsonName": "WanAddress",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "WebSocketPortNumber",
+          "JsonName": "WebSocketPortNumber",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WakeOnLanInfo",
+      "SchemaName": "WakeOnLanInfo",
+      "Fields": [
+        {
+          "Name": "BroadcastAddress",
+          "JsonName": "BroadcastAddress",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MacAddress",
+          "JsonName": "MacAddress",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Port",
+          "JsonName": "Port",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

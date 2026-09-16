@@ -1,0 +1,147 @@
+{
+  "Name": "Collection",
+  "Tag": "Collection",
+  "Operations": [
+    {
+      "Name": "AddToCollection",
+      "OperationId": "AddToCollection",
+      "Method": "POST",
+      "Path": "/Collections/{collectionId}/Items",
+      "Description": "Adds items to a collection.",
+      "PathParameters": [
+        {
+          "Name": "collectionId",
+          "Argument": "collectionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item ids, comma delimited.",
+          "Required": true,
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "CreateCollection",
+      "OperationId": "CreateCollection",
+      "Method": "POST",
+      "Path": "/Collections",
+      "Description": "Creates a new collection.",
+      "Options": [
+        {
+          "Name": "name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The name of the collection.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item Ids to add to the collection.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Optional. Create the collection within a specific folder.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "isLocked",
+          "Field": "IsLocked",
+          "In": "Query",
+          "Description": "Whether or not to lock the new collection.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CollectionCreationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "RemoveFromCollection",
+      "OperationId": "RemoveFromCollection",
+      "Method": "DELETE",
+      "Path": "/Collections/{collectionId}/Items",
+      "Description": "Removes items from a collection.",
+      "PathParameters": [
+        {
+          "Name": "collectionId",
+          "Argument": "collectionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item ids, comma delimited.",
+          "Required": true,
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "CollectionCreationResult",
+      "SchemaName": "CollectionCreationResult",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

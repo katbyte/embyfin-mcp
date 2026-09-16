@@ -1,0 +1,434 @@
+{
+  "Name": "Playlist",
+  "Tag": "PlaylistService",
+  "Operations": [
+    {
+      "Name": "DeletePlaylistsByIdItems",
+      "OperationId": "deletePlaylistsByIdItems",
+      "Method": "DELETE",
+      "Path": "/Playlists/{Id}/Items",
+      "Description": "Removes items from a playlist",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "EntryIds",
+          "Field": "EntryIds",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPlaylistsByIdAddToPlaylistInfo",
+      "OperationId": "getPlaylistsByIdAddtoplaylistinfo",
+      "Method": "GET",
+      "Path": "/Playlists/{Id}/AddToPlaylistInfo",
+      "Description": "Gets add to playlist info",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item id, comma delimited",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaylistsAddToPlaylistInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPlaylistsByIdItems",
+      "OperationId": "getPlaylistsByIdItems",
+      "Method": "GET",
+      "Path": "/Playlists/{Id}/Items",
+      "Description": "Gets the original items of a playlist",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimeted. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EnableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultBaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "PostPlaylists",
+      "OperationId": "postPlaylists",
+      "Method": "POST",
+      "Path": "/Playlists",
+      "Description": "Creates a new playlist",
+      "Options": [
+        {
+          "Name": "Name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The name of the new playlist.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item Ids to add to the playlist",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "Field": "MediaType",
+          "In": "Query",
+          "Description": "The playlist media type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user who owns the playlist",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaylistsPlaylistCreationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPlaylistsByIdItems",
+      "OperationId": "postPlaylistsByIdItems",
+      "Method": "POST",
+      "Path": "/Playlists/{Id}/Items",
+      "Description": "Adds items to a playlist",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item id, comma delimited",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaylistsAddToPlaylistResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPlaylistsByIdItemsByItemIdMoveByNewIndex",
+      "OperationId": "postPlaylistsByIdItemsByItemidMoveByNewindex",
+      "Method": "POST",
+      "Path": "/Playlists/{Id}/Items/{ItemId}/Move/{NewIndex}",
+      "Description": "Moves a playlist item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "NewIndex",
+          "Argument": "newIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostPlaylistsByIdItemsDelete",
+      "OperationId": "postPlaylistsByIdItemsDelete",
+      "Method": "POST",
+      "Path": "/Playlists/{Id}/Items/Delete",
+      "Description": "Removes items from a playlist",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "EntryIds",
+          "Field": "EntryIds",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "PlaylistsAddToPlaylistInfo",
+      "SchemaName": "Playlists.AddToPlaylistInfo",
+      "Fields": [
+        {
+          "Name": "ContainsDuplicates",
+          "JsonName": "ContainsDuplicates",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemCount",
+          "JsonName": "ItemCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaylistsAddToPlaylistResult",
+      "SchemaName": "Playlists.AddToPlaylistResult",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemAddedCount",
+          "JsonName": "ItemAddedCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaylistsPlaylistCreationResult",
+      "SchemaName": "Playlists.PlaylistCreationResult",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemAddedCount",
+          "JsonName": "ItemAddedCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,208 @@
+{
+  "Name": "Startup",
+  "Tag": "Startup",
+  "Operations": [
+    {
+      "Name": "CompleteWizard",
+      "OperationId": "CompleteWizard",
+      "Method": "POST",
+      "Path": "/Startup/Complete",
+      "Description": "Completes the startup wizard.",
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetFirstUser",
+      "OperationId": "GetFirstUser",
+      "Method": "GET",
+      "Path": "/Startup/User",
+      "Description": "Gets the first user.",
+      "Deprecated": true,
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "StartupUserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetFirstUser2",
+      "OperationId": "GetFirstUser_2",
+      "Method": "GET",
+      "Path": "/Startup/FirstUser",
+      "Description": "Gets the first user.",
+      "Deprecated": true,
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "StartupUserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetStartupConfiguration",
+      "OperationId": "GetStartupConfiguration",
+      "Method": "GET",
+      "Path": "/Startup/Configuration",
+      "Description": "Gets the initial startup wizard configuration.",
+      "Deprecated": true,
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "StartupConfigurationDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SetRemoteAccess",
+      "OperationId": "SetRemoteAccess",
+      "Method": "POST",
+      "Path": "/Startup/RemoteAccess",
+      "Description": "Sets remote access and UPnP.",
+      "Deprecated": true,
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "StartupRemoteAccessDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateInitialConfiguration",
+      "OperationId": "UpdateInitialConfiguration",
+      "Method": "POST",
+      "Path": "/Startup/Configuration",
+      "Description": "Sets the initial startup wizard configuration.",
+      "Deprecated": true,
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "StartupConfigurationDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateStartupUser",
+      "OperationId": "UpdateStartupUser",
+      "Method": "POST",
+      "Path": "/Startup/User",
+      "Description": "Sets the user name and password.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "StartupUserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "StartupConfigurationDto",
+      "SchemaName": "StartupConfigurationDto",
+      "Description": "The startup configuration DTO.",
+      "Fields": [
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Description": "Gets or sets the metadata country code.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PreferredMetadataLanguage",
+          "JsonName": "PreferredMetadataLanguage",
+          "Description": "Gets or sets the preferred language for the metadata.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServerName",
+          "JsonName": "ServerName",
+          "Description": "Gets or sets the server name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UICulture",
+          "JsonName": "UICulture",
+          "Description": "Gets or sets UI language culture.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "StartupRemoteAccessDto",
+      "SchemaName": "StartupRemoteAccessDto",
+      "Description": "Startup remote access dto.",
+      "Fields": [
+        {
+          "Name": "EnableRemoteAccess",
+          "JsonName": "EnableRemoteAccess",
+          "Description": "Gets or sets a value indicating whether enable remote access.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "StartupUserDto",
+      "SchemaName": "StartupUserDto",
+      "Description": "The startup user DTO.",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the username.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Password",
+          "JsonName": "Password",
+          "Description": "Gets or sets the user's password.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

@@ -2,9 +2,11 @@ package embyfin
 
 import (
 	"context"
-	"net/url"
-	"strconv"
+	"io"
 	"time"
+
+	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
 
 type SystemInfo struct {
@@ -15,12 +17,21 @@ type SystemInfo struct {
 }
 
 func (c *Client) SystemInfo(ctx context.Context) (*SystemInfo, error) {
-	var info SystemInfo
-	if err := c.get(ctx, "/System/Info", nil, &info); err != nil {
+	if c.isEmby() {
+		res, err := c.emby.GetSystemInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		return systemInfoFromEmby(res.Model), nil
+	}
+
+	res, err := c.jf.GetSystemInfo(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	return &info, nil
+	return systemInfoFromJF(res.Model), nil
 }
 
 type ItemCounts struct {
@@ -35,12 +46,21 @@ type ItemCounts struct {
 }
 
 func (c *Client) Counts(ctx context.Context) (*ItemCounts, error) {
-	var counts ItemCounts
-	if err := c.get(ctx, "/Items/Counts", nil, &counts); err != nil {
+	if c.isEmby() {
+		res, err := c.emby.GetItemsCounts(ctx, emby.GetItemsCountsOperationOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		return countsFromEmby(res.Model), nil
+	}
+
+	res, err := c.jf.GetItemCounts(ctx, jf.GetItemCountsOperationOptions{})
+	if err != nil {
 		return nil, err
 	}
 
-	return &counts, nil
+	return countsFromJF(res.Model), nil
 }
 
 type ActivityEntry struct {
@@ -53,27 +73,39 @@ type ActivityEntry struct {
 	ItemID        string `json:"ItemId,omitempty"`
 }
 
-type activityResponse struct {
-	Items            []ActivityEntry `json:"Items"`
-	TotalRecordCount int             `json:"TotalRecordCount"`
-}
-
 // ActivityLog returns activity entries since minDate, newest first.
 func (c *Client) ActivityLog(ctx context.Context, minDate time.Time, limit int) ([]ActivityEntry, int, error) {
-	q := url.Values{}
+	var since string
 	if !minDate.IsZero() {
-		q.Set("MinDate", minDate.UTC().Format(time.RFC3339))
+		since = minDate.UTC().Format(time.RFC3339)
 	}
-	if limit > 0 {
-		q.Set("Limit", strconv.Itoa(limit))
+	if limit < 0 {
+		limit = 0
 	}
 
-	var resp activityResponse
-	if err := c.get(ctx, "/System/ActivityLog/Entries", q, &resp); err != nil {
+	if c.isEmby() {
+		res, err := c.emby.GetSystemActivityLogEntries(ctx, emby.GetSystemActivityLogEntriesOperationOptions{MinDate: since, Limit: limit})
+		if err != nil {
+			return nil, 0, err
+		}
+		entries := make([]ActivityEntry, 0, len(res.Model.Items))
+		for i := range res.Model.Items {
+			entries = append(entries, activityFromEmby(&res.Model.Items[i]))
+		}
+
+		return entries, res.Model.TotalRecordCount, nil
+	}
+
+	res, err := c.jf.GetLogEntries(ctx, jf.GetLogEntriesOperationOptions{MinDate: since, Limit: limit})
+	if err != nil {
 		return nil, 0, err
 	}
+	entries := make([]ActivityEntry, 0, len(res.Model.Items))
+	for i := range res.Model.Items {
+		entries = append(entries, activityFromJF(&res.Model.Items[i]))
+	}
 
-	return resp.Items, resp.TotalRecordCount, nil
+	return entries, res.Model.TotalRecordCount, nil
 }
 
 type Device struct {
@@ -85,17 +117,30 @@ type Device struct {
 	ID               string `json:"Id"`
 }
 
-type devicesResponse struct {
-	Items []Device `json:"Items"`
-}
-
 func (c *Client) Devices(ctx context.Context) ([]Device, error) {
-	var resp devicesResponse
-	if err := c.get(ctx, "/Devices", nil, &resp); err != nil {
-		return nil, err
+	if c.isEmby() {
+		res, err := c.emby.GetDevices(ctx, emby.GetDevicesOperationOptions{})
+		if err != nil {
+			return nil, err
+		}
+		devices := make([]Device, 0, len(res.Model.Items))
+		for i := range res.Model.Items {
+			devices = append(devices, deviceFromEmby(&res.Model.Items[i]))
+		}
+
+		return devices, nil
 	}
 
-	return resp.Items, nil
+	res, err := c.jf.GetDevices(ctx, jf.GetDevicesOperationOptions{})
+	if err != nil {
+		return nil, err
+	}
+	devices := make([]Device, 0, len(res.Model.Items))
+	for i := range res.Model.Items {
+		devices = append(devices, deviceFromJF(&res.Model.Items[i]))
+	}
+
+	return devices, nil
 }
 
 type LogFile struct {
@@ -105,9 +150,26 @@ type LogFile struct {
 }
 
 func (c *Client) LogFiles(ctx context.Context) ([]LogFile, error) {
-	var files []LogFile
-	if err := c.get(ctx, "/System/Logs", nil, &files); err != nil {
+	if c.isEmby() {
+		res, err := c.emby.GetSystemLogsQuery(ctx, emby.GetSystemLogsQueryOperationOptions{})
+		if err != nil {
+			return nil, err
+		}
+		files := make([]LogFile, 0, len(res.Model.Items))
+		for i := range res.Model.Items {
+			files = append(files, logFileFromEmby(&res.Model.Items[i]))
+		}
+
+		return files, nil
+	}
+
+	res, err := c.jf.GetServerLogs(ctx)
+	if err != nil {
 		return nil, err
+	}
+	files := make([]LogFile, 0, len(res.Model))
+	for i := range res.Model {
+		files = append(files, logFileFromJF(&res.Model[i]))
 	}
 
 	return files, nil
@@ -115,8 +177,29 @@ func (c *Client) LogFiles(ctx context.Context) ([]LogFile, error) {
 
 // LogText fetches the raw text of a named server log file.
 func (c *Client) LogText(ctx context.Context, name string) (string, error) {
-	q := url.Values{}
-	q.Set("Name", name)
+	var body io.ReadCloser
+	if c.isEmby() {
+		res, err := c.emby.GetSystemLogsByName(ctx, name, emby.GetSystemLogsByNameOperationOptions{})
+		if err != nil {
+			return "", err
+		}
+		body = res.HttpResponse.Body
+	} else {
+		res, err := c.jf.GetLogFile(ctx, jf.GetLogFileOperationOptions{Name: name})
+		if err != nil {
+			return "", err
+		}
+		body = res.HttpResponse.Body
+	}
+	defer func() { _ = body.Close() }()
 
-	return c.getText(ctx, "/System/Logs/Log", q)
+	text, err := io.ReadAll(io.LimitReader(body, maxLogBytes))
+	if err != nil {
+		return "", err
+	}
+
+	return string(text), nil
 }
+
+// maxLogBytes caps a log read; the tools show the tail of it.
+const maxLogBytes = 32 << 20

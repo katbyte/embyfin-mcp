@@ -1,0 +1,76 @@
+{
+  "Name": "ToneMapOptions",
+  "Tag": "ToneMapOptionsService",
+  "Operations": [
+    {
+      "Name": "GetEncodingFullToneMapOptions",
+      "OperationId": "getEncodingFulltonemapoptions",
+      "Method": "GET",
+      "Path": "/Encoding/FullToneMapOptions",
+      "Description": "Gets the tone mapping options",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "EditObjectContainer"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEncodingPublicToneMapOptions",
+      "OperationId": "getEncodingPublictonemapoptions",
+      "Method": "GET",
+      "Path": "/Encoding/PublicToneMapOptions",
+      "Description": "Gets the tone mapping options",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "EditObjectContainer"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostEncodingFullToneMapOptions",
+      "OperationId": "postEncodingFulltonemapoptions",
+      "Method": "POST",
+      "Path": "/Encoding/FullToneMapOptions",
+      "Description": "Updates the tone mapping options",
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostEncodingPublicToneMapOptions",
+      "OperationId": "postEncodingPublictonemapoptions",
+      "Method": "POST",
+      "Path": "/Encoding/PublicToneMapOptions",
+      "Description": "Updates the tone mapping options",
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "host": "repo.jellyfin.org",
+  "interactions": [
+    {
+      "key": "GET repo.jellyfin.org/files/plugin/manifest.json",
+      "method": "GET",
+      "host": "repo.jellyfin.org",
+      "path": "/files/plugin/manifest.json",
+      "status": 302,
+      "headers": {
+        "Cache-Control": "private, no-cache",
+        "Content-Type": "text/html; charset=utf-8",
+        "Link": "\u003chttps://nyc2.mirror.jellyfin.org/files/plugin/manifest.json\u003e; rel=duplicate; pri=1; geo=us",
+        "Location": "https://sfo1.mirror.jellyfin.org/files/plugin/manifest.json",
+        "Server": "nginx/1.22.1"
+      }
+    }
+  ]
+}

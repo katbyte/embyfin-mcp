@@ -1,0 +1,771 @@
+{
+  "Name": "Subtitle",
+  "Tag": "SubtitleService",
+  "Operations": [
+    {
+      "Name": "DeleteItemsByIdSubtitlesByIndex",
+      "OperationId": "deleteItemsByIdSubtitlesByIndex",
+      "Method": "DELETE",
+      "Path": "/Items/{Id}/Subtitles/{Index}",
+      "Description": "Deletes an external subtitle file",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "MediaSourceId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteVideosByIdSubtitlesByIndex",
+      "OperationId": "deleteVideosByIdSubtitlesByIndex",
+      "Method": "DELETE",
+      "Path": "/Videos/{Id}/Subtitles/{Index}",
+      "Description": "Deletes an external subtitle file",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "MediaSourceId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat",
+      "OperationId": "getItemsByIdByMediasourceidSubtitlesByIndexByStartpositionticksStreamByFormat",
+      "Method": "GET",
+      "Path": "/Items/{Id}/{MediaSourceId}/Subtitles/{Index}/{StartPositionTicks}/Stream.{Format}",
+      "Description": "Gets subtitles in a specified format.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "Argument": "mediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StartPositionTicks",
+          "Argument": "startPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Format",
+          "Argument": "format",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "EndPositionTicks",
+          "Field": "EndPositionTicks",
+          "In": "Query",
+          "Description": "EndPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "CopyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "CopyTimestamps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemsByIdByMediaSourceIdSubtitlesByIndexStreamByFormat",
+      "OperationId": "getItemsByIdByMediasourceidSubtitlesByIndexStreamByFormat",
+      "Method": "GET",
+      "Path": "/Items/{Id}/{MediaSourceId}/Subtitles/{Index}/Stream.{Format}",
+      "Description": "Gets subtitles in a specified format.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "Argument": "mediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Format",
+          "Argument": "format",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "StartPositionTicks",
+          "Field": "StartPositionTicks",
+          "In": "Query",
+          "Description": "StartPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "EndPositionTicks",
+          "Field": "EndPositionTicks",
+          "In": "Query",
+          "Description": "EndPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "CopyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "CopyTimestamps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemsByIdRemoteSearchSubtitlesByLanguage",
+      "OperationId": "getItemsByIdRemotesearchSubtitlesByLanguage",
+      "Method": "GET",
+      "Path": "/Items/{Id}/RemoteSearch/Subtitles/{Language}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Language",
+          "Argument": "language",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "MediaSourceId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsPerfectMatch",
+          "Field": "IsPerfectMatch",
+          "In": "Query",
+          "Description": "IsPerfectMatch",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsForced",
+          "Field": "IsForced",
+          "In": "Query",
+          "Description": "IsForced",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHearingImpaired",
+          "Field": "IsHearingImpaired",
+          "In": "Query",
+          "Description": "IsHearingImpaired",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSubtitleInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetProvidersSubtitlesSubtitlesById",
+      "OperationId": "getProvidersSubtitlesSubtitlesById",
+      "Method": "GET",
+      "Path": "/Providers/Subtitles/Subtitles/{Id}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetVideosByIdByMediaSourceIdAttachmentsByIndexStream",
+      "OperationId": "getVideosByIdByMediasourceidAttachmentsByIndexStream",
+      "Method": "GET",
+      "Path": "/Videos/{Id}/{MediaSourceId}/Attachments/{Index}/Stream",
+      "Description": "Gets subtitles in a specified format.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "Argument": "mediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat",
+      "OperationId": "getVideosByIdByMediasourceidSubtitlesByIndexByStartpositionticksStreamByFormat",
+      "Method": "GET",
+      "Path": "/Videos/{Id}/{MediaSourceId}/Subtitles/{Index}/{StartPositionTicks}/Stream.{Format}",
+      "Description": "Gets subtitles in a specified format.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "Argument": "mediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StartPositionTicks",
+          "Argument": "startPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Format",
+          "Argument": "format",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "EndPositionTicks",
+          "Field": "EndPositionTicks",
+          "In": "Query",
+          "Description": "EndPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "CopyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "CopyTimestamps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormat",
+      "OperationId": "getVideosByIdByMediasourceidSubtitlesByIndexStreamByFormat",
+      "Method": "GET",
+      "Path": "/Videos/{Id}/{MediaSourceId}/Subtitles/{Index}/Stream.{Format}",
+      "Description": "Gets subtitles in a specified format.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "Argument": "mediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Format",
+          "Argument": "format",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "StartPositionTicks",
+          "Field": "StartPositionTicks",
+          "In": "Query",
+          "Description": "StartPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "EndPositionTicks",
+          "Field": "EndPositionTicks",
+          "In": "Query",
+          "Description": "EndPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "CopyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "CopyTimestamps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PostItemsByIdRemoteSearchSubtitlesBySubtitleId",
+      "OperationId": "postItemsByIdRemotesearchSubtitlesBySubtitleid",
+      "Method": "POST",
+      "Path": "/Items/{Id}/RemoteSearch/Subtitles/{SubtitleId}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SubtitleId",
+          "Argument": "subtitleId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "MediaSourceId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SubtitlesSubtitleDownloadResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostItemsByIdSubtitlesByIndexDelete",
+      "OperationId": "postItemsByIdSubtitlesByIndexDelete",
+      "Method": "POST",
+      "Path": "/Items/{Id}/Subtitles/{Index}/Delete",
+      "Description": "Deletes an external subtitle file",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "MediaSourceId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostVideosByIdSubtitlesByIndexDelete",
+      "OperationId": "postVideosByIdSubtitlesByIndexDelete",
+      "Method": "POST",
+      "Path": "/Videos/{Id}/Subtitles/{Index}/Delete",
+      "Description": "Deletes an external subtitle file",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "MediaSourceId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "RemoteSubtitleInfo",
+      "SchemaName": "RemoteSubtitleInfo",
+      "Fields": [
+        {
+          "Name": "Author",
+          "JsonName": "Author",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Comment",
+          "JsonName": "Comment",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CommunityRating",
+          "JsonName": "CommunityRating",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DownloadCount",
+          "JsonName": "DownloadCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Format",
+          "JsonName": "Format",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsForced",
+          "JsonName": "IsForced",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsHashMatch",
+          "JsonName": "IsHashMatch",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsHearingImpaired",
+          "JsonName": "IsHearingImpaired",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Language",
+          "JsonName": "Language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "ProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ThreeLetterISOLanguageName",
+          "JsonName": "ThreeLetterISOLanguageName",
+          "Description": "Use language instead to return the language specified by the subtitle provider",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SubtitlesSubtitleDownloadResult",
+      "SchemaName": "Subtitles.SubtitleDownloadResult",
+      "Fields": [
+        {
+          "Name": "NewIndex",
+          "JsonName": "NewIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

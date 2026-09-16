@@ -1,0 +1,532 @@
+{
+  "Name": "MediaInfo",
+  "Tag": "MediaInfoService",
+  "Operations": [
+    {
+      "Name": "GetItemsByIdPlaybackInfo",
+      "OperationId": "getItemsByIdPlaybackinfo",
+      "Method": "GET",
+      "Path": "/Items/{Id}/PlaybackInfo",
+      "Description": "Gets live playback media info for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackInfoResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPlaybackBitrateTest",
+      "OperationId": "getPlaybackBitratetest",
+      "Method": "GET",
+      "Path": "/Playback/BitrateTest",
+      "Description": "Requires authentication as user",
+      "Options": [
+        {
+          "Name": "Size",
+          "Field": "Size",
+          "In": "Query",
+          "Description": "Size",
+          "Required": true,
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PostItemsByIdPlaybackInfo",
+      "OperationId": "postItemsByIdPlaybackinfo",
+      "Method": "POST",
+      "Path": "/Items/{Id}/PlaybackInfo",
+      "Description": "Gets live playback media info for an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackInfoRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackInfoResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLiveStreamsClose",
+      "OperationId": "postLivestreamsClose",
+      "Method": "POST",
+      "Path": "/LiveStreams/Close",
+      "Description": "Closes a media source",
+      "Options": [
+        {
+          "Name": "LiveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Description": "LiveStreamId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Description": "PlaySessionId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLiveStreamsMediaInfo",
+      "OperationId": "postLivestreamsMediainfo",
+      "Method": "POST",
+      "Path": "/LiveStreams/MediaInfo",
+      "Description": "Gets media info for a live stream",
+      "Options": [
+        {
+          "Name": "LiveStreamId",
+          "Field": "LiveStreamId",
+          "In": "Query",
+          "Description": "LiveStreamId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLiveStreamsOpen",
+      "OperationId": "postLivestreamsOpen",
+      "Method": "POST",
+      "Path": "/LiveStreams/Open",
+      "Description": "Opens a media source",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LiveStreamRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LiveStreamResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "LiveStreamRequest",
+      "SchemaName": "LiveStreamRequest",
+      "Fields": [
+        {
+          "Name": "AllowAudioStreamCopy",
+          "JsonName": "AllowAudioStreamCopy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowInterlacedVideoStreamCopy",
+          "JsonName": "AllowInterlacedVideoStreamCopy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowVideoStreamCopy",
+          "JsonName": "AllowVideoStreamCopy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ConsumerId",
+          "JsonName": "ConsumerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceProfile",
+          "JsonName": "DeviceProfile",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DeviceProfile"
+          }
+        },
+        {
+          "Name": "EnableDirectPlay",
+          "JsonName": "EnableDirectPlay",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableDirectStream",
+          "JsonName": "EnableDirectStream",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableTranscoding",
+          "JsonName": "EnableTranscoding",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "MaxAudioChannels",
+          "JsonName": "MaxAudioChannels",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStreamingBitrate",
+          "JsonName": "MaxStreamingBitrate",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OpenToken",
+          "JsonName": "OpenToken",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartTimeTicks",
+          "JsonName": "StartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LiveStreamResponse",
+      "SchemaName": "LiveStreamResponse",
+      "Fields": [
+        {
+          "Name": "MediaSource",
+          "JsonName": "MediaSource",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaSourceInfo"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackInfoRequest",
+      "SchemaName": "PlaybackInfoRequest",
+      "Fields": [
+        {
+          "Name": "AllowAudioStreamCopy",
+          "JsonName": "AllowAudioStreamCopy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowInterlacedVideoStreamCopy",
+          "JsonName": "AllowInterlacedVideoStreamCopy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowVideoStreamCopy",
+          "JsonName": "AllowVideoStreamCopy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AutoOpenLiveStream",
+          "JsonName": "AutoOpenLiveStream",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "CurrentPlaySessionId",
+          "JsonName": "CurrentPlaySessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceProfile",
+          "JsonName": "DeviceProfile",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DeviceProfile"
+          }
+        },
+        {
+          "Name": "EnableDirectPlay",
+          "JsonName": "EnableDirectPlay",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableDirectStream",
+          "JsonName": "EnableDirectStream",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableTranscoding",
+          "JsonName": "EnableTranscoding",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsPlayback",
+          "JsonName": "IsPlayback",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxAudioChannels",
+          "JsonName": "MaxAudioChannels",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStreamingBitrate",
+          "JsonName": "MaxStreamingBitrate",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartTimeTicks",
+          "JsonName": "StartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackInfoResponse",
+      "SchemaName": "PlaybackInfoResponse",
+      "Fields": [
+        {
+          "Name": "ErrorCode",
+          "JsonName": "ErrorCode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlaybackErrorCode"
+          }
+        },
+        {
+          "Name": "MediaSources",
+          "JsonName": "MediaSources",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaSourceInfo"
+            }
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "PlaybackErrorCode",
+      "SchemaName": "PlaybackErrorCode",
+      "Values": [
+        {
+          "Name": "PlaybackErrorCodeNotAllowed",
+          "Value": "NotAllowed"
+        },
+        {
+          "Name": "PlaybackErrorCodeNoCompatibleStream",
+          "Value": "NoCompatibleStream"
+        },
+        {
+          "Name": "PlaybackErrorCodeRateLimitExceeded",
+          "Value": "RateLimitExceeded"
+        }
+      ]
+    }
+  ]
+}

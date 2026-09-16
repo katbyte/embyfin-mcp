@@ -1,0 +1,194 @@
+{
+  "Name": "ActivityLog",
+  "Tag": "ActivityLogService",
+  "Operations": [
+    {
+      "Name": "GetSystemActivityLogEntries",
+      "OperationId": "getSystemActivitylogEntries",
+      "Method": "GET",
+      "Path": "/System/ActivityLog/Entries",
+      "Description": "Gets activity log entries",
+      "Options": [
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinDate",
+          "Field": "MinDate",
+          "In": "Query",
+          "Description": "Optional. The minimum date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultActivityLogEntry"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "ActivityLogEntry"
+        }
+      }
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ActivityLogEntry",
+      "SchemaName": "ActivityLogEntry",
+      "Fields": [
+        {
+          "Name": "Date",
+          "JsonName": "Date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "Overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Severity",
+          "JsonName": "Severity",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LoggingLogSeverity"
+          }
+        },
+        {
+          "Name": "ShortOverview",
+          "JsonName": "ShortOverview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserPrimaryImageTag",
+          "JsonName": "UserPrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultActivityLogEntry",
+      "SchemaName": "QueryResult_ActivityLogEntry",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ActivityLogEntry"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "LoggingLogSeverity",
+      "SchemaName": "Logging.LogSeverity",
+      "Values": [
+        {
+          "Name": "LoggingLogSeverityInfo",
+          "Value": "Info"
+        },
+        {
+          "Name": "LoggingLogSeverityDebug",
+          "Value": "Debug"
+        },
+        {
+          "Name": "LoggingLogSeverityWarn",
+          "Value": "Warn"
+        },
+        {
+          "Name": "LoggingLogSeverityError",
+          "Value": "Error"
+        },
+        {
+          "Name": "LoggingLogSeverityFatal",
+          "Value": "Fatal"
+        }
+      ]
+    }
+  ]
+}

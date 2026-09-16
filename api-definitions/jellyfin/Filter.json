@@ -1,0 +1,287 @@
+{
+  "Name": "Filter",
+  "Tag": "Filter",
+  "Operations": [
+    {
+      "Name": "GetQueryFilters",
+      "OperationId": "GetQueryFilters",
+      "Method": "GET",
+      "Path": "/Items/Filters2",
+      "Description": "Gets query filters.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Optional. Specify this to localize the search to a specific item or folder. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "includeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "isAiring",
+          "Field": "IsAiring",
+          "In": "Query",
+          "Description": "Optional. Is item airing.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isMovie",
+          "Field": "IsMovie",
+          "In": "Query",
+          "Description": "Optional. Is item movie.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSports",
+          "Field": "IsSports",
+          "In": "Query",
+          "Description": "Optional. Is item sports.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isKids",
+          "Field": "IsKids",
+          "In": "Query",
+          "Description": "Optional. Is item kids.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isNews",
+          "Field": "IsNews",
+          "In": "Query",
+          "Description": "Optional. Is item news.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "isSeries",
+          "Field": "IsSeries",
+          "In": "Query",
+          "Description": "Optional. Is item series.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "recursive",
+          "Field": "Recursive",
+          "In": "Query",
+          "Description": "Optional. Search recursive.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryFilters"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetQueryFiltersLegacy",
+      "OperationId": "GetQueryFiltersLegacy",
+      "Method": "GET",
+      "Path": "/Items/Filters",
+      "Description": "Gets legacy query filters.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Optional. Parent id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "includeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "mediaTypes",
+          "Field": "MediaTypes",
+          "In": "Query",
+          "Description": "Optional. Filter by MediaType. Allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaType"
+            }
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryFiltersLegacy"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "QueryFilters",
+      "SchemaName": "QueryFilters",
+      "Fields": [
+        {
+          "Name": "AudioLanguages",
+          "JsonName": "AudioLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameValuePair"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Genres",
+          "JsonName": "Genres",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameGuidPair"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleLanguages",
+          "JsonName": "SubtitleLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameValuePair"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Tags",
+          "JsonName": "Tags",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "QueryFiltersLegacy",
+      "SchemaName": "QueryFiltersLegacy",
+      "Fields": [
+        {
+          "Name": "Genres",
+          "JsonName": "Genres",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "OfficialRatings",
+          "JsonName": "OfficialRatings",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Tags",
+          "JsonName": "Tags",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Years",
+          "JsonName": "Years",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

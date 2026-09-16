@@ -1,0 +1,235 @@
+{
+  "Name": "Year",
+  "Tag": "Year",
+  "Operations": [
+    {
+      "Name": "GetYear",
+      "OperationId": "GetYear",
+      "Method": "GET",
+      "Path": "/Years/{year}",
+      "Description": "Gets a year.",
+      "PathParameters": [
+        {
+          "Name": "year",
+          "Argument": "year",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id, and attach user data.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetYears",
+      "OperationId": "GetYears",
+      "Method": "GET",
+      "Path": "/Years",
+      "Description": "Get years.",
+      "Options": [
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Skips over a given number of items within the results. Use for paging.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "sortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SortOrder"
+            }
+          }
+        },
+        {
+          "Name": "parentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Specify this to localize the search to a specific item or folder. Omit to use the root.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "excludeItemTypes",
+          "Field": "ExcludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be excluded based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "includeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be included based on item type. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemKind"
+            }
+          }
+        },
+        {
+          "Name": "mediaTypes",
+          "Field": "MediaTypes",
+          "In": "Query",
+          "Description": "Optional. Filter by MediaType. Allows multiple, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaType"
+            }
+          }
+        },
+        {
+          "Name": "sortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Specify one or more sort orders, comma delimited. Options: Album, AlbumArtist, Artist, Budget, CommunityRating, CriticRating, DateCreated, DatePlayed, PlayCount, PremiereDate, ProductionYear, SortName, Random, Revenue, Runtime.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemSortBy"
+            }
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "recursive",
+          "Field": "Recursive",
+          "In": "Query",
+          "Description": "Search recursively.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    }
+  ]
+}

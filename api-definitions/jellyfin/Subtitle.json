@@ -1,0 +1,731 @@
+{
+  "Name": "Subtitle",
+  "Tag": "Subtitle",
+  "Operations": [
+    {
+      "Name": "DeleteSubtitle",
+      "OperationId": "DeleteSubtitle",
+      "Method": "DELETE",
+      "Path": "/Videos/{itemId}/Subtitles/{index}",
+      "Description": "Deletes an external subtitle file.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DownloadRemoteSubtitles",
+      "OperationId": "DownloadRemoteSubtitles",
+      "Method": "POST",
+      "Path": "/Items/{itemId}/RemoteSearch/Subtitles/{subtitleId}",
+      "Description": "Downloads a remote subtitle.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "subtitleId",
+          "Argument": "subtitleId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetFallbackFont",
+      "OperationId": "GetFallbackFont",
+      "Method": "GET",
+      "Path": "/FallbackFont/Fonts/{name}",
+      "Description": "Gets a fallback font file.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "font/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetFallbackFontList",
+      "OperationId": "GetFallbackFontList",
+      "Method": "GET",
+      "Path": "/FallbackFont/Fonts",
+      "Description": "Gets a list of available fallback font files.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "FontFile"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetRemoteSubtitles",
+      "OperationId": "GetRemoteSubtitles",
+      "Method": "GET",
+      "Path": "/Providers/Subtitles/Subtitles/{subtitleId}",
+      "Description": "Gets the remote subtitles.",
+      "PathParameters": [
+        {
+          "Name": "subtitleId",
+          "Argument": "subtitleId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSubtitle",
+      "OperationId": "GetSubtitle",
+      "Method": "GET",
+      "Path": "/Videos/{routeItemId}/{routeMediaSourceId}/Subtitles/{routeIndex}/Stream.{routeFormat}",
+      "Description": "Gets subtitles in a specified format.",
+      "PathParameters": [
+        {
+          "Name": "routeItemId",
+          "Argument": "routeItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "routeMediaSourceId",
+          "Argument": "routeMediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "routeIndex",
+          "Argument": "routeIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "routeFormat",
+          "Argument": "routeFormat",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "itemId",
+          "Field": "ItemId",
+          "In": "Query",
+          "Description": "The item id.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media source id.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "The subtitle stream index.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "The format of the returned subtitle.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "endPositionTicks",
+          "Field": "EndPositionTicks",
+          "In": "Query",
+          "Description": "Optional. The end position of the subtitle in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "copyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "Optional. Whether to copy the timestamps.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "addVttTimeMap",
+          "Field": "AddVttTimeMap",
+          "In": "Query",
+          "Description": "Optional. Whether to add a VTT time map.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "startPositionTicks",
+          "Field": "StartPositionTicks",
+          "In": "Query",
+          "Description": "The start position of the subtitle in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSubtitlePlaylist",
+      "OperationId": "GetSubtitlePlaylist",
+      "Method": "GET",
+      "Path": "/Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/subtitles.m3u8",
+      "Description": "Gets an HLS subtitle playlist.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Argument": "mediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "index",
+          "Argument": "index",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "segmentLength",
+          "Field": "SegmentLength",
+          "In": "Query",
+          "Description": "The subtitle segment length.",
+          "Required": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/x-mpegURL",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSubtitleWithTicks",
+      "OperationId": "GetSubtitleWithTicks",
+      "Method": "GET",
+      "Path": "/Videos/{routeItemId}/{routeMediaSourceId}/Subtitles/{routeIndex}/{routeStartPositionTicks}/Stream.{routeFormat}",
+      "Description": "Gets subtitles in a specified format.",
+      "PathParameters": [
+        {
+          "Name": "routeItemId",
+          "Argument": "routeItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "routeMediaSourceId",
+          "Argument": "routeMediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "routeIndex",
+          "Argument": "routeIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "routeStartPositionTicks",
+          "Argument": "routeStartPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "routeFormat",
+          "Argument": "routeFormat",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "itemId",
+          "Field": "ItemId",
+          "In": "Query",
+          "Description": "The item id.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media source id.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "index",
+          "Field": "Index",
+          "In": "Query",
+          "Description": "The subtitle stream index.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "startPositionTicks",
+          "Field": "StartPositionTicks",
+          "In": "Query",
+          "Description": "The start position of the subtitle in ticks.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "The format of the returned subtitle.",
+          "Deprecated": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "endPositionTicks",
+          "Field": "EndPositionTicks",
+          "In": "Query",
+          "Description": "Optional. The end position of the subtitle in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "copyTimestamps",
+          "Field": "CopyTimestamps",
+          "In": "Query",
+          "Description": "Optional. Whether to copy the timestamps.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "addVttTimeMap",
+          "Field": "AddVttTimeMap",
+          "In": "Query",
+          "Description": "Optional. Whether to add a VTT time map.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchRemoteSubtitles",
+      "OperationId": "SearchRemoteSubtitles",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/RemoteSearch/Subtitles/{language}",
+      "Description": "Search remote subtitles.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "language",
+          "Argument": "language",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "isPerfectMatch",
+          "Field": "IsPerfectMatch",
+          "In": "Query",
+          "Description": "Optional. Only show subtitles which are a perfect match.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSubtitleInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UploadSubtitle",
+      "OperationId": "UploadSubtitle",
+      "Method": "POST",
+      "Path": "/Videos/{itemId}/Subtitles",
+      "Description": "Upload an external subtitle file.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UploadSubtitleDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "FontFile",
+      "SchemaName": "FontFile",
+      "Description": "Class FontFile.",
+      "Fields": [
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Description": "Gets or sets the date created.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateModified",
+          "JsonName": "DateModified",
+          "Description": "Gets or sets the date modified.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Size",
+          "JsonName": "Size",
+          "Description": "Gets or sets the size.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSubtitleInfo",
+      "SchemaName": "RemoteSubtitleInfo",
+      "Fields": [
+        {
+          "Name": "AiTranslated",
+          "JsonName": "AiTranslated",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Author",
+          "JsonName": "Author",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Comment",
+          "JsonName": "Comment",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CommunityRating",
+          "JsonName": "CommunityRating",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DownloadCount",
+          "JsonName": "DownloadCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Forced",
+          "JsonName": "Forced",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Format",
+          "JsonName": "Format",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "FrameRate",
+          "JsonName": "FrameRate",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "HearingImpaired",
+          "JsonName": "HearingImpaired",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsHashMatch",
+          "JsonName": "IsHashMatch",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MachineTranslated",
+          "JsonName": "MachineTranslated",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "ProviderName",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ThreeLetterISOLanguageName",
+          "JsonName": "ThreeLetterISOLanguageName",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "UploadSubtitleDto",
+      "SchemaName": "UploadSubtitleDto",
+      "Description": "Upload subtitles dto.",
+      "Fields": [
+        {
+          "Name": "Data",
+          "JsonName": "Data",
+          "Description": "Gets or sets the subtitle data.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Format",
+          "JsonName": "Format",
+          "Description": "Gets or sets the subtitle format.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsForced",
+          "JsonName": "IsForced",
+          "Description": "Gets or sets a value indicating whether the subtitle is forced.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHearingImpaired",
+          "JsonName": "IsHearingImpaired",
+          "Description": "Gets or sets a value indicating whether the subtitle is for hearing impaired.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Language",
+          "JsonName": "Language",
+          "Description": "Gets or sets the subtitle language.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

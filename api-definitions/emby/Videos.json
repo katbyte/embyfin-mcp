@@ -1,0 +1,68 @@
+{
+  "Name": "Videos",
+  "Tag": "VideosService",
+  "Operations": [
+    {
+      "Name": "DeleteVideosByIdAlternateSources",
+      "OperationId": "deleteVideosByIdAlternatesources",
+      "Method": "DELETE",
+      "Path": "/Videos/{Id}/AlternateSources",
+      "Description": "Removes alternate video sources.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostVideosByIdAlternateSourcesDelete",
+      "OperationId": "postVideosByIdAlternatesourcesDelete",
+      "Method": "POST",
+      "Path": "/Videos/{Id}/AlternateSources/Delete",
+      "Description": "Removes alternate video sources.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostVideosMergeVersions",
+      "OperationId": "postVideosMergeversions",
+      "Method": "POST",
+      "Path": "/Videos/MergeVersions",
+      "Description": "Merges videos into a single record",
+      "Options": [
+        {
+          "Name": "Ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item id list. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

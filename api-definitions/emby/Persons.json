@@ -1,0 +1,1022 @@
+{
+  "Name": "Persons",
+  "Tag": "PersonsService",
+  "Operations": [
+    {
+      "Name": "GetPersons",
+      "OperationId": "getPersons",
+      "Method": "GET",
+      "Path": "/Persons",
+      "Description": "Gets all persons from a given item, folder, or the entire library",
+      "Options": [
+        {
+          "Name": "ArtistType",
+          "Field": "ArtistType",
+          "In": "Query",
+          "Description": "Artist or AlbumArtist",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxOfficialRating",
+          "Field": "MaxOfficialRating",
+          "In": "Query",
+          "Description": "Optional filter by maximum official rating (PG, PG-13, TV-MA, etc).",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "HasThemeSong",
+          "Field": "HasThemeSong",
+          "In": "Query",
+          "Description": "Optional filter by items with theme songs.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasThemeVideo",
+          "Field": "HasThemeVideo",
+          "In": "Query",
+          "Description": "Optional filter by items with theme videos.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasSubtitles",
+          "Field": "HasSubtitles",
+          "In": "Query",
+          "Description": "Optional filter by items with subtitles.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasSpecialFeature",
+          "Field": "HasSpecialFeature",
+          "In": "Query",
+          "Description": "Optional filter by items with special features.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasTrailer",
+          "Field": "HasTrailer",
+          "In": "Query",
+          "Description": "Optional filter by items with trailers.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsSpecialSeason",
+          "Field": "IsSpecialSeason",
+          "In": "Query",
+          "Description": "Optional. Filter by special season.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AdjacentTo",
+          "Field": "AdjacentTo",
+          "In": "Query",
+          "Description": "Optional. Return items that are siblings of a supplied item.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartItemId",
+          "Field": "StartItemId",
+          "In": "Query",
+          "Description": "Optional. Skip through the list until a given item is found.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MinIndexNumber",
+          "Field": "MinIndexNumber",
+          "In": "Query",
+          "Description": "Optional filter by minimum index number.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinStartDate",
+          "Field": "MinStartDate",
+          "In": "Query",
+          "Description": "Optional. The minimum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxStartDate",
+          "Field": "MaxStartDate",
+          "In": "Query",
+          "Description": "Optional. The maximum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MinEndDate",
+          "Field": "MinEndDate",
+          "In": "Query",
+          "Description": "Optional. The minimum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxEndDate",
+          "Field": "MaxEndDate",
+          "In": "Query",
+          "Description": "Optional. The maximum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MinPlayers",
+          "Field": "MinPlayers",
+          "In": "Query",
+          "Description": "Optional filter by minimum number of game players.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxPlayers",
+          "Field": "MaxPlayers",
+          "In": "Query",
+          "Description": "Optional filter by maximum number of game players.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "Field": "ParentIndexNumber",
+          "In": "Query",
+          "Description": "Optional filter by parent index number.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HasParentalRating",
+          "Field": "HasParentalRating",
+          "In": "Query",
+          "Description": "Optional filter by items that have or do not have a parental rating",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHD",
+          "Field": "IsHD",
+          "In": "Query",
+          "Description": "Optional filter by items that are HD or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsUnaired",
+          "Field": "IsUnaired",
+          "In": "Query",
+          "Description": "Optional filter by items that are unaired episodes or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MinCommunityRating",
+          "Field": "MinCommunityRating",
+          "In": "Query",
+          "Description": "Optional filter by minimum community rating.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "MinCriticRating",
+          "Field": "MinCriticRating",
+          "In": "Query",
+          "Description": "Optional filter by minimum critic rating.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "AiredDuringSeason",
+          "Field": "AiredDuringSeason",
+          "In": "Query",
+          "Description": "Gets all episodes that aired during a season, including specials.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinPremiereDate",
+          "Field": "MinPremiereDate",
+          "In": "Query",
+          "Description": "Optional. The minimum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MinDateLastSaved",
+          "Field": "MinDateLastSaved",
+          "In": "Query",
+          "Description": "Optional. The minimum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MinDateLastSavedForUser",
+          "Field": "MinDateLastSavedForUser",
+          "In": "Query",
+          "Description": "Optional. The minimum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxPremiereDate",
+          "Field": "MaxPremiereDate",
+          "In": "Query",
+          "Description": "Optional. The maximum premiere date. Format = ISO",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "HasOverview",
+          "Field": "HasOverview",
+          "In": "Query",
+          "Description": "Optional filter by items that have an overview or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasImdbId",
+          "Field": "HasImdbId",
+          "In": "Query",
+          "Description": "Optional filter by items that have an imdb id or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasTmdbId",
+          "Field": "HasTmdbId",
+          "In": "Query",
+          "Description": "Optional filter by items that have a tmdb id or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasTvdbId",
+          "Field": "HasTvdbId",
+          "In": "Query",
+          "Description": "Optional filter by items that have a tvdb id or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ExcludeItemIds",
+          "Field": "ExcludeItemIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered by exxcluding item ids. This allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Recursive",
+          "Field": "Recursive",
+          "In": "Query",
+          "Description": "When searching within folders, this determines whether or not the search will be recursive. true/false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SearchTerm",
+          "Field": "SearchTerm",
+          "In": "Query",
+          "Description": "Enter a search term to perform a search request",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "Specify this to localize the search to a specific item or folder. Omit to use the root",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimeted. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExcludeItemTypes",
+          "Field": "ExcludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on item type. This allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IncludeItemTypes",
+          "Field": "IncludeItemTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on item type. This allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AnyProviderIdEquals",
+          "Field": "AnyProviderIdEquals",
+          "In": "Query",
+          "Description": "Optional. If specified, result will be filtered to contain only items which match at least one of the specified IDs. Each provider ID must be in the form 'prov.id', e.g. 'imdb.tt123456'. This allows multiple, comma delimeted value pairs.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Filters",
+          "Field": "Filters",
+          "In": "Query",
+          "Description": "Optional. Specify additional filters to apply. This allows multiple, comma delimeted. Options: IsFolder, IsNotFolder, IsUnplayed, IsPlayed, IsFavorite, IsResumable, Likes, Dislikes",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsFavorite",
+          "Field": "IsFavorite",
+          "In": "Query",
+          "Description": "Optional filter by items that are marked as favorite, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsMovie",
+          "Field": "IsMovie",
+          "In": "Query",
+          "Description": "Optional filter for movies.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsSeries",
+          "Field": "IsSeries",
+          "In": "Query",
+          "Description": "Optional filter for series.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsFolder",
+          "Field": "IsFolder",
+          "In": "Query",
+          "Description": "Optional filter for folders.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsNews",
+          "Field": "IsNews",
+          "In": "Query",
+          "Description": "Optional filter for news.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsKids",
+          "Field": "IsKids",
+          "In": "Query",
+          "Description": "Optional filter for kids.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsSports",
+          "Field": "IsSports",
+          "In": "Query",
+          "Description": "Optional filter for sports.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsNew",
+          "Field": "IsNew",
+          "In": "Query",
+          "Description": "Optional filter for IsNew.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPremiere",
+          "Field": "IsPremiere",
+          "In": "Query",
+          "Description": "Optional filter for IsPremiere.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsNewOrPremiere",
+          "Field": "IsNewOrPremiere",
+          "In": "Query",
+          "Description": "Optional filter for IsNewOrPremiere.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsRepeat",
+          "Field": "IsRepeat",
+          "In": "Query",
+          "Description": "Optional filter for IsRepeat.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ProjectToMedia",
+          "Field": "ProjectToMedia",
+          "In": "Query",
+          "Description": "ProjectToMedia",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MediaTypes",
+          "Field": "MediaTypes",
+          "In": "Query",
+          "Description": "Optional filter by MediaType. Allows multiple, comma delimited.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ImageTypes",
+          "Field": "ImageTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on those containing image types. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortBy",
+          "Field": "SortBy",
+          "In": "Query",
+          "Description": "Optional. Specify one or more sort orders, comma delimeted. Options: Album, AlbumArtist, Artist, Budget, CommunityRating, CriticRating, DateCreated, DatePlayed, PlayCount, PremiereDate, ProductionYear, SortName, Random, Revenue, Runtime",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsPlayed",
+          "Field": "IsPlayed",
+          "In": "Query",
+          "Description": "Optional filter by items that are played, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Genres",
+          "Field": "Genres",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on genre. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OfficialRatings",
+          "Field": "OfficialRatings",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on OfficialRating. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Tags",
+          "Field": "Tags",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on tag. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExcludeTags",
+          "Field": "ExcludeTags",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on tag. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Years",
+          "Field": "Years",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on production year. This allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional, include image information in output",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional, include user data",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional, the max number of images to return, per image type",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EnableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Person",
+          "Field": "Person",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered to include only those containing the specified person.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PersonIds",
+          "Field": "PersonIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered to include only those containing the specified person.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PersonTypes",
+          "Field": "PersonTypes",
+          "In": "Query",
+          "Description": "Optional. If specified, along with Person, results will be filtered to include only those containing the specified person and PersonType. Allows multiple, comma-delimited",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Studios",
+          "Field": "Studios",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on studio. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StudioIds",
+          "Field": "StudioIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on studio. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Artists",
+          "Field": "Artists",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on artist. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ArtistIds",
+          "Field": "ArtistIds",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on artist. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Albums",
+          "Field": "Albums",
+          "In": "Query",
+          "Description": "Optional. If specified, results will be filtered based on album. This allows multiple, pipe delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Optional. If specific items are needed, specify a list of item id's to retrieve. This allows multiple, comma delimited.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoTypes",
+          "Field": "VideoTypes",
+          "In": "Query",
+          "Description": "Optional filter by VideoType (videofile, dvd, bluray, iso). Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Containers",
+          "Field": "Containers",
+          "In": "Query",
+          "Description": "Optional filter by Container. Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AudioCodecs",
+          "Field": "AudioCodecs",
+          "In": "Query",
+          "Description": "Optional filter by AudioCodec. Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AudioLayouts",
+          "Field": "AudioLayouts",
+          "In": "Query",
+          "Description": "Optional filter by AudioLayout. Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoCodecs",
+          "Field": "VideoCodecs",
+          "In": "Query",
+          "Description": "Optional filter by VideoCodec. Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExtendedVideoTypes",
+          "Field": "ExtendedVideoTypes",
+          "In": "Query",
+          "Description": "Optional filter by ExtendedVideoType. Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SubtitleCodecs",
+          "Field": "SubtitleCodecs",
+          "In": "Query",
+          "Description": "Optional filter by SubtitleCodec. Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "Field": "Path",
+          "In": "Query",
+          "Description": "Optional filter by Path.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MinOfficialRating",
+          "Field": "MinOfficialRating",
+          "In": "Query",
+          "Description": "Optional filter by minimum official rating (PG, PG-13, TV-MA, etc).",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsLocked",
+          "Field": "IsLocked",
+          "In": "Query",
+          "Description": "Optional filter by items that are locked.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPlaceHolder",
+          "Field": "IsPlaceHolder",
+          "In": "Query",
+          "Description": "Optional filter by items that are placeholders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HasOfficialRating",
+          "Field": "HasOfficialRating",
+          "In": "Query",
+          "Description": "Optional filter by items that have official ratings",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "GroupItemsIntoCollections",
+          "Field": "GroupItemsIntoCollections",
+          "In": "Query",
+          "Description": "Whether or not to hide items behind their boxsets.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Is3D",
+          "Field": "Is3D",
+          "In": "Query",
+          "Description": "Optional filter by items that are 3D, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SeriesStatus",
+          "Field": "SeriesStatus",
+          "In": "Query",
+          "Description": "Optional filter by Series Status. Allows multiple, comma delimeted.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NameStartsWithOrGreater",
+          "Field": "NameStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ArtistStartsWithOrGreater",
+          "Field": "ArtistStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AlbumArtistStartsWithOrGreater",
+          "Field": "AlbumArtistStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NameStartsWith",
+          "Field": "NameStartsWith",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NameLessThan",
+          "Field": "NameLessThan",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is equally or lesser than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultBaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetPersonsByIdCredits",
+      "OperationId": "getPersonsByIdCredits",
+      "Method": "GET",
+      "Path": "/Persons/{Id}/Credits",
+      "Description": "Gets credits for a person",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "UserLibraryCreditsList"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetPersonsByName",
+      "OperationId": "getPersonsByName",
+      "Method": "GET",
+      "Path": "/Persons/{Name}",
+      "Description": "Gets a person, by name",
+      "PathParameters": [
+        {
+          "Name": "Name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Optional. Filter by user id, and attach user data",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "UserLibraryCreditsList",
+      "SchemaName": "UserLibrary.CreditsList",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "RemoteSearchResult"
+            }
+          }
+        },
+        {
+          "Name": "PersonType",
+          "JsonName": "PersonType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PersonType"
+          }
+        }
+      ]
+    }
+  ]
+}

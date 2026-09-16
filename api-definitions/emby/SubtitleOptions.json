@@ -1,0 +1,41 @@
+{
+  "Name": "SubtitleOptions",
+  "Tag": "SubtitleOptionsService",
+  "Operations": [
+    {
+      "Name": "GetEncodingSubtitleOptions",
+      "OperationId": "getEncodingSubtitleoptions",
+      "Method": "GET",
+      "Path": "/Encoding/SubtitleOptions",
+      "Description": "Gets the subtitle options",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "EditObjectContainer"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostEncodingSubtitleOptions",
+      "OperationId": "postEncodingSubtitleoptions",
+      "Method": "POST",
+      "Path": "/Encoding/SubtitleOptions",
+      "Description": "Updates the subtitle options",
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

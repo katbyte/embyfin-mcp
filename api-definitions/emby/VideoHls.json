@@ -1,0 +1,98 @@
+{
+  "Name": "VideoHls",
+  "Tag": "VideoHlsService",
+  "Operations": [
+    {
+      "Name": "GetAudioByIdHlsByPlaylistIdBySegmentIdBySegmentContainer",
+      "OperationId": "getAudioByIdHlsByPlaylistidBySegmentidBySegmentcontainer",
+      "Method": "GET",
+      "Path": "/Audio/{Id}/hls/{PlaylistId}/{SegmentId}.{SegmentContainer}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaylistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SegmentId",
+          "Argument": "segmentId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SegmentContainer",
+          "Argument": "segmentContainer",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetVideosByIdHlsByPlaylistIdBySegmentIdBySegmentContainer",
+      "OperationId": "getVideosByIdHlsByPlaylistidBySegmentidBySegmentcontainer",
+      "Method": "GET",
+      "Path": "/Videos/{Id}/hls/{PlaylistId}/{SegmentId}.{SegmentContainer}",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaylistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SegmentId",
+          "Argument": "segmentId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SegmentContainer",
+          "Argument": "segmentContainer",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ]
+}

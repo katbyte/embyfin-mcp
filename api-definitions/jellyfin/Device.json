@@ -1,0 +1,321 @@
+{
+  "Name": "Device",
+  "Tag": "Device",
+  "Operations": [
+    {
+      "Name": "DeleteDevice",
+      "OperationId": "DeleteDevice",
+      "Method": "DELETE",
+      "Path": "/Devices",
+      "Description": "Deletes devices.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Ids.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetDeviceInfo",
+      "OperationId": "GetDeviceInfo",
+      "Method": "GET",
+      "Path": "/Devices/Info",
+      "Description": "Get info for a device.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DeviceInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDeviceOptions",
+      "OperationId": "GetDeviceOptions",
+      "Method": "GET",
+      "Path": "/Devices/Options",
+      "Description": "Get options for a device.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DeviceOptionsDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDevices",
+      "OperationId": "GetDevices",
+      "Method": "GET",
+      "Path": "/Devices",
+      "Description": "Get Devices.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "Gets or sets the user identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DeviceInfoDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UpdateDeviceOptions",
+      "OperationId": "UpdateDeviceOptions",
+      "Method": "POST",
+      "Path": "/Devices/Options",
+      "Description": "Update device options.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Device Id.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DeviceOptionsDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DeviceInfoDto",
+      "SchemaName": "DeviceInfoDto",
+      "Description": "A DTO representing device information.",
+      "Fields": [
+        {
+          "Name": "AccessToken",
+          "JsonName": "AccessToken",
+          "Description": "Gets or sets the access token.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AppName",
+          "JsonName": "AppName",
+          "Description": "Gets or sets the name of the application.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AppVersion",
+          "JsonName": "AppVersion",
+          "Description": "Gets or sets the application version.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Capabilities",
+          "JsonName": "Capabilities",
+          "Description": "Gets or sets the capabilities.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ClientCapabilitiesDto"
+          }
+        },
+        {
+          "Name": "CustomName",
+          "JsonName": "CustomName",
+          "Description": "Gets or sets the custom name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DateLastActivity",
+          "JsonName": "DateLastActivity",
+          "Description": "Gets or sets the date last modified.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IconUrl",
+          "JsonName": "IconUrl",
+          "Description": "Gets or sets the icon URL.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LastUserId",
+          "JsonName": "LastUserId",
+          "Description": "Gets or sets the last user identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LastUserName",
+          "JsonName": "LastUserName",
+          "Description": "Gets or sets the last name of the user.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "DeviceInfoDtoQueryResult",
+      "SchemaName": "DeviceInfoDtoQueryResult",
+      "Description": "Query result container.",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Description": "Gets or sets the items.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DeviceInfoDto"
+            }
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "JsonName": "StartIndex",
+          "Description": "Gets or sets the index of the first record in Items.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Description": "Gets or sets the total number of records available.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DeviceOptionsDto",
+      "SchemaName": "DeviceOptionsDto",
+      "Description": "A dto representing custom options for a device.",
+      "Fields": [
+        {
+          "Name": "CustomName",
+          "JsonName": "CustomName",
+          "Description": "Gets or sets the custom name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DeviceId",
+          "JsonName": "DeviceId",
+          "Description": "Gets or sets the device id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the id.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,933 @@
+{
+  "Name": "Sessions",
+  "Tag": "SessionsService",
+  "Operations": [
+    {
+      "Name": "DeleteAuthKeysByKey",
+      "OperationId": "deleteAuthKeysByKey",
+      "Method": "DELETE",
+      "Path": "/Auth/Keys/{Key}",
+      "Description": "Requires authentication as administrator",
+      "PathParameters": [
+        {
+          "Name": "Key",
+          "Argument": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteSessionsByIdUsersByUserId",
+      "OperationId": "deleteSessionsByIdUsersByUserid",
+      "Method": "DELETE",
+      "Path": "/Sessions/{Id}/Users/{UserId}",
+      "Description": "Removes an additional user from a session",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetAuthKeys",
+      "OperationId": "getAuthKeys",
+      "Method": "GET",
+      "Path": "/Auth/Keys",
+      "Description": "Requires authentication as administrator",
+      "Options": [
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetAuthProviders",
+      "OperationId": "getAuthProviders",
+      "Method": "GET",
+      "Path": "/Auth/Providers",
+      "Description": "Requires authentication as administrator",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "NameIdPair"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSessions",
+      "OperationId": "getSessions",
+      "Method": "GET",
+      "Path": "/Sessions",
+      "Description": "Gets a list of sessions",
+      "Options": [
+        {
+          "Name": "ControllableByUserId",
+          "Field": "ControllableByUserId",
+          "In": "Query",
+          "Description": "Optional. Filter by sessions that a given user is allowed to remote control.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "Optional. Filter by device id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Optional. Filter by session id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "SessionSessionInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSessionsPlayQueue",
+      "OperationId": "getSessionsPlayqueue",
+      "Method": "GET",
+      "Path": "/Sessions/PlayQueue",
+      "Description": "Gets a the current play queue from a session",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Optional. Filter by session id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "Optional. Filter by device id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultBaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostAuthKeys",
+      "OperationId": "postAuthKeys",
+      "Method": "POST",
+      "Path": "/Auth/Keys",
+      "Description": "Requires authentication as administrator",
+      "Options": [
+        {
+          "Name": "App",
+          "Field": "App",
+          "In": "Query",
+          "Description": "App",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostAuthKeysByKeyDelete",
+      "OperationId": "postAuthKeysByKeyDelete",
+      "Method": "POST",
+      "Path": "/Auth/Keys/{Key}/Delete",
+      "Description": "Requires authentication as administrator",
+      "PathParameters": [
+        {
+          "Name": "Key",
+          "Argument": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdCommand",
+      "OperationId": "postSessionsByIdCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Command",
+      "Description": "Issues a system command to a client",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GeneralCommand"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdCommandByCommand",
+      "OperationId": "postSessionsByIdCommandByCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Command/{Command}",
+      "Description": "Issues a system command to a client",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Command",
+          "Argument": "command",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdMessage",
+      "OperationId": "postSessionsByIdMessage",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Message",
+      "Description": "Issues a command to a client to display a message to the user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Text",
+          "Field": "Text",
+          "In": "Query",
+          "Description": "The message text.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Header",
+          "Field": "Header",
+          "In": "Query",
+          "Description": "The message header.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TimeoutMs",
+          "Field": "TimeoutMs",
+          "In": "Query",
+          "Description": "The message timeout. If omitted the user will have to confirm viewing the message.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdPlaying",
+      "OperationId": "postSessionsByIdPlaying",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Playing",
+      "Description": "Instructs a session to play an item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ItemIds",
+          "Field": "ItemIds",
+          "In": "Query",
+          "Description": "The ids of the items to play, comma delimited",
+          "Required": true,
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          },
+          "CommaSeparated": true
+        },
+        {
+          "Name": "StartPositionTicks",
+          "Field": "StartPositionTicks",
+          "In": "Query",
+          "Description": "The starting position of the first item.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "PlayCommand",
+          "Field": "PlayCommand",
+          "In": "Query",
+          "Description": "The type of play command to issue (PlayNow, PlayNext, PlayLast). Clients who have not yet implemented play next and play last may play now.",
+          "Required": true,
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayCommand"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlayRequest"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdPlayingByCommand",
+      "OperationId": "postSessionsByIdPlayingByCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Playing/{Command}",
+      "Description": "Issues a playstate command to a client",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Command",
+          "Argument": "command",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlaystateCommand"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaystateRequest"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdSystemByCommand",
+      "OperationId": "postSessionsByIdSystemByCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/System/{Command}",
+      "Description": "Issues a system command to a client",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Command",
+          "Argument": "command",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdUsersByUserId",
+      "OperationId": "postSessionsByIdUsersByUserid",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Users/{UserId}",
+      "Description": "Adds an additional user to a session",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdUsersByUserIdDelete",
+      "OperationId": "postSessionsByIdUsersByUseridDelete",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Users/{UserId}/Delete",
+      "Description": "Removes an additional user from a session",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsByIdViewing",
+      "OperationId": "postSessionsByIdViewing",
+      "Method": "POST",
+      "Path": "/Sessions/{Id}/Viewing",
+      "Description": "Instructs a session to browse to an item or view",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ItemType",
+          "Field": "ItemType",
+          "In": "Query",
+          "Description": "The type of item to browse to.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "Field": "ItemId",
+          "In": "Query",
+          "Description": "The Id of the item.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemName",
+          "Field": "ItemName",
+          "In": "Query",
+          "Description": "The name of the item.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsCapabilities",
+      "OperationId": "postSessionsCapabilities",
+      "Method": "POST",
+      "Path": "/Sessions/Capabilities",
+      "Description": "Updates capabilities for a device",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Session Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlayableMediaTypes",
+          "Field": "PlayableMediaTypes",
+          "In": "Query",
+          "Description": "A list of playable media types, comma delimited. Audio, Video, Book, Game, Photo.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportedCommands",
+          "Field": "SupportedCommands",
+          "In": "Query",
+          "Description": "A list of supported remote control commands, comma delimited",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportsMediaControl",
+          "Field": "SupportsMediaControl",
+          "In": "Query",
+          "Description": "Determines whether media can be played remotely.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsSync",
+          "Field": "SupportsSync",
+          "In": "Query",
+          "Description": "Determines whether sync is supported.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsCapabilitiesFull",
+      "OperationId": "postSessionsCapabilitiesFull",
+      "Method": "POST",
+      "Path": "/Sessions/Capabilities/Full",
+      "Description": "Updates capabilities for a device",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "Session Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ClientCapabilities"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSessionsLogout",
+      "OperationId": "postSessionsLogout",
+      "Method": "POST",
+      "Path": "/Sessions/Logout",
+      "Description": "Reports that a session has ended",
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ClientCapabilities",
+      "SchemaName": "ClientCapabilities",
+      "Fields": [
+        {
+          "Name": "AppId",
+          "JsonName": "AppId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceProfile",
+          "JsonName": "DeviceProfile",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DeviceProfile"
+          }
+        },
+        {
+          "Name": "IconUrl",
+          "JsonName": "IconUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlayableMediaTypes",
+          "JsonName": "PlayableMediaTypes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "PushToken",
+          "JsonName": "PushToken",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PushTokenType",
+          "JsonName": "PushTokenType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportedCommands",
+          "JsonName": "SupportedCommands",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SupportsMediaControl",
+          "JsonName": "SupportsMediaControl",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsSync",
+          "JsonName": "SupportsSync",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GeneralCommand",
+      "SchemaName": "GeneralCommand",
+      "Fields": [
+        {
+          "Name": "Arguments",
+          "JsonName": "Arguments",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ControllingUserId",
+          "JsonName": "ControllingUserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlayRequest",
+      "SchemaName": "PlayRequest",
+      "Fields": [
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ControllingUserId",
+          "JsonName": "ControllingUserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "JsonName": "StartIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaystateRequest",
+      "SchemaName": "PlaystateRequest",
+      "Fields": [
+        {
+          "Name": "Command",
+          "JsonName": "Command",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlaystateCommand"
+          }
+        },
+        {
+          "Name": "ControllingUserId",
+          "JsonName": "ControllingUserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeekPositionTicks",
+          "JsonName": "SeekPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "PlayCommand",
+      "SchemaName": "PlayCommand",
+      "Values": [
+        {
+          "Name": "PlayCommandPlayNow",
+          "Value": "PlayNow"
+        },
+        {
+          "Name": "PlayCommandPlayNext",
+          "Value": "PlayNext"
+        },
+        {
+          "Name": "PlayCommandPlayLast",
+          "Value": "PlayLast"
+        },
+        {
+          "Name": "PlayCommandPlayInstantMix",
+          "Value": "PlayInstantMix"
+        },
+        {
+          "Name": "PlayCommandPlayShuffle",
+          "Value": "PlayShuffle"
+        }
+      ]
+    },
+    {
+      "Name": "PlaystateCommand",
+      "SchemaName": "PlaystateCommand",
+      "Values": [
+        {
+          "Name": "PlaystateCommandStop",
+          "Value": "Stop"
+        },
+        {
+          "Name": "PlaystateCommandPause",
+          "Value": "Pause"
+        },
+        {
+          "Name": "PlaystateCommandUnpause",
+          "Value": "Unpause"
+        },
+        {
+          "Name": "PlaystateCommandNextTrack",
+          "Value": "NextTrack"
+        },
+        {
+          "Name": "PlaystateCommandPreviousTrack",
+          "Value": "PreviousTrack"
+        },
+        {
+          "Name": "PlaystateCommandSeek",
+          "Value": "Seek"
+        },
+        {
+          "Name": "PlaystateCommandRewind",
+          "Value": "Rewind"
+        },
+        {
+          "Name": "PlaystateCommandFastForward",
+          "Value": "FastForward"
+        },
+        {
+          "Name": "PlaystateCommandPlayPause",
+          "Value": "PlayPause"
+        },
+        {
+          "Name": "PlaystateCommandSeekRelative",
+          "Value": "SeekRelative"
+        }
+      ]
+    }
+  ]
+}

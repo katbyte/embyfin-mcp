@@ -1,0 +1,24 @@
+{
+  "Name": "emby",
+  "Package": "emby",
+  "Title": "Emby Server REST API",
+  "ApiVersion": "4.10.0.40",
+  "Source": "docs/emby-openapi.json",
+  "Auth": "Emby",
+  "Workarounds": [
+    "emby-undeclared-responses",
+    "emby-undeclared-path-parameters",
+    "emby-no-content-status",
+    "emby-playlist-create-user-id",
+    "emby-library-available-options-query",
+    "emby-next-up-legacy",
+    "emby-library-delete-id",
+    "emby-comma-separated-arrays",
+    "emby-null-result-no-content",
+    "emby-openapi-documents",
+    "emby-recording-folders-query-result",
+    "emby-parent-path-text",
+    "emby-codec-display-text",
+    "emby-property-condition-value"
+  ]
+}

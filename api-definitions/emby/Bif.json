@@ -1,0 +1,127 @@
+{
+  "Name": "Bif",
+  "Tag": "BifService",
+  "Operations": [
+    {
+      "Name": "GetItemsByIdThumbnailSet",
+      "OperationId": "getItemsByIdThumbnailset",
+      "Method": "GET",
+      "Path": "/Items/{Id}/ThumbnailSet",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "RokuMetadataApiThumbnailSetInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetVideosByIdIndexBif",
+      "OperationId": "getVideosByIdIndexBif",
+      "Method": "GET",
+      "Path": "/Videos/{Id}/index.bif",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Width",
+          "Field": "Width",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "RokuMetadataApiThumbnailInfo",
+      "SchemaName": "RokuMetadata.Api.ThumbnailInfo",
+      "Fields": [
+        {
+          "Name": "ImageTag",
+          "JsonName": "ImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RokuMetadataApiThumbnailSetInfo",
+      "SchemaName": "RokuMetadata.Api.ThumbnailSetInfo",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "AspectRatio",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Thumbnails",
+          "JsonName": "Thumbnails",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "RokuMetadataApiThumbnailInfo"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,201 @@
+{
+  "Name": "Backup",
+  "Tag": "Backup",
+  "Operations": [
+    {
+      "Name": "CreateBackup",
+      "OperationId": "CreateBackup",
+      "Method": "POST",
+      "Path": "/Backup/Create",
+      "Description": "Creates a new Backup.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BackupOptionsDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BackupManifestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetBackup",
+      "OperationId": "GetBackup",
+      "Method": "GET",
+      "Path": "/Backup/Manifest",
+      "Description": "Gets the descriptor from an existing archive is present.",
+      "Options": [
+        {
+          "Name": "path",
+          "Field": "Path",
+          "In": "Query",
+          "Description": "The data to start a restore process.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BackupManifestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "ListBackups",
+      "OperationId": "ListBackups",
+      "Method": "GET",
+      "Path": "/Backup",
+      "Description": "Gets a list of all currently present backups in the backup directory.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "BackupManifestDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "StartRestoreBackup",
+      "OperationId": "StartRestoreBackup",
+      "Method": "POST",
+      "Path": "/Backup/Restore",
+      "Description": "Restores to a backup by restarting the server and applying the backup.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BackupRestoreRequestDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "BackupManifestDto",
+      "SchemaName": "BackupManifestDto",
+      "Description": "Manifest type for backups internal structure.",
+      "Fields": [
+        {
+          "Name": "BackupEngineVersion",
+          "JsonName": "BackupEngineVersion",
+          "Description": "Gets or sets the backup engine version this backup was created with.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Description": "Gets or sets the date this backup was created with.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Options",
+          "JsonName": "Options",
+          "Description": "Gets or sets the contents of the backup archive.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BackupOptionsDto"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path to the backup on the system.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerVersion",
+          "JsonName": "ServerVersion",
+          "Description": "Gets or sets the jellyfin version this backup was created with.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "BackupOptionsDto",
+      "SchemaName": "BackupOptionsDto",
+      "Description": "Defines the optional contents of the backup archive.",
+      "Fields": [
+        {
+          "Name": "Database",
+          "JsonName": "Database",
+          "Description": "Gets or sets a value indicating whether the archive contains the Database contents.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Metadata",
+          "JsonName": "Metadata",
+          "Description": "Gets or sets a value indicating whether the archive contains the Metadata contents.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Subtitles",
+          "JsonName": "Subtitles",
+          "Description": "Gets or sets a value indicating whether the archive contains the Subtitle contents.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Trickplay",
+          "JsonName": "Trickplay",
+          "Description": "Gets or sets a value indicating whether the archive contains the Trickplay contents.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "BackupRestoreRequestDto",
+      "SchemaName": "BackupRestoreRequestDto",
+      "Description": "Defines properties used to start a restore process.",
+      "Fields": [
+        {
+          "Name": "ArchiveFileName",
+          "JsonName": "ArchiveFileName",
+          "Description": "Gets or Sets the name of the backup archive to restore from. Must be present in MediaBrowser.Common.Configuration.IApplicationPaths.BackupPath.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

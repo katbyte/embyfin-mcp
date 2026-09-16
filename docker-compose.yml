@@ -20,8 +20,9 @@ services:
         max-file: "1"
     networks:
       net:
-    dns:
-      - 1.1.1.1
+    # no dns override: the container uses Docker's resolver, which forwards to
+    # the host's, so a LAN name like nas in EMBYFIN_SERVER resolves the way it
+    # does on the host. Pinning a public resolver here would break exactly that
     ports:
       - "8080:8080"
     env_file:
@@ -32,4 +33,7 @@ services:
       - "EMBYFIN_SERVER=http://nas:8096"
       - "EMBYFIN_LISTEN=:8080"
       - "EMBYFIN_LOG=INFO"
-      # - "EMBYFIN_ENABLE_DELETE=true" # opt in to item_delete (permanently removes media files)
+      # - "EMBYFIN_TOOLSETS=curation"  # the audits and everything that fixes what they find; default core
+      # - "EMBYFIN_READ_ONLY=true"     # only register tools that never change server state
+      # - "EMBYFIN_ENABLE_DELETE=true" # opt in to item_delete and library_delete
+      # - "EMBYFIN_TMDB_KEY=..."       # or in .env: enables audit_runtime for movies

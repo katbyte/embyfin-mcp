@@ -1,0 +1,246 @@
+{
+  "Name": "Environment",
+  "Tag": "Environment",
+  "Operations": [
+    {
+      "Name": "GetDefaultDirectoryBrowser",
+      "OperationId": "GetDefaultDirectoryBrowser",
+      "Method": "GET",
+      "Path": "/Environment/DefaultDirectoryBrowser",
+      "Description": "Get Default directory browser.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DefaultDirectoryBrowserInfoDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDirectoryContents",
+      "OperationId": "GetDirectoryContents",
+      "Method": "GET",
+      "Path": "/Environment/DirectoryContents",
+      "Description": "Gets the contents of a given directory in the file system.",
+      "Options": [
+        {
+          "Name": "path",
+          "Field": "Path",
+          "In": "Query",
+          "Description": "The path.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "includeFiles",
+          "Field": "IncludeFiles",
+          "In": "Query",
+          "Description": "An optional filter to include or exclude files from the results. true/false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "includeDirectories",
+          "Field": "IncludeDirectories",
+          "In": "Query",
+          "Description": "An optional filter to include or exclude folders from the results. true/false.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "FileSystemEntryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDrives",
+      "OperationId": "GetDrives",
+      "Method": "GET",
+      "Path": "/Environment/Drives",
+      "Description": "Gets available drives from the server's file system.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "FileSystemEntryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetParentPath",
+      "OperationId": "GetParentPath",
+      "Method": "GET",
+      "Path": "/Environment/ParentPath",
+      "Description": "Gets the parent path of a given path.",
+      "Options": [
+        {
+          "Name": "path",
+          "Field": "Path",
+          "In": "Query",
+          "Description": "The path.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "String"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ValidatePath",
+      "OperationId": "ValidatePath",
+      "Method": "POST",
+      "Path": "/Environment/ValidatePath",
+      "Description": "Validates path.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ValidatePathDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DefaultDirectoryBrowserInfoDto",
+      "SchemaName": "DefaultDirectoryBrowserInfoDto",
+      "Description": "Default directory browser info.",
+      "Fields": [
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "FileSystemEntryInfo",
+      "SchemaName": "FileSystemEntryInfo",
+      "Description": "Class FileSystemEntryInfo.",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets the name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets the path.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Description": "Gets the type.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "FileSystemEntryType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ValidatePathDto",
+      "SchemaName": "ValidatePathDto",
+      "Description": "Validate path object.",
+      "Fields": [
+        {
+          "Name": "IsFile",
+          "JsonName": "IsFile",
+          "Description": "Gets or sets is path file.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ValidateWritable",
+          "JsonName": "ValidateWritable",
+          "Description": "Gets or sets a value indicating whether validate if path is writable.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "FileSystemEntryType",
+      "SchemaName": "FileSystemEntryType",
+      "Description": "Enum FileSystemEntryType.",
+      "Values": [
+        {
+          "Name": "FileSystemEntryTypeFile",
+          "Value": "File"
+        },
+        {
+          "Name": "FileSystemEntryTypeDirectory",
+          "Value": "Directory"
+        },
+        {
+          "Name": "FileSystemEntryTypeNetworkComputer",
+          "Value": "NetworkComputer"
+        },
+        {
+          "Name": "FileSystemEntryTypeNetworkShare",
+          "Value": "NetworkShare"
+        }
+      ]
+    }
+  ]
+}

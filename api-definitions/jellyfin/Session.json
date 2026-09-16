@@ -1,0 +1,1238 @@
+{
+  "Name": "Session",
+  "Tag": "Session",
+  "Operations": [
+    {
+      "Name": "AddUserToSession",
+      "OperationId": "AddUserToSession",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/User/{userId}",
+      "Description": "Adds an additional user to a session.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DisplayContent",
+      "OperationId": "DisplayContent",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/Viewing",
+      "Description": "Instructs a session to browse to an item or view.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "itemType",
+          "Field": "ItemType",
+          "In": "Query",
+          "Description": "The type of item to browse to.",
+          "Required": true,
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemKind"
+          }
+        },
+        {
+          "Name": "itemId",
+          "Field": "ItemId",
+          "In": "Query",
+          "Description": "The Id of the item.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "itemName",
+          "Field": "ItemName",
+          "In": "Query",
+          "Description": "The name of the item.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetSessions",
+      "OperationId": "GetSessions",
+      "Method": "GET",
+      "Path": "/Sessions",
+      "Description": "Gets a list of sessions.",
+      "Options": [
+        {
+          "Name": "controllableByUserId",
+          "Field": "ControllableByUserId",
+          "In": "Query",
+          "Description": "Filter by sessions that a given user is allowed to remote control.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "deviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "Filter by device Id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "activeWithinSeconds",
+          "Field": "ActiveWithinSeconds",
+          "In": "Query",
+          "Description": "Optional. Filter by sessions that were active in the last n seconds.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "SessionInfoDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PingPlaybackSession",
+      "OperationId": "PingPlaybackSession",
+      "Method": "POST",
+      "Path": "/Sessions/Playing/Ping",
+      "Description": "Pings a playback session.",
+      "Options": [
+        {
+          "Name": "playSessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Description": "Playback session id.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "Play",
+      "OperationId": "Play",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/Playing",
+      "Description": "Instructs a session to play an item.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "playCommand",
+          "Field": "PlayCommand",
+          "In": "Query",
+          "Description": "The type of play command to issue (PlayNow, PlayNext, PlayLast). Clients who have not yet implemented play next and play last may play now.",
+          "Required": true,
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayCommand"
+          }
+        },
+        {
+          "Name": "itemIds",
+          "Field": "ItemIds",
+          "In": "Query",
+          "Description": "The ids of the items to play, comma delimited.",
+          "Required": true,
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "startPositionTicks",
+          "Field": "StartPositionTicks",
+          "In": "Query",
+          "Description": "The starting position of the first item.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "mediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "Optional. The media source id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "audioStreamIndex",
+          "Field": "AudioStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the audio stream to play.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "subtitleStreamIndex",
+          "Field": "SubtitleStreamIndex",
+          "In": "Query",
+          "Description": "Optional. The index of the subtitle stream to play.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The start index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "PostCapabilities",
+      "OperationId": "PostCapabilities",
+      "Method": "POST",
+      "Path": "/Sessions/Capabilities",
+      "Description": "Updates capabilities for a device.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "The session id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "playableMediaTypes",
+          "Field": "PlayableMediaTypes",
+          "In": "Query",
+          "Description": "A list of playable media types, comma delimited. Audio, Video, Book, Photo.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaType"
+            }
+          }
+        },
+        {
+          "Name": "supportedCommands",
+          "Field": "SupportedCommands",
+          "In": "Query",
+          "Description": "A list of supported remote control commands, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GeneralCommandType"
+            }
+          }
+        },
+        {
+          "Name": "supportsMediaControl",
+          "Field": "SupportsMediaControl",
+          "In": "Query",
+          "Description": "Determines whether media can be played remotely..",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "supportsPersistentIdentifier",
+          "Field": "SupportsPersistentIdentifier",
+          "In": "Query",
+          "Description": "Determines whether the device supports a unique identifier.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "PostFullCapabilities",
+      "OperationId": "PostFullCapabilities",
+      "Method": "POST",
+      "Path": "/Sessions/Capabilities/Full",
+      "Description": "Updates capabilities for a device.",
+      "Options": [
+        {
+          "Name": "id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "The session id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ClientCapabilitiesDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "RemoveUserFromSession",
+      "OperationId": "RemoveUserFromSession",
+      "Method": "DELETE",
+      "Path": "/Sessions/{sessionId}/User/{userId}",
+      "Description": "Removes an additional user from a session.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "ReportPlaybackProgress",
+      "OperationId": "ReportPlaybackProgress",
+      "Method": "POST",
+      "Path": "/Sessions/Playing/Progress",
+      "Description": "Reports playback progress within a session.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackProgressInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "ReportPlaybackStart",
+      "OperationId": "ReportPlaybackStart",
+      "Method": "POST",
+      "Path": "/Sessions/Playing",
+      "Description": "Reports playback has started within a session.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackStartInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "ReportPlaybackStopped",
+      "OperationId": "ReportPlaybackStopped",
+      "Method": "POST",
+      "Path": "/Sessions/Playing/Stopped",
+      "Description": "Reports playback has stopped within a session.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaybackStopInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "ReportSessionEnded",
+      "OperationId": "ReportSessionEnded",
+      "Method": "POST",
+      "Path": "/Sessions/Logout",
+      "Description": "Reports that a session has ended.",
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "ReportViewing",
+      "OperationId": "ReportViewing",
+      "Method": "POST",
+      "Path": "/Sessions/Viewing",
+      "Description": "Reports that a session is viewing an item.",
+      "Options": [
+        {
+          "Name": "sessionId",
+          "Field": "SessionId",
+          "In": "Query",
+          "Description": "The session id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "itemId",
+          "Field": "ItemId",
+          "In": "Query",
+          "Description": "The item id.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SendFullGeneralCommand",
+      "OperationId": "SendFullGeneralCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/Command",
+      "Description": "Issues a full general command to a client.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GeneralCommand"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SendGeneralCommand",
+      "OperationId": "SendGeneralCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/Command/{command}",
+      "Description": "Issues a general command to a client.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "command",
+          "Argument": "command",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GeneralCommandType"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SendMessageCommand",
+      "OperationId": "SendMessageCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/Message",
+      "Description": "Issues a command to a client to display a message to the user.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MessageCommand"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SendPlaystateCommand",
+      "OperationId": "SendPlaystateCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/Playing/{command}",
+      "Description": "Issues a playstate command to a client.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "command",
+          "Argument": "command",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlaystateCommand"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "seekPositionTicks",
+          "Field": "SeekPositionTicks",
+          "In": "Query",
+          "Description": "The optional position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "controllingUserId",
+          "Field": "ControllingUserId",
+          "In": "Query",
+          "Description": "The optional controlling user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SendSystemCommand",
+      "OperationId": "SendSystemCommand",
+      "Method": "POST",
+      "Path": "/Sessions/{sessionId}/System/{command}",
+      "Description": "Issues a system command to a client.",
+      "PathParameters": [
+        {
+          "Name": "sessionId",
+          "Argument": "sessionId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "command",
+          "Argument": "command",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GeneralCommandType"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "GeneralCommand",
+      "SchemaName": "GeneralCommand",
+      "Fields": [
+        {
+          "Name": "Arguments",
+          "JsonName": "Arguments",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ControllingUserId",
+          "JsonName": "ControllingUserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "This exists simply to identify a set of known commands.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "GeneralCommandType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MessageCommand",
+      "SchemaName": "MessageCommand",
+      "Description": "A command to display a message on a client.",
+      "Fields": [
+        {
+          "Name": "Header",
+          "JsonName": "Header",
+          "Description": "Gets or sets the message header.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Text",
+          "JsonName": "Text",
+          "Description": "Gets or sets the message text.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TimeoutMs",
+          "JsonName": "TimeoutMs",
+          "Description": "Gets or sets the timeout in milliseconds after which the message should be dismissed.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackProgressInfo",
+      "SchemaName": "PlaybackProgressInfo",
+      "Description": "Class PlaybackProgressInfo.",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "AspectRatio",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Description": "Gets or sets the index of the audio stream.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Brightness",
+          "JsonName": "Brightness",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanSeek",
+          "JsonName": "CanSeek",
+          "Description": "Gets or sets a value indicating whether this instance can seek.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsMuted",
+          "JsonName": "IsMuted",
+          "Description": "Gets or sets a value indicating whether this instance is muted.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPaused",
+          "JsonName": "IsPaused",
+          "Description": "Gets or sets a value indicating whether this instance is paused.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Item",
+          "JsonName": "Item",
+          "Description": "Gets or sets the item.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the item identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Description": "Gets or sets the live stream identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Description": "Gets or sets the media version identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "NowPlayingQueue",
+          "JsonName": "NowPlayingQueue",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "QueueItem"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlayMethod",
+          "JsonName": "PlayMethod",
+          "Description": "Gets or sets the play method.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayMethod"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Description": "Gets or sets the play session identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaybackOrder",
+          "JsonName": "PlaybackOrder",
+          "Description": "Gets or sets the playback order.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlaybackOrder"
+          }
+        },
+        {
+          "Name": "PlaybackStartTimeTicks",
+          "JsonName": "PlaybackStartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Description": "Gets or sets the position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RepeatMode",
+          "JsonName": "RepeatMode",
+          "Description": "Gets or sets the repeat mode.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RepeatMode"
+          }
+        },
+        {
+          "Name": "SessionId",
+          "JsonName": "SessionId",
+          "Description": "Gets or sets the session id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Description": "Gets or sets the index of the subtitle stream.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VolumeLevel",
+          "JsonName": "VolumeLevel",
+          "Description": "Gets or sets the volume level.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackStartInfo",
+      "SchemaName": "PlaybackStartInfo",
+      "Description": "Class PlaybackStartInfo.",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "AspectRatio",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Description": "Gets or sets the index of the audio stream.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Brightness",
+          "JsonName": "Brightness",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanSeek",
+          "JsonName": "CanSeek",
+          "Description": "Gets or sets a value indicating whether this instance can seek.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsMuted",
+          "JsonName": "IsMuted",
+          "Description": "Gets or sets a value indicating whether this instance is muted.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPaused",
+          "JsonName": "IsPaused",
+          "Description": "Gets or sets a value indicating whether this instance is paused.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Item",
+          "JsonName": "Item",
+          "Description": "Gets or sets the item.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the item identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Description": "Gets or sets the live stream identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Description": "Gets or sets the media version identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "NowPlayingQueue",
+          "JsonName": "NowPlayingQueue",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "QueueItem"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlayMethod",
+          "JsonName": "PlayMethod",
+          "Description": "Gets or sets the play method.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayMethod"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Description": "Gets or sets the play session identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaybackOrder",
+          "JsonName": "PlaybackOrder",
+          "Description": "Gets or sets the playback order.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlaybackOrder"
+          }
+        },
+        {
+          "Name": "PlaybackStartTimeTicks",
+          "JsonName": "PlaybackStartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Description": "Gets or sets the position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RepeatMode",
+          "JsonName": "RepeatMode",
+          "Description": "Gets or sets the repeat mode.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RepeatMode"
+          }
+        },
+        {
+          "Name": "SessionId",
+          "JsonName": "SessionId",
+          "Description": "Gets or sets the session id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Description": "Gets or sets the index of the subtitle stream.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VolumeLevel",
+          "JsonName": "VolumeLevel",
+          "Description": "Gets or sets the volume level.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PlaybackStopInfo",
+      "SchemaName": "PlaybackStopInfo",
+      "Description": "Class PlaybackStopInfo.",
+      "Fields": [
+        {
+          "Name": "Failed",
+          "JsonName": "Failed",
+          "Description": "Gets or sets a value indicating whether this MediaBrowser.Model.Session.PlaybackStopInfo is failed.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Item",
+          "JsonName": "Item",
+          "Description": "Gets or sets the item.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the item identifier.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Description": "Gets or sets the live stream identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Description": "Gets or sets the media version identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "NextMediaType",
+          "JsonName": "NextMediaType",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "NowPlayingQueue",
+          "JsonName": "NowPlayingQueue",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "QueueItem"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaySessionId",
+          "JsonName": "PlaySessionId",
+          "Description": "Gets or sets the play session identifier.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Description": "Gets or sets the position ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SessionId",
+          "JsonName": "SessionId",
+          "Description": "Gets or sets the session id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "PlayCommand",
+      "SchemaName": "PlayCommand",
+      "Description": "Enum PlayCommand.",
+      "Values": [
+        {
+          "Name": "PlayCommandPlayNow",
+          "Value": "PlayNow"
+        },
+        {
+          "Name": "PlayCommandPlayNext",
+          "Value": "PlayNext"
+        },
+        {
+          "Name": "PlayCommandPlayLast",
+          "Value": "PlayLast"
+        },
+        {
+          "Name": "PlayCommandPlayInstantMix",
+          "Value": "PlayInstantMix"
+        },
+        {
+          "Name": "PlayCommandPlayShuffle",
+          "Value": "PlayShuffle"
+        }
+      ]
+    },
+    {
+      "Name": "PlaystateCommand",
+      "SchemaName": "PlaystateCommand",
+      "Description": "Enum PlaystateCommand.",
+      "Values": [
+        {
+          "Name": "PlaystateCommandStop",
+          "Value": "Stop"
+        },
+        {
+          "Name": "PlaystateCommandPause",
+          "Value": "Pause"
+        },
+        {
+          "Name": "PlaystateCommandUnpause",
+          "Value": "Unpause"
+        },
+        {
+          "Name": "PlaystateCommandNextTrack",
+          "Value": "NextTrack"
+        },
+        {
+          "Name": "PlaystateCommandPreviousTrack",
+          "Value": "PreviousTrack"
+        },
+        {
+          "Name": "PlaystateCommandSeek",
+          "Value": "Seek"
+        },
+        {
+          "Name": "PlaystateCommandRewind",
+          "Value": "Rewind"
+        },
+        {
+          "Name": "PlaystateCommandFastForward",
+          "Value": "FastForward"
+        },
+        {
+          "Name": "PlaystateCommandPlayPause",
+          "Value": "PlayPause"
+        }
+      ]
+    }
+  ]
+}

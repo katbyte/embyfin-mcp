@@ -1,0 +1,174 @@
+{
+  "Name": "Notifications",
+  "Tag": "NotificationsService",
+  "Operations": [
+    {
+      "Name": "GetNotificationsTypes",
+      "OperationId": "getNotificationsTypes",
+      "Method": "GET",
+      "Path": "/Notifications/Types",
+      "Description": "Gets notification types",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "NotificationCategoryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostNotificationsAdmin",
+      "OperationId": "postNotificationsAdmin",
+      "Method": "POST",
+      "Path": "/Notifications/Admin",
+      "Description": "Sends a notification to all admin users",
+      "Options": [
+        {
+          "Name": "Name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The notification's name",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Description",
+          "Field": "Description",
+          "In": "Query",
+          "Description": "The notification's description",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ImageUrl",
+          "Field": "ImageUrl",
+          "In": "Query",
+          "Description": "The notification's image url",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Url",
+          "Field": "Url",
+          "In": "Query",
+          "Description": "The notification's info url",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Level",
+          "Field": "Level",
+          "In": "Query",
+          "Description": "The notification level",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ApiAddAdminNotification"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ApiAddAdminNotification",
+      "SchemaName": "Api.AddAdminNotification",
+      "Fields": [
+        {
+          "Name": "DisplayDateTime",
+          "JsonName": "DisplayDateTime",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NotificationCategoryInfo",
+      "SchemaName": "NotificationCategoryInfo",
+      "Fields": [
+        {
+          "Name": "Events",
+          "JsonName": "Events",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NotificationTypeInfo"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NotificationTypeInfo",
+      "SchemaName": "NotificationTypeInfo",
+      "Fields": [
+        {
+          "Name": "CategoryId",
+          "JsonName": "CategoryId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CategoryName",
+          "JsonName": "CategoryName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

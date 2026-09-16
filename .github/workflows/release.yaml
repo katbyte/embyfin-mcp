@@ -1,8 +1,16 @@
 ---
-name: Release
+name: release
 on:
   push:
     tags: ['v*']
+  # the tap formula is built from a tag's source tarball, not from the checkout,
+  # so it can be regenerated for any existing tag without cutting a new release
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish the Homebrew formula for, e.g. v0.1.0'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -10,6 +18,7 @@ permissions:
 
 jobs:
   goreleaser:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -36,11 +45,14 @@ jobs:
 
   homebrew:
     needs: goreleaser
+    if: always() && (github.event_name == 'workflow_dispatch' || needs.goreleaser.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - name: update tap formula (source build)
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
           HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: ./scripts/update-homebrew-formula.sh
+        # invoked through bash rather than as ./script so a missing execute bit
+        # cannot fail the release
+        run: bash ./scripts/update-homebrew-formula.sh

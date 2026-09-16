@@ -1,0 +1,547 @@
+{
+  "Name": "LibraryStructure",
+  "Tag": "LibraryStructureService",
+  "Operations": [
+    {
+      "Name": "DeleteLibraryVirtualFolders",
+      "OperationId": "deleteLibraryVirtualfolders",
+      "Method": "DELETE",
+      "Path": "/Library/VirtualFolders",
+      "Description": "Requires authentication as administrator",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "The library's ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RefreshLibrary",
+          "Field": "RefreshLibrary",
+          "In": "Query",
+          "Description": "Whether to scan the libraries afterwards",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteLibraryVirtualFoldersPaths",
+      "OperationId": "deleteLibraryVirtualfoldersPaths",
+      "Method": "DELETE",
+      "Path": "/Library/VirtualFolders/Paths",
+      "Description": "Requires authentication as administrator",
+      "Options": [
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "The library's ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "Field": "Path",
+          "In": "Query",
+          "Description": "The folder to take out of the library",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RefreshLibrary",
+          "Field": "RefreshLibrary",
+          "In": "Query",
+          "Description": "Whether to scan the libraries afterwards",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetLibraryVirtualFoldersQuery",
+      "OperationId": "getLibraryVirtualfoldersQuery",
+      "Method": "GET",
+      "Path": "/Library/VirtualFolders/Query",
+      "Description": "Requires authentication as user",
+      "Options": [
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultVirtualFolderInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "VirtualFolderInfo"
+        }
+      }
+    },
+    {
+      "Name": "PostLibraryVirtualFolders",
+      "OperationId": "postLibraryVirtualfolders",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryAddVirtualFolder"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLibraryVirtualFoldersDelete",
+      "OperationId": "postLibraryVirtualfoldersDelete",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Delete",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryRemoveVirtualFolder"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLibraryVirtualFoldersLibraryOptions",
+      "OperationId": "postLibraryVirtualfoldersLibraryoptions",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/LibraryOptions",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryUpdateLibraryOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLibraryVirtualFoldersName",
+      "OperationId": "postLibraryVirtualfoldersName",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Name",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryRenameVirtualFolder"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLibraryVirtualFoldersPaths",
+      "OperationId": "postLibraryVirtualfoldersPaths",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Paths",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryAddMediaPath"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLibraryVirtualFoldersPathsDelete",
+      "OperationId": "postLibraryVirtualfoldersPathsDelete",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Paths/Delete",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryRemoveMediaPath"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostLibraryVirtualFoldersPathsUpdate",
+      "OperationId": "postLibraryVirtualfoldersPathsUpdate",
+      "Method": "POST",
+      "Path": "/Library/VirtualFolders/Paths/Update",
+      "Description": "Requires authentication as administrator",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryUpdateMediaPath"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "LibraryAddMediaPath",
+      "SchemaName": "Library.AddMediaPath",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PathInfo",
+          "JsonName": "PathInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaPathInfo"
+          }
+        },
+        {
+          "Name": "RefreshLibrary",
+          "JsonName": "RefreshLibrary",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryAddVirtualFolder",
+      "SchemaName": "Library.AddVirtualFolder",
+      "Fields": [
+        {
+          "Name": "CollectionType",
+          "JsonName": "CollectionType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LibraryOptions",
+          "JsonName": "LibraryOptions",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LibraryOptions"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Paths",
+          "JsonName": "Paths",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "RefreshLibrary",
+          "JsonName": "RefreshLibrary",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryRemoveMediaPath",
+      "SchemaName": "Library.RemoveMediaPath",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RefreshLibrary",
+          "JsonName": "RefreshLibrary",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryRemoveVirtualFolder",
+      "SchemaName": "Library.RemoveVirtualFolder",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryRenameVirtualFolder",
+      "SchemaName": "Library.RenameVirtualFolder",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NewName",
+          "JsonName": "NewName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryUpdateLibraryOptions",
+      "SchemaName": "Library.UpdateLibraryOptions",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LibraryOptions",
+          "JsonName": "LibraryOptions",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LibraryOptions"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryUpdateMediaPath",
+      "SchemaName": "Library.UpdateMediaPath",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PathInfo",
+          "JsonName": "PathInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaPathInfo"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultVirtualFolderInfo",
+      "SchemaName": "QueryResult_VirtualFolderInfo",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "VirtualFolderInfo"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "VirtualFolderInfo",
+      "SchemaName": "VirtualFolderInfo",
+      "Fields": [
+        {
+          "Name": "CollectionType",
+          "JsonName": "CollectionType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Guid",
+          "JsonName": "Guid",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LibraryOptions",
+          "JsonName": "LibraryOptions",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LibraryOptions"
+          }
+        },
+        {
+          "Name": "Locations",
+          "JsonName": "Locations",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageItemId",
+          "JsonName": "PrimaryImageItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageTag",
+          "JsonName": "PrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RefreshProgress",
+          "JsonName": "RefreshProgress",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RefreshStatus",
+          "JsonName": "RefreshStatus",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "Name": "UserViews",
+  "Tag": "UserViewsService",
+  "Operations": [
+    {
+      "Name": "GetUsersByUserIdViews",
+      "OperationId": "getUsersByUseridViews",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/Views",
+      "Description": "Requires authentication as user",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "IncludeExternalContent",
+          "Field": "IncludeExternalContent",
+          "In": "Query",
+          "Description": "Whether or not to include external views such as channels or live tv",
+          "Required": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultBaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

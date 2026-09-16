@@ -1,0 +1,645 @@
+{
+  "Name": "Playlist",
+  "Tag": "Playlist",
+  "Operations": [
+    {
+      "Name": "AddItemToPlaylist",
+      "OperationId": "AddItemToPlaylist",
+      "Method": "POST",
+      "Path": "/Playlists/{playlistId}/Items",
+      "Description": "Adds items to a playlist.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ids",
+          "Field": "Ids",
+          "In": "Query",
+          "Description": "Item id, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "position",
+          "Field": "Position",
+          "In": "Query",
+          "Description": "Optional. 0-based index where to place the items or at the end if `null`.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The userId.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "CreatePlaylist",
+      "OperationId": "CreatePlaylist",
+      "Method": "POST",
+      "Path": "/Playlists",
+      "Description": "Creates a new playlist.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CreatePlaylistDto"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaylistCreationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPlaylist",
+      "OperationId": "GetPlaylist",
+      "Method": "GET",
+      "Path": "/Playlists/{playlistId}",
+      "Description": "Get a playlist.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaylistDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPlaylistItems",
+      "OperationId": "GetPlaylistItems",
+      "Method": "GET",
+      "Path": "/Playlists/{playlistId}/Items",
+      "Description": "Gets the original items of a playlist.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "startIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fields",
+          "Field": "Fields",
+          "In": "Query",
+          "Description": "Optional. Specify additional fields of information to return in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFields"
+            }
+          }
+        },
+        {
+          "Name": "enableImages",
+          "Field": "EnableImages",
+          "In": "Query",
+          "Description": "Optional. Include image information in output.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "enableUserData",
+          "Field": "EnableUserData",
+          "In": "Query",
+          "Description": "Optional. Include user data.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "imageTypeLimit",
+          "Field": "ImageTypeLimit",
+          "In": "Query",
+          "Description": "Optional. The max number of images to return, per image type.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "enableImageTypes",
+          "Field": "EnableImageTypes",
+          "In": "Query",
+          "Description": "Optional. The image types to include in the output.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageType"
+            }
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      }
+    },
+    {
+      "Name": "GetPlaylistUser",
+      "OperationId": "GetPlaylistUser",
+      "Method": "GET",
+      "Path": "/Playlists/{playlistId}/Users/{userId}",
+      "Description": "Get a playlist user.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PlaylistUserPermissions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPlaylistUsers",
+      "OperationId": "GetPlaylistUsers",
+      "Method": "GET",
+      "Path": "/Playlists/{playlistId}/Users",
+      "Description": "Get a playlist's users.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "PlaylistUserPermissions"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "MoveItem",
+      "OperationId": "MoveItem",
+      "Method": "POST",
+      "Path": "/Playlists/{playlistId}/Items/{itemId}/Move/{newIndex}",
+      "Description": "Moves a playlist item.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "newIndex",
+          "Argument": "newIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "RemoveItemFromPlaylist",
+      "OperationId": "RemoveItemFromPlaylist",
+      "Method": "DELETE",
+      "Path": "/Playlists/{playlistId}/Items",
+      "Description": "Removes items from a playlist.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "entryIds",
+          "Field": "EntryIds",
+          "In": "Query",
+          "Description": "The item ids, comma delimited.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "RemoveUserFromPlaylist",
+      "OperationId": "RemoveUserFromPlaylist",
+      "Method": "DELETE",
+      "Path": "/Playlists/{playlistId}/Users/{userId}",
+      "Description": "Remove a user from a playlist's users.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdatePlaylist",
+      "OperationId": "UpdatePlaylist",
+      "Method": "POST",
+      "Path": "/Playlists/{playlistId}",
+      "Description": "Updates a playlist.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UpdatePlaylistDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdatePlaylistUser",
+      "OperationId": "UpdatePlaylistUser",
+      "Method": "POST",
+      "Path": "/Playlists/{playlistId}/Users/{userId}",
+      "Description": "Modify a user of a playlist's users.",
+      "PathParameters": [
+        {
+          "Name": "playlistId",
+          "Argument": "playlistId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "userId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UpdatePlaylistUserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "CreatePlaylistDto",
+      "SchemaName": "CreatePlaylistDto",
+      "Description": "Create new playlist dto.",
+      "Fields": [
+        {
+          "Name": "Ids",
+          "JsonName": "Ids",
+          "Description": "Gets or sets item ids to add to the playlist.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "IsPublic",
+          "JsonName": "IsPublic",
+          "Description": "Gets or sets a value indicating whether the playlist is public.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "MediaType",
+          "Description": "Gets or sets the media type.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaType"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name of the new playlist.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Description": "Gets or sets the user id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Users",
+          "JsonName": "Users",
+          "Description": "Gets or sets the playlist users.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PlaylistUserPermissions"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaylistCreationResult",
+      "SchemaName": "PlaylistCreationResult",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaylistDto",
+      "SchemaName": "PlaylistDto",
+      "Description": "DTO for playlists.",
+      "Fields": [
+        {
+          "Name": "ItemIds",
+          "JsonName": "ItemIds",
+          "Description": "Gets or sets the item ids.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OpenAccess",
+          "JsonName": "OpenAccess",
+          "Description": "Gets or sets a value indicating whether the playlist is publicly readable.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Shares",
+          "JsonName": "Shares",
+          "Description": "Gets or sets the share permissions.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PlaylistUserPermissions"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlaylistUserPermissions",
+      "SchemaName": "PlaylistUserPermissions",
+      "Description": "Class to hold data on user permissions for playlists.",
+      "Fields": [
+        {
+          "Name": "CanEdit",
+          "JsonName": "CanEdit",
+          "Description": "Gets or sets a value indicating whether the user has edit permissions.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Description": "Gets or sets the user id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UpdatePlaylistDto",
+      "SchemaName": "UpdatePlaylistDto",
+      "Description": "Update existing playlist dto. Fields set to `null` will not be updated and keep their current values.",
+      "Fields": [
+        {
+          "Name": "Ids",
+          "JsonName": "Ids",
+          "Description": "Gets or sets item ids of the playlist.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsPublic",
+          "JsonName": "IsPublic",
+          "Description": "Gets or sets a value indicating whether the playlist is public.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name of the new playlist.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Users",
+          "JsonName": "Users",
+          "Description": "Gets or sets the playlist users.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PlaylistUserPermissions"
+            }
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "UpdatePlaylistUserDto",
+      "SchemaName": "UpdatePlaylistUserDto",
+      "Description": "Update existing playlist user dto. Fields set to `null` will not be updated and keep their current values.",
+      "Fields": [
+        {
+          "Name": "CanEdit",
+          "JsonName": "CanEdit",
+          "Description": "Gets or sets a value indicating whether the user can edit the playlist.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ]
+}

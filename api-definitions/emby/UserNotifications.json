@@ -1,0 +1,170 @@
+{
+  "Name": "UserNotifications",
+  "Tag": "UserNotificationsService",
+  "Operations": [
+    {
+      "Name": "GetNotificationsServicesDefaults",
+      "OperationId": "getNotificationsServicesDefaults",
+      "Method": "GET",
+      "Path": "/Notifications/Services/Defaults",
+      "Description": "Gets default notification info",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserNotificationInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostNotificationsServicesTest",
+      "OperationId": "postNotificationsServicesTest",
+      "Method": "POST",
+      "Path": "/Notifications/Services/Test",
+      "Description": "Sends a test notification",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserNotificationInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "UserNotificationInfo",
+      "SchemaName": "UserNotificationInfo",
+      "Fields": [
+        {
+          "Name": "DeviceIds",
+          "JsonName": "DeviceIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Enabled",
+          "JsonName": "Enabled",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EventIds",
+          "JsonName": "EventIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "FriendlyName",
+          "JsonName": "FriendlyName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GroupItems",
+          "JsonName": "GroupItems",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsSelfNotification",
+          "JsonName": "IsSelfNotification",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "LibraryIds",
+          "JsonName": "LibraryIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "NotifierKey",
+          "JsonName": "NotifierKey",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Options",
+          "JsonName": "Options",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "PluginId",
+          "JsonName": "PluginId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServiceName",
+          "JsonName": "ServiceName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SetupModuleUrl",
+          "JsonName": "SetupModuleUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserIds",
+          "JsonName": "UserIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

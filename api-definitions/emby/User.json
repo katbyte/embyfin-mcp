@@ -1,0 +1,1956 @@
+{
+  "Name": "User",
+  "Tag": "UserService",
+  "Operations": [
+    {
+      "Name": "DeleteUsersById",
+      "OperationId": "deleteUsersById",
+      "Method": "DELETE",
+      "Path": "/Users/{Id}",
+      "Description": "Deletes a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteUsersByIdRecentlySearched",
+      "OperationId": "deleteUsersByIdRecentlysearched",
+      "Method": "DELETE",
+      "Path": "/Users/{Id}/RecentlySearched",
+      "Description": "Clears recently searched",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteUsersByIdTrackSelectionsByTrackType",
+      "OperationId": "deleteUsersByIdTrackselectionsByTracktype",
+      "Method": "DELETE",
+      "Path": "/Users/{Id}/TrackSelections/{TrackType}",
+      "Description": "Clears audio or subtitle track selections for a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TrackType",
+          "Argument": "trackType",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersById",
+      "OperationId": "getUsersById",
+      "Method": "GET",
+      "Path": "/Users/{Id}",
+      "Description": "Gets a user by Id",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersByUserIdTypedSettingsByKey",
+      "OperationId": "getUsersByUseridTypedsettingsByKey",
+      "Method": "GET",
+      "Path": "/Users/{UserId}/TypedSettings/{Key}",
+      "Description": "Gets a typed user setting",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Key",
+          "Argument": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersCopyDataOptions",
+      "OperationId": "getUsersCopydataoptions",
+      "Method": "GET",
+      "Path": "/Users/CopyDataOptions",
+      "Description": "Gets copy data options",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LibraryFullUserCopyDataOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersItemAccess",
+      "OperationId": "getUsersItemaccess",
+      "Method": "GET",
+      "Path": "/Users/ItemAccess",
+      "Description": "Gets a list of users",
+      "Options": [
+        {
+          "Name": "IsHidden",
+          "Field": "IsHidden",
+          "In": "Query",
+          "Description": "Optional filter by IsHidden=true or false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsDisabled",
+          "Field": "IsDisabled",
+          "In": "Query",
+          "Description": "Optional filter by IsDisabled=true or false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NameStartsWithOrGreater",
+          "Field": "NameStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultUserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      }
+    },
+    {
+      "Name": "GetUsersPrefixes",
+      "OperationId": "getUsersPrefixes",
+      "Method": "GET",
+      "Path": "/Users/Prefixes",
+      "Description": "Gets a list of users",
+      "Options": [
+        {
+          "Name": "IsHidden",
+          "Field": "IsHidden",
+          "In": "Query",
+          "Description": "Optional filter by IsHidden=true or false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsDisabled",
+          "Field": "IsDisabled",
+          "In": "Query",
+          "Description": "Optional filter by IsDisabled=true or false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NameStartsWithOrGreater",
+          "Field": "NameStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "NameIdPair"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersPublic",
+      "OperationId": "getUsersPublic",
+      "Method": "GET",
+      "Path": "/Users/Public",
+      "Description": "Gets a list of publicly visible users for display on a login screen.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "UserDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetUsersQuery",
+      "OperationId": "getUsersQuery",
+      "Method": "GET",
+      "Path": "/Users/Query",
+      "Description": "Gets a list of users",
+      "Options": [
+        {
+          "Name": "IsHidden",
+          "Field": "IsHidden",
+          "In": "Query",
+          "Description": "Optional filter by IsHidden=true or false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsDisabled",
+          "Field": "IsDisabled",
+          "In": "Query",
+          "Description": "Optional filter by IsDisabled=true or false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "Field": "StartIndex",
+          "In": "Query",
+          "Description": "Optional. The record index to start at. All items with a lower index will be dropped from the results.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Limit",
+          "Field": "Limit",
+          "In": "Query",
+          "Description": "Optional. The maximum number of records to return",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NameStartsWithOrGreater",
+          "Field": "NameStartsWithOrGreater",
+          "In": "Query",
+          "Description": "Optional filter by items whose name is sorted equally or greater than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortOrder",
+          "Field": "SortOrder",
+          "In": "Query",
+          "Description": "Sort Order - Ascending,Descending",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultUserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ],
+      "Pageable": {
+        "StartIndexOption": "StartIndex",
+        "LimitOption": "Limit",
+        "ItemsField": "Items",
+        "TotalField": "TotalRecordCount",
+        "ItemType": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      }
+    },
+    {
+      "Name": "PostUsersAuthenticateByName",
+      "OperationId": "postUsersAuthenticatebyname",
+      "Method": "POST",
+      "Path": "/Users/AuthenticateByName",
+      "Description": "Authenticates a user",
+      "Options": [
+        {
+          "Name": "X-Emby-Authorization",
+          "Field": "XEmbyAuthorization",
+          "In": "Header",
+          "Description": "The authorization header can be either named 'Authorization' or 'X-Emby-Authorization'.\nIt must be of the following schema:\nEmby UserId=\"(guid)\", Client=\"(string)\", Device=\"(string)\", DeviceId=\"(string)\", Version=\"string\", Token=\"(string)\"\nPlease consult the documentation for further details.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticateUserByName"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationAuthenticationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersById",
+      "OperationId": "postUsersById",
+      "Method": "POST",
+      "Path": "/Users/{Id}",
+      "Description": "Updates a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdAuthenticate",
+      "OperationId": "postUsersByIdAuthenticate",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Authenticate",
+      "Description": "Authenticates a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticateUser"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationAuthenticationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdConfiguration",
+      "OperationId": "postUsersByIdConfiguration",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Configuration",
+      "Description": "Updates a user configuration",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserConfiguration"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdConfigurationPartial",
+      "OperationId": "postUsersByIdConfigurationPartial",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Configuration/Partial",
+      "Description": "Updates a user configuration",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdDelete",
+      "OperationId": "postUsersByIdDelete",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Delete",
+      "Description": "Deletes a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdPassword",
+      "OperationId": "postUsersByIdPassword",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Password",
+      "Description": "Updates a user's password",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UpdateUserPassword"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdPolicy",
+      "OperationId": "postUsersByIdPolicy",
+      "Method": "POST",
+      "Path": "/Users/{Id}/Policy",
+      "Description": "Updates a user policy",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserPolicy"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdRecentlySearchedDelete",
+      "OperationId": "postUsersByIdRecentlysearchedDelete",
+      "Method": "POST",
+      "Path": "/Users/{Id}/RecentlySearched/Delete",
+      "Description": "Clears recently searched",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByIdTrackSelectionsByTrackTypeDelete",
+      "OperationId": "postUsersByIdTrackselectionsByTracktypeDelete",
+      "Method": "POST",
+      "Path": "/Users/{Id}/TrackSelections/{TrackType}/Delete",
+      "Description": "Clears audio or subtitle track selections for a user",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TrackType",
+          "Argument": "trackType",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdCopyData",
+      "OperationId": "postUsersByUseridCopydata",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/CopyData",
+      "Description": "Copies data from one user to another",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CopyData"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersByUserIdTypedSettingsByKey",
+      "OperationId": "postUsersByUseridTypedsettingsByKey",
+      "Method": "POST",
+      "Path": "/Users/{UserId}/TypedSettings/{Key}",
+      "Description": "Updates a typed user setting",
+      "PathParameters": [
+        {
+          "Name": "UserId",
+          "Argument": "userId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Key",
+          "Argument": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersForgotPassword",
+      "OperationId": "postUsersForgotpassword",
+      "Method": "POST",
+      "Path": "/Users/ForgotPassword",
+      "Description": "Initiates the forgot password process for a local user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ForgotPassword"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ForgotPasswordResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersForgotPasswordPin",
+      "OperationId": "postUsersForgotpasswordPin",
+      "Method": "POST",
+      "Path": "/Users/ForgotPassword/Pin",
+      "Description": "Redeems a forgot password pin",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ForgotPasswordPin"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PinRedeemResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostUsersNew",
+      "OperationId": "postUsersNew",
+      "Method": "POST",
+      "Path": "/Users/New",
+      "Description": "Creates a user",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CreateUserByName"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "UserDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "AccessSchedule",
+      "SchemaName": "AccessSchedule",
+      "Fields": [
+        {
+          "Name": "DayOfWeek",
+          "JsonName": "DayOfWeek",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DynamicDayOfWeek"
+          }
+        },
+        {
+          "Name": "EndHour",
+          "JsonName": "EndHour",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "StartHour",
+          "JsonName": "StartHour",
+          "Type": {
+            "Type": "Double"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticateUser",
+      "SchemaName": "AuthenticateUser",
+      "Fields": [
+        {
+          "Name": "Pw",
+          "JsonName": "Pw",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticateUserByName",
+      "SchemaName": "AuthenticateUserByName",
+      "Fields": [
+        {
+          "Name": "Pw",
+          "JsonName": "Pw",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Username",
+          "JsonName": "Username",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationAuthenticationResult",
+      "SchemaName": "Authentication.AuthenticationResult",
+      "Fields": [
+        {
+          "Name": "AccessToken",
+          "JsonName": "AccessToken",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SessionInfo",
+          "JsonName": "SessionInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SessionSessionInfo"
+          }
+        },
+        {
+          "Name": "User",
+          "JsonName": "User",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserDto"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CopyData",
+      "SchemaName": "CopyData",
+      "Fields": [
+        {
+          "Name": "CopyOptions",
+          "JsonName": "CopyOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ToUserIds",
+          "JsonName": "ToUserIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CreateUserByName",
+      "SchemaName": "CreateUserByName",
+      "Fields": [
+        {
+          "Name": "CopyFromUserId",
+          "JsonName": "CopyFromUserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserCopyOptions",
+          "JsonName": "UserCopyOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ForgotPassword",
+      "SchemaName": "ForgotPassword",
+      "Fields": [
+        {
+          "Name": "EnteredUsername",
+          "JsonName": "EnteredUsername",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ForgotPasswordPin",
+      "SchemaName": "ForgotPasswordPin",
+      "Fields": [
+        {
+          "Name": "Pin",
+          "JsonName": "Pin",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ForgotPasswordResult",
+      "SchemaName": "ForgotPasswordResult",
+      "Fields": [
+        {
+          "Name": "Action",
+          "JsonName": "Action",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ForgotPasswordAction"
+          }
+        },
+        {
+          "Name": "PinExpirationDate",
+          "JsonName": "PinExpirationDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PinFile",
+          "JsonName": "PinFile",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryFullUserCopyDataOptions",
+      "SchemaName": "Library.FullUserCopyDataOptions",
+      "Fields": [
+        {
+          "Name": "DataOptions",
+          "JsonName": "DataOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameIdPair"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PinRedeemResult",
+      "SchemaName": "PinRedeemResult",
+      "Fields": [
+        {
+          "Name": "Success",
+          "JsonName": "Success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UsersReset",
+          "JsonName": "UsersReset",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultUserDto",
+      "SchemaName": "QueryResult_UserDto",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "UserDto"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UpdateUserPassword",
+      "SchemaName": "UpdateUserPassword",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NewPw",
+          "JsonName": "NewPw",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ResetPassword",
+          "JsonName": "ResetPassword",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UserConfiguration",
+      "SchemaName": "UserConfiguration",
+      "Fields": [
+        {
+          "Name": "AudioLanguagePreference",
+          "JsonName": "AudioLanguagePreference",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisplayMissingEpisodes",
+          "JsonName": "DisplayMissingEpisodes",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableLocalPassword",
+          "JsonName": "EnableLocalPassword",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableNextEpisodeAutoPlay",
+          "JsonName": "EnableNextEpisodeAutoPlay",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HidePlayedInLatest",
+          "JsonName": "HidePlayedInLatest",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HidePlayedInMoreLikeThis",
+          "JsonName": "HidePlayedInMoreLikeThis",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HidePlayedInSuggestions",
+          "JsonName": "HidePlayedInSuggestions",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IntroSkipMode",
+          "JsonName": "IntroSkipMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SegmentSkipMode"
+          }
+        },
+        {
+          "Name": "LatestItemsExcludes",
+          "JsonName": "LatestItemsExcludes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "MyMediaExcludes",
+          "JsonName": "MyMediaExcludes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OrderedViews",
+          "JsonName": "OrderedViews",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "PlayDefaultAudioTrack",
+          "JsonName": "PlayDefaultAudioTrack",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ProfilePin",
+          "JsonName": "ProfilePin",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RememberAudioSelections",
+          "JsonName": "RememberAudioSelections",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RememberSubtitleSelections",
+          "JsonName": "RememberSubtitleSelections",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ResumeRewindSeconds",
+          "JsonName": "ResumeRewindSeconds",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SubtitleLanguagePreference",
+          "JsonName": "SubtitleLanguagePreference",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SubtitleMode",
+          "JsonName": "SubtitleMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SubtitlePlaybackMode"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UserDto",
+      "SchemaName": "UserDto",
+      "Fields": [
+        {
+          "Name": "Configuration",
+          "JsonName": "Configuration",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserConfiguration"
+          }
+        },
+        {
+          "Name": "ConnectLinkType",
+          "JsonName": "ConnectLinkType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ConnectUserLinkType"
+          }
+        },
+        {
+          "Name": "ConnectUserName",
+          "JsonName": "ConnectUserName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableAutoLogin",
+          "JsonName": "EnableAutoLogin",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "HasConfiguredPassword",
+          "JsonName": "HasConfiguredPassword",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "HasPassword",
+          "JsonName": "HasPassword",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LastActivityDate",
+          "JsonName": "LastActivityDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LastLoginDate",
+          "JsonName": "LastLoginDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Policy",
+          "JsonName": "Policy",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserPolicy"
+          }
+        },
+        {
+          "Name": "Prefix",
+          "JsonName": "Prefix",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageAspectRatio",
+          "JsonName": "PrimaryImageAspectRatio",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PrimaryImageTag",
+          "JsonName": "PrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerName",
+          "JsonName": "ServerName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserItemShareLevel",
+          "JsonName": "UserItemShareLevel",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserItemShareLevel"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UserPolicy",
+      "SchemaName": "UserPolicy",
+      "Fields": [
+        {
+          "Name": "AccessSchedules",
+          "JsonName": "AccessSchedules",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccessSchedule"
+            }
+          }
+        },
+        {
+          "Name": "AllowCameraUpload",
+          "JsonName": "AllowCameraUpload",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowSharingPersonalItems",
+          "JsonName": "AllowSharingPersonalItems",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AllowTagOrRating",
+          "JsonName": "AllowTagOrRating",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AuthenticationProviderId",
+          "JsonName": "AuthenticationProviderId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AutoRemoteQuality",
+          "JsonName": "AutoRemoteQuality",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BlockUnratedItems",
+          "JsonName": "BlockUnratedItems",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "UnratedItem"
+            }
+          }
+        },
+        {
+          "Name": "BlockedTags",
+          "JsonName": "BlockedTags",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnableAllChannels",
+          "JsonName": "EnableAllChannels",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAllDevices",
+          "JsonName": "EnableAllDevices",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAllFolders",
+          "JsonName": "EnableAllFolders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAudioPlaybackTranscoding",
+          "JsonName": "EnableAudioPlaybackTranscoding",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableContentDeletion",
+          "JsonName": "EnableContentDeletion",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableContentDeletionFromFolders",
+          "JsonName": "EnableContentDeletionFromFolders",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnableContentDownloading",
+          "JsonName": "EnableContentDownloading",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableLiveTvAccess",
+          "JsonName": "EnableLiveTvAccess",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableLiveTvManagement",
+          "JsonName": "EnableLiveTvManagement",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMediaConversion",
+          "JsonName": "EnableMediaConversion",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMediaPlayback",
+          "JsonName": "EnableMediaPlayback",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnablePlaybackRemuxing",
+          "JsonName": "EnablePlaybackRemuxing",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnablePublicSharing",
+          "JsonName": "EnablePublicSharing",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableRemoteAccess",
+          "JsonName": "EnableRemoteAccess",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableRemoteControlOfOtherUsers",
+          "JsonName": "EnableRemoteControlOfOtherUsers",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSharedDeviceControl",
+          "JsonName": "EnableSharedDeviceControl",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSubtitleDownloading",
+          "JsonName": "EnableSubtitleDownloading",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSubtitleManagement",
+          "JsonName": "EnableSubtitleManagement",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSyncTranscoding",
+          "JsonName": "EnableSyncTranscoding",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableTranscodingQuality",
+          "JsonName": "EnableTranscodingQuality",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableUserPreferenceAccess",
+          "JsonName": "EnableUserPreferenceAccess",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableVideoPlaybackTranscoding",
+          "JsonName": "EnableVideoPlaybackTranscoding",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnabledChannels",
+          "JsonName": "EnabledChannels",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnabledDevices",
+          "JsonName": "EnabledDevices",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "EnabledFolders",
+          "JsonName": "EnabledFolders",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ExcludedSubFolders",
+          "JsonName": "ExcludedSubFolders",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "IncludeTags",
+          "JsonName": "IncludeTags",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "InvalidLoginAttemptCount",
+          "JsonName": "InvalidLoginAttemptCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IsAdministrator",
+          "JsonName": "IsAdministrator",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsDisabled",
+          "JsonName": "IsDisabled",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHidden",
+          "JsonName": "IsHidden",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHiddenFromUnusedDevices",
+          "JsonName": "IsHiddenFromUnusedDevices",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHiddenRemotely",
+          "JsonName": "IsHiddenRemotely",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsTagBlockingModeInclusive",
+          "JsonName": "IsTagBlockingModeInclusive",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "LockedOutDate",
+          "JsonName": "LockedOutDate",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "MaxParentalRating",
+          "JsonName": "MaxParentalRating",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RemoteClientBitrateLimit",
+          "JsonName": "RemoteClientBitrateLimit",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "RestrictedFeatures",
+          "JsonName": "RestrictedFeatures",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SimultaneousStreamLimit",
+          "JsonName": "SimultaneousStreamLimit",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ConnectUserLinkType",
+      "SchemaName": "Connect.UserLinkType",
+      "Values": [
+        {
+          "Name": "ConnectUserLinkTypeLinkedUser",
+          "Value": "LinkedUser"
+        },
+        {
+          "Name": "ConnectUserLinkTypeGuest",
+          "Value": "Guest"
+        }
+      ]
+    },
+    {
+      "Name": "DynamicDayOfWeek",
+      "SchemaName": "DynamicDayOfWeek",
+      "Values": [
+        {
+          "Name": "DynamicDayOfWeekSunday",
+          "Value": "Sunday"
+        },
+        {
+          "Name": "DynamicDayOfWeekMonday",
+          "Value": "Monday"
+        },
+        {
+          "Name": "DynamicDayOfWeekTuesday",
+          "Value": "Tuesday"
+        },
+        {
+          "Name": "DynamicDayOfWeekWednesday",
+          "Value": "Wednesday"
+        },
+        {
+          "Name": "DynamicDayOfWeekThursday",
+          "Value": "Thursday"
+        },
+        {
+          "Name": "DynamicDayOfWeekFriday",
+          "Value": "Friday"
+        },
+        {
+          "Name": "DynamicDayOfWeekSaturday",
+          "Value": "Saturday"
+        },
+        {
+          "Name": "DynamicDayOfWeekEveryday",
+          "Value": "Everyday"
+        },
+        {
+          "Name": "DynamicDayOfWeekWeekday",
+          "Value": "Weekday"
+        },
+        {
+          "Name": "DynamicDayOfWeekWeekend",
+          "Value": "Weekend"
+        }
+      ]
+    },
+    {
+      "Name": "ForgotPasswordAction",
+      "SchemaName": "ForgotPasswordAction",
+      "Values": [
+        {
+          "Name": "ForgotPasswordActionContactAdmin",
+          "Value": "ContactAdmin"
+        },
+        {
+          "Name": "ForgotPasswordActionPinCode",
+          "Value": "PinCode"
+        }
+      ]
+    },
+    {
+      "Name": "SegmentSkipMode",
+      "SchemaName": "SegmentSkipMode",
+      "Values": [
+        {
+          "Name": "SegmentSkipModeShowButton",
+          "Value": "ShowButton"
+        },
+        {
+          "Name": "SegmentSkipModeAutoSkip",
+          "Value": "AutoSkip"
+        },
+        {
+          "Name": "SegmentSkipModeNone",
+          "Value": "None"
+        }
+      ]
+    },
+    {
+      "Name": "SubtitlePlaybackMode",
+      "SchemaName": "SubtitlePlaybackMode",
+      "Values": [
+        {
+          "Name": "SubtitlePlaybackModeDefault",
+          "Value": "Default"
+        },
+        {
+          "Name": "SubtitlePlaybackModeAlways",
+          "Value": "Always"
+        },
+        {
+          "Name": "SubtitlePlaybackModeOnlyForced",
+          "Value": "OnlyForced"
+        },
+        {
+          "Name": "SubtitlePlaybackModeNone",
+          "Value": "None"
+        },
+        {
+          "Name": "SubtitlePlaybackModeSmart",
+          "Value": "Smart"
+        },
+        {
+          "Name": "SubtitlePlaybackModeHearingImpaired",
+          "Value": "HearingImpaired"
+        }
+      ]
+    },
+    {
+      "Name": "UnratedItem",
+      "SchemaName": "UnratedItem",
+      "Values": [
+        {
+          "Name": "UnratedItemMovie",
+          "Value": "Movie"
+        },
+        {
+          "Name": "UnratedItemTrailer",
+          "Value": "Trailer"
+        },
+        {
+          "Name": "UnratedItemSeries",
+          "Value": "Series"
+        },
+        {
+          "Name": "UnratedItemMusic",
+          "Value": "Music"
+        },
+        {
+          "Name": "UnratedItemGame",
+          "Value": "Game"
+        },
+        {
+          "Name": "UnratedItemBook",
+          "Value": "Book"
+        },
+        {
+          "Name": "UnratedItemLiveTvChannel",
+          "Value": "LiveTvChannel"
+        },
+        {
+          "Name": "UnratedItemLiveTvProgram",
+          "Value": "LiveTvProgram"
+        },
+        {
+          "Name": "UnratedItemChannelContent",
+          "Value": "ChannelContent"
+        },
+        {
+          "Name": "UnratedItemOther",
+          "Value": "Other"
+        }
+      ]
+    }
+  ]
+}

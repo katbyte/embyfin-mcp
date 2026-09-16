@@ -2,9 +2,10 @@ package embyfin
 
 import (
 	"context"
-	"net/url"
-	"strconv"
 	"strings"
+
+	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
 
 type PlayState struct {
@@ -23,9 +24,26 @@ type Session struct {
 }
 
 func (c *Client) Sessions(ctx context.Context) ([]Session, error) {
-	var sessions []Session
-	if err := c.get(ctx, "/Sessions", nil, &sessions); err != nil {
+	if c.isEmby() {
+		res, err := c.emby.GetSessions(ctx, emby.GetSessionsOperationOptions{})
+		if err != nil {
+			return nil, err
+		}
+		sessions := make([]Session, 0, len(res.Model))
+		for i := range res.Model {
+			sessions = append(sessions, sessionFromEmby(&res.Model[i]))
+		}
+
+		return sessions, nil
+	}
+
+	res, err := c.jf.GetSessions(ctx, jf.GetSessionsOperationOptions{})
+	if err != nil {
 		return nil, err
+	}
+	sessions := make([]Session, 0, len(res.Model))
+	for i := range res.Model {
+		sessions = append(sessions, sessionFromJF(&res.Model[i]))
 	}
 
 	return sessions, nil
@@ -34,33 +52,60 @@ func (c *Client) Sessions(ctx context.Context) ([]Session, error) {
 // Play queues items on a session's device. playCommand is PlayNow, PlayNext,
 // or PlayLast.
 func (c *Client) Play(ctx context.Context, sessionID string, itemIDs []string, playCommand string) error {
-	q := url.Values{}
-	q.Set("ItemIds", strings.Join(itemIDs, ","))
-	q.Set("PlayCommand", playCommand)
+	if c.isEmby() {
+		// Emby's document types the item ids as integers
+		ids := make([]int, 0, len(itemIDs))
+		for _, id := range itemIDs {
+			n, err := embyID(id)
+			if err != nil {
+				return err
+			}
+			ids = append(ids, int(n))
+		}
+		_, err := c.emby.PostSessionsByIdPlaying(ctx, sessionID, emby.PlayRequest{}, emby.PostSessionsByIdPlayingOperationOptions{ItemIds: ids, PlayCommand: emby.PlayCommand(playCommand)})
 
-	return c.post(ctx, "/Sessions/"+url.PathEscape(sessionID)+"/Playing", q, nil, nil)
+		return err
+	}
+
+	_, err := c.jf.Play(ctx, sessionID, jf.PlayOperationOptions{ItemIds: itemIDs, PlayCommand: jf.PlayCommand(playCommand)})
+
+	return err
 }
 
 // PlayCommand sends a playstate command: Pause, Unpause, Stop, PlayPause,
 // Seek (with seekTicks), NextTrack, PreviousTrack.
 func (c *Client) PlayCommand(ctx context.Context, sessionID, command string, seekTicks int64) error {
-	q := url.Values{}
-	if strings.EqualFold(command, "Seek") {
-		q.Set("SeekPositionTicks", strconv.FormatInt(seekTicks, 10))
+	seek := strings.EqualFold(command, "Seek")
+	if c.isEmby() {
+		// Emby's document declares no query parameters for the command and
+		// takes the target position in the PlaystateRequest body instead
+		var body emby.PlaystateRequest
+		if seek {
+			body.SeekPositionTicks = seekTicks
+		}
+		_, err := c.emby.PostSessionsByIdPlayingByCommand(ctx, sessionID, emby.PlaystateCommand(command), body)
+
+		return err
 	}
 
-	return c.post(ctx, "/Sessions/"+url.PathEscape(sessionID)+"/Playing/"+url.PathEscape(command), q, nil, nil)
+	var options jf.SendPlaystateCommandOperationOptions
+	if seek {
+		options.SeekPositionTicks = seekTicks
+	}
+	_, err := c.jf.SendPlaystateCommand(ctx, sessionID, jf.PlaystateCommand(command), options)
+
+	return err
 }
 
-// Message displays a text message on the session's client.
+// Message displays a text message on the session's client. Emby takes the
+// message as query parameters, Jellyfin as a JSON body.
 func (c *Client) Message(ctx context.Context, sessionID, header, text string, timeoutMs int) error {
-	body := map[string]any{
-		"Header": header,
-		"Text":   text,
-	}
-	if timeoutMs > 0 {
-		body["TimeoutMs"] = timeoutMs
+	if c.isEmby() {
+		_, err := c.emby.PostSessionsByIdMessage(ctx, sessionID, emby.PostSessionsByIdMessageOperationOptions{Text: text, Header: header, TimeoutMs: int64(timeoutMs)})
+		return err
 	}
 
-	return c.post(ctx, "/Sessions/"+url.PathEscape(sessionID)+"/Message", nil, body, nil)
+	_, err := c.jf.SendMessageCommand(ctx, sessionID, jf.MessageCommand{Header: header, Text: text, TimeoutMs: int64(timeoutMs)})
+
+	return err
 }

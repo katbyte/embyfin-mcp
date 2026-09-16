@@ -1,0 +1,78 @@
+{
+  "Name": "Branding",
+  "Tag": "BrandingService",
+  "Operations": [
+    {
+      "Name": "GetBrandingConfiguration",
+      "OperationId": "getBrandingConfiguration",
+      "Method": "GET",
+      "Path": "/Branding/Configuration",
+      "Description": "Gets branding configuration",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BrandingBrandingOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetBrandingCss",
+      "OperationId": "getBrandingCss",
+      "Method": "GET",
+      "Path": "/Branding/Css",
+      "Description": "Gets custom css",
+      "Response": {
+        "ContentType": "text/css",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetBrandingCssCss",
+      "OperationId": "getBrandingCssCss",
+      "Method": "GET",
+      "Path": "/Branding/Css.css",
+      "Description": "Gets custom css",
+      "Response": {
+        "ContentType": "text/css",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "BrandingBrandingOptions",
+      "SchemaName": "Branding.BrandingOptions",
+      "Fields": [
+        {
+          "Name": "CustomCss",
+          "JsonName": "CustomCss",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LoginDisclaimer",
+          "JsonName": "LoginDisclaimer",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

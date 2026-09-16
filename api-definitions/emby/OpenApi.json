@@ -1,0 +1,74 @@
+{
+  "Name": "OpenApi",
+  "Tag": "OpenApiService",
+  "Operations": [
+    {
+      "Name": "GetOpenapi",
+      "OperationId": "getOpenapi",
+      "Method": "GET",
+      "Path": "/openapi",
+      "Description": "Gets the OpenAPI 3 specifications",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetOpenapiJson",
+      "OperationId": "getOpenapiJson",
+      "Method": "GET",
+      "Path": "/openapi.json",
+      "Description": "Gets OpenAPI 3 specifications",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSwagger",
+      "OperationId": "getSwagger",
+      "Method": "GET",
+      "Path": "/swagger",
+      "Description": "Gets the swagger specifications",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSwaggerJson",
+      "OperationId": "getSwaggerJson",
+      "Method": "GET",
+      "Path": "/swagger.json",
+      "Description": "Gets the swagger specifications",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "RawObject"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

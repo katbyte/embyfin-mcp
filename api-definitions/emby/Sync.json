@@ -1,0 +1,1709 @@
+{
+  "Name": "Sync",
+  "Tag": "SyncService",
+  "Operations": [
+    {
+      "Name": "DeleteSyncByTargetIdItems",
+      "OperationId": "deleteSyncByTargetidItems",
+      "Method": "DELETE",
+      "Path": "/Sync/{TargetId}/Items",
+      "Description": "Cancels items from a sync target",
+      "PathParameters": [
+        {
+          "Name": "TargetId",
+          "Argument": "targetId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ItemIds",
+          "Field": "ItemIds",
+          "In": "Query",
+          "Description": "ItemIds",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteSyncJobItemsById",
+      "OperationId": "deleteSyncJobitemsById",
+      "Method": "DELETE",
+      "Path": "/Sync/JobItems/{Id}",
+      "Description": "Cancels a sync job item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "DeleteSyncJobsById",
+      "OperationId": "deleteSyncJobsById",
+      "Method": "DELETE",
+      "Path": "/Sync/Jobs/{Id}",
+      "Description": "Cancels a sync job.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSyncItemsReady",
+      "OperationId": "getSyncItemsReady",
+      "Method": "GET",
+      "Path": "/Sync/Items/Ready",
+      "Description": "Gets ready to download sync items.",
+      "Options": [
+        {
+          "Name": "TargetId",
+          "Field": "TargetId",
+          "In": "Query",
+          "Description": "TargetId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "SyncedItem"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSyncJobItems",
+      "OperationId": "getSyncJobitems",
+      "Method": "GET",
+      "Path": "/Sync/JobItems",
+      "Description": "Gets sync job items.",
+      "Options": [
+        {
+          "Name": "TargetId",
+          "Field": "TargetId",
+          "In": "Query",
+          "Description": "TargetId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultSyncJobItem"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSyncJobItemsByIdAdditionalFiles",
+      "OperationId": "getSyncJobitemsByIdAdditionalfiles",
+      "Method": "GET",
+      "Path": "/Sync/JobItems/{Id}/AdditionalFiles",
+      "Description": "Gets a sync job item file",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "Name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "Name",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSyncJobItemsByIdFile",
+      "OperationId": "getSyncJobitemsByIdFile",
+      "Method": "GET",
+      "Path": "/Sync/JobItems/{Id}/File",
+      "Description": "Gets a sync job item file",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSyncJobs",
+      "OperationId": "getSyncJobs",
+      "Method": "GET",
+      "Path": "/Sync/Jobs",
+      "Description": "Gets sync jobs.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "QueryResultSyncJob"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSyncJobsById",
+      "OperationId": "getSyncJobsById",
+      "Method": "GET",
+      "Path": "/Sync/Jobs/{Id}",
+      "Description": "Gets a sync job.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncJob"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSyncOptions",
+      "OperationId": "getSyncOptions",
+      "Method": "GET",
+      "Path": "/Sync/Options",
+      "Description": "Gets a list of available sync targets.",
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "UserId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemIds",
+          "Field": "ItemIds",
+          "In": "Query",
+          "Description": "ItemIds",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "Field": "ParentId",
+          "In": "Query",
+          "Description": "ParentId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetId",
+          "Field": "TargetId",
+          "In": "Query",
+          "Description": "TargetId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Category",
+          "Field": "Category",
+          "In": "Query",
+          "Description": "Category",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncCategory"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncDialogOptions"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetSyncTargets",
+      "OperationId": "getSyncTargets",
+      "Method": "GET",
+      "Path": "/Sync/Targets",
+      "Description": "Gets a list of available sync targets.",
+      "Options": [
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "UserId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "SyncTarget"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncByItemIdStatus",
+      "OperationId": "postSyncByItemidStatus",
+      "Method": "POST",
+      "Path": "/Sync/{ItemId}/Status",
+      "Description": "Gets sync status for an item.",
+      "PathParameters": [
+        {
+          "Name": "ItemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncedItemProgress"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncByTargetIdItemsDelete",
+      "OperationId": "postSyncByTargetidItemsDelete",
+      "Method": "POST",
+      "Path": "/Sync/{TargetId}/Items/Delete",
+      "Description": "Cancels items from a sync target",
+      "PathParameters": [
+        {
+          "Name": "TargetId",
+          "Argument": "targetId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "ItemIds",
+          "Field": "ItemIds",
+          "In": "Query",
+          "Description": "ItemIds",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncData",
+      "OperationId": "postSyncData",
+      "Method": "POST",
+      "Path": "/Sync/Data",
+      "Description": "Syncs data between device and server",
+      "Options": [
+        {
+          "Name": "TargetId",
+          "Field": "TargetId",
+          "In": "Query",
+          "Description": "TargetId",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncDataRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncDataResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncItemsCancel",
+      "OperationId": "postSyncItemsCancel",
+      "Method": "POST",
+      "Path": "/Sync/Items/Cancel",
+      "Description": "Cancels items from a sync target",
+      "Options": [
+        {
+          "Name": "ItemIds",
+          "Field": "ItemIds",
+          "In": "Query",
+          "Description": "ItemIds",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobItemsByIdDelete",
+      "OperationId": "postSyncJobitemsByIdDelete",
+      "Method": "POST",
+      "Path": "/Sync/JobItems/{Id}/Delete",
+      "Description": "Cancels a sync job item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobItemsByIdEnable",
+      "OperationId": "postSyncJobitemsByIdEnable",
+      "Method": "POST",
+      "Path": "/Sync/JobItems/{Id}/Enable",
+      "Description": "Enables a cancelled or queued sync job item",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobItemsByIdMarkForRemoval",
+      "OperationId": "postSyncJobitemsByIdMarkforremoval",
+      "Method": "POST",
+      "Path": "/Sync/JobItems/{Id}/MarkForRemoval",
+      "Description": "Marks a job item for removal",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobItemsByIdTransferred",
+      "OperationId": "postSyncJobitemsByIdTransferred",
+      "Method": "POST",
+      "Path": "/Sync/JobItems/{Id}/Transferred",
+      "Description": "Reports that a sync job item has successfully been transferred.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobItemsByIdUnmarkForRemoval",
+      "OperationId": "postSyncJobitemsByIdUnmarkforremoval",
+      "Method": "POST",
+      "Path": "/Sync/JobItems/{Id}/UnmarkForRemoval",
+      "Description": "Unmarks a job item for removal",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobs",
+      "OperationId": "postSyncJobs",
+      "Method": "POST",
+      "Path": "/Sync/Jobs",
+      "Description": "Gets sync jobs.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncJobRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncJobCreationResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobsById",
+      "OperationId": "postSyncJobsById",
+      "Method": "POST",
+      "Path": "/Sync/Jobs/{Id}",
+      "Description": "Updates a sync job.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SyncJob"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncJobsByIdDelete",
+      "OperationId": "postSyncJobsByIdDelete",
+      "Method": "POST",
+      "Path": "/Sync/Jobs/{Id}/Delete",
+      "Description": "Cancels a sync job.",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostSyncOfflineActions",
+      "OperationId": "postSyncOfflineactions",
+      "Method": "POST",
+      "Path": "/Sync/OfflineActions",
+      "Description": "Reports an action that occurred while offline.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "UserAction"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ItemFileInfo",
+      "SchemaName": "ItemFileInfo",
+      "Fields": [
+        {
+          "Name": "ImageType",
+          "JsonName": "ImageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Index",
+          "JsonName": "Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ItemFileType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultSyncJob",
+      "SchemaName": "QueryResult_SyncJob",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SyncJob"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultSyncJobItem",
+      "SchemaName": "QueryResult_SyncJobItem",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SyncJobItem"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncDataRequest",
+      "SchemaName": "SyncDataRequest",
+      "Fields": [
+        {
+          "Name": "InternalTargetIds",
+          "JsonName": "InternalTargetIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer64"
+            }
+          }
+        },
+        {
+          "Name": "LocalItemIds",
+          "JsonName": "LocalItemIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncDataResponse",
+      "SchemaName": "SyncDataResponse",
+      "Fields": [
+        {
+          "Name": "ItemIdsToRemove",
+          "JsonName": "ItemIdsToRemove",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncDialogOptions",
+      "SchemaName": "SyncDialogOptions",
+      "Fields": [
+        {
+          "Name": "Options",
+          "JsonName": "Options",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SyncJobOption"
+            }
+          }
+        },
+        {
+          "Name": "ProfileOptions",
+          "JsonName": "ProfileOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SyncProfileOption"
+            }
+          }
+        },
+        {
+          "Name": "QualityOptions",
+          "JsonName": "QualityOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SyncQualityOption"
+            }
+          }
+        },
+        {
+          "Name": "Targets",
+          "JsonName": "Targets",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SyncTarget"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncJob",
+      "SchemaName": "SyncJob",
+      "Fields": [
+        {
+          "Name": "AudioCodec",
+          "JsonName": "AudioCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Bitrate",
+          "JsonName": "Bitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Category",
+          "JsonName": "Category",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncCategory"
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateLastModified",
+          "JsonName": "DateLastModified",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "InternalTargetId",
+          "JsonName": "InternalTargetId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "ItemCount",
+          "JsonName": "ItemCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "ItemLimit",
+          "JsonName": "ItemLimit",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "JsonName": "ParentId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "ParentName",
+          "JsonName": "ParentName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageItemId",
+          "JsonName": "PrimaryImageItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageTag",
+          "JsonName": "PrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Profile",
+          "JsonName": "Profile",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Progress",
+          "JsonName": "Progress",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Quality",
+          "JsonName": "Quality",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RequestedItemIds",
+          "JsonName": "RequestedItemIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer64"
+            }
+          }
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncJobStatus"
+          }
+        },
+        {
+          "Name": "SyncNewContent",
+          "JsonName": "SyncNewContent",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "TargetId",
+          "JsonName": "TargetId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetName",
+          "JsonName": "TargetName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UnwatchedOnly",
+          "JsonName": "UnwatchedOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "VideoCodec",
+          "JsonName": "VideoCodec",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncJobCreationResult",
+      "SchemaName": "SyncJobCreationResult",
+      "Fields": [
+        {
+          "Name": "Job",
+          "JsonName": "Job",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncJob"
+          }
+        },
+        {
+          "Name": "JobItems",
+          "JsonName": "JobItems",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SyncJobItem"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncJobItem",
+      "SchemaName": "SyncJobItem",
+      "Fields": [
+        {
+          "Name": "AdditionalFiles",
+          "JsonName": "AdditionalFiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFileInfo"
+            }
+          }
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "InternalTargetId",
+          "JsonName": "InternalTargetId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "ItemName",
+          "JsonName": "ItemName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "JobId",
+          "JsonName": "JobId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "MediaSource",
+          "JsonName": "MediaSource",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaSourceInfo"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OutputPath",
+          "JsonName": "OutputPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageItemId",
+          "JsonName": "PrimaryImageItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageTag",
+          "JsonName": "PrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Progress",
+          "JsonName": "Progress",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncJobItemStatus"
+          }
+        },
+        {
+          "Name": "TargetId",
+          "JsonName": "TargetId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TemporaryPath",
+          "JsonName": "TemporaryPath",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncJobRequest",
+      "SchemaName": "SyncJobRequest",
+      "Fields": [
+        {
+          "Name": "AudioCodec",
+          "JsonName": "AudioCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Bitrate",
+          "JsonName": "Bitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Category",
+          "JsonName": "Category",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncCategory"
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Downloaded",
+          "JsonName": "Downloaded",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemIds",
+          "JsonName": "ItemIds",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ItemLimit",
+          "JsonName": "ItemLimit",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "JsonName": "ParentId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Profile",
+          "JsonName": "Profile",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Quality",
+          "JsonName": "Quality",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SyncNewContent",
+          "JsonName": "SyncNewContent",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "TargetId",
+          "JsonName": "TargetId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UnwatchedOnly",
+          "JsonName": "UnwatchedOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoCodec",
+          "JsonName": "VideoCodec",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncProfileOption",
+      "SchemaName": "SyncProfileOption",
+      "Fields": [
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableQualityOptions",
+          "JsonName": "EnableQualityOptions",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsDefault",
+          "JsonName": "IsDefault",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncQualityOption",
+      "SchemaName": "SyncQualityOption",
+      "Fields": [
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsDefault",
+          "JsonName": "IsDefault",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsOriginalQuality",
+          "JsonName": "IsOriginalQuality",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncTarget",
+      "SchemaName": "SyncTarget",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncedItem",
+      "SchemaName": "SyncedItem",
+      "Fields": [
+        {
+          "Name": "AdditionalFiles",
+          "JsonName": "AdditionalFiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ItemFileInfo"
+            }
+          }
+        },
+        {
+          "Name": "Item",
+          "JsonName": "Item",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        },
+        {
+          "Name": "OriginalFileName",
+          "JsonName": "OriginalFileName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SyncJobDateCreated",
+          "JsonName": "SyncJobDateCreated",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SyncJobId",
+          "JsonName": "SyncJobId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "SyncJobItemId",
+          "JsonName": "SyncJobItemId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "SyncJobName",
+          "JsonName": "SyncJobName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SyncedItemProgress",
+      "SchemaName": "SyncedItemProgress",
+      "Fields": [
+        {
+          "Name": "Progress",
+          "JsonName": "Progress",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncJobItemStatus"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UserAction",
+      "SchemaName": "UserAction",
+      "Fields": [
+        {
+          "Name": "Date",
+          "JsonName": "Date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsFavorite",
+          "JsonName": "IsFavorite",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Played",
+          "JsonName": "Played",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserActionType"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ItemFileType",
+      "SchemaName": "ItemFileType",
+      "Values": [
+        {
+          "Name": "ItemFileTypeMedia",
+          "Value": "Media"
+        },
+        {
+          "Name": "ItemFileTypeImage",
+          "Value": "Image"
+        },
+        {
+          "Name": "ItemFileTypeSubtitles",
+          "Value": "Subtitles"
+        }
+      ]
+    },
+    {
+      "Name": "SyncCategory",
+      "SchemaName": "SyncCategory",
+      "Values": [
+        {
+          "Name": "SyncCategoryLatest",
+          "Value": "Latest"
+        },
+        {
+          "Name": "SyncCategoryNextUp",
+          "Value": "NextUp"
+        },
+        {
+          "Name": "SyncCategoryResume",
+          "Value": "Resume"
+        }
+      ]
+    },
+    {
+      "Name": "SyncJobOption",
+      "SchemaName": "SyncJobOption",
+      "Values": [
+        {
+          "Name": "SyncJobOptionName",
+          "Value": "Name"
+        },
+        {
+          "Name": "SyncJobOptionQuality",
+          "Value": "Quality"
+        },
+        {
+          "Name": "SyncJobOptionUnwatchedOnly",
+          "Value": "UnwatchedOnly"
+        },
+        {
+          "Name": "SyncJobOptionSyncNewContent",
+          "Value": "SyncNewContent"
+        },
+        {
+          "Name": "SyncJobOptionItemLimit",
+          "Value": "ItemLimit"
+        },
+        {
+          "Name": "SyncJobOptionProfile",
+          "Value": "Profile"
+        }
+      ]
+    },
+    {
+      "Name": "SyncJobStatus",
+      "SchemaName": "SyncJobStatus",
+      "Values": [
+        {
+          "Name": "SyncJobStatusQueued",
+          "Value": "Queued"
+        },
+        {
+          "Name": "SyncJobStatusConverting",
+          "Value": "Converting"
+        },
+        {
+          "Name": "SyncJobStatusReadyToTransfer",
+          "Value": "ReadyToTransfer"
+        },
+        {
+          "Name": "SyncJobStatusTransferring",
+          "Value": "Transferring"
+        },
+        {
+          "Name": "SyncJobStatusCompleted",
+          "Value": "Completed"
+        },
+        {
+          "Name": "SyncJobStatusCompletedWithError",
+          "Value": "CompletedWithError"
+        },
+        {
+          "Name": "SyncJobStatusFailed",
+          "Value": "Failed"
+        }
+      ]
+    },
+    {
+      "Name": "UserActionType",
+      "SchemaName": "UserActionType",
+      "Values": [
+        {
+          "Name": "UserActionTypePlayedItem",
+          "Value": "PlayedItem"
+        },
+        {
+          "Name": "UserActionTypeMarkPlayed",
+          "Value": "MarkPlayed"
+        },
+        {
+          "Name": "UserActionTypeMarkFavorite",
+          "Value": "MarkFavorite"
+        }
+      ]
+    }
+  ]
+}

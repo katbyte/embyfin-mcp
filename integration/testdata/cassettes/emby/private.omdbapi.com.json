@@ -1,0 +1,22 @@
+{
+  "host": "private.omdbapi.com",
+  "interactions": [
+    {
+      "key": "GET private.omdbapi.com/?apikey=fe53f97e\u0026plot=full\u0026r=json\u0026s=Severance\u0026type=series\u0026y=2022",
+      "method": "GET",
+      "host": "private.omdbapi.com",
+      "path": "/",
+      "query": "apikey=fe53f97e\u0026plot=full\u0026r=json\u0026y=2022\u0026s=Severance\u0026type=series",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3441",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body": "{\"Search\":[{\"Title\":\"Severance\",\"Year\":\"2022–\",\"imdbID\":\"tt11280740\",\"Type\":\"series\",\"Poster\":\"https://m.media-amazon.com/images/M/MV5BZDI5YzJhODQtMzQyNy00YWNmLWIxMjUtNDBjNjA5YWRjMzExXkEyXkFqcGc@._V1_QL75_UX380_CR0,4,380,562_.jpg\"},{\"Title\":\"Processing Severance\",\"Year\":\"2022–\",\"imdbID\":\"tt19239240\",\"Type\":\"series\",\"Poster\":\"N/A\"}],\"totalResults\":\"2\",\"Response\":\"True\"}"
+    }
+  ]
+}

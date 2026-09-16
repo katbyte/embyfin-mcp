@@ -1,0 +1,2522 @@
+{
+  "Name": "Image",
+  "Tag": "Image",
+  "Operations": [
+    {
+      "Name": "DeleteCustomSplashscreen",
+      "OperationId": "DeleteCustomSplashscreen",
+      "Method": "DELETE",
+      "Path": "/Branding/Splashscreen",
+      "Description": "Delete a custom splashscreen.",
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DeleteItemImage",
+      "OperationId": "DeleteItemImage",
+      "Method": "DELETE",
+      "Path": "/Items/{itemId}/Images/{imageType}",
+      "Description": "Delete an item's image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "imageIndex",
+          "Field": "ImageIndex",
+          "In": "Query",
+          "Description": "The image index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DeleteItemImageByIndex",
+      "OperationId": "DeleteItemImageByIndex",
+      "Method": "DELETE",
+      "Path": "/Items/{itemId}/Images/{imageType}/{imageIndex}",
+      "Description": "Delete an item's image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DeleteUserImage",
+      "OperationId": "DeleteUserImage",
+      "Method": "DELETE",
+      "Path": "/UserImage",
+      "Description": "Delete the user's image.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetArtistImage",
+      "OperationId": "GetArtistImage",
+      "Method": "GET",
+      "Path": "/Artists/{name}/Images/{imageType}/{imageIndex}",
+      "Description": "Get artist image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetGenreImage",
+      "OperationId": "GetGenreImage",
+      "Method": "GET",
+      "Path": "/Genres/{name}/Images/{imageType}",
+      "Description": "Get genre image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Field": "ImageIndex",
+          "In": "Query",
+          "Description": "Image index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetGenreImageByIndex",
+      "OperationId": "GetGenreImageByIndex",
+      "Method": "GET",
+      "Path": "/Genres/{name}/Images/{imageType}/{imageIndex}",
+      "Description": "Get genre image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemImage",
+      "OperationId": "GetItemImage",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/Images/{imageType}",
+      "Description": "Gets the item's image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Optional. The MediaBrowser.Model.Drawing.ImageFormat of the returned image.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Field": "ImageIndex",
+          "In": "Query",
+          "Description": "Image index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemImage2",
+      "OperationId": "GetItemImage2",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/Images/{imageType}/{imageIndex}/{tag}/{format}/{maxWidth}/{maxHeight}/{percentPlayed}/{unplayedCount}",
+      "Description": "Gets the item's image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "tag",
+          "Argument": "tag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Argument": "format",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Argument": "maxWidth",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Argument": "maxHeight",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Argument": "percentPlayed",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Argument": "unplayedCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemImageByIndex",
+      "OperationId": "GetItemImageByIndex",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/Images/{imageType}/{imageIndex}",
+      "Description": "Gets the item's image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Optional. The MediaBrowser.Model.Drawing.ImageFormat of the returned image.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetItemImageInfos",
+      "OperationId": "GetItemImageInfos",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/Images",
+      "Description": "Get item image infos.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ImageInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMusicGenreImage",
+      "OperationId": "GetMusicGenreImage",
+      "Method": "GET",
+      "Path": "/MusicGenres/{name}/Images/{imageType}",
+      "Description": "Get music genre image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Field": "ImageIndex",
+          "In": "Query",
+          "Description": "Image index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetMusicGenreImageByIndex",
+      "OperationId": "GetMusicGenreImageByIndex",
+      "Method": "GET",
+      "Path": "/MusicGenres/{name}/Images/{imageType}/{imageIndex}",
+      "Description": "Get music genre image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPersonImage",
+      "OperationId": "GetPersonImage",
+      "Method": "GET",
+      "Path": "/Persons/{name}/Images/{imageType}",
+      "Description": "Get person image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Field": "ImageIndex",
+          "In": "Query",
+          "Description": "Image index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPersonImageByIndex",
+      "OperationId": "GetPersonImageByIndex",
+      "Method": "GET",
+      "Path": "/Persons/{name}/Images/{imageType}/{imageIndex}",
+      "Description": "Get person image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetSplashscreen",
+      "OperationId": "GetSplashscreen",
+      "Method": "GET",
+      "Path": "/Branding/Splashscreen",
+      "Description": "Generates or gets the splashscreen.",
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetStudioImage",
+      "OperationId": "GetStudioImage",
+      "Method": "GET",
+      "Path": "/Studios/{name}/Images/{imageType}",
+      "Description": "Get studio image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Field": "ImageIndex",
+          "In": "Query",
+          "Description": "Image index.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetStudioImageByIndex",
+      "OperationId": "GetStudioImageByIndex",
+      "Method": "GET",
+      "Path": "/Studios/{name}/Images/{imageType}/{imageIndex}",
+      "Description": "Get studio image by name.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        },
+        {
+          "Name": "maxWidth",
+          "Field": "MaxWidth",
+          "In": "Query",
+          "Description": "The maximum image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "maxHeight",
+          "Field": "MaxHeight",
+          "In": "Query",
+          "Description": "The maximum image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "percentPlayed",
+          "Field": "PercentPlayed",
+          "In": "Query",
+          "Description": "Optional. Percent to render for the percent played overlay.",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "unplayedCount",
+          "Field": "UnplayedCount",
+          "In": "Query",
+          "Description": "Optional. Unplayed count overlay to render.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "width",
+          "Field": "Width",
+          "In": "Query",
+          "Description": "The fixed image width to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "height",
+          "Field": "Height",
+          "In": "Query",
+          "Description": "The fixed image height to return.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "quality",
+          "Field": "Quality",
+          "In": "Query",
+          "Description": "Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillWidth",
+          "Field": "FillWidth",
+          "In": "Query",
+          "Description": "Width of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "fillHeight",
+          "Field": "FillHeight",
+          "In": "Query",
+          "Description": "Height of box to fill.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "blur",
+          "Field": "Blur",
+          "In": "Query",
+          "Description": "Optional. Blur image.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "backgroundColor",
+          "Field": "BackgroundColor",
+          "In": "Query",
+          "Description": "Optional. Apply a background color for transparent images.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "foregroundLayer",
+          "Field": "ForegroundLayer",
+          "In": "Query",
+          "Description": "Optional. Apply a foreground layer on top of the image.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetUserImage",
+      "OperationId": "GetUserImage",
+      "Method": "GET",
+      "Path": "/UserImage",
+      "Description": "Get user profile image.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "tag",
+          "Field": "Tag",
+          "In": "Query",
+          "Description": "Optional. Supply the cache tag from the item object to receive strong caching headers.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "format",
+          "Field": "Format",
+          "In": "Query",
+          "Description": "Determines the output format of the image - original,gif,jpg,png.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageFormat"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PostUserImage",
+      "OperationId": "PostUserImage",
+      "Method": "POST",
+      "Path": "/UserImage",
+      "Description": "Sets the user image.",
+      "Options": [
+        {
+          "Name": "userId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "User Id.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SetItemImage",
+      "OperationId": "SetItemImage",
+      "Method": "POST",
+      "Path": "/Items/{itemId}/Images/{imageType}",
+      "Description": "Set item image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SetItemImageByIndex",
+      "OperationId": "SetItemImageByIndex",
+      "Method": "POST",
+      "Path": "/Items/{itemId}/Images/{imageType}/{imageIndex}",
+      "Description": "Set item image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateItemImageIndex",
+      "OperationId": "UpdateItemImageIndex",
+      "Method": "POST",
+      "Path": "/Items/{itemId}/Images/{imageType}/{imageIndex}/Index",
+      "Description": "Updates the index for an item image.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "imageType",
+          "Argument": "imageType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "imageIndex",
+          "Argument": "imageIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "newIndex",
+          "Field": "NewIndex",
+          "In": "Query",
+          "Description": "New image index.",
+          "Required": true,
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UploadCustomSplashscreen",
+      "OperationId": "UploadCustomSplashscreen",
+      "Method": "POST",
+      "Path": "/Branding/Splashscreen",
+      "Description": "Uploads a custom splashscreen.\nThe body is expected to the image contents base64 encoded.",
+      "Request": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ImageInfo",
+      "SchemaName": "ImageInfo",
+      "Description": "Class ImageInfo.",
+      "Fields": [
+        {
+          "Name": "BlurHash",
+          "JsonName": "BlurHash",
+          "Description": "Gets or sets the blurhash.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Description": "Gets or sets the height.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageIndex",
+          "JsonName": "ImageIndex",
+          "Description": "Gets or sets the index of the image.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageTag",
+          "JsonName": "ImageTag",
+          "Description": "Gets or sets the image tag.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ImageType",
+          "JsonName": "ImageType",
+          "Description": "Gets or sets the type of the image.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Description": "Gets or sets the path.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Size",
+          "JsonName": "Size",
+          "Description": "Gets or sets the size.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Description": "Gets or sets the width.",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "ImageFormat",
+      "SchemaName": "ImageFormat",
+      "Description": "Enum ImageOutputFormat.",
+      "Values": [
+        {
+          "Name": "ImageFormatBmp",
+          "Value": "Bmp"
+        },
+        {
+          "Name": "ImageFormatGif",
+          "Value": "Gif"
+        },
+        {
+          "Name": "ImageFormatJpg",
+          "Value": "Jpg"
+        },
+        {
+          "Name": "ImageFormatPng",
+          "Value": "Png"
+        },
+        {
+          "Name": "ImageFormatWebp",
+          "Value": "Webp"
+        },
+        {
+          "Name": "ImageFormatSvg",
+          "Value": "Svg"
+        }
+      ]
+    }
+  ]
+}

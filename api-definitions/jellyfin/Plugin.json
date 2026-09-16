@@ -1,0 +1,621 @@
+{
+  "Name": "Plugin",
+  "Tag": "Plugin",
+  "Operations": [
+    {
+      "Name": "CancelPackageInstallation",
+      "OperationId": "CancelPackageInstallation",
+      "Method": "DELETE",
+      "Path": "/Packages/Installing/{packageId}",
+      "Description": "Cancels a package installation.",
+      "PathParameters": [
+        {
+          "Name": "packageId",
+          "Argument": "packageId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DisablePlugin",
+      "OperationId": "DisablePlugin",
+      "Method": "POST",
+      "Path": "/Plugins/{pluginId}/{version}/Disable",
+      "Description": "Disable a plugin.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "version",
+          "Argument": "version",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "EnablePlugin",
+      "OperationId": "EnablePlugin",
+      "Method": "POST",
+      "Path": "/Plugins/{pluginId}/{version}/Enable",
+      "Description": "Enables a disabled plugin.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "version",
+          "Argument": "version",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetConfigurationPages",
+      "OperationId": "GetConfigurationPages",
+      "Method": "GET",
+      "Path": "/web/ConfigurationPages",
+      "Description": "Gets the configuration pages.",
+      "Options": [
+        {
+          "Name": "enableInMainMenu",
+          "Field": "EnableInMainMenu",
+          "In": "Query",
+          "Description": "Whether to enable in the main menu.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ConfigurationPageInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetDashboardConfigurationPage",
+      "OperationId": "GetDashboardConfigurationPage",
+      "Method": "GET",
+      "Path": "/web/ConfigurationPage",
+      "Description": "Gets a dashboard configuration page.",
+      "Options": [
+        {
+          "Name": "name",
+          "Field": "Name",
+          "In": "Query",
+          "Description": "The name of the page.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/x-javascript",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPackageInfo",
+      "OperationId": "GetPackageInfo",
+      "Method": "GET",
+      "Path": "/Packages/{name}",
+      "Description": "Gets a package by name or assembly GUID.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "assemblyGuid",
+          "Field": "AssemblyGuid",
+          "In": "Query",
+          "Description": "The GUID of the associated assembly.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PackageInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPackages",
+      "OperationId": "GetPackages",
+      "Method": "GET",
+      "Path": "/Packages",
+      "Description": "Gets available packages.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "PackageInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPluginConfiguration",
+      "OperationId": "GetPluginConfiguration",
+      "Method": "GET",
+      "Path": "/Plugins/{pluginId}/Configuration",
+      "Description": "Gets plugin configuration.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BasePluginConfiguration"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPluginImage",
+      "OperationId": "GetPluginImage",
+      "Method": "GET",
+      "Path": "/Plugins/{pluginId}/{version}/Image",
+      "Description": "Gets a plugin's image.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "version",
+          "Argument": "version",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "image/*",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetPluginManifest",
+      "OperationId": "GetPluginManifest",
+      "Method": "POST",
+      "Path": "/Plugins/{pluginId}/Manifest",
+      "Description": "Gets a plugin's manifest.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "GetPlugins",
+      "OperationId": "GetPlugins",
+      "Method": "GET",
+      "Path": "/Plugins",
+      "Description": "Gets a list of currently installed plugins.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "PluginInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetRepositories",
+      "OperationId": "GetRepositories",
+      "Method": "GET",
+      "Path": "/Repositories",
+      "Description": "Gets all package repositories.",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RepositoryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "InstallPackage",
+      "OperationId": "InstallPackage",
+      "Method": "POST",
+      "Path": "/Packages/Installed/{name}",
+      "Description": "Installs a package.",
+      "PathParameters": [
+        {
+          "Name": "name",
+          "Argument": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "assemblyGuid",
+          "Field": "AssemblyGuid",
+          "In": "Query",
+          "Description": "GUID of the associated assembly.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "version",
+          "Field": "Version",
+          "In": "Query",
+          "Description": "Optional version. Defaults to latest version.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "repositoryUrl",
+          "Field": "RepositoryUrl",
+          "In": "Query",
+          "Description": "Optional. Specify the repository to install from.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "SetRepositories",
+      "OperationId": "SetRepositories",
+      "Method": "POST",
+      "Path": "/Repositories",
+      "Description": "Sets the enabled and existing package repositories.",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RepositoryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UninstallPlugin",
+      "OperationId": "UninstallPlugin",
+      "Method": "DELETE",
+      "Path": "/Plugins/{pluginId}",
+      "Description": "Uninstalls a plugin.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UninstallPluginByVersion",
+      "OperationId": "UninstallPluginByVersion",
+      "Method": "DELETE",
+      "Path": "/Plugins/{pluginId}/{version}",
+      "Description": "Uninstalls a plugin by version.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "version",
+          "Argument": "version",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdatePluginConfiguration",
+      "OperationId": "UpdatePluginConfiguration",
+      "Method": "POST",
+      "Path": "/Plugins/{pluginId}/Configuration",
+      "Description": "Updates plugin configuration.",
+      "PathParameters": [
+        {
+          "Name": "pluginId",
+          "Argument": "pluginId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "BasePluginConfiguration",
+      "SchemaName": "BasePluginConfiguration",
+      "Description": "Class BasePluginConfiguration."
+    },
+    {
+      "Name": "ConfigurationPageInfo",
+      "SchemaName": "ConfigurationPageInfo",
+      "Description": "The configuration page info.",
+      "Fields": [
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Description": "Gets or sets the display name.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EnableInMainMenu",
+          "JsonName": "EnableInMainMenu",
+          "Description": "Gets or sets a value indicating whether the configurations page is enabled in the main menu.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MenuIcon",
+          "JsonName": "MenuIcon",
+          "Description": "Gets or sets the menu icon.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MenuSection",
+          "JsonName": "MenuSection",
+          "Description": "Gets or sets the menu section.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PluginId",
+          "JsonName": "PluginId",
+          "Description": "Gets or sets the plugin id.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "PluginInfo",
+      "SchemaName": "PluginInfo",
+      "Description": "This is a serializable stub class that is used by the api to provide information about installed plugins.",
+      "Fields": [
+        {
+          "Name": "CanUninstall",
+          "JsonName": "CanUninstall",
+          "Description": "Gets or sets a value indicating whether the plugin can be uninstalled.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ConfigurationFileName",
+          "JsonName": "ConfigurationFileName",
+          "Description": "Gets or sets the name of the configuration file.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Description": "Gets or sets the description.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "HasImage",
+          "JsonName": "HasImage",
+          "Description": "Gets or sets a value indicating whether this plugin has a valid image.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the unique id.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Description": "Gets or sets the name.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Description": "Gets or sets a value indicating the status of the plugin.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PluginStatus"
+          }
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Description": "Gets or sets the version.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "PluginStatus",
+      "SchemaName": "PluginStatus",
+      "Description": "Plugin load status.",
+      "Values": [
+        {
+          "Name": "PluginStatusActive",
+          "Value": "Active"
+        },
+        {
+          "Name": "PluginStatusRestart",
+          "Value": "Restart"
+        },
+        {
+          "Name": "PluginStatusDeleted",
+          "Value": "Deleted"
+        },
+        {
+          "Name": "PluginStatusSuperseded",
+          "Value": "Superseded"
+        },
+        {
+          "Name": "PluginStatusSuperceded",
+          "Value": "Superceded"
+        },
+        {
+          "Name": "PluginStatusMalfunctioned",
+          "Value": "Malfunctioned"
+        },
+        {
+          "Name": "PluginStatusNotSupported",
+          "Value": "NotSupported"
+        },
+        {
+          "Name": "PluginStatusDisabled",
+          "Value": "Disabled"
+        }
+      ]
+    }
+  ]
+}

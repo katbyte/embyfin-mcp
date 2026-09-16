@@ -1,5 +1,5 @@
 ---
-name: Tests
+name: tests
 on:
   push:
     branches: [ 'main' ]
@@ -13,6 +13,10 @@ on:
       - 'makefile'
       - 'vendor/**'
       - '.github/workflows/**'
+      # internal/pandorest's tests re-import the specs and regenerate the SDKs,
+      # failing when api-definitions/, lib/emby or lib/jf are stale
+      - 'docs/*-openapi.json'
+      - 'api-definitions/**'
 
 permissions:
   contents: read

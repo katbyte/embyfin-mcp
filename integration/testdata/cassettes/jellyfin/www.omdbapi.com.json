@@ -1,0 +1,185 @@
+{
+  "host": "www.omdbapi.com",
+  "interactions": [
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt0078748\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt0078748\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=317",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G+EEAMTvTef/ajvn/tLmgQ1dq7RGalfMAAJbypfGIXXqJjg0Fi7dlv7lY2FYnEVd1IXTumz79ryAAvXMraEgIvacR15z1KvmuuAL505LgcFq6cSDcSM2wiAf9odgnFqVMQxOwTiVUmzK2laL9mpPwE1rr64SGOR5nyrnwdgWHwUGOyHGEJnOCvdry4HxVsc1MDh141I+6KwIqmBcRacSYbBhPR39tWa9D57pNHhbjulsVidpN1gtNMQEgzM3DXX08kFXYt8kMp2His4WEqNTZdoLM087dVQwjsugMFidqETyefetm1p1fkqWqo+kEl2oE0VG2KdyKbngKUyo9gsflp4cxXk5KsiGIsqSwoQsfVl9SCycLSm92kKKaCdK4jdX2l9iIktjsePyg0o3kUmIVQOMpQvBIMT7d8BYD7XX+AEDA2CZZKufqVVJYKwubRwnGFwFTzkdpcLGBuVDWjqf6E9qtciHyvmw8yX6ZQIAGMchqfjBTPU1mWazasSfkPnLVvYz+Mb9+F+NmqPL7tph63A22li0RtWm3m6cfB6tZ9mouukenM9mN5+rOtoYz2+3t+ZH27fz0Xw8v15sflwvtv4vtouVxtNl/nRy0O8+XVy3B9nT+mnGPW4PMu72Wk+N+esUjFOrzk8TzN0XzkIdC4HBrleJXpRG4c0JbVi1LzYJGJe2rAUGg0a3mWf44S+chToWAoPToCqezkNlNUgC49KWtcBg2P4DP/yFs1DHQmAwErVFdOoKMC5tiSwZDJt5luHngTFKKkIcAsFw1fiFLgUCiLj9MqgkGOSc9XLudTL48t0NGKhmWX/Q7wzAOP94FRhU4c0JGMqTGcmC8IfNVTmzWxmGLmGT63sqeXOyTCV2K0qaoSHdGJ0i53rwSXyqa+RFksgt+iJJ5AINmvMJXpweWJu6XC4b8YAnoyVZXEfVtKUT3wRj43KDKL8W3ner+4HA4PdBh1tZj/OsB8YDC7uqhCt5SU41x52KX4wCgcF5rAU/"
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt0083658\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt0083658\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=822",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G0UFAMT3TdXTFe93nOC1eMqcsrO6aQqN2UikS0LJnrjc+YPinrjttb046rk2dVEXrqkbswnaYxYHFon1towG42Bf85rVepXZ9d6w8FoJDLYqWwoVTQiSwLgTm2DQm037YBRWpYRBAUYhldh8BPZHdNQEQnxGE9TXAoNeb0K1D2DsS0gCg02nPgamnWRryzR3vrXnwRjj8SswKHxZyQvNXVQF4yZ5lQSDA1uvNQbas8GtJDHt2Edf0o0slxRS4gmZ6WLlK7+m4zbtePcAxqbTmDKLK6Tkcwy0F1PJVDR6L4kObCOJaS420F1swj0YF1VUGGzS0hxAYmkNqimbAVAqYSS+oJJqH6wKBax/iSTryjsbNNPTKlLWWAlZyiu/Jh8or62jTQmYP91Pw05SkkbatUlXpJH++lCSGwBkyveAmNpglK8LBnHgl2Oa9mE207YNGoNkYRqqojL9Fr6DaTPZpXdMxzGJDWBsxyZoeoGBd4m4uVqVzARK8V6gMjWMNWBsPtlUZhicxa8+s6S/MVGfzrOzKbepN6AnHzJ9pX6fAmKLjyHTLg34gHERczl6WKmus+l06nbIC31btravMbS7gH/0tHN6Pdo6v7kc3i226rPFpZ7u3D2fbne7Z/t7/04WD0/n+5d69lquzuq73tmr652+Xj3fPuy+3D7s/Xf7bqP9+7r3e3476Hbb/9b3YBRWfbjPMN/fMI9NcgKDw6CSgiidxkcvtGPVLm0WMK5t1QgMpu1ep9fFB1O+U0RVCbSItdUomcI9+4Lbw6modcmrd3yjh51et4uPn4xjZxdTVhQYvi6XhbokFIDBW66jSobBdDLmweQ5/XAHBqrd7nQwHk3BWLysBQZ1fPQChmopnYrptbPOJlw6rCtUWkJFp789yaOXp3x23EuSV9igZTKxGHA7hiwhN1fVqyxJt+pXWZIuYGZ2fSqvipN65Tw9PbVTGUHCRMl1K6buLCtbyu+mHNwBY+d6h5m2FZ9XxPsBgcHnQZ9nvSEPpzMwOkVUcpcbWWavBlQK8b0xRGCwSI3gAw=="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt0090605\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt0090605\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=785",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G0MFAMTvTWen67y/5TQBG7pOqdUQs6UJM4ASW2Ilmfoy/zcDh/bQbenSBRIWZ9F/US/cVLfwfEzwA7uXnR2Yn202FkREXxU9pluv5eweB4xNLAUKJ6URG8D4LtpDIR0OemBkOsoMChkYmZSiw+FPB3RblyR4aG2jqQQKabtPlbFgXIn1ukFFNM4yre6YYrp23jsPxgqP1UPhVlcS6ExX4p0FY+JNFObLmM712szoypTimSa6jOLp2pQlGCdFdD5AYWQWrvZWdjQRvRbPFBU/cWpkaZnOtPdG6FqsBeO5dBEK51LomQTaHCo2RsJ1QI4+uhC9qxwZW3yq/ZtMF2UpljKzKmVHJlAQG8nVkTIPc0djOlSV/Yt0EWlj4pI0RfFez52vjF1Q4UpndzStI82NnQVaig9SzmmqYywRQO4B0kstYitZXF6KJzefh5U3dtEAIxZyUKgZfyVMo5W2JizBOHO1jX4HhdBSmGinH0UdJYBxstF+FqAwcZZa9BQK7UODWgltjA30lVpdsq4y6fFSgf7GgAuMZxcc9sYyxlVQzWbVKG2h9khXeu9sY6r/rx6aD3n39Mfbze7x6nb5ff89PrZu0oddkjyN8+X95GL3sL+JP8b52+P5w/5pnL9/n+Tm2/vF7tv75f/iqjhu/M3Tvy/3/e7f12/tQfL3LEu4x+1Bwt1e62/jbbUAI9PR2EWA+nnAyNW+ECjc2CjeSqQHtzZC5zrqqQ4CRq7LWqAwaHSaaYIPPmDkal8IFDIXo1gau0pHJwGMXJe1QGHY/oIPPmDkal8IFB4k6sKbaAowcl1Kdgw6zTRJ8PGbZexQOM9yg2Gq2RQuBQAIeS53UQIUBu0ht3rpffzNORRiTJJh0ku6YIx3K4FC5dZGwIgo5Qdxh/bYPKHLN1WARBpmOvpUkrWRTThLL72EpTTUM3EqGp45G8SG+ip8DeKxFb8G8VggZjKe7Gt2H2vOZrNpeB/BxiQJ8dZVNdMkSXpp/0jPbMEmGOf5uTrt1G33w/sBgcLnQZfTXsKtzgCMVyJmGzCRaTCxC9VMMm+0CBTGvhZ8AA=="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt0119698\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt0119698\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=660",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "GzIFAMTvVbWqdt7f3augQGeickqUY4SokQkGQAcMRce2u+7KnbiZUIA0Ji4by8KytTFMuyzqor/HTemvef6gZY8LFB5U3zYbI6KgntPNy1m9ltrv+cKllZqhcRqsyzlGyrzzzlcMhTs2ARpJmq5C4dwIT6BxutdLFqFwzjWbyBNoJAt02NaUpOkqFM5bJ7ZhaCSLi9RYB4U9doGhseFsY8R6p2hjMmcnbWBFu8aJiR9QmPTx/dDYNx/GU2Y/zKepLBRughWm3mMjFx8iNO7+/ldayozEdmIU3bXBVp4OYmGX9f7+X3m6NM5UBgqntRdofGC+GJnTe3yoeMrbwFTYJnI9JT8lQ3kbIiv68K17o86EYH2gjVhYMZWhKG0zrjlSCKhDDOXeTWubC5m5N+7U3n5KB8E7uvSdS0sxWPfnKDL0ZkNNwdjIExp/UOfrOUdFEct22rqmKH5GRsh5KYDrZ4Hn7EReZuIiYQXrHfkpFRyo6Pf7ULAaARqTXBZAYcu3TsIH4SQobHQmTCI0kiXqrIv0D62Q8431jJeL9CMGDFA49XFcBhQis6gHg6af1cLInmnMp3f9p/w/mg2y6+XNUbnxebJ9bUd7O5KVm9WdHQ5HC1fLxzeH5ajckLuFq2G2d1jcX+50J5dXw9tq5+O22v0338vX+y/XycvF7eJw2C9nb1A4N2LdW4R++MKFb0PO0DhwwsGxUObnlmnbiBmbyFC4NnXL0FjrLw6SIX5Uy2fPvQg7uvSNEc+xRTld/IO9Z8Zi8mDF5v1OWV0bJMMhfp4UjxpzH0gmKNhmMj6HSwIAXN117YUjNJZWV9Xayirz/gfb0BAZJkm6kq5B4fJjxtBo/NwyFAQlnbHqhdFgo54+aEbXV1DR/qMVzy13ca3dDRwLblAzQV2MueVdZBfbrfIqcsBWfRU5YAGJ4XiKV+fHdqV1XdcPJySM4mhbXDOY3UDAS7P0JUnTdACF7ett5MKmfw9/9wUMjd9JolbSFbWytgqFNyB6mQ03PI5WVMmes6ONCQyNy9AyfgA="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt0139809\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt0139809\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=2686",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G04FAMQvW9qfrl2vZm6yDdnRKduGZ0K2VcEdo1hI+VJjPpnKxM3AoT1sLCqcU2RYl0Vd1L3Gb2+TdAA9ODwgvG1LekTB9izTy2T9MvfD+ocrK46hcdUwXTU2CrOXhg5dCBEK92wiNPKiKKBQGeEZNCooVOzYJJ5BY2WLSjNQXhQFFKrOi20ZGnmWUWs9FI7YR4ZGOSThOCi6rO3o0Cq6aqJ1jiMU9m3kWkKExmlI/EFVl7xZQOE2WuEIjX3jLTs6HNORcaEbWNFpSPxBVZe8WSiqzJId7bEX9mFUhVm0846/obBTS4gJGnvR2DntWo6LoGgnttZT2bFzHEeXYhqn6Ciy1A17KoODwl8XBBp7of3qhCOl2rIXm4T2Qzd3JtGxcY46v/Cht37uBpqzJLJ+GdySZ2Q9ScPUdnHGkcIHNTZRHZxjM+9Y0bHxPng67JzjqMhQHVpxz8zZ2y4p6ptANtHCOscz+uySkAfDiTRMoTQofk7cQ557N5BVMuTNjybvBSMy0OUPQkZs8HRmfMm0LY+hYFEDaESe/zko7IXOSxygcebEyKDIQcXll2KEExR2ehNnCRo5+dBan2t/asALhb8hyfq90Yh8JT2ZtOOwF3ZHpjXfwY+3gX+0nJQ367vTo/ts+jm15dGFTI8u+umQZfdt2Z9fNc1DeyHT74v8z+11/+fqYHX63XzeLQ6Gu8Xhf/VRvT1+vclfL+9Ws2z8+TWHQmXE+nmCfvyHy9DFmqFx4oWjZ6EyLC3TvhHzbhJD4ca4jqGxOc4meYYfNfK4CiLs6Sq0RsLk4RHTleI36osli6mjFVvzPVjdmORZhp9nRWOnOsSuDBRsO3uv4BIAADWfuQnCCRpbuVrfLGivP9mHhkiWrxZbWQGFq+GLodGGpWUoCEixZM1r08lOu3jSrnAjIZKbzyZeWu5TXjyMnBpqQDFtLE7cCz6xT12ZvU4csc1fJ45YgM5uPP3r6tys3L7vx/EFhQmcTOuZdpJnW8XGZj7KV6V5/XAhxAkU9m/2UWu74f+r8X6BofErz1WRb6iNjRwKuyMyxZVbfk9W1ChX7IQD+IQ6sWP8AA=="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt1160419\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt1160419\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=1800",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G1UFAMQvVf2qduddqPAlUsqoHKOC46U1tN+ETQI6YGnnsrimvpFTwaHn4dNv1fPogBQPPSs1pab46cTrX2QDWwa0DEwHKrO5pvNZT2B4CdnLAd39iYXXWmCx0waxdMFJ6TwIDG6FEyx6Ra+EwYxVVrC42P9R9mEwk1o4k7W9Hp07JeFPaIP6RmBRDofU+ACDfQlJYLHp1Mdg6KTHiKGdxA3D4LDHV4XFjgSf6crXtQRpXwQG18mrJFgcxUDzNftKs6H2txraTd7RLGoFg02nMWVYLHwTtfr/P6HtimtuRA3N5EGcY9qT9NjmGAzdSVjxO8Pgoo4Kiwtua9rUJH4lmTgl/yKZYqDNlPjZZ+KfKokqn+knayWJ2DlZayathLLKK6dVrvya8qFFbFRN65qDaIeCGfa6imMmCbmVrPshpgfRxO9cE1fMH+EkZ5cQq0hjqfdLKdbUSM3hUQwxZe86G9tMSXJsk5MODLwkBItq8m2GTjmsOBnnDbZjGzS9w2KbA6/YUPSJlrmySobB5pNsAovrGGhE59lxyh0qxxN69SHT79SbTinExsfM82X6RQMKGFzEbLcnKtV1tt1u06l3ofIHN/wRQ2f//61Ou6dXw62z68P3s2Y5PN2/1budu+bMF8Xd0+bryfVRffv0qHcLV9ztH76d7uwO7vZvX2+ed99vnvf+dftuo/P3Vfn35cl4+Pfydjjq/b09K01h+pPCDEe9vztP60cYzFh9eMyw95+YxzY5gcVhUElBlE7jixfaYeUHzgKDK65bgcWkU3TLAt/mE/PYJiewmEVVCbSIDWuUDIMrrluBxaT/G77NJ+axTU5gcSrKLnn1DgZXXEu2jAfdsijw/aeRkbKLiaWEgW9WD3AJAIDI01dRJcOiNEV/YsrxlLf+cAcWqmU5KgblFAaL97XAookvXmCgOKlTeYnYs+4mnTpsvMPRkcmdVyl58fKaxXP3kuRKBbA2bqPmdgxZQm6VZC6zJGzZyywJC8D0xhNczk68TX59fe2kG5QgJXucuumu2iB/72rsztXO3OxWfEuQ9xUCi1/LYmIm07GZ9AsYfCQRpAXX8pC9rh4zk1gcDQKLRWoF3w=="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt15239678\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt15239678\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=2859",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G7wFAMRKValqb/ZDBaWEyikpOOT50ZzIswmbBPTAUXIsi2/qn7gcOPyYK0v/orFAwuKx6C/qwk0P3MIFPIDKxhQMwDO3RgRR1HO7dNg1X7Lppr9x47QUWBzUXiwtOCrdbAMMHoUjLLrtbh8GV6ySw2Jx3Oj0YHAlpXASp7Y7NOVI4G+ovbpKYNEZDqlyHgbH4qPAYjdTF7yhkR4zDB1ErhgGgz0eERYH4l2iO1eW4qXeCAzuo1PR/2xDZ8HT9ZpdocnQUWT/TicSVxIVBruZhphgceOqoMX//wntF1xyJWroSXzOn2zoSlaSZUxHEl/rFDwMFmVQWCy4LmlXo7hcEtXeqSTaOi1mBxl1FKUST/m+Xjp4YtpyXLMWFF4oykb8q3B63iz4tHaRNcRE2yJQLklj+JScCpcoYsCsJh1x5vwrMUUKLPhb2suwEfJuNDkF44X1vIYWQrV3G4lJDBVC4nPhTYiJliAgRzbilZjSSZ26KoVe6mazCQNCVcFi4vmngcF+qL3GT1iEpYi9VlZJhvbZc86GjvTdyCs6rFxEICEKDvw0dKpcfhpi6H4NnYWYszd0zNXKMQx2txzzBIv74KlL85RxTE3qdAe0dT7R39QbDcmHysXlK0u0DAQhGCxC4sYRheo62Varas6poW+DK/4KvtnH/FfT1vRusDe7ydqP1eXH9O1Q5weng+l+uz17O3IXN+X79P5W58eXg9nbUfV4f/v5dHxWPLwffj68H/2bHWc7zeVdZ3l5MRosbx964/Zy/6pt2qY3bpvBsLtsvq1fYXDF6vxrgn3+xnWoYyawOPUq0YvSNGyc0AErrzgJDO64rAUW42a/1Wnj13zjOtQxE1hcBVXxdBMq1iAJBndc1gKLSfcv/JpvXIc6ZgKLqShn0anLYHDHJXLEaNLqtNv4/cdgEikLURWGgavylbkEDIDEcXdBJcFi1OubSbt7reH0ABaqnUG3NxmOxjC4+VwLLKqwcQIDNVOcyvdwZq1duXhasapgQ+ouvHuSjZNtgnc9ipKKIoCmKbYPuB98Ep/qQmreJom21b5NEm0BlKXtqby9uiBbcrvdNuMDIgRJhBtdtfLay3LNUZfqSp2Du4NqnL3wkYfvOQQWf3bHXdPp901vMIZBX4y8EXEvq+S0BeUrCfkxRGBxE2vBLw=="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026i=tt2543164\u0026plot=short\u0026r=json\u0026tomatoes=true",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026i=tt2543164\u0026plot=short\u0026tomatoes=true\u0026r=json",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=2524",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G0wFAGSzlfX6qjSz+3IfJLd/Oc5DDWpwBewuSUDIVKZugnmi/1/ni8a0cPkQ6dIs6qIunBbQxLGAC6wLKIxMs3m9jM23kpPMh9Fq//A2WM3ocUskdFSjwycmQY9L02wNHV6TcYEeLw9G2TI6vOaaScnWLIPz1IGwro0WGuaNtwZNiOjwgKMwetwVasjB2aDGMji4ycNoP6DDOx5/C/S4yzEo3Ie65shtx+jwQYKxoMc9CTkcclBlYXFwywXsVIFiiQ63ckui6HGrGWCroEYdHLNwM8A1x8jiYD8Jq8FDFYy+WNDhZZ0MPZ6GWLZBDU5TG5Rhm+KXQs1UKBAYUwNpDiF2rBZKsiQKfcURylBStJCDLihnrcJCwVKbV1CkPgJJamMBVjH0SepiDFsKkSykqGDMxgIpglUMHUvJkOZQ1mlGNfQkDrYpfilQLKBigVy4h6ZVg3mIBRD0NIAlyFPTtDHkZAx9sAqsYuBvEzIWYTUJVEMXxuMxOjylWLZUMnqMLL/SwRnFgiREB5d7noEOd1IbTQb0uEORCnLwJMUBN0bGig63epJC0eNDipDBheYkY1jPoA9R4X9YWtuAmJoQB00m8y72MumcXqjMFuonk2YcAkPiiBr6SXG8JXz6bHJ2v7p9drv3ffZzN73Yzb/Pdyu+uj3mq4dF/5ytbs8e7lbOdveyi9ujlbOfrWH8cZ993DwuT6ehLQLvfXCIpaJ/+Yc3qZWc0eM5hBeepS4w7JLRjJTR4T3VLaPH9fHmJJvir2uZf53MOMJtasiSGfAWPpsr/5WTZ2yUS7CQ683ZyCbZdIq/b05G1TwJy4gOQ1PM4EIAiFx3n4wVPW6sLrnp6rpw86Nd9Gi2tLqynK2toMPbYcHosUldYHRoKKkzXjrC+WSLjnXUUMlE1/Yai7vAvabQfWGtpIFlnFSk3ElROWqbA++UBVvwnbJgAUx3PN6761M/0vq+H8scwc5IVl8a0kzUkgwfaf4xpFY+6jDnCTrcvd9VKWyn73/x3sHo8W82nbrVlTWXLW+iw72RABDxwDMNZkfmmp/gyGD0eCst4y8="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026plot=full\u0026r=json\u0026s=Blade+Runner\u0026type=movie\u0026y=1982",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026plot=full\u0026r=json\u0026y=1982\u0026s=Blade+Runner\u0026type=movie",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G5AEAOR/c8PTte+fJh1N0/oJs6RIoIQpkgepD4LYugPFgxz45t8+PxyCBFv6LQhTCqMWBi2ITIL/s/0iNMUeRLs5esEmxmcU/nwBkyoTEEIz2+yFNrsUhTiBDlxsThCCGfgYdJD5fjtoQwhKIeRbruODDuxRCQghL69SgA6T8qzECUI4KlWdQ8PIa7nYy82PTb55lkVtV+aGzDcHcTaIQZZOM4qnNmfNnLKpIm1+Jy2EaK+bjFl6i3pTRZ/7I825SZ87kzwX91XaeazS7v9db1ev/V2af+crC6FaUh3go7+AwYytxUephNY+bQ5lobUuis69Fdiu61mOXZ7Y65jKqMcVwdyM5ghxNpRjlpocE0UYuUdsKdftxjOKO442PB17zt/FyvLR39YM6bZu+Uh3XPy3hqxD7f7Hjgsly0KbCZEprWMGyAvsYsZSoxFOR8W1lPa5SGxeDkauY+NIlU4lz+VeaHYwSAwTvUvWvpiBj79qpLxKoc3EVYpb47rG2HRd7Nj23Nd5B9MntzkbqHV7lnKJEGdHOWYHJ4oXivaopMnsyOP1keDFTUgoh4LtosCxTXw6T8id4s6NJESRnDj8gRBJ0sc4HiYUdxTpzeQ672ZRPEzps6MJ92K6Wj4IWzwIWzxpMkWjGfzW4fMOmjNxvmTqDCG4oMNMPGNREBACO10EfAA="
+    },
+    {
+      "key": "GET www.omdbapi.com/?apikey=2c9d9507\u0026plot=full\u0026r=json\u0026s=Severance\u0026type=series\u0026y=2022",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "apikey=2c9d9507\u0026plot=full\u0026r=json\u0026y=2022\u0026s=Severance\u0026type=series",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "G3YBAMT/XDNlO09niaIKTH9LlBIIf0K4c4wDpE0H4vl804VHGDbG1nA0E4pPNDFKeOeJ6kKsCRwVutBxtJ0QGFo0OoJDV3X9//cHhsVmOk5FwSGEpumu6pgqGKr3PYFDCT8CQ3F3EnQEx1yI/YkrykYeOyCl0Wb02G3l8P87p+TqVrgdTVmtR3peiJZE7lG65++q2mrkN9lG6pZb1kQ+Gl7mlyGr1Sgvc4/YrbmK3Zur+GGSmATlQV0blLKONag1DVcdRMoqM5nhqsyy9YG83M/wZk9UF2JN4CgedxM6nRbbWaBCFzrSAp5ueLrIKyG8ewwXBcQync5rcQKHDoYyyfoNgaN6PBPe"
+    }
+  ]
+}

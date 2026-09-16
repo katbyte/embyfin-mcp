@@ -1,0 +1,165 @@
+{
+  "Name": "MediaSegment",
+  "Tag": "MediaSegment",
+  "Operations": [
+    {
+      "Name": "GetItemSegments",
+      "OperationId": "GetItemSegments",
+      "Method": "GET",
+      "Path": "/MediaSegments/{itemId}",
+      "Description": "Gets all media segments based on an itemId.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "includeSegmentTypes",
+          "Field": "IncludeSegmentTypes",
+          "In": "Query",
+          "Description": "Optional filter of requested segment types.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaSegmentType"
+            }
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MediaSegmentDtoQueryResult"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "MediaSegmentDto",
+      "SchemaName": "MediaSegmentDto",
+      "Description": "Api model for MediaSegment's.",
+      "Fields": [
+        {
+          "Name": "EndTicks",
+          "JsonName": "EndTicks",
+          "Description": "Gets or sets the end of the segment.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the id of the media segment.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Description": "Gets or sets the id of the associated item.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartTicks",
+          "JsonName": "StartTicks",
+          "Description": "Gets or sets the start of the segment.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Description": "Defines the types of content an individual Jellyfin.Database.Implementations.Entities.MediaSegment represents.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaSegmentType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MediaSegmentDtoQueryResult",
+      "SchemaName": "MediaSegmentDtoQueryResult",
+      "Description": "Query result container.",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Description": "Gets or sets the items.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaSegmentDto"
+            }
+          }
+        },
+        {
+          "Name": "StartIndex",
+          "JsonName": "StartIndex",
+          "Description": "Gets or sets the index of the first record in Items.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Description": "Gets or sets the total number of records available.",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "MediaSegmentType",
+      "SchemaName": "MediaSegmentType",
+      "Description": "Defines the types of content an individual Jellyfin.Database.Implementations.Entities.MediaSegment represents.",
+      "Values": [
+        {
+          "Name": "MediaSegmentTypeUnknown",
+          "Value": "Unknown"
+        },
+        {
+          "Name": "MediaSegmentTypeCommercial",
+          "Value": "Commercial"
+        },
+        {
+          "Name": "MediaSegmentTypePreview",
+          "Value": "Preview"
+        },
+        {
+          "Name": "MediaSegmentTypeRecap",
+          "Value": "Recap"
+        },
+        {
+          "Name": "MediaSegmentTypeOutro",
+          "Value": "Outro"
+        },
+        {
+          "Name": "MediaSegmentTypeIntro",
+          "Value": "Intro"
+        }
+      ]
+    }
+  ]
+}

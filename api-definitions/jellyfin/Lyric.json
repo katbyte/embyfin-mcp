@@ -1,0 +1,419 @@
+{
+  "Name": "Lyric",
+  "Tag": "Lyric",
+  "Operations": [
+    {
+      "Name": "DeleteLyrics",
+      "OperationId": "DeleteLyrics",
+      "Method": "DELETE",
+      "Path": "/Audio/{itemId}/Lyrics",
+      "Description": "Deletes an external lyric file.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "DownloadRemoteLyrics",
+      "OperationId": "DownloadRemoteLyrics",
+      "Method": "POST",
+      "Path": "/Audio/{itemId}/RemoteSearch/Lyrics/{lyricId}",
+      "Description": "Downloads a remote lyric.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "lyricId",
+          "Argument": "lyricId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LyricDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetLyrics",
+      "OperationId": "GetLyrics",
+      "Method": "GET",
+      "Path": "/Audio/{itemId}/Lyrics",
+      "Description": "Gets an item's lyrics.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LyricDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GetRemoteLyrics",
+      "OperationId": "GetRemoteLyrics",
+      "Method": "GET",
+      "Path": "/Providers/Lyrics/{lyricId}",
+      "Description": "Gets the remote lyrics.",
+      "PathParameters": [
+        {
+          "Name": "lyricId",
+          "Argument": "lyricId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LyricDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchRemoteLyrics",
+      "OperationId": "SearchRemoteLyrics",
+      "Method": "GET",
+      "Path": "/Audio/{itemId}/RemoteSearch/Lyrics",
+      "Description": "Search remote lyrics.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteLyricInfoDto"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UploadLyrics",
+      "OperationId": "UploadLyrics",
+      "Method": "POST",
+      "Path": "/Audio/{itemId}/Lyrics",
+      "Description": "Upload an external lyric file.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "fileName",
+          "Field": "FileName",
+          "In": "Query",
+          "Description": "Name of the file being uploaded.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "text/plain",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "LyricDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "LyricDto",
+      "SchemaName": "LyricDto",
+      "Description": "LyricResponse model.",
+      "Fields": [
+        {
+          "Name": "Lyrics",
+          "JsonName": "Lyrics",
+          "Description": "Gets or sets a collection of individual lyric lines.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "LyricLine"
+            }
+          }
+        },
+        {
+          "Name": "Metadata",
+          "JsonName": "Metadata",
+          "Description": "Gets or sets Metadata for the lyrics.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LyricMetadata"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LyricLine",
+      "SchemaName": "LyricLine",
+      "Description": "Lyric model.",
+      "Fields": [
+        {
+          "Name": "Cues",
+          "JsonName": "Cues",
+          "Description": "Gets the time-aligned cues for the song's lyrics.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "LyricLineCue"
+            }
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Start",
+          "JsonName": "Start",
+          "Description": "Gets the start time in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Text",
+          "JsonName": "Text",
+          "Description": "Gets the text of this lyric line.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LyricLineCue",
+      "SchemaName": "LyricLineCue",
+      "Description": "LyricLineCue model, holds information about the timing of words within a LyricLine.",
+      "Fields": [
+        {
+          "Name": "End",
+          "JsonName": "End",
+          "Description": "Gets the end timestamp the lyric is synced to in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EndPosition",
+          "JsonName": "EndPosition",
+          "Description": "Gets the end character index of the cue.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Position",
+          "JsonName": "Position",
+          "Description": "Gets the start character index of the cue.",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Start",
+          "JsonName": "Start",
+          "Description": "Gets the timestamp the lyric is synced to in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LyricMetadata",
+      "SchemaName": "LyricMetadata",
+      "Description": "LyricMetadata model.",
+      "Fields": [
+        {
+          "Name": "Album",
+          "JsonName": "Album",
+          "Description": "Gets or sets the album this song is on.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Artist",
+          "JsonName": "Artist",
+          "Description": "Gets or sets the song artist.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Author",
+          "JsonName": "Author",
+          "Description": "Gets or sets the author of the lyric data.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "By",
+          "JsonName": "By",
+          "Description": "Gets or sets who the LRC file was created by.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Creator",
+          "JsonName": "Creator",
+          "Description": "Gets or sets the software used to create the LRC file.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsSynced",
+          "JsonName": "IsSynced",
+          "Description": "Gets or sets a value indicating whether this lyric is synced.",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Length",
+          "JsonName": "Length",
+          "Description": "Gets or sets the length of the song in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Offset",
+          "JsonName": "Offset",
+          "Description": "Gets or sets the lyric offset compared to audio in ticks.",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Title",
+          "JsonName": "Title",
+          "Description": "Gets or sets the title of the song.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Version",
+          "JsonName": "Version",
+          "Description": "Gets or sets the version of the creator used.",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "RemoteLyricInfoDto",
+      "SchemaName": "RemoteLyricInfoDto",
+      "Description": "The remote lyric info dto.",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Description": "Gets or sets the id for the lyric.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Lyrics",
+          "JsonName": "Lyrics",
+          "Description": "Gets the lyrics.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LyricDto"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "ProviderName",
+          "Description": "Gets the provider name.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

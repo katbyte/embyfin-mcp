@@ -1,0 +1,72 @@
+{
+  "Name": "HlsSegment",
+  "Tag": "HlsSegmentService",
+  "Operations": [
+    {
+      "Name": "DeleteVideosActiveEncodings",
+      "OperationId": "deleteVideosActiveencodings",
+      "Method": "DELETE",
+      "Path": "/Videos/ActiveEncodings",
+      "Description": "Requires authentication as user",
+      "Options": [
+        {
+          "Name": "DeviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "The device id of the client requesting. Used to stop encoding processes when needed.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Description": "The play session id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostVideosActiveEncodingsDelete",
+      "OperationId": "postVideosActiveencodingsDelete",
+      "Method": "POST",
+      "Path": "/Videos/ActiveEncodings/Delete",
+      "Description": "Requires authentication as user",
+      "Options": [
+        {
+          "Name": "DeviceId",
+          "Field": "DeviceId",
+          "In": "Query",
+          "Description": "The device id of the client requesting. Used to stop encoding processes when needed.",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaySessionId",
+          "Field": "PlaySessionId",
+          "In": "Query",
+          "Description": "The play session id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ]
+}

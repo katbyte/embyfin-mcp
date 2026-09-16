@@ -2,7 +2,9 @@ package embyfin
 
 import (
 	"context"
-	"net/url"
+
+	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
 
 type RemoteSubtitle struct {
@@ -19,10 +21,26 @@ type RemoteSubtitle struct {
 // SearchSubtitles lists remote subtitle candidates for an item in the given
 // language (three-letter code, e.g. eng).
 func (c *Client) SearchSubtitles(ctx context.Context, itemID, language string) ([]RemoteSubtitle, error) {
-	var subs []RemoteSubtitle
-	path := "/Items/" + url.PathEscape(itemID) + "/RemoteSearch/Subtitles/" + url.PathEscape(language)
-	if err := c.get(ctx, path, nil, &subs); err != nil {
+	if c.isEmby() {
+		res, err := c.emby.GetItemsByIdRemoteSearchSubtitlesByLanguage(ctx, itemID, language, emby.GetItemsByIdRemoteSearchSubtitlesByLanguageOperationOptions{})
+		if err != nil {
+			return nil, err
+		}
+		subs := make([]RemoteSubtitle, 0, len(res.Model))
+		for i := range res.Model {
+			subs = append(subs, remoteSubtitleFromEmby(&res.Model[i]))
+		}
+
+		return subs, nil
+	}
+
+	res, err := c.jf.SearchRemoteSubtitles(ctx, itemID, language, jf.SearchRemoteSubtitlesOperationOptions{})
+	if err != nil {
 		return nil, err
+	}
+	subs := make([]RemoteSubtitle, 0, len(res.Model))
+	for i := range res.Model {
+		subs = append(subs, remoteSubtitleFromJF(&res.Model[i]))
 	}
 
 	return subs, nil
@@ -30,6 +48,12 @@ func (c *Client) SearchSubtitles(ctx context.Context, itemID, language string) (
 
 // DownloadSubtitle downloads a chosen remote subtitle to sit beside the item.
 func (c *Client) DownloadSubtitle(ctx context.Context, itemID, subtitleID string) error {
-	path := "/Items/" + url.PathEscape(itemID) + "/RemoteSearch/Subtitles/" + url.PathEscape(subtitleID)
-	return c.post(ctx, path, nil, nil, nil)
+	if c.isEmby() {
+		_, err := c.emby.PostItemsByIdRemoteSearchSubtitlesBySubtitleId(ctx, itemID, subtitleID, emby.PostItemsByIdRemoteSearchSubtitlesBySubtitleIdOperationOptions{})
+		return err
+	}
+
+	_, err := c.jf.DownloadRemoteSubtitles(ctx, itemID, subtitleID)
+
+	return err
 }

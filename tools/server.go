@@ -5,18 +5,18 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func registerServerTools(server *mcp.Server, client *embyfin.Client) {
+func registerServerTools(r *registry) {
+	client := r.client
 	type serverInfoOut struct {
 		Backend         string `json:"backend"`
 		ServerName      string `json:"server_name"`
 		Version         string `json:"version"`
 		OperatingSystem string `json:"operating_system"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "server_info",
 		Description: "Check connectivity to the media server and return its name and version.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, serverInfoOut, error) {
@@ -43,7 +43,7 @@ func registerServerTools(server *mcp.Server, client *embyfin.Client) {
 		ActiveSessions int `json:"active_sessions"`
 		Users          int `json:"users"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "server_stats",
 		Description: "Global library counts (movies, series, episodes, music), user count, and active playback session count.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, serverStatsOut, error) {
@@ -94,7 +94,7 @@ func registerServerTools(server *mcp.Server, client *embyfin.Client) {
 		TotalInTimeframe int             `json:"total_in_timeframe"`
 		Entries          []activityEntry `json:"entries"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "server_activity",
 		Description: "Recent server activity log: logins, playback, library changes, errors. Newest first, default last 60 days.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in activityIn) (*mcp.CallToolResult, activityOut, error) {
@@ -134,7 +134,7 @@ func registerServerTools(server *mcp.Server, client *embyfin.Client) {
 	type devicesOut struct {
 		Devices []deviceOut `json:"devices"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "server_devices",
 		Description: "Devices and apps that have connected to the server, with last user and last-seen time.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, devicesOut, error) {
@@ -164,7 +164,7 @@ func registerServerTools(server *mcp.Server, client *embyfin.Client) {
 	type logsOut struct {
 		Files []logFileRow `json:"files"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "server_logs",
 		Description: "List the server's log files with size and modification time.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, logsOut, error) {
@@ -189,7 +189,7 @@ func registerServerTools(server *mcp.Server, client *embyfin.Client) {
 		Name string `json:"name"`
 		Tail string `json:"tail"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "server_log",
 		Description: "Fetch the tail of a server log file — by default the most recent/active one.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in logIn) (*mcp.CallToolResult, logOut, error) {
@@ -239,7 +239,7 @@ func registerServerTools(server *mcp.Server, client *embyfin.Client) {
 	type tasksOut struct {
 		Tasks []taskOut `json:"tasks"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "task_list",
 		Description: "List the server's scheduled tasks (library scan, metadata refresh, backups...) with state and last result.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, tasksOut, error) {
@@ -267,7 +267,7 @@ func registerServerTools(server *mcp.Server, client *embyfin.Client) {
 	type taskRunOut struct {
 		Started string `json:"started"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "task_run",
 		Description: "Start a scheduled task by name. Changes server state: the task runs immediately.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in taskRunIn) (*mcp.CallToolResult, taskRunOut, error) {

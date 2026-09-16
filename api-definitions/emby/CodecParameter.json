@@ -1,0 +1,103 @@
+{
+  "Name": "CodecParameter",
+  "Tag": "CodecParameterService",
+  "Operations": [
+    {
+      "Name": "GetEncodingCodecParameters",
+      "OperationId": "getEncodingCodecparameters",
+      "Method": "GET",
+      "Path": "/Encoding/CodecParameters",
+      "Description": "Gets the parameters for a specified codec.",
+      "Options": [
+        {
+          "Name": "CodecId",
+          "Field": "CodecId",
+          "In": "Query",
+          "Description": "Codec Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParameterContext",
+          "Field": "ParameterContext",
+          "In": "Query",
+          "Description": "Parameter Context",
+          "Required": true,
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaEncodingCodecParameterContext"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "EditObjectContainer"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostEncodingCodecParameters",
+      "OperationId": "postEncodingCodecparameters",
+      "Method": "POST",
+      "Path": "/Encoding/CodecParameters",
+      "Description": "Updates the parameters for a specified codec.",
+      "Options": [
+        {
+          "Name": "CodecId",
+          "Field": "CodecId",
+          "In": "Query",
+          "Description": "Codec Id",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParameterContext",
+          "Field": "ParameterContext",
+          "In": "Query",
+          "Description": "Parameter Context",
+          "Required": true,
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaEncodingCodecParameterContext"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/octet-stream",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "MediaEncodingCodecParameterContext",
+      "SchemaName": "MediaEncoding.CodecParameterContext",
+      "Values": [
+        {
+          "Name": "MediaEncodingCodecParameterContextPlayback",
+          "Value": "Playback"
+        },
+        {
+          "Name": "MediaEncodingCodecParameterContextConversion",
+          "Value": "Conversion"
+        }
+      ]
+    }
+  ]
+}

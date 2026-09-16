@@ -79,6 +79,16 @@ linters:
       - path: 'cli/(flags|cmds)\.go'
         linters:
           - goconst
+      # tool names, item types, query keys and fixture titles repeat the same short words by
+      # design in the tools, the clients and the suites; constants would only add indirection
+      - path: '(tools|lib/embyfin|lib/emby|lib/jf|lib/providerproxy|acceptance|integration)/.*\.go'
+        linters:
+          - goconst
+      # media types, type names and HTTP methods are the generator's vocabulary, and the base
+      # client's tests spell out the requests they expect
+      - path: '(internal/pandorest|lib/client)/.*\.go'
+        linters:
+          - goconst
       # the idiomatic `if err := f(); err != nil` scoping shadows err on purpose; still flag other variables
       # and err shadows outside the if-statement form (source scopes the rule to the if idiom only)
       - text: 'shadow: declaration of "err"'
@@ -131,7 +141,9 @@ linters:
     nakedret:
       max-func-lines: 30
     misspell:
-      locale: "UK"
+      # no locale: this codebase is Canadian English, which takes -ize like the
+      # US but -our/-re like the UK, and misspell has no locale that matches.
+      # Without one it still catches genuine typos, just not regional variants.
       ignore-rules:
         - "color"
         - "organization"

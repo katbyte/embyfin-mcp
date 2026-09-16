@@ -1,19 +1,35 @@
-// Package embyfin is a minimal client for the MediaBrowser HTTP API family
-// spoken by both Emby and Jellyfin. Backend differences are kept inside this
-// package so everything above it stays backend-agnostic.
+// Package embyfin is the backend-neutral client the tools use: one Client
+// that speaks to either Emby or Jellyfin and hides the differences between
+// them, so everything above it stays backend-agnostic.
+//
+// The layer is thin. It holds one of the two typed clients generated from
+// the servers' OpenAPI documents, lib/emby or lib/jf (chosen by Backend in
+// New), and every method branches per backend: it calls the typed operation
+// with typed parameters and bodies, then converts the typed DTOs into the
+// neutral types (Item, VirtualFolder, User, Session, ...) with one explicit
+// field-mapping function per DTO per backend (emby.go, jf.go). Every
+// difference between the servers lives here, next to a comment saying which
+// server it is for; docs/README.md lists them under "Conventions worth
+// knowing".
+//
+// The typed clients are generated (make generate) and must not be edited by
+// hand. Where a document is wrong about its server's shape (a parameter it
+// leaves out, a field it lacks) the fix is a workaround in
+// internal/pandorest's importer, so the generated clients carry it; what
+// stays here is behaviour no document can express, next to a comment saying
+// which server it is for and the live test that found it.
 package embyfin
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
 
 type Backend string
@@ -23,11 +39,19 @@ const (
 	Jellyfin Backend = "jellyfin"
 )
 
+// Client talks to one media server through the typed client for its backend;
+// exactly one of emby and jf is set.
 type Client struct {
 	backend Backend
 	baseURL string
-	token   string
-	http    *http.Client
+	emby    *emby.Client
+	jf      *jf.Client
+	// settle is how long to wait between checks that a change the server
+	// applies in the background has landed
+	settle time.Duration
+	// items serialises this process's changes to one item (an item's
+	// metadata, a playlist's entries): see keyedLocks
+	items keyedLocks
 }
 
 func New(backend Backend, baseURL, token string) (*Client, error) {
@@ -43,103 +67,79 @@ func New(backend Backend, baseURL, token string) (*Client, error) {
 		return nil, errors.New("API token is required (--token / EMBYFIN_TOKEN)")
 	}
 
-	return &Client{
-		backend: backend,
-		baseURL: strings.TrimRight(baseURL, "/"),
-		token:   token,
-		http:    &http.Client{Timeout: 60 * time.Second},
-	}, nil
+	c := &Client{backend: backend, baseURL: strings.TrimRight(baseURL, "/"), settle: 250 * time.Millisecond}
+	var err error
+	if backend == Emby {
+		c.emby, err = emby.New(baseURL, token)
+	} else {
+		c.jf, err = jf.New(baseURL, token)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 func (c *Client) Backend() Backend { return c.backend }
 
-// do performs a request against the media server. body (when non-nil) is sent
-// as JSON; out (when non-nil) receives the decoded JSON response.
-func (c *Client) do(ctx context.Context, method, path string, query url.Values, body, out any) error {
-	raw, err := c.doRaw(ctx, method, path, query, body)
-	if err != nil {
-		return err
-	}
+// BaseURL is the server address the client was created with, without a
+// trailing slash.
+func (c *Client) BaseURL() string { return c.baseURL }
 
-	if out == nil || len(raw) == 0 {
+// isEmby reports whether the client talks to Emby; the other branch of every
+// method is Jellyfin.
+func (c *Client) isEmby() bool { return c.backend == Emby }
+
+// list splits a comma-separated option into the typed slice a Jellyfin
+// parameter takes (the typed client joins it back with commas on the wire).
+func list[T ~string](s string) []T {
+	if s == "" {
 		return nil
 	}
-
-	return json.Unmarshal(raw, out)
-}
-
-func (c *Client) doRaw(ctx context.Context, method, path string, query url.Values, body any) ([]byte, error) {
-	u := c.baseURL + path
-	if len(query) > 0 {
-		u += "?" + query.Encode()
-	}
-
-	var reqBody io.Reader = http.NoBody
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
+	parts := strings.Split(s, ",")
+	out := make([]T, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, T(p))
 		}
-		reqBody = bytes.NewReader(b)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, u, reqBody)
+	return out
+}
+
+// intList is list for numeric options such as years.
+func intList(s string) ([]int, error) {
+	parts := list[string](s)
+	out := make([]int, 0, len(parts))
+	for _, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, fmt.Errorf("%q is not a number: %w", p, err)
+		}
+		out = append(out, n)
+	}
+
+	return out, nil
+}
+
+// embyID parses an Emby item id for the few Emby parameters the document
+// types as integers (Emby ids are numeric strings everywhere else).
+func embyID(id string) (int64, error) {
+	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		return nil, err
+		return 0, fmt.Errorf("item id %q is not an Emby id: %w", id, err)
 	}
 
-	// Emby's canonical header; Jellyfin accepts it too, but prefers the
-	// MediaBrowser Authorization scheme, so send both.
-	req.Header.Set("X-Emby-Token", c.token)
-	req.Header.Set("Authorization", fmt.Sprintf(`MediaBrowser Token=%q, Client="embyfin-mcp"`, c.token))
-	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("%s %s: HTTP %d: %s", method, path, resp.StatusCode, truncate(string(raw), 300))
-	}
-
-	return raw, nil
+	return n, nil
 }
 
-func (c *Client) get(ctx context.Context, path string, query url.Values, out any) error {
-	return c.do(ctx, http.MethodGet, path, query, nil, out)
-}
-
-func (c *Client) post(ctx context.Context, path string, query url.Values, body, out any) error {
-	return c.do(ctx, http.MethodPost, path, query, body, out)
-}
-
-func (c *Client) del(ctx context.Context, path string, query url.Values) error {
-	return c.do(ctx, http.MethodDelete, path, query, nil, nil)
-}
-
-// getText fetches a plain-text resource (e.g. a log file).
-func (c *Client) getText(ctx context.Context, path string, query url.Values) (string, error) {
-	raw, err := c.doRaw(ctx, http.MethodGet, path, query, nil)
-	if err != nil {
-		return "", err
+// pause waits one settle interval, or until the context ends.
+func (c *Client) pause(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(c.settle):
+		return nil
 	}
-
-	return string(raw), nil
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "..."
 }

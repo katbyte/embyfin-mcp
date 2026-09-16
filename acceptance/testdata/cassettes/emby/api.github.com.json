@@ -1,0 +1,40 @@
+{
+  "host": "api.github.com",
+  "interactions": [
+    {
+      "key": "GET api.github.com/repos/MediaBrowser/Emby.Releases/releases",
+      "method": "GET",
+      "host": "api.github.com",
+      "path": "/repos/MediaBrowser/Emby.Releases/releases",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Expose-Headers": "ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset, Warning",
+        "Cache-Control": "public, max-age=60, s-maxage=60",
+        "Content-Security-Policy": "default-src 'none'",
+        "Content-Type": "application/json; charset=utf-8",
+        "Link": "\u003chttps://api.github.com/repositories/25282228/releases?page=2\u003e; rel=\"next\", \u003chttps://api.github.com/repositories/25282228/releases?page=3\u003e; rel=\"last\"",
+        "Referrer-Policy": "origin-when-cross-origin, strict-origin-when-cross-origin",
+        "Server": "github.com",
+        "Strict-Transport-Security": "max-age=31536000; includeSubdomains; preload",
+        "Vary": "Accept,Accept-Encoding, Accept, X-Requested-With",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "deny",
+        "X-Github-Api-Version-Selected": "2022-11-28",
+        "X-Github-Edge-Region": "iad",
+        "X-Github-Media-Type": "github.v3; format=json",
+        "X-Github-Request-Id": "CF00:2C07C2:39D1BBB:BFF4846:6AA89D9B",
+        "X-Ratelimit-Limit": "60",
+        "X-Ratelimit-Remaining": "59",
+        "X-Ratelimit-Reset": "1789438891",
+        "X-Ratelimit-Resource": "core",
+        "X-Ratelimit-Used": "1",
+        "X-Xss-Protection": "0"
+      },
+      "elided": true,
+      "elided_type": "application/json; charset=utf-8",
+      "elided_size": 4339088
+    }
+  ]
+}

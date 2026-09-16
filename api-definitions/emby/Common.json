@@ -1,0 +1,6630 @@
+{
+  "Name": "Common",
+  "Models": [
+    {
+      "Name": "ActionsPostbackAction",
+      "SchemaName": "Actions.PostbackAction",
+      "Fields": [
+        {
+          "Name": "CommandParameterPropertyId",
+          "JsonName": "CommandParameterPropertyId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PostbackCommandId",
+          "JsonName": "PostbackCommandId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetEditorId",
+          "JsonName": "TargetEditorId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "BaseItemDto",
+      "SchemaName": "BaseItemDto",
+      "Fields": [
+        {
+          "Name": "AffiliateCallSign",
+          "JsonName": "AffiliateCallSign",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AirDays",
+          "JsonName": "AirDays",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DayOfWeek"
+            }
+          }
+        },
+        {
+          "Name": "Album",
+          "JsonName": "Album",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AlbumArtist",
+          "JsonName": "AlbumArtist",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AlbumArtists",
+          "JsonName": "AlbumArtists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameIdPair"
+            }
+          }
+        },
+        {
+          "Name": "AlbumCount",
+          "JsonName": "AlbumCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AlbumId",
+          "JsonName": "AlbumId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AlbumPrimaryImageTag",
+          "JsonName": "AlbumPrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Altitude",
+          "JsonName": "Altitude",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Aperture",
+          "JsonName": "Aperture",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ArtistItems",
+          "JsonName": "ArtistItems",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameIdPair"
+            }
+          }
+        },
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "AsSeries",
+          "JsonName": "AsSeries",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AudioCodec",
+          "JsonName": "AudioCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AverageFrameRate",
+          "JsonName": "AverageFrameRate",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "BackdropImageTags",
+          "JsonName": "BackdropImageTags",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Bitrate",
+          "JsonName": "Bitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CameraMake",
+          "JsonName": "CameraMake",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CameraModel",
+          "JsonName": "CameraModel",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CanDelete",
+          "JsonName": "CanDelete",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanDownload",
+          "JsonName": "CanDownload",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanEditItems",
+          "JsonName": "CanEditItems",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanLeaveContent",
+          "JsonName": "CanLeaveContent",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanMakePublic",
+          "JsonName": "CanMakePublic",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanManageAccess",
+          "JsonName": "CanManageAccess",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ChannelId",
+          "JsonName": "ChannelId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ChannelName",
+          "JsonName": "ChannelName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ChannelNumber",
+          "JsonName": "ChannelNumber",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ChannelPrimaryImageTag",
+          "JsonName": "ChannelPrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Chapters",
+          "JsonName": "Chapters",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ChapterInfo"
+            }
+          }
+        },
+        {
+          "Name": "ChildCount",
+          "JsonName": "ChildCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CollectionType",
+          "JsonName": "CollectionType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Collections",
+          "JsonName": "Collections",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameLongIdPair"
+            }
+          }
+        },
+        {
+          "Name": "CommunityRating",
+          "JsonName": "CommunityRating",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CompletionPercentage",
+          "JsonName": "CompletionPercentage",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Composers",
+          "JsonName": "Composers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameIdPair"
+            }
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CriticRating",
+          "JsonName": "CriticRating",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CurrentProgram",
+          "JsonName": "CurrentProgram",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        },
+        {
+          "Name": "CustomRating",
+          "JsonName": "CustomRating",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DateCreated",
+          "JsonName": "DateCreated",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DateModified",
+          "JsonName": "DateModified",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Disabled",
+          "JsonName": "Disabled",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DisplayOrder",
+          "JsonName": "DisplayOrder",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisplayPreferencesId",
+          "JsonName": "DisplayPreferencesId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EndDate",
+          "JsonName": "EndDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "EpisodeTitle",
+          "JsonName": "EpisodeTitle",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Etag",
+          "JsonName": "Etag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExposureTime",
+          "JsonName": "ExposureTime",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ExternalUrls",
+          "JsonName": "ExternalUrls",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ExternalUrl"
+            }
+          }
+        },
+        {
+          "Name": "ExtraType",
+          "JsonName": "ExtraType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FileName",
+          "JsonName": "FileName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FocalLength",
+          "JsonName": "FocalLength",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ForcedSortName",
+          "JsonName": "ForcedSortName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GameSystem",
+          "JsonName": "GameSystem",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GameSystemId",
+          "JsonName": "GameSystemId",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "GenreItems",
+          "JsonName": "GenreItems",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameLongIdPair"
+            }
+          }
+        },
+        {
+          "Name": "Genres",
+          "JsonName": "Genres",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Guid",
+          "JsonName": "Guid",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ImageOrientation",
+          "JsonName": "ImageOrientation",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DrawingImageOrientation"
+          }
+        },
+        {
+          "Name": "ImageTags",
+          "JsonName": "ImageTags",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexNumberEnd",
+          "JsonName": "IndexNumberEnd",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsFolder",
+          "JsonName": "IsFolder",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsKids",
+          "JsonName": "IsKids",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsLive",
+          "JsonName": "IsLive",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsMovie",
+          "JsonName": "IsMovie",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsNew",
+          "JsonName": "IsNew",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsNews",
+          "JsonName": "IsNews",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsPremiere",
+          "JsonName": "IsPremiere",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsRepeat",
+          "JsonName": "IsRepeat",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsSeries",
+          "JsonName": "IsSeries",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsSports",
+          "JsonName": "IsSports",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsoSpeedRating",
+          "JsonName": "IsoSpeedRating",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Latitude",
+          "JsonName": "Latitude",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ListingsChannelId",
+          "JsonName": "ListingsChannelId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ListingsChannelName",
+          "JsonName": "ListingsChannelName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ListingsChannelNumber",
+          "JsonName": "ListingsChannelNumber",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ListingsId",
+          "JsonName": "ListingsId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ListingsPath",
+          "JsonName": "ListingsPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ListingsProviderId",
+          "JsonName": "ListingsProviderId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LocalTrailerCount",
+          "JsonName": "LocalTrailerCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LocationType",
+          "JsonName": "LocationType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LocationType"
+          }
+        },
+        {
+          "Name": "LockData",
+          "JsonName": "LockData",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "LockedFields",
+          "JsonName": "LockedFields",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MetadataFields"
+            }
+          }
+        },
+        {
+          "Name": "Longitude",
+          "JsonName": "Longitude",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ManagementId",
+          "JsonName": "ManagementId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaSources",
+          "JsonName": "MediaSources",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaSourceInfo"
+            }
+          }
+        },
+        {
+          "Name": "MediaStreams",
+          "JsonName": "MediaStreams",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaStream"
+            }
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "MediaType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MimeType",
+          "JsonName": "MimeType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MovieCount",
+          "JsonName": "MovieCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MusicVideoCount",
+          "JsonName": "MusicVideoCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Number",
+          "JsonName": "Number",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OfficialRating",
+          "JsonName": "OfficialRating",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "Overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentBackdropImageTags",
+          "JsonName": "ParentBackdropImageTags",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ParentBackdropItemId",
+          "JsonName": "ParentBackdropItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "JsonName": "ParentId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ParentLogoImageTag",
+          "JsonName": "ParentLogoImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentLogoItemId",
+          "JsonName": "ParentLogoItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentThumbImageTag",
+          "JsonName": "ParentThumbImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentThumbItemId",
+          "JsonName": "ParentThumbItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PartCount",
+          "JsonName": "PartCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "People",
+          "JsonName": "People",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemPerson"
+            }
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PreferredMetadataCountryCode",
+          "JsonName": "PreferredMetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PreferredMetadataLanguage",
+          "JsonName": "PreferredMetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Prefix",
+          "JsonName": "Prefix",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PresentationUniqueKey",
+          "JsonName": "PresentationUniqueKey",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageAspectRatio",
+          "JsonName": "PrimaryImageAspectRatio",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PrimaryImageItemId",
+          "JsonName": "PrimaryImageItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageTag",
+          "JsonName": "PrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProductionLocations",
+          "JsonName": "ProductionLocations",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ProductionYear",
+          "JsonName": "ProductionYear",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "RealFrameRate",
+          "JsonName": "RealFrameRate",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RecursiveItemCount",
+          "JsonName": "RecursiveItemCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RemoteTrailers",
+          "JsonName": "RemoteTrailers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaUrl"
+            }
+          }
+        },
+        {
+          "Name": "RunTimeTicks",
+          "JsonName": "RunTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SeasonCount",
+          "JsonName": "SeasonCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SeasonId",
+          "JsonName": "SeasonId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeasonName",
+          "JsonName": "SeasonName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeriesCount",
+          "JsonName": "SeriesCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SeriesId",
+          "JsonName": "SeriesId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeriesName",
+          "JsonName": "SeriesName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeriesPrimaryImageTag",
+          "JsonName": "SeriesPrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeriesStudio",
+          "JsonName": "SeriesStudio",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeriesTimerId",
+          "JsonName": "SeriesTimerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ShutterSpeed",
+          "JsonName": "ShutterSpeed",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Size",
+          "JsonName": "Size",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Software",
+          "JsonName": "Software",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SongCount",
+          "JsonName": "SongCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SortIndexNumber",
+          "JsonName": "SortIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SortName",
+          "JsonName": "SortName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortParentIndexNumber",
+          "JsonName": "SortParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SpecialFeatureCount",
+          "JsonName": "SpecialFeatureCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "StartDate",
+          "JsonName": "StartDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Studios",
+          "JsonName": "Studios",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameLongIdPair"
+            }
+          }
+        },
+        {
+          "Name": "Subviews",
+          "JsonName": "Subviews",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SupportsResume",
+          "JsonName": "SupportsResume",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SupportsSync",
+          "JsonName": "SupportsSync",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SyncStatus",
+          "JsonName": "SyncStatus",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SyncJobItemStatus"
+          }
+        },
+        {
+          "Name": "TagItems",
+          "JsonName": "TagItems",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameLongIdPair"
+            }
+          }
+        },
+        {
+          "Name": "Taglines",
+          "JsonName": "Taglines",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Tags",
+          "JsonName": "Tags",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "TimerId",
+          "JsonName": "TimerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TimerType",
+          "JsonName": "TimerType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "LiveTvTimerType"
+          }
+        },
+        {
+          "Name": "TunerName",
+          "JsonName": "TunerName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserData",
+          "JsonName": "UserData",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "UserItemDataDto"
+          }
+        },
+        {
+          "Name": "Video3DFormat",
+          "JsonName": "Video3DFormat",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "Video3DFormat"
+          }
+        },
+        {
+          "Name": "VideoCodec",
+          "JsonName": "VideoCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "BaseItemPerson",
+      "SchemaName": "BaseItemPerson",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PrimaryImageTag",
+          "JsonName": "PrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Role",
+          "JsonName": "Role",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PersonType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "BitRate",
+      "SchemaName": "BitRate",
+      "Fields": [
+        {
+          "Name": "Mbps",
+          "JsonName": "Mbps",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Bps",
+          "JsonName": "bps",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Kbps",
+          "JsonName": "kbps",
+          "Type": {
+            "Type": "Double"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ChapterInfo",
+      "SchemaName": "ChapterInfo",
+      "Fields": [
+        {
+          "Name": "ChapterIndex",
+          "JsonName": "ChapterIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ImageTag",
+          "JsonName": "ImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MarkerType",
+          "JsonName": "MarkerType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MarkerType"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartPositionTicks",
+          "JsonName": "StartPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CodecProfile",
+      "SchemaName": "CodecProfile",
+      "Fields": [
+        {
+          "Name": "ApplyConditions",
+          "JsonName": "ApplyConditions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ProfileCondition"
+            }
+          }
+        },
+        {
+          "Name": "Codec",
+          "JsonName": "Codec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Conditions",
+          "JsonName": "Conditions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ProfileCondition"
+            }
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CodecType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConditionsPropertyCondition",
+      "SchemaName": "Conditions.PropertyCondition",
+      "Fields": [
+        {
+          "Name": "AffectedPropertyId",
+          "JsonName": "AffectedPropertyId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ConditionType",
+          "JsonName": "ConditionType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ConditionsPropertyConditionType"
+          }
+        },
+        {
+          "Name": "SimpleCondition",
+          "JsonName": "SimpleCondition",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "AttributesSimpleCondition"
+          }
+        },
+        {
+          "Name": "TargetPropertyId",
+          "JsonName": "TargetPropertyId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Value",
+          "JsonName": "Value",
+          "Type": {
+            "Type": "Any"
+          }
+        },
+        {
+          "Name": "ValueCondition",
+          "JsonName": "ValueCondition",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "AttributesValueCondition"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ContainerProfile",
+      "SchemaName": "ContainerProfile",
+      "Fields": [
+        {
+          "Name": "Conditions",
+          "JsonName": "Conditions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ProfileCondition"
+            }
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfileType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DeviceProfile",
+      "SchemaName": "DeviceProfile",
+      "Fields": [
+        {
+          "Name": "CodecProfiles",
+          "JsonName": "CodecProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CodecProfile"
+            }
+          }
+        },
+        {
+          "Name": "ContainerProfiles",
+          "JsonName": "ContainerProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ContainerProfile"
+            }
+          }
+        },
+        {
+          "Name": "DeclaredFeatures",
+          "JsonName": "DeclaredFeatures",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DirectPlayProfiles",
+          "JsonName": "DirectPlayProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DirectPlayProfile"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxStaticMusicBitrate",
+          "JsonName": "MaxStaticMusicBitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxStreamingBitrate",
+          "JsonName": "MaxStreamingBitrate",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MusicStreamingTranscodingBitrate",
+          "JsonName": "MusicStreamingTranscodingBitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ResponseProfiles",
+          "JsonName": "ResponseProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ResponseProfile"
+            }
+          }
+        },
+        {
+          "Name": "SubtitleProfiles",
+          "JsonName": "SubtitleProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SubtitleProfile"
+            }
+          }
+        },
+        {
+          "Name": "SupportedMediaTypes",
+          "JsonName": "SupportedMediaTypes",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TranscodingProfiles",
+          "JsonName": "TranscodingProfiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TranscodingProfile"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DirectPlayProfile",
+      "SchemaName": "DirectPlayProfile",
+      "Fields": [
+        {
+          "Name": "AudioCodec",
+          "JsonName": "AudioCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfileType"
+          }
+        },
+        {
+          "Name": "VideoCodec",
+          "JsonName": "VideoCodec",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "EditObjectContainer",
+      "SchemaName": "EditObjectContainer",
+      "Fields": [
+        {
+          "Name": "DefaultObject",
+          "JsonName": "DefaultObject",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "Any"
+            }
+          }
+        },
+        {
+          "Name": "EditorRoot",
+          "JsonName": "EditorRoot",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EditorsEditorRoot"
+          }
+        },
+        {
+          "Name": "Object",
+          "JsonName": "Object",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "Any"
+            }
+          }
+        },
+        {
+          "Name": "TypeName",
+          "JsonName": "TypeName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "EditorsEditorBase",
+      "SchemaName": "Editors.EditorBase",
+      "Fields": [
+        {
+          "Name": "AllowEmpty",
+          "JsonName": "AllowEmpty",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EditorType",
+          "JsonName": "EditorType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CommonEditorTypes"
+          }
+        },
+        {
+          "Name": "FeatureRequiresPremiere",
+          "JsonName": "FeatureRequiresPremiere",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsAdvanced",
+          "JsonName": "IsAdvanced",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsReadOnly",
+          "JsonName": "IsReadOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "JsonName": "ParentId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "EditorsEditorButtonItem",
+      "SchemaName": "Editors.EditorButtonItem",
+      "Fields": [
+        {
+          "Name": "AllowEmpty",
+          "JsonName": "AllowEmpty",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EditorType",
+          "JsonName": "EditorType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CommonEditorTypes"
+          }
+        },
+        {
+          "Name": "FeatureRequiresPremiere",
+          "JsonName": "FeatureRequiresPremiere",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsAdvanced",
+          "JsonName": "IsAdvanced",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsReadOnly",
+          "JsonName": "IsReadOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "JsonName": "ParentId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "EditorsEditorRoot",
+      "SchemaName": "Editors.EditorRoot",
+      "Fields": [
+        {
+          "Name": "AllowEmpty",
+          "JsonName": "AllowEmpty",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EditorItems",
+          "JsonName": "EditorItems",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "EditorsEditorBase"
+            }
+          }
+        },
+        {
+          "Name": "EditorType",
+          "JsonName": "EditorType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CommonEditorTypes"
+          }
+        },
+        {
+          "Name": "FeatureRequiresPremiere",
+          "JsonName": "FeatureRequiresPremiere",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsAdvanced",
+          "JsonName": "IsAdvanced",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsReadOnly",
+          "JsonName": "IsReadOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentId",
+          "JsonName": "ParentId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PostbackActions",
+          "JsonName": "PostbackActions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ActionsPostbackAction"
+            }
+          }
+        },
+        {
+          "Name": "PropertyConditions",
+          "JsonName": "PropertyConditions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ConditionsPropertyCondition"
+            }
+          }
+        },
+        {
+          "Name": "TitleButton",
+          "JsonName": "TitleButton",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EditorsEditorButtonItem"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ExternalIdInfo",
+      "SchemaName": "ExternalIdInfo",
+      "Fields": [
+        {
+          "Name": "IsSupportedAsIdentifier",
+          "JsonName": "IsSupportedAsIdentifier",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Key",
+          "JsonName": "Key",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UrlFormatString",
+          "JsonName": "UrlFormatString",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Website",
+          "JsonName": "Website",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ExternalUrl",
+      "SchemaName": "ExternalUrl",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Url",
+          "JsonName": "Url",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GlobalizationCountryInfo",
+      "SchemaName": "Globalization.CountryInfo",
+      "Fields": [
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnglishName",
+          "JsonName": "EnglishName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ThreeLetterISORegionName",
+          "JsonName": "ThreeLetterISORegionName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TwoLetterISORegionName",
+          "JsonName": "TwoLetterISORegionName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GlobalizationCultureDto",
+      "SchemaName": "Globalization.CultureDto",
+      "Fields": [
+        {
+          "Name": "DisplayName",
+          "JsonName": "DisplayName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ThreeLetterISOLanguageName",
+          "JsonName": "ThreeLetterISOLanguageName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ThreeLetterISOLanguageNames",
+          "JsonName": "ThreeLetterISOLanguageNames",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "TwoLetterISOLanguageName",
+          "JsonName": "TwoLetterISOLanguageName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TwoLetterISOLanguageNames",
+          "JsonName": "TwoLetterISOLanguageNames",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ImageOption",
+      "SchemaName": "ImageOption",
+      "Fields": [
+        {
+          "Name": "Limit",
+          "JsonName": "Limit",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinWidth",
+          "JsonName": "MinWidth",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ImageType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "LibraryOptions",
+      "SchemaName": "LibraryOptions",
+      "Fields": [
+        {
+          "Name": "AutoGenerateChapterIntervalMinutes",
+          "JsonName": "AutoGenerateChapterIntervalMinutes",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AutoGenerateChapters",
+          "JsonName": "AutoGenerateChapters",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AutomaticRefreshIntervalDays",
+          "JsonName": "AutomaticRefreshIntervalDays",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CacheImages",
+          "JsonName": "CacheImages",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "CollapseSingleItemFolders",
+          "JsonName": "CollapseSingleItemFolders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ContentType",
+          "JsonName": "ContentType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisabledLocalMetadataReaders",
+          "JsonName": "DisabledLocalMetadataReaders",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DisabledLyricsFetchers",
+          "JsonName": "DisabledLyricsFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DisabledSubtitleFetchers",
+          "JsonName": "DisabledSubtitleFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "DownloadImagesInAdvance",
+          "JsonName": "DownloadImagesInAdvance",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAdultMetadata",
+          "JsonName": "EnableAdultMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableArchiveMediaFiles",
+          "JsonName": "EnableArchiveMediaFiles",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAudioResume",
+          "JsonName": "EnableAudioResume",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableAutomaticSeriesGrouping",
+          "JsonName": "EnableAutomaticSeriesGrouping",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableChapterImageExtraction",
+          "JsonName": "EnableChapterImageExtraction",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableEmbeddedTitles",
+          "JsonName": "EnableEmbeddedTitles",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMarkerDetection",
+          "JsonName": "EnableMarkerDetection",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMarkerDetectionDuringLibraryScan",
+          "JsonName": "EnableMarkerDetectionDuringLibraryScan",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMultiPartItems",
+          "JsonName": "EnableMultiPartItems",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMultiVersionByFiles",
+          "JsonName": "EnableMultiVersionByFiles",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMultiVersionByMetadata",
+          "JsonName": "EnableMultiVersionByMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnablePhotos",
+          "JsonName": "EnablePhotos",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnablePlexIgnore",
+          "JsonName": "EnablePlexIgnore",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableRealtimeMonitor",
+          "JsonName": "EnableRealtimeMonitor",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ExcludeFromSearch",
+          "JsonName": "ExcludeFromSearch",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ExtractChapterImagesDuringLibraryScan",
+          "JsonName": "ExtractChapterImagesDuringLibraryScan",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ForceCollapseSingleItemFolders",
+          "JsonName": "ForceCollapseSingleItemFolders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ForcedSubtitlesOnly",
+          "JsonName": "ForcedSubtitlesOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HearingImpairedSubtitlesOnly",
+          "JsonName": "HearingImpairedSubtitlesOnly",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IgnoreFileExtensions",
+          "JsonName": "IgnoreFileExtensions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "IgnoreHiddenFiles",
+          "JsonName": "IgnoreHiddenFiles",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImportCollections",
+          "JsonName": "ImportCollections",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ImportPlaylists",
+          "JsonName": "ImportPlaylists",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IntroDetectionFingerprintLength",
+          "JsonName": "IntroDetectionFingerprintLength",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LocalMetadataReaderOrder",
+          "JsonName": "LocalMetadataReaderOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "LyricsDownloadLanguages",
+          "JsonName": "LyricsDownloadLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "LyricsDownloadMaxAgeDays",
+          "JsonName": "LyricsDownloadMaxAgeDays",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LyricsFetcherOrder",
+          "JsonName": "LyricsFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "MaxResumePct",
+          "JsonName": "MaxResumePct",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MergeTopLevelFolders",
+          "JsonName": "MergeTopLevelFolders",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MetadataCountryCode",
+          "JsonName": "MetadataCountryCode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MetadataSavers",
+          "JsonName": "MetadataSavers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "MinCollectionItems",
+          "JsonName": "MinCollectionItems",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinResumeDurationSeconds",
+          "JsonName": "MinResumeDurationSeconds",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinResumePct",
+          "JsonName": "MinResumePct",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MusicFolderStructure",
+          "JsonName": "MusicFolderStructure",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PathInfos",
+          "JsonName": "PathInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaPathInfo"
+            }
+          }
+        },
+        {
+          "Name": "PlaceholderMetadataRefreshIntervalDays",
+          "JsonName": "PlaceholderMetadataRefreshIntervalDays",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PreferredImageLanguage",
+          "JsonName": "PreferredImageLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PreferredMetadataLanguage",
+          "JsonName": "PreferredMetadataLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RequirePerfectSubtitleMatch",
+          "JsonName": "RequirePerfectSubtitleMatch",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SampleIgnoreSize",
+          "JsonName": "SampleIgnoreSize",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SaveLocalMetadata",
+          "JsonName": "SaveLocalMetadata",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveLocalThumbnailSets",
+          "JsonName": "SaveLocalThumbnailSets",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveLyricsWithMedia",
+          "JsonName": "SaveLyricsWithMedia",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveMetadataHidden",
+          "JsonName": "SaveMetadataHidden",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SaveSubtitlesWithMedia",
+          "JsonName": "SaveSubtitlesWithMedia",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ShareEmbeddedMusicAlbumImages",
+          "JsonName": "ShareEmbeddedMusicAlbumImages",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SkipSubtitlesIfAudioTrackMatches",
+          "JsonName": "SkipSubtitlesIfAudioTrackMatches",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SkipSubtitlesIfEmbeddedSubtitlesPresent",
+          "JsonName": "SkipSubtitlesIfEmbeddedSubtitlesPresent",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SubtitleDownloadLanguages",
+          "JsonName": "SubtitleDownloadLanguages",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SubtitleDownloadMaxAgeDays",
+          "JsonName": "SubtitleDownloadMaxAgeDays",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SubtitleFetcherOrder",
+          "JsonName": "SubtitleFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ThumbnailImagesIntervalSeconds",
+          "JsonName": "ThumbnailImagesIntervalSeconds",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TypeOptions",
+          "JsonName": "TypeOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TypeOptions"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MediaPathInfo",
+      "SchemaName": "MediaPathInfo",
+      "Fields": [
+        {
+          "Name": "NetworkPath",
+          "JsonName": "NetworkPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Password",
+          "JsonName": "Password",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Username",
+          "JsonName": "Username",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "MediaSourceInfo",
+      "SchemaName": "MediaSourceInfo",
+      "Fields": [
+        {
+          "Name": "AddApiKeyToDirectStreamUrl",
+          "JsonName": "AddApiKeyToDirectStreamUrl",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AnalyzeDurationMs",
+          "JsonName": "AnalyzeDurationMs",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Bitrate",
+          "JsonName": "Bitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "BufferMs",
+          "JsonName": "BufferMs",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Chapters",
+          "JsonName": "Chapters",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ChapterInfo"
+            }
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ContainerStartTimeTicks",
+          "JsonName": "ContainerStartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DefaultAudioStreamIndex",
+          "JsonName": "DefaultAudioStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DefaultSubtitleStreamIndex",
+          "JsonName": "DefaultSubtitleStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "DirectStreamUrl",
+          "JsonName": "DirectStreamUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EncoderPath",
+          "JsonName": "EncoderPath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EncoderProtocol",
+          "JsonName": "EncoderProtocol",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaProtocol"
+          }
+        },
+        {
+          "Name": "Formats",
+          "JsonName": "Formats",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "HasMixedProtocols",
+          "JsonName": "HasMixedProtocols",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsInfiniteStream",
+          "JsonName": "IsInfiniteStream",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsRemote",
+          "JsonName": "IsRemote",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LiveStreamId",
+          "JsonName": "LiveStreamId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaStreams",
+          "JsonName": "MediaStreams",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "MediaStream"
+            }
+          }
+        },
+        {
+          "Name": "MimeType",
+          "JsonName": "MimeType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OpenToken",
+          "JsonName": "OpenToken",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProbePath",
+          "JsonName": "ProbePath",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProbeProtocol",
+          "JsonName": "ProbeProtocol",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaProtocol"
+          }
+        },
+        {
+          "Name": "Protocol",
+          "JsonName": "Protocol",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaProtocol"
+          }
+        },
+        {
+          "Name": "ReadAtNativeFramerate",
+          "JsonName": "ReadAtNativeFramerate",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RequiredHttpHeaders",
+          "JsonName": "RequiredHttpHeaders",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "RequiresClosing",
+          "JsonName": "RequiresClosing",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RequiresLooping",
+          "JsonName": "RequiresLooping",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RequiresOpening",
+          "JsonName": "RequiresOpening",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "RunTimeTicks",
+          "JsonName": "RunTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Size",
+          "JsonName": "Size",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SortName",
+          "JsonName": "SortName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportsDirectPlay",
+          "JsonName": "SupportsDirectPlay",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsDirectStream",
+          "JsonName": "SupportsDirectStream",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsProbing",
+          "JsonName": "SupportsProbing",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SupportsTranscoding",
+          "JsonName": "SupportsTranscoding",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Timestamp",
+          "JsonName": "Timestamp",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TransportStreamTimestamp"
+          }
+        },
+        {
+          "Name": "TrancodeLiveStartIndex",
+          "JsonName": "TrancodeLiveStartIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "TranscodingContainer",
+          "JsonName": "TranscodingContainer",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TranscodingMimeType",
+          "JsonName": "TranscodingMimeType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TranscodingSubProtocol",
+          "JsonName": "TranscodingSubProtocol",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TranscodingUrl",
+          "JsonName": "TranscodingUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaSourceType"
+          }
+        },
+        {
+          "Name": "Video3DFormat",
+          "JsonName": "Video3DFormat",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "Video3DFormat"
+          }
+        },
+        {
+          "Name": "WallClockStart",
+          "JsonName": "WallClockStart",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MediaStream",
+      "SchemaName": "MediaStream",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "AspectRatio",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AttachmentSize",
+          "JsonName": "AttachmentSize",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AverageFrameRate",
+          "JsonName": "AverageFrameRate",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "BitDepth",
+          "JsonName": "BitDepth",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "BitRate",
+          "JsonName": "BitRate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ChannelLayout",
+          "JsonName": "ChannelLayout",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Channels",
+          "JsonName": "Channels",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Codec",
+          "JsonName": "Codec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CodecTag",
+          "JsonName": "CodecTag",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ColorPrimaries",
+          "JsonName": "ColorPrimaries",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ColorSpace",
+          "JsonName": "ColorSpace",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ColorTransfer",
+          "JsonName": "ColorTransfer",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Comment",
+          "JsonName": "Comment",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeliveryFormat",
+          "JsonName": "DeliveryFormat",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeliveryMethod",
+          "JsonName": "DeliveryMethod",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SubtitleDeliveryMethod"
+          }
+        },
+        {
+          "Name": "DeliveryUrl",
+          "JsonName": "DeliveryUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisplayLanguage",
+          "JsonName": "DisplayLanguage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DisplayTitle",
+          "JsonName": "DisplayTitle",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExtendedVideoSubType",
+          "JsonName": "ExtendedVideoSubType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ExtendedVideoSubTypes"
+          }
+        },
+        {
+          "Name": "ExtendedVideoSubTypeDescription",
+          "JsonName": "ExtendedVideoSubTypeDescription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ExtendedVideoType",
+          "JsonName": "ExtendedVideoType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ExtendedVideoTypes"
+          }
+        },
+        {
+          "Name": "Extradata",
+          "JsonName": "Extradata",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Index",
+          "JsonName": "Index",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IsAVC",
+          "JsonName": "IsAVC",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAnamorphic",
+          "JsonName": "IsAnamorphic",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsChunkedResponse",
+          "JsonName": "IsChunkedResponse",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsDefault",
+          "JsonName": "IsDefault",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsExternal",
+          "JsonName": "IsExternal",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsExternalUrl",
+          "JsonName": "IsExternalUrl",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsForced",
+          "JsonName": "IsForced",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsHearingImpaired",
+          "JsonName": "IsHearingImpaired",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsInterlaced",
+          "JsonName": "IsInterlaced",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsTextSubtitleStream",
+          "JsonName": "IsTextSubtitleStream",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Language",
+          "JsonName": "Language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Level",
+          "JsonName": "Level",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MimeType",
+          "JsonName": "MimeType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NalLengthSize",
+          "JsonName": "NalLengthSize",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PixelFormat",
+          "JsonName": "PixelFormat",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Profile",
+          "JsonName": "Profile",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Protocol",
+          "JsonName": "Protocol",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaProtocol"
+          }
+        },
+        {
+          "Name": "RealFrameRate",
+          "JsonName": "RealFrameRate",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RefFrames",
+          "JsonName": "RefFrames",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Rotation",
+          "JsonName": "Rotation",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SampleRate",
+          "JsonName": "SampleRate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StreamStartTimeTicks",
+          "JsonName": "StreamStartTimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SubtitleLocationType",
+          "JsonName": "SubtitleLocationType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SubtitleLocationType"
+          }
+        },
+        {
+          "Name": "SupportsExternalStream",
+          "JsonName": "SupportsExternalStream",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "TimeBase",
+          "JsonName": "TimeBase",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "Title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaStreamType"
+          }
+        },
+        {
+          "Name": "VideoRange",
+          "JsonName": "VideoRange",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "MediaUrl",
+      "SchemaName": "MediaUrl",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Url",
+          "JsonName": "Url",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NameIdPair",
+      "SchemaName": "NameIdPair",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NameLongIdPair",
+      "SchemaName": "NameLongIdPair",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "NameValuePair",
+      "SchemaName": "NameValuePair",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Value",
+          "JsonName": "Value",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PackageVersionInfo",
+      "SchemaName": "PackageVersionInfo",
+      "Fields": [
+        {
+          "Name": "Checksum",
+          "JsonName": "checksum",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Classification",
+          "JsonName": "classification",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PackageVersionClass"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Guid",
+          "JsonName": "guid",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "InfoUrl",
+          "JsonName": "infoUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RequiredVersionStr",
+          "JsonName": "requiredVersionStr",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Runtimes",
+          "JsonName": "runtimes",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SourceUrl",
+          "JsonName": "sourceUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TargetFilename",
+          "JsonName": "targetFilename",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Timestamp",
+          "JsonName": "timestamp",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VersionStr",
+          "JsonName": "versionStr",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ParentalRating",
+      "SchemaName": "ParentalRating",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Value",
+          "JsonName": "Value",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PlayerStateInfo",
+      "SchemaName": "PlayerStateInfo",
+      "Fields": [
+        {
+          "Name": "AudioStreamIndex",
+          "JsonName": "AudioStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CanSeek",
+          "JsonName": "CanSeek",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsMuted",
+          "JsonName": "IsMuted",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsPaused",
+          "JsonName": "IsPaused",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MediaSource",
+          "JsonName": "MediaSource",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "MediaSourceInfo"
+          }
+        },
+        {
+          "Name": "MediaSourceId",
+          "JsonName": "MediaSourceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlayMethod",
+          "JsonName": "PlayMethod",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayMethod"
+          }
+        },
+        {
+          "Name": "PlaybackRate",
+          "JsonName": "PlaybackRate",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PositionTicks",
+          "JsonName": "PositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "RepeatMode",
+          "JsonName": "RepeatMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RepeatMode"
+          }
+        },
+        {
+          "Name": "Shuffle",
+          "JsonName": "Shuffle",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "SleepTimerEndTime",
+          "JsonName": "SleepTimerEndTime",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SleepTimerMode",
+          "JsonName": "SleepTimerMode",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SleepTimerMode"
+          }
+        },
+        {
+          "Name": "SubtitleOffset",
+          "JsonName": "SubtitleOffset",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SubtitleStreamIndex",
+          "JsonName": "SubtitleStreamIndex",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VolumeLevel",
+          "JsonName": "VolumeLevel",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "ProcessRunMetricsProcessMetricPoint",
+      "SchemaName": "ProcessRun.Metrics.ProcessMetricPoint",
+      "Fields": [
+        {
+          "Name": "CpuPercent",
+          "JsonName": "CpuPercent",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Time",
+          "JsonName": "Time",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VirtualMemory",
+          "JsonName": "VirtualMemory",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "WorkingSet",
+          "JsonName": "WorkingSet",
+          "Type": {
+            "Type": "Double"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProcessRunMetricsProcessStatistics",
+      "SchemaName": "ProcessRun.Metrics.ProcessStatistics",
+      "Fields": [
+        {
+          "Name": "AverageCpu",
+          "JsonName": "AverageCpu",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "CurrentCpu",
+          "JsonName": "CurrentCpu",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "CurrentVirtualMemory",
+          "JsonName": "CurrentVirtualMemory",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "CurrentWorkingSet",
+          "JsonName": "CurrentWorkingSet",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Metrics",
+          "JsonName": "Metrics",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ProcessRunMetricsProcessMetricPoint"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ProfileCondition",
+      "SchemaName": "ProfileCondition",
+      "Fields": [
+        {
+          "Name": "Condition",
+          "JsonName": "Condition",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProfileConditionType"
+          }
+        },
+        {
+          "Name": "IsRequired",
+          "JsonName": "IsRequired",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Property",
+          "JsonName": "Property",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProfileConditionValue"
+          }
+        },
+        {
+          "Name": "Value",
+          "JsonName": "Value",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "QueryResultBaseItemDto",
+      "SchemaName": "QueryResult_BaseItemDto",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "Items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "BaseItemDto"
+            }
+          }
+        },
+        {
+          "Name": "TotalRecordCount",
+          "JsonName": "TotalRecordCount",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "RemoteSearchResult",
+      "SchemaName": "RemoteSearchResult",
+      "Fields": [
+        {
+          "Name": "AlbumArtist",
+          "JsonName": "AlbumArtist",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "RemoteSearchResult"
+          }
+        },
+        {
+          "Name": "Artists",
+          "JsonName": "Artists",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "RemoteSearchResult"
+            }
+          }
+        },
+        {
+          "Name": "DisambiguationComment",
+          "JsonName": "DisambiguationComment",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EndDate",
+          "JsonName": "EndDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "GameSystem",
+          "JsonName": "GameSystem",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ImageUrl",
+          "JsonName": "ImageUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IndexNumber",
+          "JsonName": "IndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IndexNumberEnd",
+          "JsonName": "IndexNumberEnd",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "OriginalTitle",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "Overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentIndexNumber",
+          "JsonName": "ParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PersonType",
+          "JsonName": "PersonType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PersonType"
+          }
+        },
+        {
+          "Name": "PremiereDate",
+          "JsonName": "PremiereDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProductionYear",
+          "JsonName": "ProductionYear",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ProviderIds",
+          "JsonName": "ProviderIds",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Role",
+          "JsonName": "Role",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SearchProviderName",
+          "JsonName": "SearchProviderName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SortIndexNumber",
+          "JsonName": "SortIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SortParentIndexNumber",
+          "JsonName": "SortParentIndexNumber",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "StartDate",
+          "JsonName": "StartDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ThumbnailUrl",
+          "JsonName": "ThumbnailUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "Resolution",
+      "SchemaName": "Resolution",
+      "Fields": [
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ResolutionWithRate",
+      "SchemaName": "ResolutionWithRate",
+      "Fields": [
+        {
+          "Name": "FrameRate",
+          "JsonName": "FrameRate",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Resolution",
+          "JsonName": "Resolution",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "Resolution"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ResponseProfile",
+      "SchemaName": "ResponseProfile",
+      "Fields": [
+        {
+          "Name": "AudioCodec",
+          "JsonName": "AudioCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Conditions",
+          "JsonName": "Conditions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ProfileCondition"
+            }
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MimeType",
+          "JsonName": "MimeType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OrgPn",
+          "JsonName": "OrgPn",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfileType"
+          }
+        },
+        {
+          "Name": "VideoCodec",
+          "JsonName": "VideoCodec",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SessionSessionInfo",
+      "SchemaName": "Session.SessionInfo",
+      "Fields": [
+        {
+          "Name": "AdditionalUsers",
+          "JsonName": "AdditionalUsers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SessionUserInfo"
+            }
+          }
+        },
+        {
+          "Name": "AppIconUrl",
+          "JsonName": "AppIconUrl",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ApplicationVersion",
+          "JsonName": "ApplicationVersion",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Client",
+          "JsonName": "Client",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceId",
+          "JsonName": "DeviceId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceName",
+          "JsonName": "DeviceName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DeviceType",
+          "JsonName": "DeviceType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "InternalDeviceId",
+          "JsonName": "InternalDeviceId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "LastActivityDate",
+          "JsonName": "LastActivityDate",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NowPlayingItem",
+          "JsonName": "NowPlayingItem",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "BaseItemDto"
+          }
+        },
+        {
+          "Name": "PartyId",
+          "JsonName": "PartyId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlayState",
+          "JsonName": "PlayState",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PlayerStateInfo"
+          }
+        },
+        {
+          "Name": "PlayableMediaTypes",
+          "JsonName": "PlayableMediaTypes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "PlaylistIndex",
+          "JsonName": "PlaylistIndex",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PlaylistItemId",
+          "JsonName": "PlaylistItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaylistLength",
+          "JsonName": "PlaylistLength",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Protocol",
+          "JsonName": "Protocol",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RemoteEndPoint",
+          "JsonName": "RemoteEndPoint",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SupportedCommands",
+          "JsonName": "SupportedCommands",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SupportsRemoteControl",
+          "JsonName": "SupportsRemoteControl",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "TranscodingInfo",
+          "JsonName": "TranscodingInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TranscodingInfo"
+          }
+        },
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserName",
+          "JsonName": "UserName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserPrimaryImageTag",
+          "JsonName": "UserPrimaryImageTag",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SessionUserInfo",
+      "SchemaName": "SessionUserInfo",
+      "Fields": [
+        {
+          "Name": "UserId",
+          "JsonName": "UserId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserInternalId",
+          "JsonName": "UserInternalId",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "UserName",
+          "JsonName": "UserName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SubtitleProfile",
+      "SchemaName": "SubtitleProfile",
+      "Fields": [
+        {
+          "Name": "AllowChunkedResponse",
+          "JsonName": "AllowChunkedResponse",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "DidlMode",
+          "JsonName": "DidlMode",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Format",
+          "JsonName": "Format",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Language",
+          "JsonName": "Language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Method",
+          "JsonName": "Method",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SubtitleDeliveryMethod"
+          }
+        },
+        {
+          "Name": "Protocol",
+          "JsonName": "Protocol",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TranscodingInfo",
+      "SchemaName": "TranscodingInfo",
+      "Fields": [
+        {
+          "Name": "AudioBitrate",
+          "JsonName": "AudioBitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AudioChannels",
+          "JsonName": "AudioChannels",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "AudioCodec",
+          "JsonName": "AudioCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AverageCpuUsage",
+          "JsonName": "AverageCpuUsage",
+          "Description": "Deprecated, please use ProcessStatistics instead",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Bitrate",
+          "JsonName": "Bitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CompletionPercentage",
+          "JsonName": "CompletionPercentage",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CpuHistory",
+          "JsonName": "CpuHistory",
+          "Description": "Deprecated, please use ProcessStatistics instead",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TupleDoubleDouble"
+            }
+          }
+        },
+        {
+          "Name": "CurrentCpuUsage",
+          "JsonName": "CurrentCpuUsage",
+          "Description": "Deprecated, please use ProcessStatistics instead",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "CurrentThrottle",
+          "JsonName": "CurrentThrottle",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Framerate",
+          "JsonName": "Framerate",
+          "Type": {
+            "Type": "Float"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Height",
+          "JsonName": "Height",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "IsAudioDirect",
+          "JsonName": "IsAudioDirect",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsVideoDirect",
+          "JsonName": "IsVideoDirect",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ProcessStatistics",
+          "JsonName": "ProcessStatistics",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ProcessRunMetricsProcessStatistics"
+          }
+        },
+        {
+          "Name": "SubProtocol",
+          "JsonName": "SubProtocol",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SubtitlePipelineInfos",
+          "JsonName": "SubtitlePipelineInfos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "List",
+              "NestedItem": {
+                "Type": "Reference",
+                "ReferenceName": "TranscodingVpStepInfo"
+              }
+            }
+          }
+        },
+        {
+          "Name": "TranscodeReasons",
+          "JsonName": "TranscodeReasons",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TranscodeReason"
+            }
+          }
+        },
+        {
+          "Name": "TranscodingPositionTicks",
+          "JsonName": "TranscodingPositionTicks",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "TranscodingStartPositionTicks",
+          "JsonName": "TranscodingStartPositionTicks",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VideoBitrate",
+          "JsonName": "VideoBitrate",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "VideoCodec",
+          "JsonName": "VideoCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoDecoder",
+          "JsonName": "VideoDecoder",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoDecoderHwAccel",
+          "JsonName": "VideoDecoderHwAccel",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoDecoderIsHardware",
+          "JsonName": "VideoDecoderIsHardware",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VideoDecoderMediaType",
+          "JsonName": "VideoDecoderMediaType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoEncoder",
+          "JsonName": "VideoEncoder",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoEncoderHwAccel",
+          "JsonName": "VideoEncoderHwAccel",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoEncoderIsHardware",
+          "JsonName": "VideoEncoderIsHardware",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VideoEncoderMediaType",
+          "JsonName": "VideoEncoderMediaType",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VideoPipelineInfo",
+          "JsonName": "VideoPipelineInfo",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TranscodingVpStepInfo"
+            }
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "Width",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "TranscodingProfile",
+      "SchemaName": "TranscodingProfile",
+      "Fields": [
+        {
+          "Name": "AllowInterlacedVideoStreamCopy",
+          "JsonName": "AllowInterlacedVideoStreamCopy",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AudioCodec",
+          "JsonName": "AudioCodec",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "BreakOnNonKeyFrames",
+          "JsonName": "BreakOnNonKeyFrames",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Container",
+          "JsonName": "Container",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Context",
+          "JsonName": "Context",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "EncodingContext"
+          }
+        },
+        {
+          "Name": "CopyTimestamps",
+          "JsonName": "CopyTimestamps",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableMpegtsM2TsMode",
+          "JsonName": "EnableMpegtsM2TsMode",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EstimateContentLength",
+          "JsonName": "EstimateContentLength",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "FillEmptySubtitleSegments",
+          "JsonName": "FillEmptySubtitleSegments",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ManifestSubtitles",
+          "JsonName": "ManifestSubtitles",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxAudioChannels",
+          "JsonName": "MaxAudioChannels",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MaxHeight",
+          "JsonName": "MaxHeight",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxManifestSubtitles",
+          "JsonName": "MaxManifestSubtitles",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MaxWidth",
+          "JsonName": "MaxWidth",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinSegments",
+          "JsonName": "MinSegments",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Protocol",
+          "JsonName": "Protocol",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SegmentLength",
+          "JsonName": "SegmentLength",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TranscodeSeekInfo",
+          "JsonName": "TranscodeSeekInfo",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TranscodeSeekInfo"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DlnaProfileType"
+          }
+        },
+        {
+          "Name": "VideoCodec",
+          "JsonName": "VideoCodec",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TranscodingVpStepInfo",
+      "SchemaName": "Transcoding.VpStepInfo",
+      "Fields": [
+        {
+          "Name": "FfmpegDescription",
+          "JsonName": "FfmpegDescription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FfmpegName",
+          "JsonName": "FfmpegName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FfmpegOptions",
+          "JsonName": "FfmpegOptions",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "HardwareContextName",
+          "JsonName": "HardwareContextName",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsHardwareContext",
+          "JsonName": "IsHardwareContext",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Param",
+          "JsonName": "Param",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParamShort",
+          "JsonName": "ParamShort",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Short",
+          "JsonName": "Short",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StepType",
+          "JsonName": "StepType",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TranscodingVpStepTypes"
+          }
+        },
+        {
+          "Name": "StepTypeName",
+          "JsonName": "StepTypeName",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TupleDoubleDouble",
+      "SchemaName": "Tuple_Double-Double",
+      "Fields": [
+        {
+          "Name": "Item1",
+          "JsonName": "Item1",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Item2",
+          "JsonName": "Item2",
+          "Type": {
+            "Type": "Double"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TypeOptions",
+      "SchemaName": "TypeOptions",
+      "Fields": [
+        {
+          "Name": "ImageFetcherOrder",
+          "JsonName": "ImageFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ImageFetchers",
+          "JsonName": "ImageFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ImageOptions",
+          "JsonName": "ImageOptions",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ImageOption"
+            }
+          }
+        },
+        {
+          "Name": "MetadataFetcherOrder",
+          "JsonName": "MetadataFetcherOrder",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "MetadataFetchers",
+          "JsonName": "MetadataFetchers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "UserItemDataDto",
+      "SchemaName": "UserItemDataDto",
+      "Fields": [
+        {
+          "Name": "IsFavorite",
+          "JsonName": "IsFavorite",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "ItemId",
+          "JsonName": "ItemId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Key",
+          "JsonName": "Key",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LastPlayedDate",
+          "JsonName": "LastPlayedDate",
+          "Type": {
+            "Type": "String"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlayCount",
+          "JsonName": "PlayCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "PlaybackPositionTicks",
+          "JsonName": "PlaybackPositionTicks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "Played",
+          "JsonName": "Played",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "PlayedPercentage",
+          "JsonName": "PlayedPercentage",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Rating",
+          "JsonName": "Rating",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ServerId",
+          "JsonName": "ServerId",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UnplayedItemCount",
+          "JsonName": "UnplayedItemCount",
+          "Type": {
+            "Type": "Integer"
+          },
+          "Nullable": true
+        }
+      ]
+    },
+    {
+      "Name": "Version",
+      "SchemaName": "Version",
+      "Fields": [
+        {
+          "Name": "Build",
+          "JsonName": "Build",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Major",
+          "JsonName": "Major",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MajorRevision",
+          "JsonName": "MajorRevision",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Minor",
+          "JsonName": "Minor",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MinorRevision",
+          "JsonName": "MinorRevision",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Revision",
+          "JsonName": "Revision",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "AttributesSimpleCondition",
+      "SchemaName": "Attributes.SimpleCondition",
+      "Values": [
+        {
+          "Name": "AttributesSimpleConditionIsTrue",
+          "Value": "IsTrue"
+        },
+        {
+          "Name": "AttributesSimpleConditionIsFalse",
+          "Value": "IsFalse"
+        },
+        {
+          "Name": "AttributesSimpleConditionIsNull",
+          "Value": "IsNull"
+        },
+        {
+          "Name": "AttributesSimpleConditionIsNotNullOrEmpty",
+          "Value": "IsNotNullOrEmpty"
+        }
+      ]
+    },
+    {
+      "Name": "AttributesValueCondition",
+      "SchemaName": "Attributes.ValueCondition",
+      "Values": [
+        {
+          "Name": "AttributesValueConditionIsEqual",
+          "Value": "IsEqual"
+        },
+        {
+          "Name": "AttributesValueConditionIsNotEqual",
+          "Value": "IsNotEqual"
+        },
+        {
+          "Name": "AttributesValueConditionIsGreater",
+          "Value": "IsGreater"
+        },
+        {
+          "Name": "AttributesValueConditionIsGreaterOrEqual",
+          "Value": "IsGreaterOrEqual"
+        },
+        {
+          "Name": "AttributesValueConditionIsLess",
+          "Value": "IsLess"
+        },
+        {
+          "Name": "AttributesValueConditionIsLessOrEqual",
+          "Value": "IsLessOrEqual"
+        }
+      ]
+    },
+    {
+      "Name": "CodecType",
+      "SchemaName": "CodecType",
+      "Values": [
+        {
+          "Name": "CodecTypeVideo",
+          "Value": "Video"
+        },
+        {
+          "Name": "CodecTypeVideoAudio",
+          "Value": "VideoAudio"
+        },
+        {
+          "Name": "CodecTypeAudio",
+          "Value": "Audio"
+        }
+      ]
+    },
+    {
+      "Name": "CommonEditorTypes",
+      "SchemaName": "Common.EditorTypes",
+      "Values": [
+        {
+          "Name": "CommonEditorTypesGroup",
+          "Value": "Group"
+        },
+        {
+          "Name": "CommonEditorTypesText",
+          "Value": "Text"
+        },
+        {
+          "Name": "CommonEditorTypesNumeric",
+          "Value": "Numeric"
+        },
+        {
+          "Name": "CommonEditorTypesBoolean",
+          "Value": "Boolean"
+        },
+        {
+          "Name": "CommonEditorTypesSelectSingle",
+          "Value": "SelectSingle"
+        },
+        {
+          "Name": "CommonEditorTypesSelectMultiple",
+          "Value": "SelectMultiple"
+        },
+        {
+          "Name": "CommonEditorTypesDate",
+          "Value": "Date"
+        },
+        {
+          "Name": "CommonEditorTypesFilePath",
+          "Value": "FilePath"
+        },
+        {
+          "Name": "CommonEditorTypesFolderPath",
+          "Value": "FolderPath"
+        },
+        {
+          "Name": "CommonEditorTypesStatusItem",
+          "Value": "StatusItem"
+        },
+        {
+          "Name": "CommonEditorTypesProgressItem",
+          "Value": "ProgressItem"
+        },
+        {
+          "Name": "CommonEditorTypesButtonItem",
+          "Value": "ButtonItem"
+        },
+        {
+          "Name": "CommonEditorTypesButtonGroup",
+          "Value": "ButtonGroup"
+        },
+        {
+          "Name": "CommonEditorTypesCaptionItem",
+          "Value": "CaptionItem"
+        },
+        {
+          "Name": "CommonEditorTypesLabelItem",
+          "Value": "LabelItem"
+        },
+        {
+          "Name": "CommonEditorTypesItemList",
+          "Value": "ItemList"
+        },
+        {
+          "Name": "CommonEditorTypesRadioGroup",
+          "Value": "RadioGroup"
+        },
+        {
+          "Name": "CommonEditorTypesDxDataGrid",
+          "Value": "DxDataGrid"
+        },
+        {
+          "Name": "CommonEditorTypesDxPivotGrid",
+          "Value": "DxPivotGrid"
+        },
+        {
+          "Name": "CommonEditorTypesSpacerItem",
+          "Value": "SpacerItem"
+        }
+      ]
+    },
+    {
+      "Name": "ConditionsPropertyConditionType",
+      "SchemaName": "Conditions.PropertyConditionType",
+      "Values": [
+        {
+          "Name": "ConditionsPropertyConditionTypeVisible",
+          "Value": "Visible"
+        },
+        {
+          "Name": "ConditionsPropertyConditionTypeEnabled",
+          "Value": "Enabled"
+        }
+      ]
+    },
+    {
+      "Name": "DayOfWeek",
+      "SchemaName": "DayOfWeek",
+      "Values": [
+        {
+          "Name": "DayOfWeekSunday",
+          "Value": "Sunday"
+        },
+        {
+          "Name": "DayOfWeekMonday",
+          "Value": "Monday"
+        },
+        {
+          "Name": "DayOfWeekTuesday",
+          "Value": "Tuesday"
+        },
+        {
+          "Name": "DayOfWeekWednesday",
+          "Value": "Wednesday"
+        },
+        {
+          "Name": "DayOfWeekThursday",
+          "Value": "Thursday"
+        },
+        {
+          "Name": "DayOfWeekFriday",
+          "Value": "Friday"
+        },
+        {
+          "Name": "DayOfWeekSaturday",
+          "Value": "Saturday"
+        }
+      ]
+    },
+    {
+      "Name": "DlnaProfileType",
+      "SchemaName": "DlnaProfileType",
+      "Values": [
+        {
+          "Name": "DlnaProfileTypeAudio",
+          "Value": "Audio"
+        },
+        {
+          "Name": "DlnaProfileTypeVideo",
+          "Value": "Video"
+        },
+        {
+          "Name": "DlnaProfileTypePhoto",
+          "Value": "Photo"
+        }
+      ]
+    },
+    {
+      "Name": "DrawingImageOrientation",
+      "SchemaName": "Drawing.ImageOrientation",
+      "Values": [
+        {
+          "Name": "DrawingImageOrientationTopLeft",
+          "Value": "TopLeft"
+        },
+        {
+          "Name": "DrawingImageOrientationTopRight",
+          "Value": "TopRight"
+        },
+        {
+          "Name": "DrawingImageOrientationBottomRight",
+          "Value": "BottomRight"
+        },
+        {
+          "Name": "DrawingImageOrientationBottomLeft",
+          "Value": "BottomLeft"
+        },
+        {
+          "Name": "DrawingImageOrientationLeftTop",
+          "Value": "LeftTop"
+        },
+        {
+          "Name": "DrawingImageOrientationRightTop",
+          "Value": "RightTop"
+        },
+        {
+          "Name": "DrawingImageOrientationRightBottom",
+          "Value": "RightBottom"
+        },
+        {
+          "Name": "DrawingImageOrientationLeftBottom",
+          "Value": "LeftBottom"
+        }
+      ]
+    },
+    {
+      "Name": "EncodingContext",
+      "SchemaName": "EncodingContext",
+      "Values": [
+        {
+          "Name": "EncodingContextStreaming",
+          "Value": "Streaming"
+        },
+        {
+          "Name": "EncodingContextStatic",
+          "Value": "Static"
+        }
+      ]
+    },
+    {
+      "Name": "ExtendedVideoSubTypes",
+      "SchemaName": "ExtendedVideoSubTypes",
+      "Values": [
+        {
+          "Name": "ExtendedVideoSubTypesNone",
+          "Value": "None"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesHdr10",
+          "Value": "Hdr10"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesHyperLogGamma",
+          "Value": "HyperLogGamma"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesHdr10Plus0",
+          "Value": "Hdr10Plus0"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile02",
+          "Value": "DoviProfile02"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile10",
+          "Value": "DoviProfile10"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile22",
+          "Value": "DoviProfile22"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile30",
+          "Value": "DoviProfile30"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile42",
+          "Value": "DoviProfile42"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile50",
+          "Value": "DoviProfile50"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile61",
+          "Value": "DoviProfile61"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile76",
+          "Value": "DoviProfile76"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile81",
+          "Value": "DoviProfile81"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile82",
+          "Value": "DoviProfile82"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile83",
+          "Value": "DoviProfile83"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile84",
+          "Value": "DoviProfile84"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile85",
+          "Value": "DoviProfile85"
+        },
+        {
+          "Name": "ExtendedVideoSubTypesDoviProfile92",
+          "Value": "DoviProfile92"
+        }
+      ]
+    },
+    {
+      "Name": "ExtendedVideoTypes",
+      "SchemaName": "ExtendedVideoTypes",
+      "Values": [
+        {
+          "Name": "ExtendedVideoTypesNone",
+          "Value": "None"
+        },
+        {
+          "Name": "ExtendedVideoTypesHdr10",
+          "Value": "Hdr10"
+        },
+        {
+          "Name": "ExtendedVideoTypesHdr10Plus",
+          "Value": "Hdr10Plus"
+        },
+        {
+          "Name": "ExtendedVideoTypesHyperLogGamma",
+          "Value": "HyperLogGamma"
+        },
+        {
+          "Name": "ExtendedVideoTypesDolbyVision",
+          "Value": "DolbyVision"
+        }
+      ]
+    },
+    {
+      "Name": "ImageType",
+      "SchemaName": "ImageType",
+      "Values": [
+        {
+          "Name": "ImageTypePrimary",
+          "Value": "Primary"
+        },
+        {
+          "Name": "ImageTypeArt",
+          "Value": "Art"
+        },
+        {
+          "Name": "ImageTypeBackdrop",
+          "Value": "Backdrop"
+        },
+        {
+          "Name": "ImageTypeBanner",
+          "Value": "Banner"
+        },
+        {
+          "Name": "ImageTypeLogo",
+          "Value": "Logo"
+        },
+        {
+          "Name": "ImageTypeThumb",
+          "Value": "Thumb"
+        },
+        {
+          "Name": "ImageTypeDisc",
+          "Value": "Disc"
+        },
+        {
+          "Name": "ImageTypeBox",
+          "Value": "Box"
+        },
+        {
+          "Name": "ImageTypeScreenshot",
+          "Value": "Screenshot"
+        },
+        {
+          "Name": "ImageTypeMenu",
+          "Value": "Menu"
+        },
+        {
+          "Name": "ImageTypeChapter",
+          "Value": "Chapter"
+        },
+        {
+          "Name": "ImageTypeBoxRear",
+          "Value": "BoxRear"
+        },
+        {
+          "Name": "ImageTypeThumbnail",
+          "Value": "Thumbnail"
+        },
+        {
+          "Name": "ImageTypeLogoLight",
+          "Value": "LogoLight"
+        },
+        {
+          "Name": "ImageTypeLogoLightColor",
+          "Value": "LogoLightColor"
+        }
+      ]
+    },
+    {
+      "Name": "LiveTvTimerType",
+      "SchemaName": "LiveTv.TimerType",
+      "Values": [
+        {
+          "Name": "LiveTvTimerTypeProgram",
+          "Value": "Program"
+        },
+        {
+          "Name": "LiveTvTimerTypeDateTime",
+          "Value": "DateTime"
+        },
+        {
+          "Name": "LiveTvTimerTypeKeyword",
+          "Value": "Keyword"
+        }
+      ]
+    },
+    {
+      "Name": "LocationType",
+      "SchemaName": "LocationType",
+      "Values": [
+        {
+          "Name": "LocationTypeFileSystem",
+          "Value": "FileSystem"
+        },
+        {
+          "Name": "LocationTypeVirtual",
+          "Value": "Virtual"
+        }
+      ]
+    },
+    {
+      "Name": "MarkerType",
+      "SchemaName": "MarkerType",
+      "Values": [
+        {
+          "Name": "MarkerTypeChapter",
+          "Value": "Chapter"
+        },
+        {
+          "Name": "MarkerTypeIntroStart",
+          "Value": "IntroStart"
+        },
+        {
+          "Name": "MarkerTypeIntroEnd",
+          "Value": "IntroEnd"
+        },
+        {
+          "Name": "MarkerTypeCreditsStart",
+          "Value": "CreditsStart"
+        }
+      ]
+    },
+    {
+      "Name": "MediaProtocol",
+      "SchemaName": "MediaProtocol",
+      "Values": [
+        {
+          "Name": "MediaProtocolFile",
+          "Value": "File"
+        },
+        {
+          "Name": "MediaProtocolHttp",
+          "Value": "Http"
+        },
+        {
+          "Name": "MediaProtocolRtmp",
+          "Value": "Rtmp"
+        },
+        {
+          "Name": "MediaProtocolRtsp",
+          "Value": "Rtsp"
+        },
+        {
+          "Name": "MediaProtocolUdp",
+          "Value": "Udp"
+        },
+        {
+          "Name": "MediaProtocolRtp",
+          "Value": "Rtp"
+        },
+        {
+          "Name": "MediaProtocolFtp",
+          "Value": "Ftp"
+        },
+        {
+          "Name": "MediaProtocolMms",
+          "Value": "Mms"
+        }
+      ]
+    },
+    {
+      "Name": "MediaSourceType",
+      "SchemaName": "MediaSourceType",
+      "Values": [
+        {
+          "Name": "MediaSourceTypeDefault",
+          "Value": "Default"
+        },
+        {
+          "Name": "MediaSourceTypeGrouping",
+          "Value": "Grouping"
+        },
+        {
+          "Name": "MediaSourceTypePlaceholder",
+          "Value": "Placeholder"
+        }
+      ]
+    },
+    {
+      "Name": "MediaStreamType",
+      "SchemaName": "MediaStreamType",
+      "Values": [
+        {
+          "Name": "MediaStreamTypeUnknown",
+          "Value": "Unknown"
+        },
+        {
+          "Name": "MediaStreamTypeAudio",
+          "Value": "Audio"
+        },
+        {
+          "Name": "MediaStreamTypeVideo",
+          "Value": "Video"
+        },
+        {
+          "Name": "MediaStreamTypeSubtitle",
+          "Value": "Subtitle"
+        },
+        {
+          "Name": "MediaStreamTypeEmbeddedImage",
+          "Value": "EmbeddedImage"
+        },
+        {
+          "Name": "MediaStreamTypeAttachment",
+          "Value": "Attachment"
+        },
+        {
+          "Name": "MediaStreamTypeData",
+          "Value": "Data"
+        }
+      ]
+    },
+    {
+      "Name": "MetadataFields",
+      "SchemaName": "MetadataFields",
+      "Values": [
+        {
+          "Name": "MetadataFieldsCast",
+          "Value": "Cast"
+        },
+        {
+          "Name": "MetadataFieldsGenres",
+          "Value": "Genres"
+        },
+        {
+          "Name": "MetadataFieldsProductionLocations",
+          "Value": "ProductionLocations"
+        },
+        {
+          "Name": "MetadataFieldsStudios",
+          "Value": "Studios"
+        },
+        {
+          "Name": "MetadataFieldsTags",
+          "Value": "Tags"
+        },
+        {
+          "Name": "MetadataFieldsName",
+          "Value": "Name"
+        },
+        {
+          "Name": "MetadataFieldsOverview",
+          "Value": "Overview"
+        },
+        {
+          "Name": "MetadataFieldsRuntime",
+          "Value": "Runtime"
+        },
+        {
+          "Name": "MetadataFieldsOfficialRating",
+          "Value": "OfficialRating"
+        },
+        {
+          "Name": "MetadataFieldsCollections",
+          "Value": "Collections"
+        },
+        {
+          "Name": "MetadataFieldsChannelNumber",
+          "Value": "ChannelNumber"
+        },
+        {
+          "Name": "MetadataFieldsSortName",
+          "Value": "SortName"
+        },
+        {
+          "Name": "MetadataFieldsOriginalTitle",
+          "Value": "OriginalTitle"
+        },
+        {
+          "Name": "MetadataFieldsSortIndexNumber",
+          "Value": "SortIndexNumber"
+        },
+        {
+          "Name": "MetadataFieldsSortParentIndexNumber",
+          "Value": "SortParentIndexNumber"
+        },
+        {
+          "Name": "MetadataFieldsCommunityRating",
+          "Value": "CommunityRating"
+        },
+        {
+          "Name": "MetadataFieldsCriticRating",
+          "Value": "CriticRating"
+        },
+        {
+          "Name": "MetadataFieldsTagline",
+          "Value": "Tagline"
+        },
+        {
+          "Name": "MetadataFieldsComposers",
+          "Value": "Composers"
+        },
+        {
+          "Name": "MetadataFieldsArtists",
+          "Value": "Artists"
+        },
+        {
+          "Name": "MetadataFieldsAlbumArtists",
+          "Value": "AlbumArtists"
+        }
+      ]
+    },
+    {
+      "Name": "PackageVersionClass",
+      "SchemaName": "PackageVersionClass",
+      "Values": [
+        {
+          "Name": "PackageVersionClassRelease",
+          "Value": "Release"
+        },
+        {
+          "Name": "PackageVersionClassBeta",
+          "Value": "Beta"
+        },
+        {
+          "Name": "PackageVersionClassDev",
+          "Value": "Dev"
+        }
+      ]
+    },
+    {
+      "Name": "PersonType",
+      "SchemaName": "PersonType",
+      "Values": [
+        {
+          "Name": "PersonTypeActor",
+          "Value": "Actor"
+        },
+        {
+          "Name": "PersonTypeDirector",
+          "Value": "Director"
+        },
+        {
+          "Name": "PersonTypeWriter",
+          "Value": "Writer"
+        },
+        {
+          "Name": "PersonTypeProducer",
+          "Value": "Producer"
+        },
+        {
+          "Name": "PersonTypeGuestStar",
+          "Value": "GuestStar"
+        },
+        {
+          "Name": "PersonTypeComposer",
+          "Value": "Composer"
+        },
+        {
+          "Name": "PersonTypeConductor",
+          "Value": "Conductor"
+        },
+        {
+          "Name": "PersonTypeLyricist",
+          "Value": "Lyricist"
+        }
+      ]
+    },
+    {
+      "Name": "PlayMethod",
+      "SchemaName": "PlayMethod",
+      "Values": [
+        {
+          "Name": "PlayMethodTranscode",
+          "Value": "Transcode"
+        },
+        {
+          "Name": "PlayMethodDirectStream",
+          "Value": "DirectStream"
+        },
+        {
+          "Name": "PlayMethodDirectPlay",
+          "Value": "DirectPlay"
+        }
+      ]
+    },
+    {
+      "Name": "ProfileConditionType",
+      "SchemaName": "ProfileConditionType",
+      "Values": [
+        {
+          "Name": "ProfileConditionTypeEquals",
+          "Value": "Equals"
+        },
+        {
+          "Name": "ProfileConditionTypeNotEquals",
+          "Value": "NotEquals"
+        },
+        {
+          "Name": "ProfileConditionTypeLessThanEqual",
+          "Value": "LessThanEqual"
+        },
+        {
+          "Name": "ProfileConditionTypeGreaterThanEqual",
+          "Value": "GreaterThanEqual"
+        },
+        {
+          "Name": "ProfileConditionTypeEqualsAny",
+          "Value": "EqualsAny"
+        }
+      ]
+    },
+    {
+      "Name": "ProfileConditionValue",
+      "SchemaName": "ProfileConditionValue",
+      "Values": [
+        {
+          "Name": "ProfileConditionValueAudioChannels",
+          "Value": "AudioChannels"
+        },
+        {
+          "Name": "ProfileConditionValueAudioBitrate",
+          "Value": "AudioBitrate"
+        },
+        {
+          "Name": "ProfileConditionValueAudioProfile",
+          "Value": "AudioProfile"
+        },
+        {
+          "Name": "ProfileConditionValueWidth",
+          "Value": "Width"
+        },
+        {
+          "Name": "ProfileConditionValueHeight",
+          "Value": "Height"
+        },
+        {
+          "Name": "ProfileConditionValueHas64BitOffsets",
+          "Value": "Has64BitOffsets"
+        },
+        {
+          "Name": "ProfileConditionValuePacketLength",
+          "Value": "PacketLength"
+        },
+        {
+          "Name": "ProfileConditionValueVideoBitDepth",
+          "Value": "VideoBitDepth"
+        },
+        {
+          "Name": "ProfileConditionValueVideoBitrate",
+          "Value": "VideoBitrate"
+        },
+        {
+          "Name": "ProfileConditionValueVideoFramerate",
+          "Value": "VideoFramerate"
+        },
+        {
+          "Name": "ProfileConditionValueVideoLevel",
+          "Value": "VideoLevel"
+        },
+        {
+          "Name": "ProfileConditionValueVideoProfile",
+          "Value": "VideoProfile"
+        },
+        {
+          "Name": "ProfileConditionValueVideoTimestamp",
+          "Value": "VideoTimestamp"
+        },
+        {
+          "Name": "ProfileConditionValueIsAnamorphic",
+          "Value": "IsAnamorphic"
+        },
+        {
+          "Name": "ProfileConditionValueRefFrames",
+          "Value": "RefFrames"
+        },
+        {
+          "Name": "ProfileConditionValueNumAudioStreams",
+          "Value": "NumAudioStreams"
+        },
+        {
+          "Name": "ProfileConditionValueNumVideoStreams",
+          "Value": "NumVideoStreams"
+        },
+        {
+          "Name": "ProfileConditionValueIsSecondaryAudio",
+          "Value": "IsSecondaryAudio"
+        },
+        {
+          "Name": "ProfileConditionValueVideoCodecTag",
+          "Value": "VideoCodecTag"
+        },
+        {
+          "Name": "ProfileConditionValueIsAvc",
+          "Value": "IsAvc"
+        },
+        {
+          "Name": "ProfileConditionValueIsInterlaced",
+          "Value": "IsInterlaced"
+        },
+        {
+          "Name": "ProfileConditionValueAudioSampleRate",
+          "Value": "AudioSampleRate"
+        },
+        {
+          "Name": "ProfileConditionValueAudioBitDepth",
+          "Value": "AudioBitDepth"
+        },
+        {
+          "Name": "ProfileConditionValueVideoRange",
+          "Value": "VideoRange"
+        },
+        {
+          "Name": "ProfileConditionValueVideoRotation",
+          "Value": "VideoRotation"
+        },
+        {
+          "Name": "ProfileConditionValueIsExternalAudio",
+          "Value": "IsExternalAudio"
+        }
+      ]
+    },
+    {
+      "Name": "RepeatMode",
+      "SchemaName": "RepeatMode",
+      "Values": [
+        {
+          "Name": "RepeatModeRepeatNone",
+          "Value": "RepeatNone"
+        },
+        {
+          "Name": "RepeatModeRepeatAll",
+          "Value": "RepeatAll"
+        },
+        {
+          "Name": "RepeatModeRepeatOne",
+          "Value": "RepeatOne"
+        }
+      ]
+    },
+    {
+      "Name": "SleepTimerMode",
+      "SchemaName": "SleepTimerMode",
+      "Values": [
+        {
+          "Name": "SleepTimerModeNone",
+          "Value": "None"
+        },
+        {
+          "Name": "SleepTimerModeAfterItem",
+          "Value": "AfterItem"
+        },
+        {
+          "Name": "SleepTimerModeAtTime",
+          "Value": "AtTime"
+        }
+      ]
+    },
+    {
+      "Name": "SortOrder",
+      "SchemaName": "SortOrder",
+      "Values": [
+        {
+          "Name": "SortOrderAscending",
+          "Value": "Ascending"
+        },
+        {
+          "Name": "SortOrderDescending",
+          "Value": "Descending"
+        }
+      ]
+    },
+    {
+      "Name": "SubtitleDeliveryMethod",
+      "SchemaName": "SubtitleDeliveryMethod",
+      "Values": [
+        {
+          "Name": "SubtitleDeliveryMethodEncode",
+          "Value": "Encode"
+        },
+        {
+          "Name": "SubtitleDeliveryMethodEmbed",
+          "Value": "Embed"
+        },
+        {
+          "Name": "SubtitleDeliveryMethodExternal",
+          "Value": "External"
+        },
+        {
+          "Name": "SubtitleDeliveryMethodHls",
+          "Value": "Hls"
+        },
+        {
+          "Name": "SubtitleDeliveryMethodVideoSideData",
+          "Value": "VideoSideData"
+        }
+      ]
+    },
+    {
+      "Name": "SubtitleLocationType",
+      "SchemaName": "SubtitleLocationType",
+      "Values": [
+        {
+          "Name": "SubtitleLocationTypeInternalStream",
+          "Value": "InternalStream"
+        },
+        {
+          "Name": "SubtitleLocationTypeVideoSideData",
+          "Value": "VideoSideData"
+        }
+      ]
+    },
+    {
+      "Name": "SyncJobItemStatus",
+      "SchemaName": "SyncJobItemStatus",
+      "Values": [
+        {
+          "Name": "SyncJobItemStatusQueued",
+          "Value": "Queued"
+        },
+        {
+          "Name": "SyncJobItemStatusConverting",
+          "Value": "Converting"
+        },
+        {
+          "Name": "SyncJobItemStatusReadyToTransfer",
+          "Value": "ReadyToTransfer"
+        },
+        {
+          "Name": "SyncJobItemStatusTransferring",
+          "Value": "Transferring"
+        },
+        {
+          "Name": "SyncJobItemStatusSynced",
+          "Value": "Synced"
+        },
+        {
+          "Name": "SyncJobItemStatusFailed",
+          "Value": "Failed"
+        }
+      ]
+    },
+    {
+      "Name": "TranscodeReason",
+      "SchemaName": "TranscodeReason",
+      "Values": [
+        {
+          "Name": "TranscodeReasonContainerNotSupported",
+          "Value": "ContainerNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonVideoCodecNotSupported",
+          "Value": "VideoCodecNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonAudioCodecNotSupported",
+          "Value": "AudioCodecNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonContainerBitrateExceedsLimit",
+          "Value": "ContainerBitrateExceedsLimit"
+        },
+        {
+          "Name": "TranscodeReasonAudioBitrateNotSupported",
+          "Value": "AudioBitrateNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonAudioChannelsNotSupported",
+          "Value": "AudioChannelsNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonVideoResolutionNotSupported",
+          "Value": "VideoResolutionNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonUnknownVideoStreamInfo",
+          "Value": "UnknownVideoStreamInfo"
+        },
+        {
+          "Name": "TranscodeReasonUnknownAudioStreamInfo",
+          "Value": "UnknownAudioStreamInfo"
+        },
+        {
+          "Name": "TranscodeReasonAudioProfileNotSupported",
+          "Value": "AudioProfileNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonAudioSampleRateNotSupported",
+          "Value": "AudioSampleRateNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonAnamorphicVideoNotSupported",
+          "Value": "AnamorphicVideoNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonInterlacedVideoNotSupported",
+          "Value": "InterlacedVideoNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonSecondaryAudioNotSupported",
+          "Value": "SecondaryAudioNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonRefFramesNotSupported",
+          "Value": "RefFramesNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonVideoBitDepthNotSupported",
+          "Value": "VideoBitDepthNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonVideoBitrateNotSupported",
+          "Value": "VideoBitrateNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonVideoFramerateNotSupported",
+          "Value": "VideoFramerateNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonVideoLevelNotSupported",
+          "Value": "VideoLevelNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonVideoProfileNotSupported",
+          "Value": "VideoProfileNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonAudioBitDepthNotSupported",
+          "Value": "AudioBitDepthNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonSubtitleCodecNotSupported",
+          "Value": "SubtitleCodecNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonDirectPlayError",
+          "Value": "DirectPlayError"
+        },
+        {
+          "Name": "TranscodeReasonVideoRangeNotSupported",
+          "Value": "VideoRangeNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonSubtitleContentOptionsEnabled",
+          "Value": "SubtitleContentOptionsEnabled"
+        },
+        {
+          "Name": "TranscodeReasonExternalAudioNotSupported",
+          "Value": "ExternalAudioNotSupported"
+        },
+        {
+          "Name": "TranscodeReasonAudioDelayNotSupported",
+          "Value": "AudioDelayNotSupported"
+        }
+      ]
+    },
+    {
+      "Name": "TranscodeSeekInfo",
+      "SchemaName": "TranscodeSeekInfo",
+      "Values": [
+        {
+          "Name": "TranscodeSeekInfoAuto",
+          "Value": "Auto"
+        },
+        {
+          "Name": "TranscodeSeekInfoBytes",
+          "Value": "Bytes"
+        }
+      ]
+    },
+    {
+      "Name": "TranscodingVpStepTypes",
+      "SchemaName": "Transcoding.VpStepTypes",
+      "Values": [
+        {
+          "Name": "TranscodingVpStepTypesDecoder",
+          "Value": "Decoder"
+        },
+        {
+          "Name": "TranscodingVpStepTypesEncoder",
+          "Value": "Encoder"
+        },
+        {
+          "Name": "TranscodingVpStepTypesScaling",
+          "Value": "Scaling"
+        },
+        {
+          "Name": "TranscodingVpStepTypesDeinterlace",
+          "Value": "Deinterlace"
+        },
+        {
+          "Name": "TranscodingVpStepTypesSubtitleOverlay",
+          "Value": "SubtitleOverlay"
+        },
+        {
+          "Name": "TranscodingVpStepTypesToneMapping",
+          "Value": "ToneMapping"
+        },
+        {
+          "Name": "TranscodingVpStepTypesColorConversion",
+          "Value": "ColorConversion"
+        },
+        {
+          "Name": "TranscodingVpStepTypesSplitCaptions",
+          "Value": "SplitCaptions"
+        },
+        {
+          "Name": "TranscodingVpStepTypesTextSub2Video",
+          "Value": "TextSub2Video"
+        },
+        {
+          "Name": "TranscodingVpStepTypesGraphicSub2Video",
+          "Value": "GraphicSub2Video"
+        },
+        {
+          "Name": "TranscodingVpStepTypesGraphicSub2Text",
+          "Value": "GraphicSub2Text"
+        },
+        {
+          "Name": "TranscodingVpStepTypesBurnInTextSubs",
+          "Value": "BurnInTextSubs"
+        },
+        {
+          "Name": "TranscodingVpStepTypesBurnInGraphicSubs",
+          "Value": "BurnInGraphicSubs"
+        },
+        {
+          "Name": "TranscodingVpStepTypesScaleSubs",
+          "Value": "ScaleSubs"
+        },
+        {
+          "Name": "TranscodingVpStepTypesTextMod",
+          "Value": "TextMod"
+        },
+        {
+          "Name": "TranscodingVpStepTypesCensor",
+          "Value": "Censor"
+        },
+        {
+          "Name": "TranscodingVpStepTypesShowSpeaker",
+          "Value": "ShowSpeaker"
+        },
+        {
+          "Name": "TranscodingVpStepTypesStripStyles",
+          "Value": "StripStyles"
+        },
+        {
+          "Name": "TranscodingVpStepTypesConnectTo",
+          "Value": "ConnectTo"
+        },
+        {
+          "Name": "TranscodingVpStepTypesRotate",
+          "Value": "Rotate"
+        }
+      ]
+    },
+    {
+      "Name": "TransportStreamTimestamp",
+      "SchemaName": "TransportStreamTimestamp",
+      "Values": [
+        {
+          "Name": "TransportStreamTimestampNone",
+          "Value": "None"
+        },
+        {
+          "Name": "TransportStreamTimestampZero",
+          "Value": "Zero"
+        },
+        {
+          "Name": "TransportStreamTimestampValid",
+          "Value": "Valid"
+        }
+      ]
+    },
+    {
+      "Name": "UserItemShareLevel",
+      "SchemaName": "UserItemShareLevel",
+      "Values": [
+        {
+          "Name": "UserItemShareLevelNone",
+          "Value": "None"
+        },
+        {
+          "Name": "UserItemShareLevelRead",
+          "Value": "Read"
+        },
+        {
+          "Name": "UserItemShareLevelWrite",
+          "Value": "Write"
+        },
+        {
+          "Name": "UserItemShareLevelManage",
+          "Value": "Manage"
+        },
+        {
+          "Name": "UserItemShareLevelManageDelete",
+          "Value": "ManageDelete"
+        }
+      ]
+    },
+    {
+      "Name": "Video3DFormat",
+      "SchemaName": "Video3DFormat",
+      "Values": [
+        {
+          "Name": "Video3DFormatHalfSideBySide",
+          "Value": "HalfSideBySide"
+        },
+        {
+          "Name": "Video3DFormatFullSideBySide",
+          "Value": "FullSideBySide"
+        },
+        {
+          "Name": "Video3DFormatFullTopAndBottom",
+          "Value": "FullTopAndBottom"
+        },
+        {
+          "Name": "Video3DFormatHalfTopAndBottom",
+          "Value": "HalfTopAndBottom"
+        },
+        {
+          "Name": "Video3DFormatMVC",
+          "Value": "MVC"
+        }
+      ]
+    }
+  ]
+}

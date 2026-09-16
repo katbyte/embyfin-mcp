@@ -1,0 +1,167 @@
+{
+  "Name": "ItemUpdate",
+  "Tag": "ItemUpdate",
+  "Operations": [
+    {
+      "Name": "GetMetadataEditorInfo",
+      "OperationId": "GetMetadataEditorInfo",
+      "Method": "GET",
+      "Path": "/Items/{itemId}/MetadataEditor",
+      "Description": "Gets metadata editor info for an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "MetadataEditorInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "UpdateItem",
+      "OperationId": "UpdateItem",
+      "Method": "POST",
+      "Path": "/Items/{itemId}",
+      "Description": "Updates an item.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "BaseItemDto"
+        }
+      },
+      "ExpectedStatusCodes": [
+        204
+      ]
+    },
+    {
+      "Name": "UpdateItemContentType",
+      "OperationId": "UpdateItemContentType",
+      "Method": "POST",
+      "Path": "/Items/{itemId}/ContentType",
+      "Description": "Updates an item's content type.",
+      "PathParameters": [
+        {
+          "Name": "itemId",
+          "Argument": "itemId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "contentType",
+          "Field": "ContentType",
+          "In": "Query",
+          "Description": "The content type of the item.",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "MetadataEditorInfo",
+      "SchemaName": "MetadataEditorInfo",
+      "Description": "A class representing metadata editor information.",
+      "Fields": [
+        {
+          "Name": "ContentType",
+          "JsonName": "ContentType",
+          "Description": "Gets or sets the content type.",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CollectionType"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "ContentTypeOptions",
+          "JsonName": "ContentTypeOptions",
+          "Description": "Gets or sets the content type options.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "NameValuePair"
+            }
+          }
+        },
+        {
+          "Name": "Countries",
+          "JsonName": "Countries",
+          "Description": "Gets or sets the countries.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CountryInfo"
+            }
+          }
+        },
+        {
+          "Name": "Cultures",
+          "JsonName": "Cultures",
+          "Description": "Gets or sets the cultures.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CultureDto"
+            }
+          }
+        },
+        {
+          "Name": "ExternalIdInfos",
+          "JsonName": "ExternalIdInfos",
+          "Description": "Gets or sets the external id infos.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ExternalIdInfo"
+            }
+          }
+        },
+        {
+          "Name": "ParentalRatingOptions",
+          "JsonName": "ParentalRatingOptions",
+          "Description": "Gets or sets the parental rating options.",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ParentalRating"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -33,7 +33,8 @@ func resolveSession(ctx context.Context, client *embyfin.Client, target string) 
 	return nil, fmt.Errorf("no session matching %q (have: %s)", target, strings.Join(descs, ", "))
 }
 
-func registerSessionTools(server *mcp.Server, client *embyfin.Client) {
+func registerSessionTools(r *registry) {
+	client := r.client
 	type sessionRow struct {
 		ID         string `json:"id"`
 		User       string `json:"user,omitempty"`
@@ -46,7 +47,7 @@ func registerSessionTools(server *mcp.Server, client *embyfin.Client) {
 	type sessionsOut struct {
 		Sessions []sessionRow `json:"sessions"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "session_list",
 		Description: "Live sessions: which devices are connected and what each is playing right now.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, sessionsOut, error) {
@@ -84,7 +85,7 @@ func registerSessionTools(server *mcp.Server, client *embyfin.Client) {
 	type playOut struct {
 		PlayingOn string `json:"playing_on"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "session_play",
 		Description: "Play items on a connected device ('play Dune on the living-room TV'). Changes what the device is doing.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in playIn) (*mcp.CallToolResult, playOut, error) {
@@ -113,7 +114,7 @@ func registerSessionTools(server *mcp.Server, client *embyfin.Client) {
 	type commandOut struct {
 		Sent string `json:"sent"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "session_command",
 		Description: "Send a playback command (pause, stop, seek...) to a device. Changes what the device is doing.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in commandIn) (*mcp.CallToolResult, commandOut, error) {
@@ -139,7 +140,7 @@ func registerSessionTools(server *mcp.Server, client *embyfin.Client) {
 	type messageOut struct {
 		SentTo string `json:"sent_to"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "session_message",
 		Description: "Display a text message on a device's screen ('dinner is ready').",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in messageIn) (*mcp.CallToolResult, messageOut, error) {

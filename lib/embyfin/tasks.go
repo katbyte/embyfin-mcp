@@ -3,8 +3,10 @@ package embyfin
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
+
+	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
 
 type TaskResult struct {
@@ -23,9 +25,26 @@ type Task struct {
 }
 
 func (c *Client) Tasks(ctx context.Context) ([]Task, error) {
-	var tasks []Task
-	if err := c.get(ctx, "/ScheduledTasks", nil, &tasks); err != nil {
+	if c.isEmby() {
+		res, err := c.emby.GetScheduledTasks(ctx, emby.GetScheduledTasksOperationOptions{})
+		if err != nil {
+			return nil, err
+		}
+		tasks := make([]Task, 0, len(res.Model))
+		for i := range res.Model {
+			tasks = append(tasks, taskFromEmby(&res.Model[i]))
+		}
+
+		return tasks, nil
+	}
+
+	res, err := c.jf.GetTasks(ctx, jf.GetTasksOperationOptions{})
+	if err != nil {
 		return nil, err
+	}
+	tasks := make([]Task, 0, len(res.Model))
+	for i := range res.Model {
+		tasks = append(tasks, taskFromJF(&res.Model[i]))
 	}
 
 	return tasks, nil
@@ -51,7 +70,12 @@ func (c *Client) RunTask(ctx context.Context, nameOrID string) (*Task, error) {
 		return nil, fmt.Errorf("no task named %q (have: %s)", nameOrID, strings.Join(names, ", "))
 	}
 
-	if err := c.post(ctx, "/ScheduledTasks/Running/"+url.PathEscape(task.ID), nil, nil, nil); err != nil {
+	if c.isEmby() {
+		_, err = c.emby.PostScheduledTasksRunningById(ctx, task.ID)
+	} else {
+		_, err = c.jf.StartTask(ctx, task.ID)
+	}
+	if err != nil {
 		return nil, err
 	}
 
@@ -60,5 +84,12 @@ func (c *Client) RunTask(ctx context.Context, nameOrID string) (*Task, error) {
 
 // RefreshLibrary triggers a scan of all libraries.
 func (c *Client) RefreshLibrary(ctx context.Context) error {
-	return c.post(ctx, "/Library/Refresh", nil, nil, nil)
+	if c.isEmby() {
+		_, err := c.emby.PostLibraryRefresh(ctx)
+		return err
+	}
+
+	_, err := c.jf.RefreshLibrary(ctx)
+
+	return err
 }

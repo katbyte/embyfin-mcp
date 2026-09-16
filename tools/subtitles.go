@@ -3,11 +3,11 @@ package tools
 import (
 	"context"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func registerSubtitleTools(server *mcp.Server, client *embyfin.Client) {
+func registerSubtitleTools(r *registry) {
+	client := r.client
 	type searchIn struct {
 		ID       string `json:"id"                 jsonschema:"the library item id"`
 		Language string `json:"language,omitempty" jsonschema:"three-letter language code, default eng"`
@@ -23,7 +23,7 @@ func registerSubtitleTools(server *mcp.Server, client *embyfin.Client) {
 	type searchOut struct {
 		Candidates []subOut `json:"candidates"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, readTool, &mcp.Tool{
 		Name:        "item_subtitle_search",
 		Description: "Search remote subtitle providers for an item in a given language.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in searchIn) (*mcp.CallToolResult, searchOut, error) {
@@ -59,7 +59,7 @@ func registerSubtitleTools(server *mcp.Server, client *embyfin.Client) {
 	type downloadOut struct {
 		Downloaded bool `json:"downloaded"`
 	}
-	addTool(server, &mcp.Tool{
+	add(r, writeTool, &mcp.Tool{
 		Name:        "item_subtitle_download",
 		Description: "Download a chosen remote subtitle for an item. Changes server state (writes a subtitle file).",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in downloadIn) (*mcp.CallToolResult, downloadOut, error) {

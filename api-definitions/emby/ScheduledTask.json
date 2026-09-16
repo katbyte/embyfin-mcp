@@ -1,0 +1,425 @@
+{
+  "Name": "ScheduledTask",
+  "Tag": "ScheduledTaskService",
+  "Operations": [
+    {
+      "Name": "DeleteScheduledTasksRunningById",
+      "OperationId": "deleteScheduledtasksRunningById",
+      "Method": "DELETE",
+      "Path": "/ScheduledTasks/Running/{Id}",
+      "Description": "Stops a scheduled task",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetScheduledTasks",
+      "OperationId": "getScheduledtasks",
+      "Method": "GET",
+      "Path": "/ScheduledTasks",
+      "Description": "Gets scheduled tasks",
+      "Options": [
+        {
+          "Name": "IsHidden",
+          "Field": "IsHidden",
+          "In": "Query",
+          "Description": "Optional filter tasks that are hidden, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IsEnabled",
+          "Field": "IsEnabled",
+          "In": "Query",
+          "Description": "Optional filter tasks that are enabled, or not.",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "TaskInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetScheduledTasksById",
+      "OperationId": "getScheduledtasksById",
+      "Method": "GET",
+      "Path": "/ScheduledTasks/{Id}",
+      "Description": "Gets a scheduled task, by Id",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TaskInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostScheduledTasksByIdTriggers",
+      "OperationId": "postScheduledtasksByIdTriggers",
+      "Method": "POST",
+      "Path": "/ScheduledTasks/{Id}/Triggers",
+      "Description": "Updates the triggers for a scheduled task",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "TaskTriggerInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostScheduledTasksRunningById",
+      "OperationId": "postScheduledtasksRunningById",
+      "Method": "POST",
+      "Path": "/ScheduledTasks/Running/{Id}",
+      "Description": "Starts a scheduled task",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostScheduledTasksRunningByIdDelete",
+      "OperationId": "postScheduledtasksRunningByIdDelete",
+      "Method": "POST",
+      "Path": "/ScheduledTasks/Running/{Id}/Delete",
+      "Description": "Stops a scheduled task",
+      "PathParameters": [
+        {
+          "Name": "Id",
+          "Argument": "id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "TaskInfo",
+      "SchemaName": "TaskInfo",
+      "Fields": [
+        {
+          "Name": "Category",
+          "JsonName": "Category",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CurrentProgressPercentage",
+          "JsonName": "CurrentProgressPercentage",
+          "Type": {
+            "Type": "Double"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Description",
+          "JsonName": "Description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IsHidden",
+          "JsonName": "IsHidden",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Key",
+          "JsonName": "Key",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LastExecutionResult",
+          "JsonName": "LastExecutionResult",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TaskResult"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "State",
+          "JsonName": "State",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TaskState"
+          }
+        },
+        {
+          "Name": "Triggers",
+          "JsonName": "Triggers",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TaskTriggerInfo"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TaskResult",
+      "SchemaName": "TaskResult",
+      "Fields": [
+        {
+          "Name": "EndTimeUtc",
+          "JsonName": "EndTimeUtc",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ErrorMessage",
+          "JsonName": "ErrorMessage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "Id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Key",
+          "JsonName": "Key",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LongErrorMessage",
+          "JsonName": "LongErrorMessage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StartTimeUtc",
+          "JsonName": "StartTimeUtc",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Status",
+          "JsonName": "Status",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TaskCompletionStatus"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TaskTriggerInfo",
+      "SchemaName": "TaskTriggerInfo",
+      "Fields": [
+        {
+          "Name": "DayOfWeek",
+          "JsonName": "DayOfWeek",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "DayOfWeek"
+          }
+        },
+        {
+          "Name": "IntervalTicks",
+          "JsonName": "IntervalTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "MaxRuntimeTicks",
+          "JsonName": "MaxRuntimeTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "SystemEvent",
+          "JsonName": "SystemEvent",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "SystemEvent"
+          }
+        },
+        {
+          "Name": "TimeOfDayTicks",
+          "JsonName": "TimeOfDayTicks",
+          "Type": {
+            "Type": "Integer64"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "SystemEvent",
+      "SchemaName": "SystemEvent",
+      "Values": [
+        {
+          "Name": "SystemEventWakeFromSleep",
+          "Value": "WakeFromSleep"
+        },
+        {
+          "Name": "SystemEventDisplayConfigurationChange",
+          "Value": "DisplayConfigurationChange"
+        },
+        {
+          "Name": "SystemEventNetworkChange",
+          "Value": "NetworkChange"
+        }
+      ]
+    },
+    {
+      "Name": "TaskCompletionStatus",
+      "SchemaName": "TaskCompletionStatus",
+      "Values": [
+        {
+          "Name": "TaskCompletionStatusCompleted",
+          "Value": "Completed"
+        },
+        {
+          "Name": "TaskCompletionStatusFailed",
+          "Value": "Failed"
+        },
+        {
+          "Name": "TaskCompletionStatusCancelled",
+          "Value": "Cancelled"
+        },
+        {
+          "Name": "TaskCompletionStatusAborted",
+          "Value": "Aborted"
+        }
+      ]
+    },
+    {
+      "Name": "TaskState",
+      "SchemaName": "TaskState",
+      "Values": [
+        {
+          "Name": "TaskStateIdle",
+          "Value": "Idle"
+        },
+        {
+          "Name": "TaskStateCancelling",
+          "Value": "Cancelling"
+        },
+        {
+          "Name": "TaskStateRunning",
+          "Value": "Running"
+        }
+      ]
+    }
+  ]
+}

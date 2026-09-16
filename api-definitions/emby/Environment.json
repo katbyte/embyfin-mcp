@@ -1,0 +1,384 @@
+{
+  "Name": "Environment",
+  "Tag": "EnvironmentService",
+  "Operations": [
+    {
+      "Name": "GetEnvironmentDefaultDirectoryBrowser",
+      "OperationId": "getEnvironmentDefaultdirectorybrowser",
+      "Method": "GET",
+      "Path": "/Environment/DefaultDirectoryBrowser",
+      "Description": "Gets the parent path of a given path",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DefaultDirectoryBrowserInfo"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEnvironmentDirectoryContents",
+      "OperationId": "getEnvironmentDirectorycontents",
+      "Method": "GET",
+      "Path": "/Environment/DirectoryContents",
+      "Description": "Gets the contents of a given directory in the file system",
+      "Options": [
+        {
+          "Name": "Path",
+          "Field": "Path",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IncludeFiles",
+          "Field": "IncludeFiles",
+          "In": "Query",
+          "Description": "An optional filter to include or exclude files from the results. true/false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IncludeDirectories",
+          "Field": "IncludeDirectories",
+          "In": "Query",
+          "Description": "An optional filter to include or exclude folders from the results. true/false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "IOFileSystemEntryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEnvironmentDrives",
+      "OperationId": "getEnvironmentDrives",
+      "Method": "GET",
+      "Path": "/Environment/Drives",
+      "Description": "Gets available drives from the server's file system",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "IOFileSystemEntryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEnvironmentNetworkDevices",
+      "OperationId": "getEnvironmentNetworkdevices",
+      "Method": "GET",
+      "Path": "/Environment/NetworkDevices",
+      "Description": "Gets a list of devices on the network",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "IOFileSystemEntryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEnvironmentNetworkShares",
+      "OperationId": "getEnvironmentNetworkshares",
+      "Method": "GET",
+      "Path": "/Environment/NetworkShares",
+      "Description": "Gets shares from a network device",
+      "Options": [
+        {
+          "Name": "Path",
+          "Field": "Path",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "IOFileSystemEntryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "GetEnvironmentParentPath",
+      "OperationId": "getEnvironmentParentpath",
+      "Method": "GET",
+      "Path": "/Environment/ParentPath",
+      "Description": "Gets the parent path of a given path",
+      "Options": [
+        {
+          "Name": "Path",
+          "Field": "Path",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "text/plain",
+        "Type": {
+          "Type": "RawFile"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostEnvironmentDirectoryContents",
+      "OperationId": "postEnvironmentDirectorycontents",
+      "Method": "POST",
+      "Path": "/Environment/DirectoryContents",
+      "Description": "Gets the contents of a given directory in the file system",
+      "Options": [
+        {
+          "Name": "Path",
+          "Field": "Path",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "IncludeFiles",
+          "Field": "IncludeFiles",
+          "In": "Query",
+          "Description": "An optional filter to include or exclude files from the results. true/false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "IncludeDirectories",
+          "Field": "IncludeDirectories",
+          "In": "Query",
+          "Description": "An optional filter to include or exclude folders from the results. true/false",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GetDirectoryContents"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "IOFileSystemEntryInfo"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    },
+    {
+      "Name": "PostEnvironmentValidatePath",
+      "OperationId": "postEnvironmentValidatepath",
+      "Method": "POST",
+      "Path": "/Environment/ValidatePath",
+      "Description": "Gets the contents of a given directory in the file system",
+      "Options": [
+        {
+          "Name": "Path",
+          "Field": "Path",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ValidatePath"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200,
+        204
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DefaultDirectoryBrowserInfo",
+      "SchemaName": "DefaultDirectoryBrowserInfo",
+      "Fields": [
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GetDirectoryContents",
+      "SchemaName": "GetDirectoryContents",
+      "Fields": [
+        {
+          "Name": "Password",
+          "JsonName": "Password",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Username",
+          "JsonName": "Username",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "IOFileSystemEntryInfo",
+      "SchemaName": "IO.FileSystemEntryInfo",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "Name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Path",
+          "JsonName": "Path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "Type",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "IOFileSystemEntryType"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ValidatePath",
+      "SchemaName": "ValidatePath",
+      "Fields": [
+        {
+          "Name": "IsFile",
+          "JsonName": "IsFile",
+          "Type": {
+            "Type": "Boolean"
+          },
+          "Nullable": true
+        },
+        {
+          "Name": "Password",
+          "JsonName": "Password",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Username",
+          "JsonName": "Username",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ValidateWriteable",
+          "JsonName": "ValidateWriteable",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ],
+  "Constants": [
+    {
+      "Name": "IOFileSystemEntryType",
+      "SchemaName": "IO.FileSystemEntryType",
+      "Values": [
+        {
+          "Name": "IOFileSystemEntryTypeFile",
+          "Value": "File"
+        },
+        {
+          "Name": "IOFileSystemEntryTypeDirectory",
+          "Value": "Directory"
+        },
+        {
+          "Name": "IOFileSystemEntryTypeNetworkComputer",
+          "Value": "NetworkComputer"
+        },
+        {
+          "Name": "IOFileSystemEntryTypeNetworkShare",
+          "Value": "NetworkShare"
+        }
+      ]
+    }
+  ]
+}
