@@ -67,10 +67,13 @@ type Proxy struct {
 	redact     []string
 	redactBody []string
 	ignore     []string
-	store      *store
-	listener   net.Listener
-	srv        *http.Server
-	logger     *log.Logger
+
+	tunnelsMu sync.Mutex
+	tunnels   map[string]bool
+	store     *store
+	listener  net.Listener
+	srv       *http.Server
+	logger    *log.Logger
 
 	ca     *x509.Certificate
 	caKey  *ecdsa.PrivateKey
@@ -238,6 +241,8 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 		host = r.Host
 	}
 
+	p.sawTunnel(host)
+
 	hj, ok := w.(http.Hijacker)
 	if !ok {
 		http.Error(w, "hijacking unsupported", http.StatusInternalServerError)
@@ -265,7 +270,9 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 	})
 	if err := conn.HandshakeContext(r.Context()); err != nil {
 		// the client hung up or refused our certificate; with SSL_CERT_FILE
-		// pointing at our CA the latter should not happen
+		// pointing at our CA the latter should not happen, so say so rather
+		// than leave a media server timing out against a silent proxy
+		p.logger.Printf("tls handshake with %s: %v", host, err)
 		return
 	}
 	defer func() { _ = conn.Close() }()
@@ -352,6 +359,22 @@ func (p *Proxy) ignored(host string) bool {
 	}
 
 	return false
+}
+
+// sawTunnel logs the first CONNECT for a host, so a run that records or
+// replays nothing can be told apart from one whose requests never arrived.
+func (p *Proxy) sawTunnel(host string) {
+	p.tunnelsMu.Lock()
+	defer p.tunnelsMu.Unlock()
+
+	if p.tunnels == nil {
+		p.tunnels = map[string]bool{}
+	}
+	if p.tunnels[host] {
+		return
+	}
+	p.tunnels[host] = true
+	p.logger.Printf("tunnel to %s", host)
 }
 
 // redactQuery strips the RedactQuery parameters from the request, so they are
