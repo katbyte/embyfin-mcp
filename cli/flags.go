@@ -42,7 +42,7 @@ func configureFlags(root *cobra.Command) error {
 	pflags.String("listen", "", "serve MCP over HTTP on this address (e.g. :8080) instead of stdio")
 	pflags.String("auth-token", "", "bearer token required on the HTTP endpoint (consider exporting to EMBYFIN_AUTH_TOKEN instead)")
 	pflags.Bool("allow-no-auth", false, "serve HTTP with no bearer token: anyone who can reach the port can use every tool")
-	pflags.String("tmdb-key", "", "TMDB API key or read access token, enables provider-backed audits (consider exporting to EMBYFIN_TMDB_KEY instead)")
+	pflags.String("tmdb-key", "", "TMDB API key or read access token, enables the provider-backed audits and show_missing's fallback (consider exporting to EMBYFIN_TMDB_KEY instead)")
 
 	// binding map for viper/pflag -> env
 	m := map[string]string{ //nolint:gosec // G101: these are env var names, not credentials

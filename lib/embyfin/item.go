@@ -84,8 +84,18 @@ type Item struct {
 	SeriesID          string            `json:"SeriesId,omitempty"`
 	ParentIndexNumber int               `json:"ParentIndexNumber,omitempty"` // season number for episodes
 	IndexNumber       int               `json:"IndexNumber,omitempty"`       // episode number
+	IndexNumberEnd    int               `json:"IndexNumberEnd,omitempty"`    // last episode number of a file holding several (S01E01E02)
 	PlaylistItemID    string            `json:"PlaylistItemId,omitempty"`    // entry id within a playlist
 	IsMissing         bool              `json:"IsMissing,omitempty"`         // virtual episode the library lacks
+}
+
+// HasFile reports whether the library holds a file for the item, which is
+// one question asked in several places and worth one answer: an episode is
+// held when there is a file behind it, and not when the server is only
+// keeping the record of one it lacks (IsMissing, which both mappers read off
+// LocationType Virtual).
+func (i *Item) HasFile() bool {
+	return !i.IsMissing && i.Path != ""
 }
 
 // TagNames returns the item's tags whichever way the server spells them.
@@ -143,15 +153,18 @@ type SearchOptions struct {
 	Studios         []string
 	OfficialRatings []string
 	Years           string // comma-separated production years
-	IDs             string // comma-separated item ids
-	Filters         string // e.g. IsPlayed, IsFavorite, IsResumable
-	SortBy          string // e.g. DateCreated, DatePlayed, SortName
-	SortOrder       string // Ascending or Descending
-	UserID          string // user context: adds watch state to UserData
-	EnableUserData  bool
-	Fields          string // override FieldsDefault
-	Limit           int
-	StartIndex      int
+	// ParentIndexNumber restricts to one season number (episodes only); 0 is
+	// every season, so the specials cannot be asked for this way.
+	ParentIndexNumber int
+	IDs               string // comma-separated item ids
+	Filters           string // e.g. IsPlayed, IsFavorite, IsResumable
+	SortBy            string // e.g. DateCreated, DatePlayed, SortName
+	SortOrder         string // Ascending or Descending
+	UserID            string // user context: adds watch state to UserData
+	EnableUserData    bool
+	Fields            string // override FieldsDefault
+	Limit             int
+	StartIndex        int
 }
 
 // Search returns matching library items plus the total match count
@@ -178,17 +191,18 @@ func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields stri
 		ParentId:         opts.ParentID,
 		PersonIds:        opts.PersonIDs,
 		// Emby reads these as one pipe-delimited value
-		Genres:          strings.Join(opts.Genres, "|"),
-		Tags:            strings.Join(opts.Tags, "|"),
-		Studios:         strings.Join(opts.Studios, "|"),
-		OfficialRatings: strings.Join(opts.OfficialRatings, "|"),
-		Years:           opts.Years,
-		Ids:             opts.IDs,
-		Filters:         opts.Filters,
-		SortBy:          opts.SortBy,
-		SortOrder:       opts.SortOrder,
-		Limit:           opts.Limit,
-		StartIndex:      opts.StartIndex,
+		Genres:            strings.Join(opts.Genres, "|"),
+		Tags:              strings.Join(opts.Tags, "|"),
+		Studios:           strings.Join(opts.Studios, "|"),
+		OfficialRatings:   strings.Join(opts.OfficialRatings, "|"),
+		Years:             opts.Years,
+		Ids:               opts.IDs,
+		Filters:           opts.Filters,
+		SortBy:            opts.SortBy,
+		SortOrder:         opts.SortOrder,
+		ParentIndexNumber: opts.ParentIndexNumber,
+		Limit:             opts.Limit,
+		StartIndex:        opts.StartIndex,
 	}
 	if opts.EnableUserData {
 		o.EnableUserData = new(true)
@@ -219,25 +233,26 @@ func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields stri
 // (minus UserId, which is the path).
 func embyUserItemsOptions(o *emby.GetItemsOperationOptions) emby.GetUsersByUserIdItemsOperationOptions {
 	return emby.GetUsersByUserIdItemsOperationOptions{
-		Recursive:        o.Recursive,
-		Fields:           o.Fields,
-		SearchTerm:       o.SearchTerm,
-		IncludeItemTypes: o.IncludeItemTypes,
-		ExcludeItemTypes: o.ExcludeItemTypes,
-		ParentId:         o.ParentId,
-		PersonIds:        o.PersonIds,
-		Genres:           o.Genres,
-		Tags:             o.Tags,
-		Studios:          o.Studios,
-		OfficialRatings:  o.OfficialRatings,
-		Years:            o.Years,
-		Ids:              o.Ids,
-		Filters:          o.Filters,
-		SortBy:           o.SortBy,
-		SortOrder:        o.SortOrder,
-		Limit:            o.Limit,
-		StartIndex:       o.StartIndex,
-		EnableUserData:   o.EnableUserData,
+		Recursive:         o.Recursive,
+		Fields:            o.Fields,
+		SearchTerm:        o.SearchTerm,
+		IncludeItemTypes:  o.IncludeItemTypes,
+		ExcludeItemTypes:  o.ExcludeItemTypes,
+		ParentId:          o.ParentId,
+		PersonIds:         o.PersonIds,
+		Genres:            o.Genres,
+		Tags:              o.Tags,
+		Studios:           o.Studios,
+		OfficialRatings:   o.OfficialRatings,
+		Years:             o.Years,
+		ParentIndexNumber: o.ParentIndexNumber,
+		Ids:               o.Ids,
+		Filters:           o.Filters,
+		SortBy:            o.SortBy,
+		SortOrder:         o.SortOrder,
+		Limit:             o.Limit,
+		StartIndex:        o.StartIndex,
+		EnableUserData:    o.EnableUserData,
 	}
 }
 
@@ -263,6 +278,7 @@ func (c *Client) searchJF(ctx context.Context, opts SearchOptions, fields string
 		Studios:             opts.Studios,
 		OfficialRatings:     opts.OfficialRatings,
 		Years:               years,
+		ParentIndexNumber:   opts.ParentIndexNumber,
 		Ids:                 list[string](opts.IDs),
 		Filters:             list[jf.ItemFilter](opts.Filters),
 		SortBy:              list[jf.ItemSortBy](opts.SortBy),

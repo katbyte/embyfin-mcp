@@ -44,6 +44,7 @@ func itemFromJF(d *jf.BaseItemDto) Item {
 		SeriesID:          d.SeriesId,
 		ParentIndexNumber: d.ParentIndexNumber,
 		IndexNumber:       d.IndexNumber,
+		IndexNumberEnd:    d.IndexNumberEnd,
 		PlaylistItemID:    d.PlaylistItemId,
 		IsMissing:         d.LocationType == locationVirtual,
 		UserData:          userDataFromJF(d.UserData),

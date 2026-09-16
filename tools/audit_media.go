@@ -140,12 +140,20 @@ func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (au
 	return out, nil
 }
 
-// seasonGaps lists what a series' files leave out: the episode numbers
+// gap is one thing a series' files leave out: a whole season when Episode is
+// zero, otherwise one episode of a season.
+type gap struct {
+	Season  int
+	Episode int
+}
+
+// gapsOnDisk lists what a series' files leave out: the episode numbers
 // missing between the lowest and highest a season holds, and the seasons
 // missing between the lowest and highest the series holds. Specials (season
 // 0) have no order to have gaps in. Nothing past the last episode on disk is
-// knowable from the files.
-func seasonGaps(episodes map[int][]int) []string {
+// knowable from the files, which is why the gaps are never the whole answer
+// to what a series is missing: only a metadata provider knows the rest.
+func gapsOnDisk(episodes map[int][]int) []gap {
 	seasons := make([]int, 0, len(episodes))
 	for s := range episodes {
 		if s > 0 {
@@ -154,11 +162,11 @@ func seasonGaps(episodes map[int][]int) []string {
 	}
 	slices.Sort(seasons)
 
-	var gaps []string
+	var gaps []gap
 	for i, s := range seasons {
 		if i > 0 {
 			for missing := seasons[i-1] + 1; missing < s; missing++ {
-				gaps = append(gaps, fmt.Sprintf("season %d", missing))
+				gaps = append(gaps, gap{Season: missing})
 			}
 		}
 		eps := slices.Clone(episodes[s])
@@ -166,7 +174,7 @@ func seasonGaps(episodes map[int][]int) []string {
 		eps = slices.Compact(eps)
 		for j := 1; j < len(eps); j++ {
 			for missing := eps[j-1] + 1; missing < eps[j]; missing++ {
-				gaps = append(gaps, fmt.Sprintf("S%02dE%02d", s, missing))
+				gaps = append(gaps, gap{Season: s, Episode: missing})
 			}
 		}
 	}
@@ -174,19 +182,46 @@ func seasonGaps(episodes map[int][]int) []string {
 	return gaps
 }
 
+// seasonGaps spells gapsOnDisk the way an audit's detail line reads.
+func seasonGaps(episodes map[int][]int) []string {
+	holes := gapsOnDisk(episodes)
+	if len(holes) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(holes))
+	for _, h := range holes {
+		if h.Episode == 0 {
+			out = append(out, fmt.Sprintf("season %d", h.Season))
+			continue
+		}
+		out = append(out, fmt.Sprintf("S%02dE%02d", h.Season, h.Episode))
+	}
+
+	return out
+}
+
 type episodesIn struct {
 	Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
 	Limit   int    `json:"limit,omitempty"   jsonschema:"maximum series to return, default 100"`
 }
 
-func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episodesIn) (auditOut, error) {
+// missingEpisodesOut is the missing-episode sweep's worklist, with the field
+// that says how much of it could be known. Without it a library whose server
+// keeps no record of a series' run reads as a library with nothing missing.
+type missingEpisodesOut struct {
+	auditOut
+	RunsKnown bool   `json:"runs_known"     jsonschema:"whether the server could say what any series' full run is. False means the findings are only the episode numbers skipped between the files on disk: a series absent from them is NOT known to be complete"`
+	Note      string `json:"note,omitempty"`
+}
+
+func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episodesIn) (missingEpisodesOut, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 100
 	}
 	opts, err := sweepOptions(ctx, client, in.Library, "", "Episode", "Path")
 	if err != nil {
-		return auditOut{}, err
+		return missingEpisodesOut{}, err
 	}
 
 	type series struct {
@@ -207,7 +242,7 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 				s = &series{name: it.SeriesName, onDisk: map[int][]int{}}
 				bySeries[it.SeriesID] = s
 			}
-			if it.Path == "" || it.IsMissing {
+			if !it.HasFile() {
 				s.provider = append(s.provider, fmt.Sprintf("S%02dE%02d", it.ParentIndexNumber, it.IndexNumber))
 				continue
 			}
@@ -218,7 +253,15 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 		}
 		return true
 	}); err != nil {
-		return auditOut{}, err
+		return missingEpisodesOut{}, err
+	}
+
+	runs := false
+	for _, s := range bySeries {
+		if len(s.provider) > 0 {
+			runs = true
+			break
+		}
 	}
 
 	ids := make([]string, 0, len(bySeries))
@@ -246,7 +289,12 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 		}
 	}
 
-	return out, nil
+	answer := missingEpisodesOut{auditOut: out, RunsKnown: runs}
+	if !runs {
+		answer.Note = "the server keeps no record of an episode it has no file for (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 no longer imports them), so these findings are only what the files themselves show: the numbers skipped between them. A series not listed here is not known to be complete - show_missing reads one series' run from the metadata provider."
+	}
+
+	return answer, nil
 }
 
 func registerMediaAudits(r *registry) {
@@ -261,9 +309,10 @@ func registerMediaAudits(r *registry) {
 	})
 
 	add(r, readTool, &mcp.Tool{
-		Name:        "audit_missing_episodes",
-		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). show_missing lists one series' provider episodes.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, auditOut, error) {
+		Name: "audit_missing_episodes",
+		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). " +
+			"Read 'runs_known': when it is false this sweep can only see gaps between files, so a series it does not list is not known to be complete - show_missing reads one series' whole run from the metadata provider.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, missingEpisodesOut, error) {
 		out, err := auditMissingEpisodes(ctx, client, in)
 		return nil, out, err
 	})

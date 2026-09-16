@@ -28,6 +28,10 @@ import (
 type fakeServer struct {
 	mux *http.ServeMux
 	srv *httptest.Server
+	// jellyfin makes session build a Jellyfin client for it: the two servers
+	// answer some questions differently, and a canned one that is always Emby
+	// hides that.
+	jellyfin bool
 
 	mu   sync.Mutex
 	seen []request
@@ -72,7 +76,11 @@ func (f *fakeServer) requests(path string) []request {
 func session(t *testing.T, f *fakeServer, opts Options) *mcp.ClientSession {
 	t.Helper()
 
-	client, err := embyfin.New(embyfin.Emby, f.srv.URL, "k")
+	backend := embyfin.Emby
+	if f.jellyfin {
+		backend = embyfin.Jellyfin
+	}
+	client, err := embyfin.New(backend, f.srv.URL, "k")
 	if err != nil {
 		t.Fatal(err)
 	}

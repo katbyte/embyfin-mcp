@@ -47,6 +47,7 @@ func itemFromEmby(d *emby.BaseItemDto) Item {
 		SeriesID:          d.SeriesId,
 		ParentIndexNumber: d.ParentIndexNumber,
 		IndexNumber:       d.IndexNumber,
+		IndexNumberEnd:    d.IndexNumberEnd,
 		PlaylistItemID:    d.PlaylistItemId,
 		IsMissing:         d.LocationType == locationVirtual,
 		UserData:          userDataFromEmby(d.UserData),
