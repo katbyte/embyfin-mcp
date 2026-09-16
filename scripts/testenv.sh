@@ -64,6 +64,19 @@ USER2="alice"
 # no backend means "fixtures", which needs no server: leave the port empty
 URL="http://127.0.0.1:${PORT:-}"
 
+# proxy_host is the address the container reaches the test proxy on. Docker
+# Desktop provides host.docker.internal; on Linux docker maps it with
+# --add-host, and we hand the server the bridge gateway's address instead, so
+# a runtime that prefers an IPv6 answer cannot pick a route the host does not
+# listen on - which is how every provider lookup came to time out in CI while
+# busybox nc, which takes the first address, reached the proxy happily.
+proxy_host() {
+  if [ "$(uname -s)" = "Linux" ]; then
+    docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null && return 0
+  fi
+  echo "host.docker.internal"
+}
+
 log() { echo "==> $*" >&2; }
 
 # api METHOD PATH [BODY] [TOKEN] - curl against the test server, failing loudly.
@@ -485,7 +498,9 @@ up() {
   fixtures
   proxy_ca
 
-  log "starting ${IMAGE} as ${NAME} on ${PORT} (providers proxied via host.docker.internal:${PROXY_PORT})"
+  local proxy_at
+  proxy_at="$(proxy_host)"
+  log "starting ${IMAGE} as ${NAME} on ${PORT} (providers proxied via ${proxy_at}:${PROXY_PORT})"
   local mounts=(-v "${DATA}/media:/media" -v "${DATA}/config:/config" -v "${PROXY_CA}/ca.pem:/proxy/ca.pem:ro")
   [ "$BACKEND" = "jellyfin" ] && mounts+=(-v "${DATA}/cache:/cache")
   # NO_PROXY carries the container's own name: Emby pings itself over HTTP
@@ -494,10 +509,10 @@ up() {
     -p "${PORT}:8096" \
     --hostname "$NAME" \
     --add-host "host.docker.internal:host-gateway" \
-    -e "HTTP_PROXY=http://host.docker.internal:${PROXY_PORT}" \
-    -e "HTTPS_PROXY=http://host.docker.internal:${PROXY_PORT}" \
-    -e "http_proxy=http://host.docker.internal:${PROXY_PORT}" \
-    -e "https_proxy=http://host.docker.internal:${PROXY_PORT}" \
+    -e "HTTP_PROXY=http://${proxy_at}:${PROXY_PORT}" \
+    -e "HTTPS_PROXY=http://${proxy_at}:${PROXY_PORT}" \
+    -e "http_proxy=http://${proxy_at}:${PROXY_PORT}" \
+    -e "https_proxy=http://${proxy_at}:${PROXY_PORT}" \
     -e "NO_PROXY=localhost,127.0.0.1,${NAME}" \
     -e "SSL_CERT_FILE=/proxy/ca.pem" \
     "${mounts[@]}" \

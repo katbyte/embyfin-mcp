@@ -793,9 +793,14 @@ func checkProxyReachable(port int) error {
 	if name == "" {
 		return nil // not a container this suite started
 	}
-	// exit 3 says the image has no probe tool, which is not a failure
-	script := fmt.Sprintf("command -v nc >/dev/null || exit 3; nc -z -w 5 host.docker.internal %d", port)
+	// exit 3 says the image has no probe tool, which is not a failure. The
+	// hosts entries come too: a container handed an IPv6 route to the host
+	// gateway can reach the proxy with one address and not the other.
+	script := fmt.Sprintf(
+		"grep -i host.docker.internal /etc/hosts; echo \"proxy env: ${HTTPS_PROXY:-unset}\"; "+
+			"command -v nc >/dev/null || exit 3; nc -z -w 5 host.docker.internal %d", port)
 	out, err := exec.Command("docker", "exec", name, "sh", "-c", script).CombinedOutput()
+	fmt.Fprintf(os.Stderr, "container network: %s\n", strings.TrimSpace(string(out)))
 	switch {
 	case err == nil:
 		return nil
