@@ -268,6 +268,13 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 		Certificates: []tls.Certificate{*cert},
 		MinVersion:   tls.VersionTLS12,
 	})
+	// a handshake with no deadline can hang forever on a client that opened
+	// the tunnel and then sent nothing, which is silence in the log exactly
+	// where an answer is needed
+	if err := raw.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
+		p.logger.Printf("deadline for %s: %v", host, err)
+		return
+	}
 	if err := conn.HandshakeContext(r.Context()); err != nil {
 		// the client hung up or refused our certificate; with SSL_CERT_FILE
 		// pointing at our CA the latter should not happen, so say so rather
@@ -277,15 +284,28 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() { _ = conn.Close() }()
 
+	if err := raw.SetDeadline(time.Time{}); err != nil {
+		p.logger.Printf("clearing the deadline for %s: %v", host, err)
+		return
+	}
+
 	// serve every request on the tunnel until the peer closes it
+	served := 0
 	for {
 		if err := conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
 			return
 		}
 		req, err := http.ReadRequest(newReader(conn))
 		if err != nil {
-			return // EOF or timeout: the tunnel is done
+			// EOF is the peer closing a finished tunnel; anything else, on a
+			// tunnel that carried nothing, is worth saying out loud
+			if served == 0 {
+				p.logger.Printf("tunnel to %s carried no request: %v", host, err)
+			}
+
+			return
 		}
+		served++
 		rec := &connResponse{conn: conn}
 		p.respond(rec, req, host)
 		if rec.closed || req.Close {
