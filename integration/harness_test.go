@@ -50,6 +50,11 @@ import (
 	"github.com/katbyte/embyfin-mcp/lib/providerproxy"
 )
 
+// scanPatience is how long a library scan is given to settle. Three minutes
+// is plenty on a quiet machine and not always enough on a CI runner sharing
+// itself with three other suites, where a music scan has come in just over.
+const scanPatience = 6 * time.Minute
+
 // libraryFixture is one of the libraries the suite creates. The folders are
 // the container-side paths scripts/testenv.sh lays out.
 type libraryFixture struct {

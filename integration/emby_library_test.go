@@ -142,7 +142,7 @@ func embyWaitForItems(ctx context.Context, t *testing.T, parentID string, l libr
 
 	var last string
 	if l.CollectionType == "music" {
-		ok := poll(3*time.Minute, func() bool {
+		ok := poll(scanPatience, func() bool {
 			a, s := embyCount(ctx, parentID, "MusicAlbum"), embyCount(ctx, parentID, "Audio")
 			last = fmt.Sprintf("%d albums, %d songs", a, s)
 
@@ -155,7 +155,7 @@ func embyWaitForItems(ctx context.Context, t *testing.T, parentID string, l libr
 		return
 	}
 
-	ok := poll(3*time.Minute, func() bool {
+	ok := poll(scanPatience, func() bool {
 		m, s, e := embyCount(ctx, parentID, "Movie"), embyCount(ctx, parentID, "Series"), embyCount(ctx, parentID, "Episode")
 		last = fmt.Sprintf("%d movies, %d series, %d episodes", m, s, e)
 

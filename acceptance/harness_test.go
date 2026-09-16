@@ -509,7 +509,9 @@ func rowsOf(v any) []map[string]any {
 func waitForItems(library string, want int) error {
 	kind := primaryType(library)
 	var last string
-	for range 90 {
+	// 180 turns of two seconds: a scan is quick on a quiet machine and not
+	// always quick on a runner sharing itself with three other suites
+	for range 180 {
 		out, err := invoke("library_get", map[string]any{"library": library})
 		switch {
 		case err != nil:

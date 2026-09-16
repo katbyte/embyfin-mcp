@@ -122,7 +122,7 @@ func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l librar
 
 	var last string
 	if l.CollectionType == "music" {
-		ok := poll(3*time.Minute, func() bool {
+		ok := poll(scanPatience, func() bool {
 			a, s := jfCount(ctx, parentID, jf.BaseItemKindMusicAlbum), jfCount(ctx, parentID, jf.BaseItemKindAudio)
 			last = fmt.Sprintf("%d albums, %d songs", a, s)
 
@@ -135,7 +135,7 @@ func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l librar
 		return
 	}
 
-	ok := poll(3*time.Minute, func() bool {
+	ok := poll(scanPatience, func() bool {
 		m, s, e := jfCount(ctx, parentID, jf.BaseItemKindMovie), jfCount(ctx, parentID, jf.BaseItemKindSeries), jfCount(ctx, parentID, jf.BaseItemKindEpisode)
 		last = fmt.Sprintf("%d movies, %d series, %d episodes", m, s, e)
 
