@@ -415,10 +415,24 @@ func scratchDir(t *testing.T) string {
 		t.Fatalf("reading a fixture to copy: %v", err)
 	}
 	dir := filepath.Join(data, "sdk-scratch", scratchTitle+" (1995)")
+	// the mode MkdirAll and WriteFile are asked for is filtered by the process
+	// umask, which on Linux leaves a directory the media server's own user
+	// (uid 2 in Emby's image) cannot delete from, so the delete under test
+	// fails; chmod is not filtered. Docker Desktop maps every file to the
+	// container's user, which is why this only bites in CI.
 	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, scratchTitle+" (1995).mp4"), video, 0o666); err != nil { //nolint:gosec // same
+	for p := dir; strings.HasPrefix(p, data) && p != data; p = filepath.Dir(p) {
+		if err := os.Chmod(p, 0o777); err != nil { //nolint:gosec // same
+			t.Fatal(err)
+		}
+	}
+	file := filepath.Join(dir, scratchTitle+" (1995).mp4")
+	if err := os.WriteFile(file, video, 0o666); err != nil { //nolint:gosec // same
+		t.Fatal(err)
+	}
+	if err := os.Chmod(file, 0o666); err != nil { //nolint:gosec // same
 		t.Fatal(err)
 	}
 

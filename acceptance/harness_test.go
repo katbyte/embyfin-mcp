@@ -724,3 +724,37 @@ func numOr0(v any) int {
 	f, _ := v.(float64)
 	return int(f)
 }
+
+// mediaMkdir makes a directory under the bind-mounted media tree that the
+// media server's own user can write in, and mediaWrite writes a file there.
+// The mode asked of MkdirAll and WriteFile is filtered by the process umask,
+// which on Linux leaves a directory nobody but the test can write to - so the
+// server (uid 2 in Emby's image, root in Jellyfin's) cannot delete a file the
+// test laid out, and item_delete fails. chmod is not filtered by the umask,
+// so the mode asked for is the mode applied. Docker Desktop hides this by
+// mapping every file to the container's user, which is why it only bites in
+// CI.
+func mediaMkdir(t *testing.T, dir string) {
+	t.Helper()
+
+	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
+		t.Fatal(err)
+	}
+	root := dataDir()
+	for p := dir; strings.HasPrefix(p, root) && p != root; p = filepath.Dir(p) {
+		if err := os.Chmod(p, 0o777); err != nil { //nolint:gosec // same
+			t.Fatal(err)
+		}
+	}
+}
+
+func mediaWrite(t *testing.T, path string, data []byte) {
+	t.Helper()
+
+	if err := os.WriteFile(path, data, 0o666); err != nil { //nolint:gosec // the container reads it as another user
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o666); err != nil { //nolint:gosec // same
+		t.Fatal(err)
+	}
+}

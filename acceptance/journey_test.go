@@ -906,18 +906,14 @@ func copyFixture(t *testing.T, src, dst string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(dst, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
+	mediaMkdir(t, dst)
 	for _, e := range entries {
 		raw, err := os.ReadFile(filepath.Join(src, e.Name())) //nolint:gosec // a fixture under the test data dir
 		if err != nil {
 			t.Fatal(err)
 		}
 		name := strings.ReplaceAll(e.Name(), filepath.Base(src), filepath.Base(dst))
-		if err := os.WriteFile(filepath.Join(dst, name), raw, 0o666); err != nil { //nolint:gosec // same
-			t.Fatal(err)
-		}
+		mediaWrite(t, filepath.Join(dst, name), raw)
 	}
 }
 
@@ -1024,12 +1020,8 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 			t.Fatal(err)
 		}
 		dir := filepath.Join(dataDir(), "ripple", "Zzyzx Three (2003)")
-		if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "Zzyzx Three (2003).mp4"), raw, 0o666); err != nil { //nolint:gosec // same
-			t.Fatal(err)
-		}
+		mediaMkdir(t, dir)
+		mediaWrite(t, filepath.Join(dir, "Zzyzx Three (2003).mp4"), raw)
 		t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), "ripple")) })
 		t.Cleanup(func() {
 			_, _ = invoke("library_delete", map[string]any{"library": "Ripple", "confirm": true})

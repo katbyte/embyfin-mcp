@@ -20,16 +20,12 @@ func TestItemDelete(t *testing.T) {
 	src := filepath.Join(dataDir(), "messy-movies", messyMononoke, messyMononoke+".mp4")
 	dir := filepath.Join(dataDir(), "messy-movies", "Doomed (2001)")
 	file := filepath.Join(dir, "Doomed (2001).mp4")
-	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
+	mediaMkdir(t, dir)
 	raw, err := os.ReadFile(src) //nolint:gosec // a fixture under the test data dir
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file, raw, 0o666); err != nil { //nolint:gosec // same
-		t.Fatal(err)
-	}
+	mediaWrite(t, file, raw)
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
 		if _, err := invoke("library_scan", nil); err == nil {

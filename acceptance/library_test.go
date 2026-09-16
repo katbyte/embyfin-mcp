@@ -254,16 +254,12 @@ func TestLibraryScanPicksUpNewFiles(t *testing.T) {
 	// real container to probe
 	src := filepath.Join(dataDir(), "movies", "Princess Mononoke (1997)", "Princess Mononoke (1997).mp4")
 	dir := filepath.Join(dataDir(), "movies", "Collateral (2004)")
-	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
+	mediaMkdir(t, dir)
 	raw, err := os.ReadFile(src) //nolint:gosec // a fixture under the test data dir
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "Collateral (2004).mp4"), raw, 0o666); err != nil { //nolint:gosec // same
-		t.Fatal(err)
-	}
+	mediaWrite(t, filepath.Join(dir, "Collateral (2004).mp4"), raw)
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
 		// and wait for the scan to finish: it refreshes every playlist and
@@ -293,12 +289,8 @@ func TestLibraryScanPicksUpNewFiles(t *testing.T) {
 	// and a scan of the one library picks up another, under a title no
 	// provider has, so the lookups it makes are empty ones
 	dir2 := filepath.Join(dataDir(), "movies", "Zzyzx Scan Fixture (1999)")
-	if err := os.MkdirAll(dir2, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir2, "Zzyzx Scan Fixture (1999).mp4"), raw, 0o666); err != nil { //nolint:gosec // same
-		t.Fatal(err)
-	}
+	mediaMkdir(t, dir2)
+	mediaWrite(t, filepath.Join(dir2, "Zzyzx Scan Fixture (1999).mp4"), raw)
 	t.Cleanup(func() { _ = os.RemoveAll(dir2) })
 	out = call(t, "library_scan", map[string]any{"library": "movies"})
 	if b, _ := out["started"].(bool); !b || str(out["library"]) != "Movies" {
@@ -327,12 +319,8 @@ func TestLibraryLifecycle(t *testing.T) {
 	lay := func(folder string, titles ...string) {
 		for _, title := range titles {
 			dir := filepath.Join(dataDir(), folder, title)
-			if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(dir, title+".mp4"), raw, 0o666); err != nil { //nolint:gosec // same
-				t.Fatal(err)
-			}
+			mediaMkdir(t, dir)
+			mediaWrite(t, filepath.Join(dir, title+".mp4"), raw)
 		}
 		t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), folder)) })
 	}
@@ -456,12 +444,8 @@ func TestLibraryNfoSaving(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(dataDir(), "nfo-saving", "Zzyzx Nfo (2005)")
-	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "Zzyzx Nfo (2005).mp4"), raw, 0o666); err != nil { //nolint:gosec // same
-		t.Fatal(err)
-	}
+	mediaMkdir(t, dir)
+	mediaWrite(t, filepath.Join(dir, "Zzyzx Nfo (2005).mp4"), raw)
 	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), "nfo-saving")) })
 	const name = "Nfo Saving"
 	t.Cleanup(func() {
