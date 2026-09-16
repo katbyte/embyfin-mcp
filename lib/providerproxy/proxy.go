@@ -334,6 +334,7 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 	k := key(r.Method, host, path, r.URL.Query())
 
 	if i, ok := p.store.lookup(k); ok {
+		p.logger.Printf("replay %s -> %d", k, i.Status)
 		if p.mode == Verify {
 			live, err := p.fetch(r, host, k, path)
 			if err != nil {
