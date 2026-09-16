@@ -894,7 +894,7 @@
         "Vary": "Origin",
         "Via": "1.1 b3ccaedda78c63d5967b57382ceb4cbe.cloudfront.net (CloudFront)"
       },
-      "body": "{\"status\":\"success\",\"data\":{\"token\":\"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZ2UiOiIiLCJhcGlrZXkiOiI3NzdkMmQzZS03YmJmLTQ1NjctYjkwYy1lMzAxZmJjYjQxZjkiLCJjb21tdW5pdHlfc3VwcG9ydGVkIjpmYWxzZSwiZXhwIjoxNzkyMDYzMjkyLCJnZW5kZXIiOiIiLCJoaXRzX3Blcl9kYXkiOjEwMDAwMDAwMCwiaGl0c19wZXJfbW9udGgiOjEwMDAwMDAwMCwiaWQiOiIyMzU2ODQ2IiwiaXNfbW9kIjpmYWxzZSwiaXNfc3lzdGVtX2tleSI6ZmFsc2UsImlzX3RydXN0ZWQiOmZhbHNlLCJwaW4iOm51bGwsInJvbGVzIjpbXSwidGVuYW50IjoidHZkYiIsInV1aWQiOiIifQ.LE2eq8trn04rs1FuuuIAvnCVG3CxRCyM6U7heafVno4OcSBhPSDzPalsWy7KR0yeEAHgx4DA80P2HVpHxJ4-CvF5HJGGV5CEPwaswrAZEYa0XFjVSk6v0t6TvX_QqxxDCSTxx6uKbGAlmVmmEYkAwDxWKkZh-8_ggGjRlF4VVPKsD8JyxTXC0usahQf_ob-KUChi33EnTL32awbV8nN3sDHQPD415crUQe5llHezsxMbe9CpKhK7Wwhrl9re0OM2S79w4Ipli3UEQdevOG-MOtFfReohe1gn8j19UgCf6od-rGYykxWK03cmoHfcjjOHjl2PAi98BYN0eWfPxk7aUpy4O4sc8AhXUnR9dToQ_IaJO3k0cjHxoTYyahJ1O20CvaEI0BZ_cpMFdR0ESnhD4iML5kVbeEJPNAwpVC8E-lMfTt7jKQrXUOM7oMXWX1pg6j-AtsHmX3Q7rmZ8i2W5awapPB1-ttM_LycwAPW-DoF5BZmm7YJEK1BaVaZM-o0gc7o3mNq_6IPdmYKPVhE3UQQ5CKNFfzr71MfJDoLBhuLTU6y-pD1FenYMiS3ciLSL_gC4Y5P3ugWptdojdqWVnozwoLuqESje_cllsV4qoUMq5SSwy3nw1TBD7bM5Tq3fLQ3pCX6eP6GyzVbv_j0x1LVx7G3M01n23Af4mE6ocHU\"}}\n"
+      "body": "{\"status\":\"success\",\"data\":{\"token\":\"redacted by the provider proxy\"}}\n"
     }
   ]
 }

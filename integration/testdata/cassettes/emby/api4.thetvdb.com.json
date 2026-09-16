@@ -474,7 +474,7 @@
         "Vary": "Origin",
         "Via": "1.1 77f3c89ffd619275648d49ad13868570.cloudfront.net (CloudFront)"
       },
-      "body": "{\"status\":\"success\",\"data\":{\"token\":\"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZ2UiOiIiLCJhcGlrZXkiOiI3NzdkMmQzZS03YmJmLTQ1NjctYjkwYy1lMzAxZmJjYjQxZjkiLCJjb21tdW5pdHlfc3VwcG9ydGVkIjpmYWxzZSwiZXhwIjoxNzkyMDY1NTQ0LCJnZW5kZXIiOiIiLCJoaXRzX3Blcl9kYXkiOjEwMDAwMDAwMCwiaGl0c19wZXJfbW9udGgiOjEwMDAwMDAwMCwiaWQiOiIyMzU2ODQ2IiwiaXNfbW9kIjpmYWxzZSwiaXNfc3lzdGVtX2tleSI6ZmFsc2UsImlzX3RydXN0ZWQiOmZhbHNlLCJwaW4iOm51bGwsInJvbGVzIjpbXSwidGVuYW50IjoidHZkYiIsInV1aWQiOiIifQ.RZsJ_oxAjoMB8qyJWQzOuFWlB0J6eZFUUQEeSh_MONLPS7cH7jsgTeirmmwIQe48-_Fqz-ZWHJgFMDaXgPf8nBHHH3naA3aFfkwk31EJTdaWQl3Hd51lV_qUoVDdZb4Pi_nzpC46ICjTNOkttQAm5ovY1FrtyaGoxinfln90cn0bZ85l-fx7RnIUH1t7ioO-VhsfMOSWNcpIULbPOX6F3LUP3KBrVaCqP-G0ravtxfhg1gFmH_LaCUuFifbdMXIoSW5XTDcAGrCsbqBTinOKo827BcxvOY54xamOJVzQhHQKk5WBsGQGA3c6E8X8Fu3IXD0XKVIcOvKHx-xOs4ci8kMaJ9hHQsMOSv_iadc9RtwOMAHpqDndnuFmtHtVBnHYocPH3vMgnZjE4VET2em02PlINZb8-0of7E6he3wixl_K7xPJprUBv3dfcRCtnBM_lg7gPDs4ctu5wrQcfdVN5oDWT10aDkitYalHFI_ANNzCxvXvZhD92tJhFBdP6cRLJcHpW5aF4GwUkrBZmvhPNw-PdxlrJMiUzBgcdD1BLekch8MlL3pBFum4vQ-7kTRBIYflhzCJNYM6AJzmrOKZzPGozUJHKL-F-wXzNtmovmdPvoqfsEB8YnLA1iDl4DRbxJG_AY-sXM9-avqR4vFp8YwBmXl1MoOcK56TTSn9jBk\"}}\n"
+      "body": "{\"status\":\"success\",\"data\":{\"token\":\"redacted by the provider proxy\"}}\n"
     }
   ]
 }

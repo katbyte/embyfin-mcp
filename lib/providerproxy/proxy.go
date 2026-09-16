@@ -63,12 +63,13 @@ const (
 
 // Proxy is a MITM HTTP proxy backed by cassettes.
 type Proxy struct {
-	mode     Mode
-	redact   []string
-	store    *store
-	listener net.Listener
-	srv      *http.Server
-	logger   *log.Logger
+	mode       Mode
+	redact     []string
+	redactBody []string
+	store      *store
+	listener   net.Listener
+	srv        *http.Server
+	logger     *log.Logger
 
 	ca     *x509.Certificate
 	caKey  *ecdsa.PrivateKey
@@ -107,6 +108,12 @@ type Options struct {
 	// from one operator to the next and must not decide whether a cassette
 	// matches, nor be committed with it.
 	RedactQuery []string
+	// RedactBodyFields names JSON fields whose string value is replaced in a
+	// recorded response body. A provider's login answers with a bearer token
+	// for the media server's own account, which is a credential the
+	// repository must not carry; replay needs none of it, because the proxy
+	// answers the calls that token would authorise.
+	RedactBodyFields []string
 }
 
 // New starts a proxy and returns it. Close stops it and, in Record mode,
@@ -133,13 +140,14 @@ func New(opts Options) (*Proxy, error) {
 	}
 
 	p := &Proxy{
-		mode:   opts.Mode,
-		redact: opts.RedactQuery,
-		store:  st,
-		logger: opts.Logger,
-		ca:     ca,
-		caKey:  caKey,
-		certs:  map[string]*tls.Certificate{},
+		mode:       opts.Mode,
+		redact:     opts.RedactQuery,
+		redactBody: opts.RedactBodyFields,
+		store:      st,
+		logger:     opts.Logger,
+		ca:         ca,
+		caKey:      caKey,
+		certs:      map[string]*tls.Certificate{},
 		upstream: &http.Transport{
 			Proxy:                 nil, // go straight out; we are the proxy
 			ForceAttemptHTTP2:     false,
@@ -397,6 +405,7 @@ func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, erro
 		Headers: keepHeaders(resp.Header),
 	}
 	i.setBody(body, resp.Header.Get("Content-Type"))
+	i.Body = redactJSONFields(i.Body, p.redactBody)
 
 	return i, nil
 }

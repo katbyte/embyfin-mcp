@@ -249,9 +249,14 @@ func startProxy() error {
 		CassetteDir: cassetteDir(),
 		// all interfaces: the container reaches this through host.docker.internal
 		Addr: "0.0.0.0:" + strconv.Itoa(port),
-		// an operator's TMDB key must neither decide a cassette match nor be
-		// committed with it
-		RedactQuery: []string{"api_key"},
+		// no API key may decide a cassette match or be committed with it:
+		// an operator's own (TMDB's api_key) or the one a media server
+		// carries for a provider (OMDb's apikey, which is Emby's and
+		// Jellyfin's to rotate, not ours to publish)
+		RedactQuery: []string{"api_key", "apikey"},
+		// a provider's login answers with a bearer token for the media
+		// server's own account; replay never needs one
+		RedactBodyFields: []string{"token"},
 	}
 	if ca := os.Getenv("EMBYFIN_TEST_PROXY_CA"); ca != "" {
 		opts.CACert, opts.CAKey = filepath.Join(ca, "ca.pem"), filepath.Join(ca, "ca.key")

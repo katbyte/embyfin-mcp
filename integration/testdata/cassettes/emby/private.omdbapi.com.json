@@ -2,11 +2,11 @@
   "host": "private.omdbapi.com",
   "interactions": [
     {
-      "key": "GET private.omdbapi.com/?apikey=fe53f97e\u0026plot=full\u0026r=json\u0026s=Severance\u0026type=series\u0026y=2022",
+      "key": "GET private.omdbapi.com/?plot=full\u0026r=json\u0026s=Severance\u0026type=series\u0026y=2022",
       "method": "GET",
       "host": "private.omdbapi.com",
       "path": "/",
-      "query": "apikey=fe53f97e\u0026plot=full\u0026r=json\u0026y=2022\u0026s=Severance\u0026type=series",
+      "query": "plot=full\u0026r=json\u0026s=Severance\u0026type=series\u0026y=2022",
       "status": 200,
       "headers": {
         "Access-Control-Allow-Origin": "*",

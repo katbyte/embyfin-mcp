@@ -311,3 +311,35 @@ func TestRedactQueryKeysWithoutTheSecret(t *testing.T) {
 		t.Errorf("misses = %v", m)
 	}
 }
+
+// A provider's login answer must not reach the cassette with its token in it,
+// and everything around the token must survive byte for byte.
+func TestRedactJSONFields(t *testing.T) {
+	t.Parallel()
+
+	const login = `{"status":"success","data":{"token":"eyJhbGciOiJSUzI1NiJ9.payload.sig"}}`
+	got := redactJSONFields(login, []string{"token"})
+	if strings.Contains(got, "eyJ") {
+		t.Errorf("the token survived: %s", got)
+	}
+	if want := `{"status":"success","data":{"token":"` + redactedValue + `"}}`; got != want {
+		t.Errorf("redacted = %s, want %s", got, want)
+	}
+
+	// a value carrying an escaped quote, a field that is not named, a body
+	// that is not JSON, and no fields at all
+	for _, tc := range []struct {
+		name, body, want string
+		fields           []string
+	}{
+		{"escaped quote", `{"token":"a\"b","keep":"x"}`, `{"token":"` + redactedValue + `","keep":"x"}`, []string{"token"}},
+		{"spacing kept", `{"token" : "abc"}`, `{"token" : "` + redactedValue + `"}`, []string{"token"}},
+		{"other fields left alone", `{"apikey":"abc"}`, `{"apikey":"abc"}`, []string{"token"}},
+		{"not json", `plain text with token: abc`, `plain text with token: abc`, []string{"token"}},
+		{"no fields named", `{"token":"abc"}`, `{"token":"abc"}`, nil},
+	} {
+		if got := redactJSONFields(tc.body, tc.fields); got != tc.want {
+			t.Errorf("%s: redacted = %s, want %s", tc.name, got, tc.want)
+		}
+	}
+}

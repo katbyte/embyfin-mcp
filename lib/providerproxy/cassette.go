@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -282,4 +283,25 @@ func keepHeaders(h http.Header) map[string]string {
 	}
 
 	return out
+}
+
+// redactedValue replaces a credential in a recorded body. It is not valid for
+// anything, which is the point: a cassette that is replayed never needs one.
+const redactedValue = "redacted by the provider proxy"
+
+// redactJSONFields replaces the string value of each named field in a JSON
+// body, leaving every other byte where it was so a re-record is a small diff
+// and the key order the provider sent is kept. A value carrying an escaped
+// quote is matched too. Nothing is parsed: a body that is not JSON has no
+// field to match and comes back unchanged.
+func redactJSONFields(body string, fields []string) string {
+	if body == "" || len(fields) == 0 {
+		return body
+	}
+	for _, f := range fields {
+		re := regexp.MustCompile(`("` + regexp.QuoteMeta(f) + `"\s*:\s*)"(?:[^"\\]|\\.)*"`)
+		body = re.ReplaceAllString(body, `${1}"`+redactedValue+`"`)
+	}
+
+	return body
 }
