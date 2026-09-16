@@ -467,8 +467,12 @@ logs() {
   docker logs "$NAME" 2>&1 | tail -40 >&2
   for f in "${DATA}"/config/logs/*.txt "${DATA}"/config/log/*.log; do
     [ -f "$f" ] || continue
-    echo "==> ${f}" >&2
-    tail -100 "$f" >&2
+    # the errors first: the tail of an Emby log is its codec report, and what
+    # went wrong is usually hundreds of lines above it
+    echo "==> ${f} (errors)" >&2
+    grep -iE 'error|warn|exception|cancel|refused|timed out|certificate' "$f" | tail -60 >&2
+    echo "==> ${f} (tail)" >&2
+    tail -40 "$f" >&2
   done
 }
 

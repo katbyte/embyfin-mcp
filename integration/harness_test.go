@@ -248,8 +248,11 @@ func startProxy() error {
 	opts := providerproxy.Options{
 		Mode:        mode,
 		CassetteDir: cassetteDir(),
-		// all interfaces: the container reaches this through host.docker.internal
-		Addr: "0.0.0.0:" + strconv.Itoa(port),
+		// every interface and both stacks: the container reaches this through
+		// host.docker.internal, which docker maps to the host gateway, and a
+		// runner that hands the container an IPv6 route as well would find
+		// nothing listening on an IPv4-only socket
+		Addr: ":" + strconv.Itoa(port),
 		// no API key may decide a cassette match or be committed with it:
 		// an operator's own (TMDB's api_key) or the one a media server
 		// carries for a provider (OMDb's apikey, which is Emby's and
