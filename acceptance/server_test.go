@@ -13,8 +13,14 @@ func TestServerInfo(t *testing.T) {
 	if str(out["backend"]) != string(backend) {
 		t.Errorf("backend = %v, want %s", out["backend"], backend)
 	}
-	if str(out["version"]) == "" || str(out["server_name"]) == "" {
+	if str(out["server_version"]) == "" || str(out["server_name"]) == "" {
 		t.Errorf("server_info = %v", out)
+	}
+	// this binary's own build, so a session can tell it is not running the
+	// fix it thinks it is; a test build stamps nothing and reports dev or the
+	// module version, but never nothing
+	if str(out["embyfin_mcp_version"]) == "" {
+		t.Errorf("server_info does not say which embyfin-mcp build answered: %v", out)
 	}
 }
 
@@ -90,6 +96,11 @@ func TestServerLogs(t *testing.T) {
 		if str(f["name"]) == "" || str(f["modified"]) == "" {
 			t.Errorf("log file row lacks a field: %v", f)
 		}
+	}
+	// in bytes, like every size a tool answers with: the logs a fresh server
+	// writes are a few kilobytes, which in megabytes read as 0
+	if numOr0(files[0]["size"]) <= 0 {
+		t.Errorf("the newest log's size = %v, want bytes", files[0]["size"])
 	}
 
 	// the default is the most recently modified log, and the tail is bounded

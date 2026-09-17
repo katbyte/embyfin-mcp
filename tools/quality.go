@@ -121,8 +121,8 @@ const aspectTolerance = 0.06
 // comparePolicy is the arithmetic a comparison is made under, all of it
 // overridable and all of it reported back.
 type comparePolicy struct {
-	CodecEfficiency map[string]float64 `json:"codec_efficiency,omitempty" jsonschema:"how many bits of h264 one bit of each codec is worth. Anything not named here is taken as h264"`
-	UpgradeMargin   float64            `json:"upgrade_margin,omitempty"   jsonschema:"how many times the effective bitrate one copy needs over the other before it is called better rather than comparable"`
+	CodecEfficiency map[string]float64 `json:"codec_efficiency,omitempty" jsonschema:"bits of h264 one bit of each codec is worth; unnamed codecs count as h264"`
+	UpgradeMargin   float64            `json:"upgrade_margin,omitempty"   jsonschema:"effective bitrate ratio needed to call a copy better; default 1.6"`
 }
 
 // resolve fills a caller's policy in with the defaults it did not override.
@@ -152,16 +152,16 @@ func (p comparePolicy) efficiency(codec string) float64 {
 // copyIn is one of the two copies being compared: a library item by id, or
 // the numbers off a file the library has never seen.
 type copyIn struct {
-	ItemID     string       `json:"item_id,omitempty"     jsonschema:"a library item to read the facts off, in place of giving them. The other side is usually a file outside the library, given as numbers"`
+	ItemID     string       `json:"item_id,omitempty"     jsonschema:"library item to read the facts from, in place of numbers"`
 	Width      int          `json:"width,omitempty"`
 	Height     int          `json:"height,omitempty"`
-	VideoCodec string       `json:"video_codec,omitempty" jsonschema:"h264, hevc, av1, mpeg2video..."`
-	FrameRate  float64      `json:"frame_rate,omitempty"  jsonschema:"frames per second. Worth giving: a scripted show at 59.94 or 60 was interpolated from a 23.976 master, and no resolution makes up for that"`
-	HDR        string       `json:"hdr,omitempty"         jsonschema:"the HDR format the file claims (pq/hlg), if any"`
-	Bitrate    int64        `json:"bitrate,omitempty"     jsonschema:"bits per second. Worked out from size and runtime_s when not given"`
-	Size       int64        `json:"size,omitempty"        jsonschema:"file size in bytes"`
-	RuntimeS   int          `json:"runtime_s,omitempty"   jsonschema:"runtime in seconds"`
-	Audio      []audioTrack `json:"audio,omitempty"       jsonschema:"one entry per audio track, as show_episodes_exist reports them: {language, codec, channels, bitrate}. Reported on its own, never folded into the video verdict"`
+	VideoCodec string       `json:"video_codec,omitempty" jsonschema:"h264, hevc, av1..."`
+	FrameRate  float64      `json:"frame_rate,omitempty"  jsonschema:"frames per second"`
+	HDR        string       `json:"hdr,omitempty"         jsonschema:"pq or hlg"`
+	Bitrate    int64        `json:"bitrate,omitempty"     jsonschema:"bits per second; otherwise worked out from size and runtime_s"`
+	Size       int64        `json:"size,omitempty"        jsonschema:"bytes"`
+	RuntimeS   int          `json:"runtime_s,omitempty"   jsonschema:"seconds"`
+	Audio      []audioTrack `json:"audio,omitempty"       jsonschema:"tracks: language, codec, channels, bitrate"`
 	Container  string       `json:"container,omitempty"`
 }
 
@@ -219,17 +219,15 @@ func registerQualityTools(r *registry) {
 	client := r.client
 
 	type compareIn struct {
-		A      copyIn        `json:"a"               jsonschema:"one copy: a library item id, or the numbers off a file"`
-		B      copyIn        `json:"b"               jsonschema:"the other copy, the same way"`
-		Policy comparePolicy `json:"policy,omitzero" jsonschema:"override the arithmetic: the codec efficiencies, the margin, or both. Whatever is left out keeps its default, and the whole resolved policy comes back in policy_used"`
+		A      copyIn        `json:"a"               jsonschema:"one copy"`
+		B      copyIn        `json:"b"               jsonschema:"the other copy"`
+		Policy comparePolicy `json:"policy,omitzero" jsonschema:"override the constants; the rest keep their defaults"`
 	}
 
 	add(r, readTool, &mcp.Tool{
 		Name: "quality_compare",
-		Description: "Which of two copies of the same episode or film is the better one, by how much, and why. " +
-			"Give each side as a library item id or as the numbers off a file (width, height, video_codec, bitrate or size+runtime_s), and it answers with the resolution class, the bitrate with the codec taken out of it, the ratio between them, and the working. " +
-			"It compares; it does not decide what to do - whether a margin is worth acting on depends on what the two copies are worth to their owner, which this cannot know. " +
-			"The arithmetic (codec efficiencies, the margin below which two copies are called the same) is overridable per call and always reported back.",
+		Description: "Which of two copies is better, by how much, and why. Each side is an item_id or a file's numbers. Decides on resolution class, then bitrate with the codec taken out; the working and every constant come back with it. " +
+			"Caveats flag what the numbers cannot see: frames of different shapes (black bars), an interpolated frame rate, a starved bitrate. Audio is reported beside the verdict, never folded in. It compares; it does not say what to do.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in compareIn) (*mcp.CallToolResult, compareOut, error) {
 		policy := in.Policy.resolve()
 

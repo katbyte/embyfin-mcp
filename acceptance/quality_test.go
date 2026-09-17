@@ -61,6 +61,22 @@ func TestQualityCompare(t *testing.T) {
 		t.Errorf("60fps against the fixture's 5 went unremarked: %v", given["caveats"])
 	}
 
+	// the audio bitrate arrives from the server too: the fixture's mono aac
+	// against a 448k ac3 of the same channel count is the case a codec name
+	// gets wrong, and it can only be called without the rate on both sides
+	sound := call(t, "quality_compare", map[string]any{
+		"a": map[string]any{"item_id": clean},
+		"b": map[string]any{"width": 1280, "height": 720, "video_codec": "h264", "bitrate": 1000000,
+			"audio": []map[string]any{{"language": "eng", "codec": "ac3", "channels": 1, "bitrate": 448000}}},
+	})
+	a := object(t, sound["a"], "a")
+	if num(t, a["audio_bitrate"], "audio_bitrate") <= 0 {
+		t.Errorf("the server's audio bitrate did not arrive: %v", a)
+	}
+	if note := str(object(t, sound["audio"], "audio")["parity"]); !strings.Contains(note, "not a quality claim") {
+		t.Errorf("a low-rate aac against a 448k ac3 said nothing: %v", sound["audio"])
+	}
+
 	// a series holds episodes rather than a file, and is refused as one
 	series := findItem(t, "Shows", "Series", "Severance")
 	if msg := callErr(t, "quality_compare", map[string]any{

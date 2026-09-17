@@ -2,12 +2,15 @@ package tools
 
 import (
 	"encoding/json"
+	"net/http"
 	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/katbyte/go-kt/version"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -393,5 +396,29 @@ func TestProviderIDAndSearchTypes(t *testing.T) {
 		if got := defaultSearchTypes(folder); got != want {
 			t.Errorf("defaultSearchTypes(%v) = %q, want %q", folder, got, want)
 		}
+	}
+}
+
+// server_info says which build of this server answered, beside which media
+// server it is talking to. An MCP client keeps the binary it started with, so
+// a session can run for hours on a build that predates the fix it believes it
+// has - and this is the only call that can tell it.
+func TestServerInfoReportsItsOwnBuild(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /System/Info", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"ServerName": "lounge", "Version": "4.10.0.40", "OperatingSystem": "Linux"})
+	})
+	cs := session(t, f, Options{})
+
+	out := mustCall(t, cs, "server_info", map[string]any{})
+	if out["server_version"] != "4.10.0.40" || out["server_name"] != "lounge" {
+		t.Errorf("the media server's facts = %v", out)
+	}
+	// the same string the version command prints and the MCP handshake
+	// carries: stamped at build time, or the module version, or "dev"
+	if got := text(out["embyfin_mcp_version"]); got == "" || got != version.Version {
+		t.Errorf("embyfin_mcp_version = %q, want %q", got, version.Version)
 	}
 }

@@ -5,20 +5,28 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/katbyte/go-kt/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func registerServerTools(r *registry) {
 	client := r.client
+	// serverInfoOut names both versions, because both change what a caller can
+	// rely on: the media server's decides what the API answers, and this
+	// binary's decides which tools and fixes are in play. The second is the one
+	// that goes stale unnoticed - an MCP client keeps the binary it started
+	// with, so a session can run for hours on a build that predates the fix it
+	// is relying on, and nothing else it can call would say so.
 	type serverInfoOut struct {
-		Backend         string `json:"backend"`
-		ServerName      string `json:"server_name"`
-		Version         string `json:"version"`
-		OperatingSystem string `json:"operating_system"`
+		Backend           string `json:"backend"`
+		ServerName        string `json:"server_name"`
+		ServerVersion     string `json:"server_version"`
+		OperatingSystem   string `json:"operating_system"`
+		EmbyfinMCPVersion string `json:"embyfin_mcp_version" jsonschema:"the build of this MCP server answering, e.g. v0.1.1+4@g8909c7c: the tag, the commits since it, and the commit"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "server_info",
-		Description: "Check connectivity to the media server and return its name and version.",
+		Description: "Check connectivity to the media server and return its name and version, and the version of this MCP server.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, serverInfoOut, error) {
 		info, err := client.SystemInfo(ctx)
 		if err != nil {
@@ -26,10 +34,11 @@ func registerServerTools(r *registry) {
 		}
 
 		return nil, serverInfoOut{
-			Backend:         string(client.Backend()),
-			ServerName:      info.ServerName,
-			Version:         info.Version,
-			OperatingSystem: info.OperatingSystem,
+			Backend:           string(client.Backend()),
+			ServerName:        info.ServerName,
+			ServerVersion:     info.Version,
+			OperatingSystem:   info.OperatingSystem,
+			EmbyfinMCPVersion: version.Version,
 		}, nil
 	})
 
@@ -158,7 +167,7 @@ func registerServerTools(r *registry) {
 
 	type logFileRow struct {
 		Name     string `json:"name"`
-		SizeMB   int64  `json:"size_mb"`
+		Size     int64  `json:"size"     jsonschema:"file size in bytes"`
 		Modified string `json:"modified"`
 	}
 	type logsOut struct {
@@ -175,7 +184,7 @@ func registerServerTools(r *registry) {
 
 		out := logsOut{}
 		for _, f := range files {
-			out.Files = append(out.Files, logFileRow{Name: f.Name, SizeMB: f.Size / (1 << 20), Modified: f.DateModified})
+			out.Files = append(out.Files, logFileRow{Name: f.Name, Size: f.Size, Modified: f.DateModified})
 		}
 
 		return nil, out, nil

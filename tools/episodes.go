@@ -121,10 +121,10 @@ func audioTrackOf(st *embyfin.MediaStream) audioTrack {
 }
 
 type audioTrack struct {
-	Language string `json:"language,omitempty" jsonschema:"the track's language, or und when it is not tagged"`
+	Language string `json:"language,omitempty" jsonschema:"und when untagged"`
 	Codec    string `json:"codec,omitempty"`
-	Channels int    `json:"channels,omitempty" jsonschema:"2 for stereo, 6 for 5.1, 8 for 7.1"`
-	Bitrate  int64  `json:"bitrate,omitempty"  jsonschema:"bits per second, when the server knows it. The codec name alone does not say which of two tracks is better: a more efficient codec at a low rate loses to a plain one at a high rate"`
+	Channels int    `json:"channels,omitempty" jsonschema:"2 stereo, 6 for 5.1, 8 for 7.1"`
+	Bitrate  int64  `json:"bitrate,omitempty"  jsonschema:"bits per second, when known"`
 }
 
 // hdrFormat names what a stream's colour transfer claims, and nothing when it
@@ -334,17 +334,17 @@ const episodeSweepSort = "SeriesSortName,ParentIndexNumber,IndexNumber,SortName"
 
 // existsPair is one season and episode number asked after.
 type existsPair struct {
-	Season  int `json:"season"  jsonschema:"season number (0 for specials)"`
-	Episode int `json:"episode" jsonschema:"episode number within the season"`
+	Season  int `json:"season"  jsonschema:"0 for specials"`
+	Episode int `json:"episode"`
 }
 
 // existsQuery is one series' worth of a batch: which series, and which of
 // its episodes to answer for.
 type existsQuery struct {
-	SeriesID string       `json:"series_id,omitempty" jsonschema:"the series item id; give this or series"`
-	Series   string       `json:"series,omitempty"    jsonschema:"the series by name, when its id is not to hand; a name matching more than one series is answered with the matches on this row alone. show_resolve turns a release name into an id"`
-	Library  string       `json:"library,omitempty"   jsonschema:"restrict the name lookup to one library by name or id, when the same show is held in more than one"`
-	Episodes []existsPair `json:"episodes"            jsonschema:"the season and episode numbers to check for this series, one entry each"`
+	SeriesID string       `json:"series_id,omitempty" jsonschema:"series item id"`
+	Series   string       `json:"series,omitempty"    jsonschema:"series name, when there is no id"`
+	Library  string       `json:"library,omitempty"   jsonschema:"narrow a name lookup to one library"`
+	Episodes []existsPair `json:"episodes"            jsonschema:"season and episode pairs"`
 }
 
 // existsRow is the answer for one episode asked after.
@@ -375,46 +375,6 @@ type existsGroup struct {
 	Others   []string         `json:"duplicate_entries,omitempty" jsonschema:"other library entries for this same show, by id. The episodes are split across them, so an absence here is not proof the library lacks the episode: ask these too. audit_duplicates lists every show in this state"`
 	Warning  string           `json:"warning,omitempty"           jsonschema:"set when the library holds this show under more than one entry and something was absent. The episodes are split across them, so an absence here is NOT proof the library lacks the episode - ask the other entry too. Only raised when something was absent"`
 	Error    string           `json:"error,omitempty"             jsonschema:"why this series could not be answered for: nothing matched the name, or more than one thing did. Episodes is then empty and absent is 0 - which is NOT the same as the library holding none of them. The rest of the batch is answered regardless"`
-}
-
-// otherEntriesFor finds the other library entries for a series: the same show
-// held twice, which a folder rename leaves behind and which nothing in the
-// server's UI points at.
-//
-// This is not tidiness. A show split across two entries is split by EPISODE -
-// one entry holding season 1 and the other holding the rest is a real shape
-// in a real library - so an exists check against one of them answers
-// "known: false" for an episode the library is holding in the other. That is
-// a well-formed, confident, wrong answer, and the caller has nothing to go on.
-// Asked about a series with anything absent, we look, and say so.
-func otherEntriesFor(ctx context.Context, client *embyfin.Client, series *embyfin.Item) []embyfin.Item {
-	items, _, err := client.Search(ctx, embyfin.SearchOptions{
-		SearchTerm: series.Name, IncludeItemTypes: "Series", Limit: 20,
-		Fields: "Path,ProviderIds",
-	})
-	if err != nil {
-		return nil // a warning we could not raise is not an error in the answer
-	}
-
-	var out []embyfin.Item
-	for i := range items {
-		it := &items[i]
-		if it.ID == series.ID {
-			continue
-		}
-		// the same show, said by the metadata provider rather than by the
-		// spelling of a folder
-		for _, provider := range []string{"tmdb", "tvdb", "imdb"} {
-			id := providerID(series, provider)
-			if id != "" && providerID(it, provider) == id {
-				out = append(out, *it)
-
-				break
-			}
-		}
-	}
-
-	return out
 }
 
 // existsBatchMax is how many series one call will answer for. A batch is one
@@ -458,8 +418,8 @@ func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, 
 // existsAnswer answers one series' query. The error it returns is the
 // caller's to decide about: a single-series call fails on it, a batch puts it
 // on the row and carries on with the rest.
-func existsAnswer(ctx context.Context, client *embyfin.Client, q existsQuery, quality bool, keep map[string]bool) (existsGroup, error) {
-	series, match, err := resolveSeriesMatch(ctx, client, q.SeriesID, q.Series, q.Library)
+func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool, keep map[string]bool) (existsGroup, error) {
+	series, match, err := resolveSeriesMatch(ctx, r, q.SeriesID, q.Series, q.Library)
 	if err != nil {
 		return existsGroup{Series: cmp.Or(q.Series, q.SeriesID), Episodes: []existsRow{}, Error: err.Error()}, err
 	}
@@ -475,7 +435,7 @@ func existsAnswer(ctx context.Context, client *embyfin.Client, q existsQuery, qu
 	if quality && needsMediaSources(keep) {
 		fields = "Path,MediaSources"
 	}
-	held, err := episodesHeld(ctx, client, series.ID, seasons, fields)
+	held, err := episodesHeld(ctx, r.client, series.ID, seasons, fields)
 	if err != nil {
 		return existsGroup{Series: series.Name, SeriesID: series.ID, Episodes: []existsRow{}, Error: err.Error()}, err
 	}
@@ -513,7 +473,7 @@ func existsAnswer(ctx context.Context, client *embyfin.Client, q existsQuery, qu
 	// the episodes may be split across the entries, and where they are not,
 	// the two entries are often the same episodes at different quality, so
 	// the one asked may not be the one to compare against
-	if others := otherEntriesFor(ctx, client, series); len(others) > 0 {
+	if others := r.otherEntriesFor(ctx, series); len(others) > 0 {
 		where := make([]string, 0, len(others))
 		for _, it := range others {
 			out.Others = append(out.Others, it.ID)
@@ -532,15 +492,15 @@ func registerEpisodeTools(r *registry) {
 	client := r.client
 
 	type exportIn struct {
-		Library  string   `json:"library,omitempty"   jsonschema:"library name or id; default every library"`
-		SeriesID string   `json:"series_id,omitempty" jsonschema:"restrict to one series by item id, in place of a library"`
-		Season   int      `json:"season,omitempty"    jsonschema:"restrict to one season number; needs series_id"`
-		Quality  *bool    `json:"quality,omitempty"   jsonschema:"include the quality facts (width, height, video_codec, bitrate, size, container, runtime, audio, subtitles) and the path; default true. False gives a much smaller answer when only the episode list is wanted"`
-		Fields   []string `json:"fields,omitempty"    jsonschema:"keep only these facts on each row, in place of all of them: path, runtime_s, container, size, bitrate, width, height, video_codec, audio, subtitles. What names the episode (id, series, season, episode, title) is always there. A sweep comparing on resolution and bitrate pays for neither the subtitle list nor the path"`
-		WithFile *bool    `json:"with_file,omitempty" jsonschema:"only episodes the library holds a file for; default true. False also lists the ones the server knows of but has no file for"`
-		Limit    int      `json:"limit,omitempty"     jsonschema:"page size, default 500, maximum 1000"`
-		Cursor   string   `json:"cursor,omitempty"    jsonschema:"the cursor the previous call handed back, to read the next page"`
-		Offset   int      `json:"offset,omitempty"    jsonschema:"skip this many episodes, in place of a cursor"`
+		Library  string   `json:"library,omitempty"   jsonschema:"name or id; default every library"`
+		SeriesID string   `json:"series_id,omitempty" jsonschema:"one series, in place of a library"`
+		Season   int      `json:"season,omitempty"    jsonschema:"one season; needs series_id"`
+		Quality  *bool    `json:"quality,omitempty"   jsonschema:"the facts and the path on each row; default true"`
+		Fields   []string `json:"fields,omitempty"    jsonschema:"only these facts on each row: path, runtime_s, container, size, bitrate, width, height, video_codec, frame_rate, hdr, audio, subtitles"`
+		WithFile *bool    `json:"with_file,omitempty" jsonschema:"only episodes with a file; default true"`
+		Limit    int      `json:"limit,omitempty"     jsonschema:"page size, default 500, max 1000"`
+		Cursor   string   `json:"cursor,omitempty"    jsonschema:"from the previous page"`
+		Offset   int      `json:"offset,omitempty"    jsonschema:"start here, in place of a cursor"`
 	}
 	type exportOut struct {
 		Total    int          `json:"total"            jsonschema:"episodes matching across every page"`
@@ -549,9 +509,8 @@ func registerEpisodeTools(r *registry) {
 		Episodes []episodeRow `json:"episodes"         jsonschema:"ordered by series, then season, then episode, so pages line up across calls"`
 	}
 	add(r, readTool, &mcp.Tool{
-		Name: "library_episodes",
-		Description: "Every episode in a library, paged, with the quality facts on each row: series, season, episode, title, path, container, size, bitrate, width, height, video codec, frame rate, HDR and runtime. " +
-			"This is the bulk read for comparing a whole outside folder against the library, or for finding what to upgrade; show_episodes answers one series at a time, which is a call per series. Page with the cursor it hands back. Default page 500.",
+		Name:        "library_episodes",
+		Description: "Every episode in a library or one series, paged by cursor, with each file's quality facts: resolution, codec, frame rate, HDR, bitrate, size, runtime and audio tracks. The bulk read for comparing a folder against the library.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in exportIn) (*mcp.CallToolResult, exportOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
@@ -635,13 +594,13 @@ func registerEpisodeTools(r *registry) {
 	})
 
 	type existsIn struct {
-		SeriesID string        `json:"series_id,omitempty" jsonschema:"the series item id; give this or series"`
-		Series   string        `json:"series,omitempty"    jsonschema:"the series by name, when its id is not to hand; a name matching more than one series is refused with the matches. show_resolve turns a release name into an id"`
-		Library  string        `json:"library,omitempty"   jsonschema:"restrict the name lookup to one library by name or id, when the same show is held in more than one"`
-		Episodes []existsPair  `json:"episodes,omitempty"  jsonschema:"the season and episode numbers to check, one entry each; for one series, in place of queries"`
-		Queries  []existsQuery `json:"queries,omitempty"   jsonschema:"ask after several series in one call, one entry per series, at most 50. The answer is in results, one group per entry in the order asked. A series that cannot be resolved carries an error on its own group and the rest are still answered"`
-		Quality  *bool         `json:"quality,omitempty"   jsonschema:"include the quality facts (width, height, video_codec, bitrate, size, container, runtime, audio with each track's codec, channels and bitrate, subtitles) on the episodes the library holds; default false. True answers trash-or-upgrade in the same call, without a second read per series"`
-		Fields   []string      `json:"fields,omitempty"    jsonschema:"keep only these facts on the hits, in place of all of them: path, runtime_s, container, size, bitrate, width, height, video_codec, audio, subtitles. Implies quality. A batch comparing on resolution and bitrate pays for neither the subtitle list (thirty languages on a dubbed series) nor the path"`
+		SeriesID string        `json:"series_id,omitempty" jsonschema:"series item id"`
+		Series   string        `json:"series,omitempty"    jsonschema:"series name, when there is no id"`
+		Library  string        `json:"library,omitempty"   jsonschema:"narrow a name lookup to one library"`
+		Episodes []existsPair  `json:"episodes,omitempty"  jsonschema:"season and episode pairs, for one series"`
+		Queries  []existsQuery `json:"queries,omitempty"   jsonschema:"up to 50 series, answered in order in results"`
+		Quality  *bool         `json:"quality,omitempty"   jsonschema:"add the held copy's facts to each hit; default false"`
+		Fields   []string      `json:"fields,omitempty"    jsonschema:"only these facts on each hit: path, runtime_s, container, size, bitrate, width, height, video_codec, frame_rate, hdr, audio, subtitles. Implies quality"`
 	}
 	type existsOut struct {
 		Series   string           `json:"series,omitempty"            jsonschema:"the series asked after, for a single-series call"`
@@ -655,11 +614,8 @@ func registerEpisodeTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "show_episodes_exist",
-		Description: "Does the library hold these episodes? Answers a batch of season and episode numbers without listing the whole series, which for a long-running show is hundreds of rows to ask one question. " +
-			"Give series_id (or series) and episodes for one show, or queries for AT MOST 50 shows in one call (more than that is refused, so page them) - a folder to reconcile spans hundreds of series, which is hundreds of round trips one at a time. " +
-			"A file holding several episodes (S01E01E02) counts for each of them. " +
-			"quality true adds the width, height, video codec, frame rate, HDR, bitrate, size and runtime of the copy the library holds, on the hits only, so one call answers both whether to keep an outside copy and whether it is better than this one. " +
-			"It roughly triples the size of a hit row, so a batch asking for it is the one to page smaller, or to narrow with fields.",
+		Description: "Does the library hold these episodes? Give series_id or series with episodes, or up to 50 series in queries. A multi-episode file counts for each episode. quality or fields add the held copy's facts to hits. " +
+			"A group with an error could not be looked up, which is not the same as absent. A name match below 0.9 in matched is a guess. duplicate_entries means the show is split across library entries, so an absence may be held by another.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in existsIn) (*mcp.CallToolResult, existsOut, error) {
 		keep, err := keptFacts(in.Fields)
 		if err != nil {
@@ -694,7 +650,7 @@ func registerEpisodeTools(r *registry) {
 
 		out := existsOut{}
 		for _, q := range batch {
-			group, aerr := existsAnswer(ctx, client, q, quality, keep)
+			group, aerr := existsAnswer(ctx, r, q, quality, keep)
 			if single && aerr != nil {
 				return nil, existsOut{}, aerr
 			}

@@ -1335,7 +1335,7 @@ func TestFinishingASeries(t *testing.T) {
 		t.Errorf("audit_unwatched lists Breaking Bad after an episode was watched: %v", got)
 	}
 
-	call(t, "item_set_progress", map[string]any{"id": e2, "user": "alice", "position_minutes": 0.01})
+	call(t, "item_set_progress", map[string]any{"id": e2, "user": "alice", "position_s": 1})
 	if in := ids("user_in_progress", "items"); !slices.Equal(in, []string{e2}) {
 		t.Errorf("with episode two started alice has %v in progress", in)
 	}
@@ -1377,7 +1377,7 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	// watched and favourited while alice could see everything
 	call(t, "item_set_watched", map[string]any{"id": pilot, "user": "alice", "watched": true})
 	call(t, "item_set_favourite", map[string]any{"id": pilot, "user": "alice", "favourite": true})
-	call(t, "item_set_progress", map[string]any{"id": arrival, "user": "alice", "position_minutes": 0.01})
+	call(t, "item_set_progress", map[string]any{"id": arrival, "user": "alice", "position_s": 1})
 
 	restrictAlice(t, "Movies")
 
@@ -1404,7 +1404,7 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	for tool, args := range map[string]map[string]any{
 		"item_set_watched":   {"id": second, "user": "alice", "watched": true},
 		"item_set_favourite": {"id": second, "user": "alice", "favourite": true},
-		"item_set_progress":  {"id": second, "user": "alice", "position_minutes": 0.01},
+		"item_set_progress":  {"id": second, "user": "alice", "position_s": 1},
 	} {
 		if msg := callErr(t, tool, args); !strings.Contains(msg, "alice cannot see") {
 			t.Errorf("%s on an episode alice cannot see: %s", tool, msg)

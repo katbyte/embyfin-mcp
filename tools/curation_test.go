@@ -220,9 +220,10 @@ func TestCheckQuality(t *testing.T) {
 	if _, _, flagged := checkQuality(&embyfin.Item{MediaSources: []embyfin.MediaSource{video("mpeg2video", 1920, 1080, 0)}}, in); flagged {
 		t.Error("the codec check ran when off")
 	}
-	in.MinBitrateKbps = 2000
+	// in bits per second, like every bitrate a tool answers with
+	in.MinBitrate = 2_000_000
 	detail, _, bad = checkQuality(&embyfin.Item{MediaSources: []embyfin.MediaSource{video("h264", 1920, 1080, 1_500_000)}}, in)
-	if !bad || !strings.Contains(detail, "1500 kbps, below 2000") {
+	if !bad || !strings.Contains(detail, "1500 kbps, below 2000 kbps") {
 		t.Errorf("a low bitrate = %q %v", detail, bad)
 	}
 	// the source's bitrate stands in when the stream has none
@@ -256,11 +257,13 @@ func TestSeasonGaps(t *testing.T) {
 func TestProgressAndDates(t *testing.T) {
 	t.Parallel()
 
-	if m, p := progressOf(&embyfin.Item{UserData: &embyfin.UserData{PlaybackPositionTicks: 45 * ticksPerMinute, PlayedPercentage: 180000}}); m != 45 || p != 100 {
-		t.Errorf("progressOf = %v, %v", m, p)
+	// positions are seconds, like runtimes, so the two divide without a
+	// conversion: 45 minutes in is 2700
+	if s, p := progressOf(&embyfin.Item{UserData: &embyfin.UserData{PlaybackPositionTicks: 45 * ticksPerMinute, PlayedPercentage: 180000}}); s != 2700 || p != 100 {
+		t.Errorf("progressOf = %v, %v", s, p)
 	}
-	if m, p := progressOf(&embyfin.Item{}); m != 0 || p != 0 {
-		t.Errorf("progressOf without user data = %v, %v", m, p)
+	if s, p := progressOf(&embyfin.Item{}); s != 0 || p != 0 {
+		t.Errorf("progressOf without user data = %v, %v", s, p)
 	}
 	for in, want := range map[string]string{"2026-09-15T07:09:22.0000000Z": "2026-09-15", "": "on an unknown date", "yesterday": "yesterday"} {
 		if got := dateOf(in); got != want {

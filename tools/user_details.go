@@ -142,9 +142,9 @@ func registerUserDetailTools(r *registry) {
 	}
 	type inProgressRow struct {
 		itemSummary
-		PositionMinutes float64 `json:"position_minutes"      jsonschema:"where playback resumes"`
-		Percent         int     `json:"percent"               jsonschema:"how far through, capped at 100"`
-		LastPlayed      string  `json:"last_played,omitempty"`
+		PositionS  int    `json:"position_s"            jsonschema:"where playback resumes, in seconds"`
+		Percent    int    `json:"percent"               jsonschema:"how far through, capped at 100"`
+		LastPlayed string `json:"last_played,omitempty"`
 	}
 	type inProgressOut struct {
 		User  string          `json:"user"`
@@ -169,8 +169,8 @@ func registerUserDetailTools(r *registry) {
 
 		out := inProgressOut{User: u.Name, Items: []inProgressRow{}}
 		for i := range items {
-			minutes, percent := progressOf(&items[i])
-			row := inProgressRow{itemSummary: summarise(&items[i]), PositionMinutes: math.Round(minutes*10) / 10, Percent: percent}
+			seconds, percent := progressOf(&items[i])
+			row := inProgressRow{itemSummary: summarise(&items[i]), PositionS: seconds, Percent: percent}
 			if items[i].UserData != nil {
 				row.LastPlayed = items[i].UserData.LastPlayedDate
 			}

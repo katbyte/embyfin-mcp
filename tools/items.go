@@ -21,19 +21,18 @@ type itemSummary struct {
 	Series              string            `json:"series,omitempty"`
 	Season              int               `json:"season,omitempty"`
 	Episode             int               `json:"episode,omitempty"`
-	RuntimeMin          int               `json:"runtime_minutes,omitempty"`
+	RuntimeS            int               `json:"runtime_s,omitempty"             jsonschema:"runtime in seconds"`
 	Path                string            `json:"path,omitempty"`
 	MetadataProviderIDs map[string]string `json:"metadata_provider_ids,omitempty" jsonschema:"keyed tmdb, imdb, tvdb"`
-	Video               string            `json:"video,omitempty"                 jsonschema:"codec, resolution and bitrate of the primary video stream"`
-	Audio               []audioTrack      `json:"audio,omitempty"                 jsonschema:"one entry per audio track: language, codec, channels and bitrate"`
-	Subtitles           []string          `json:"subtitles,omitempty"`
-	Container           string            `json:"container,omitempty"`
-	SizeMB              int64             `json:"size_mb,omitempty"`
-	Added               string            `json:"added,omitempty"                 jsonschema:"when the item was added to the library"`
+	// the same facts, under the same names and in the same units, as an
+	// episode row: a caller comparing an item_get against a library_episodes
+	// row should not have to convert megabytes, minutes, or a sentence
+	qualityFacts
+	Added string `json:"added,omitempty" jsonschema:"when the item was added to the library"`
 }
 
 func summarise(it *embyfin.Item) itemSummary {
-	s := itemSummary{
+	return itemSummary{
 		ID:                  it.ID,
 		Name:                it.Name,
 		Type:                it.Type,
@@ -41,40 +40,14 @@ func summarise(it *embyfin.Item) itemSummary {
 		Series:              it.SeriesName,
 		Season:              it.ParentIndexNumber,
 		Episode:             it.IndexNumber,
-		RuntimeMin:          it.RuntimeMinutes(),
+		RuntimeS:            int(it.RunTimeTicks / ticksPerSecond),
 		Path:                it.Path,
 		MetadataProviderIDs: providerKeys(it.ProviderIDs),
 		Added:               it.DateCreated,
-	}
-	if len(it.MediaSources) == 0 {
-		return s
-	}
 
-	src := it.MediaSources[0]
-	s.Container = src.Container
-	s.SizeMB = src.Size / (1 << 20)
-
-	for _, st := range src.MediaStreams {
-		switch st.Type {
-		case "Video":
-			if s.Video == "" {
-				s.Video = fmt.Sprintf("%s %dx%d @ %d kbps", st.Codec, st.Width, st.Height, st.BitRate/1000)
-			}
-		case "Audio":
-			s.Audio = append(s.Audio, audioTrackOf(&st))
-		case "Subtitle":
-			lang := st.Language
-			if lang == "" {
-				lang = "und"
-			}
-			if st.IsExternal {
-				lang += " (external)"
-			}
-			s.Subtitles = append(s.Subtitles, lang)
-		}
+		// the best file speaks for the item, as it does for an episode row
+		qualityFacts: qualityOf(it),
 	}
-
-	return s
 }
 
 // providerKeys spells provider ids with lowercase keys (tmdb, imdb, tvdb):
@@ -352,11 +325,11 @@ func registerItemTools(r *registry) {
 		ID string `json:"id" jsonschema:"the library item id"`
 	}
 	type watchRow struct {
-		User        string `json:"user"`
-		Played      bool   `json:"played"`
-		PlayCount   int    `json:"play_count,omitempty"`
-		LastPlayed  string `json:"last_played,omitempty"`
-		ResumePoint int    `json:"resume_minutes,omitempty" jsonschema:"minutes into the item if partially watched"`
+		User       string `json:"user"`
+		Played     bool   `json:"played"`
+		PlayCount  int    `json:"play_count,omitempty"`
+		LastPlayed string `json:"last_played,omitempty"`
+		ResumeS    int    `json:"resume_s,omitempty"    jsonschema:"seconds into the item if partially watched"`
 	}
 	type lastWatchedOut struct {
 		Item  string     `json:"item"`
@@ -386,11 +359,11 @@ func registerItemTools(r *registry) {
 			out.Item = it.Name
 			if ud := it.UserData; ud != nil {
 				out.Users = append(out.Users, watchRow{
-					User:        u.Name,
-					Played:      ud.Played,
-					PlayCount:   ud.PlayCount,
-					LastPlayed:  ud.LastPlayedDate,
-					ResumePoint: int(ud.PlaybackPositionTicks / 600_000_000),
+					User:       u.Name,
+					Played:     ud.Played,
+					PlayCount:  ud.PlayCount,
+					LastPlayed: ud.LastPlayedDate,
+					ResumeS:    int(ud.PlaybackPositionTicks / ticksPerSecond),
 				})
 			}
 		}

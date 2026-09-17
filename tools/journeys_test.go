@@ -309,7 +309,7 @@ func TestNoChangesForAUserWhoCannotSee(t *testing.T) {
 	for tool, args := range map[string]map[string]any{
 		"item_set_watched":   {"id": "e2", "user": "alice", "watched": true},
 		"item_set_favourite": {"id": "e2", "user": "alice", "favourite": true},
-		"item_set_progress":  {"id": "e2", "user": "alice", "position_minutes": 1},
+		"item_set_progress":  {"id": "e2", "user": "alice", "position_s": 60},
 	} {
 		if _, msg := callTool(t, cs, tool, args); !strings.Contains(msg, "alice cannot see Cat's in the Bag...") {
 			t.Errorf("%s for alice: %s", tool, msg)

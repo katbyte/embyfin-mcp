@@ -226,8 +226,8 @@ func boolOf(v any) bool {
 // with its position; marking it unwatched clears it.
 func TestProgress(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
-	out := call(t, "item_set_progress", map[string]any{"id": arrival, "user": "alice", "position_minutes": 42.5})
-	if str(out["item"]) != "Arrival" || str(out["user"]) != "alice" || out["position_minutes"] != 42.5 {
+	out := call(t, "item_set_progress", map[string]any{"id": arrival, "user": "alice", "position_s": 2550})
+	if str(out["item"]) != "Arrival" || str(out["user"]) != "alice" || num(t, out["position_s"], "position_s") != 2550 {
 		t.Errorf("item_set_progress = %v", out)
 	}
 	t.Cleanup(func() {
@@ -250,8 +250,18 @@ func TestProgress(t *testing.T) {
 		t.Fatal("Arrival is not in progress for alice")
 	}
 	// the file runs a second, so the position is past its end: the percent is capped
-	if row["position_minutes"] != 42.5 || num(t, row["percent"], "percent") != 100 {
+	if num(t, row["position_s"], "position_s") != 2550 || num(t, row["percent"], "percent") != 100 {
 		t.Errorf("in progress row = %v", row)
+	}
+	// the resume point reads back in the same unit through item_last_watched
+	resumed := false
+	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": arrival})["users"], "users") {
+		if str(u["user"]) == "alice" {
+			resumed = num(t, u["resume_s"], "resume_s") == 2550
+		}
+	}
+	if !resumed {
+		t.Error("item_last_watched does not show alice's resume point at 2550 seconds")
 	}
 	// root has nothing in progress
 	if n := len(rows(t, call(t, "user_in_progress", nil)["items"], "items")); n != 0 {
@@ -266,7 +276,7 @@ func TestProgress(t *testing.T) {
 		}
 	}
 
-	if msg := callErr(t, "item_set_progress", map[string]any{"id": arrival, "position_minutes": 0}); !strings.Contains(msg, "above zero") {
+	if msg := callErr(t, "item_set_progress", map[string]any{"id": arrival, "position_s": 0}); !strings.Contains(msg, "above zero") {
 		t.Errorf("a zero position: %s", msg)
 	}
 }

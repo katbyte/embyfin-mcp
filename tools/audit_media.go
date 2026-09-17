@@ -22,12 +22,12 @@ var legacyCodecs = []string{"mpeg1video", "mpeg2video", "mpeg4", "msmpeg4v1", "m
 
 // qualityIn is audit_quality's input.
 type qualityIn struct {
-	Library        string `json:"library,omitempty"          jsonschema:"restrict to one library by name or id"`
-	Types          string `json:"types,omitempty"            jsonschema:"comma-separated item types; default Movie,Episode"`
-	MinHeight      int    `json:"min_height,omitempty"       jsonschema:"flag video shorter than this many lines, default 720 (so 480p and 576p rips)"`
-	MinBitrateKbps int    `json:"min_bitrate_kbps,omitempty" jsonschema:"also flag video below this bitrate; off unless given"`
-	Codecs         *bool  `json:"legacy_codecs,omitempty"    jsonschema:"flag legacy video codecs (MPEG-2, MPEG-4 part 2 such as XviD and DivX, WMV, VC-1, RealVideo...); default true"`
-	Limit          int    `json:"limit,omitempty"            jsonschema:"maximum findings to return, default 100"`
+	Library    string `json:"library,omitempty"       jsonschema:"restrict to one library by name or id"`
+	Types      string `json:"types,omitempty"         jsonschema:"comma-separated item types; default Movie,Episode"`
+	MinHeight  int    `json:"min_height,omitempty"    jsonschema:"flag video shorter than this many lines, default 720 (so 480p and 576p rips)"`
+	MinBitrate int64  `json:"min_bitrate,omitempty"   jsonschema:"also flag video below this bitrate, in bits per second like every bitrate a tool answers with; off unless given"`
+	Codecs     *bool  `json:"legacy_codecs,omitempty" jsonschema:"flag legacy video codecs (MPEG-2, MPEG-4 part 2 such as XviD and DivX, WMV, VC-1, RealVideo...); default true"`
+	Limit      int    `json:"limit,omitempty"         jsonschema:"maximum findings to return, default 100"`
 }
 
 // videoOf is a file's primary video stream, or nil.
@@ -70,8 +70,8 @@ func checkQuality(it *embyfin.Item, in qualityIn) (detail string, height int, ba
 	if (in.Codecs == nil || *in.Codecs) && slices.Contains(legacyCodecs, strings.ToLower(best.Codec)) {
 		problems = append(problems, "legacy codec "+best.Codec)
 	}
-	if in.MinBitrateKbps > 0 && bitrate > 0 && bitrate/1000 < int64(in.MinBitrateKbps) {
-		problems = append(problems, fmt.Sprintf("%d kbps, below %d", bitrate/1000, in.MinBitrateKbps))
+	if in.MinBitrate > 0 && bitrate > 0 && bitrate < in.MinBitrate {
+		problems = append(problems, fmt.Sprintf("%d kbps, below %d kbps", bitrate/1000, in.MinBitrate/1000))
 	}
 	if len(problems) == 0 {
 		return "", best.Height, false

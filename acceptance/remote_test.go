@@ -174,7 +174,7 @@ func TestSessions(t *testing.T) {
 			t.Errorf("session_command %s = %v", cmd, out)
 		}
 	}
-	out = call(t, "session_command", map[string]any{"session": device, "command": "Seek", "seek_minutes": 1})
+	out = call(t, "session_command", map[string]any{"session": device, "command": "Seek", "seek_s": 60})
 	if !strings.Contains(str(out["sent"]), "Seek") {
 		t.Errorf("session_command Seek = %v", out)
 	}

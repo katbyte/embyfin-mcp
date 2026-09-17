@@ -340,11 +340,66 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 		}
 	}
 	want := []string{
-		"audit_all", "audit_duplicates", "audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
+		"audit_all", "audit_duplicates", "audit_language", "audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
 		"audit_missing_poster", "audit_multiple_versions", "audit_quality", "audit_runtime", "audit_spelling", "audit_unwatched", "audit_year_mismatch",
 	}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {
 		t.Errorf("audit tools = %v, want %v", got, want)
+	}
+}
+
+// audit_language against files whose streams the servers probed: the messy
+// Princess Mononoke carries Japanese audio, The Thirteenth Floor an English
+// subtitle beside it, and every other fixture an audio track with no language
+// tag - which is what most real rips carry too.
+func TestAuditLanguage(t *testing.T) {
+	names := func(out map[string]any) []string {
+		var got []string
+		for _, f := range rows(t, out["findings"], "findings") {
+			got = append(got, title(str(f["name"])))
+		}
+
+		return got
+	}
+
+	japanese := call(t, "audit_language", map[string]any{"language": "ja", "library": "Messy Movies"})
+	if got := names(japanese); !slices.Equal(got, []string{"Princess Mononoke"}) {
+		t.Errorf("japanese audio = %v, want [Princess Mononoke]", got)
+	}
+	if f := rows(t, japanese["findings"], "findings"); len(f) == 1 && !strings.Contains(str(f[0]["detail"]), "audio: jpn") {
+		t.Errorf("detail = %v", f[0]["detail"])
+	}
+
+	// the rest carry untagged audio, so nothing is reported as lacking
+	// Japanese: an untagged track may be it
+	lacking := call(t, "audit_language", map[string]any{"language": "jpn", "find": "no_audio", "library": "Messy Movies"})
+	scanned := num(t, lacking["items_scanned"], "items_scanned")
+	if n := num(t, lacking["total_findings"], "total_findings"); n != 0 {
+		t.Errorf("untagged audio was reported as lacking japanese: %v", lacking["findings"])
+	}
+	if n := num(t, lacking["untagged"], "untagged"); n != scanned-1 {
+		t.Errorf("untagged = %d of %d scanned, want all but Princess Mononoke", n, scanned)
+	}
+
+	// the subtitle is read off the file beside the film, language from its name
+	subtitled := call(t, "audit_language", map[string]any{"language": "eng", "find": "subtitles", "library": "Movies"})
+	if got := names(subtitled); !slices.Equal(got, []string{"The Thirteenth Floor"}) {
+		t.Errorf("english subtitles = %v, want [The Thirteenth Floor]", got)
+	}
+
+	// and it is what makes that film watchable in English when nothing else
+	// in the library can be judged
+	unwatchable := call(t, "audit_language", map[string]any{"language": "eng", "find": "unwatchable", "library": "Movies"})
+	scanned = num(t, unwatchable["items_scanned"], "items_scanned")
+	if n := num(t, unwatchable["total_findings"], "total_findings"); n != 0 {
+		t.Errorf("unwatchable in english = %v", unwatchable["findings"])
+	}
+	if n := num(t, unwatchable["untagged"], "untagged"); n != scanned-1 {
+		t.Errorf("untagged = %d of %d scanned, want all but The Thirteenth Floor", n, scanned)
+	}
+
+	if msg := callErr(t, "audit_language", map[string]any{"language": "eng", "find": "sideways"}); !strings.Contains(msg, "find must be") {
+		t.Errorf("a bad find: %s", msg)
 	}
 }

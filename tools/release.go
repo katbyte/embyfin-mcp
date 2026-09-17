@@ -477,7 +477,8 @@ type seriesCandidate struct {
 	RunnerUpName string  `json:"runner_up,omitempty"`
 }
 
-// rankSeries asks the library for a parsed name and scores what comes back,
+// rankSeries asks the server's search for a parsed name and scores what comes
+// back, for the names the index cannot place (see matchSeries),
 // best first. It also hands back every series it saw, scored or not, because
 // a caller that has to choose one wants to know whether the search found a
 // single thing or a hundred.
@@ -517,17 +518,7 @@ func rankSeries(ctx context.Context, client *embyfin.Client, rel release, parent
 	for _, row := range scored {
 		rows = append(rows, row)
 	}
-	slices.SortFunc(rows, func(a, b seriesCandidate) int {
-		if a.Score != b.Score {
-			if a.Score > b.Score {
-				return -1
-			}
-
-			return 1
-		}
-
-		return strings.Compare(a.Name, b.Name)
-	})
+	sortCandidates(rows)
 
 	return rows, seen, nil
 }
@@ -580,7 +571,7 @@ func registerResolveTools(r *registry) {
 			parent = folder.ItemID
 		}
 
-		rows, _, err := rankSeries(ctx, client, rel, parent)
+		rows, _, err := r.matchSeries(ctx, rel, parent)
 		if err != nil {
 			return nil, resolveOut{}, err
 		}

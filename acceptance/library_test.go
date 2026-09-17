@@ -106,7 +106,7 @@ func TestLibrarySearch(t *testing.T) {
 			t.Errorf("a result from outside Movies: %v", it["path"])
 		}
 		// the summary carries the quality facts the scan probed
-		if str(it["video"]) == "" || str(it["container"]) == "" || num(t, it["year"], "year") == 0 {
+		if str(it["video_codec"]) == "" || str(it["container"]) == "" || num(t, it["year"], "year") == 0 {
 			t.Errorf("summary lacks quality facts: %v", it)
 		}
 		ids, _ := it["metadata_provider_ids"].(map[string]any)

@@ -190,21 +190,21 @@ func registerItemEditTools(r *registry) {
 	})
 
 	type progressIn struct {
-		ID              string  `json:"id"               jsonschema:"the library item id"`
-		User            string  `json:"user,omitempty"   jsonschema:"user name or id; defaults to the first administrator"`
-		PositionMinutes float64 `json:"position_minutes" jsonschema:"where to resume from, in minutes from the start; above zero (item_set_watched watched=false clears a resume point)"`
+		ID        string `json:"id"             jsonschema:"the library item id"`
+		User      string `json:"user,omitempty" jsonschema:"user name or id; defaults to the first administrator"`
+		PositionS int    `json:"position_s"     jsonschema:"where to resume from, in seconds from the start; above zero (item_set_watched watched=false clears a resume point)"`
 	}
 	type progressOut struct {
-		Item            string  `json:"item"`
-		User            string  `json:"user"`
-		PositionMinutes float64 `json:"position_minutes"`
+		Item      string `json:"item"`
+		User      string `json:"user"`
+		PositionS int    `json:"position_s"`
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "item_set_progress",
 		Description: "Set where a user is in a film or episode, so it shows under continue watching from that point, and mark it not yet watched. user_in_progress lists what is in progress. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in progressIn) (*mcp.CallToolResult, progressOut, error) {
-		if in.PositionMinutes <= 0 {
-			return nil, progressOut{}, errors.New("position_minutes must be above zero; to clear a resume point, mark the item unwatched with item_set_watched")
+		if in.PositionS <= 0 {
+			return nil, progressOut{}, errors.New("position_s must be above zero; to clear a resume point, mark the item unwatched with item_set_watched")
 		}
 		user, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
@@ -214,11 +214,11 @@ func registerItemEditTools(r *registry) {
 		if err != nil {
 			return nil, progressOut{}, err
 		}
-		if err := client.SetProgress(ctx, user.ID, in.ID, int64(in.PositionMinutes*ticksPerMinute)); err != nil {
+		if err := client.SetProgress(ctx, user.ID, in.ID, int64(in.PositionS)*ticksPerSecond); err != nil {
 			return nil, progressOut{}, err
 		}
 
-		return nil, progressOut{Item: it.Name, User: user.Name, PositionMinutes: in.PositionMinutes}, nil
+		return nil, progressOut{Item: it.Name, User: user.Name, PositionS: in.PositionS}, nil
 	})
 }
 
@@ -231,18 +231,23 @@ func itemName(full map[string]any) string {
 	return ""
 }
 
-// ticksPerMinute is the servers' 100ns ticks in a minute.
-const ticksPerMinute = 600_000_000
+// The servers count time in 100ns ticks. Every duration and position a tool
+// takes or answers with is in seconds, so a runtime and a resume point on the
+// same row can be divided without a conversion.
+const (
+	ticksPerSecond = 10_000_000
+	ticksPerMinute = 60 * ticksPerSecond
+)
 
 // progressOf describes a user's place in an item: the minutes in, and the
 // percent through it (capped: a position past a file's probed runtime is
 // the server's to keep, not a percent above a hundred).
-func progressOf(it *embyfin.Item) (minutes float64, percent int) {
+func progressOf(it *embyfin.Item) (seconds, percent int) {
 	if it.UserData == nil {
 		return 0, 0
 	}
-	minutes = float64(it.UserData.PlaybackPositionTicks) / ticksPerMinute
+	seconds = int(it.UserData.PlaybackPositionTicks / ticksPerSecond)
 	percent = min(int(it.UserData.PlayedPercentage), 100)
 
-	return minutes, percent
+	return seconds, percent
 }

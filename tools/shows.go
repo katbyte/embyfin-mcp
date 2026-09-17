@@ -237,7 +237,8 @@ func missingFromGuide(ctx context.Context, guide seriesGuide, series *embyfin.It
 // The score comes back on the way out, not only in the refusal: a caller
 // deciding whether to keep a file needs to see a 0.92 for what it is, and the
 // only way to see one used to be to make the query ambiguous on purpose.
-func resolveSeriesMatch(ctx context.Context, client *embyfin.Client, id, name, library string) (*embyfin.Item, *seriesCandidate, error) {
+func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library string) (*embyfin.Item, *seriesCandidate, error) {
+	client := r.client
 	if id != "" {
 		item, err := client.ItemByID(ctx, id)
 
@@ -262,7 +263,7 @@ func resolveSeriesMatch(ctx context.Context, client *embyfin.Client, id, name, l
 	// hundreds of series and commits to none. Apostrophes, colons and
 	// ampersands are stripped by the naming conventions this is fed from, so
 	// a name path that needs them punctuated right fails on most real input.
-	rows, seen, err := rankSeries(ctx, client, parseRelease(name), parent)
+	rows, seen, err := r.matchSeries(ctx, parseRelease(name), parent)
 	if err != nil {
 		return nil, nil, err
 	}

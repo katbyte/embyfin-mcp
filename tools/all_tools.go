@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
@@ -78,7 +79,7 @@ var Toolsets = map[string][]string{
 	"curation": {
 		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
 		"audit_year_mismatch", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "quality_compare",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "quality_compare",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "item_batch_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes", "show_episodes_exist", "show_missing", "show_resolve",
@@ -140,6 +141,11 @@ type registry struct {
 	client  *embyfin.Client
 	opts    Options
 	pending []pending
+
+	// the library's series, read once and shared by every call; see
+	// series_index.go
+	seriesOnce sync.Once
+	series     *seriesCache
 }
 
 // add queues a typed tool for registration. It sets the MCP annotations from
@@ -162,6 +168,12 @@ func add[In, Out any](r *registry, kind toolKind, t *mcp.Tool, h mcp.ToolHandler
 		res, out, err := h(ctx, req, in)
 		if err == nil {
 			emptyNilSlices(reflect.ValueOf(&out).Elem())
+		}
+		// anything that changes the server may have added, renamed or removed
+		// a series, so the index is read again rather than trusted. Done on a
+		// failure too: a write that errored part way may still have landed.
+		if kind != readTool {
+			r.seriesCache().invalidate()
 		}
 
 		return res, out, err
@@ -234,6 +246,7 @@ func queueTools(r *registry) {
 	registerEpisodeTools(r)
 	registerQualityTools(r)
 	registerAuditTools(r)
+	registerLanguageAudit(r)
 	registerSpellingTools(r)
 	registerMediaAudits(r)
 	registerItemTools(r)

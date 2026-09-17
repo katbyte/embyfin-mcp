@@ -107,9 +107,9 @@ func registerSessionTools(r *registry) {
 	})
 
 	type commandIn struct {
-		Session     string `json:"session"                jsonschema:"session id, device name, or app name from session_list"`
-		Command     string `json:"command"                jsonschema:"Pause, Unpause, PlayPause, Stop, Seek, NextTrack, PreviousTrack"`
-		SeekMinutes int    `json:"seek_minutes,omitempty" jsonschema:"target position for Seek, minutes from the start"`
+		Session string `json:"session"          jsonschema:"session id, device name, or app name from session_list"`
+		Command string `json:"command"          jsonschema:"Pause, Unpause, PlayPause, Stop, Seek, NextTrack, PreviousTrack"`
+		SeekS   int    `json:"seek_s,omitempty" jsonschema:"target position for Seek, seconds from the start"`
 	}
 	type commandOut struct {
 		Sent string `json:"sent"`
@@ -123,7 +123,7 @@ func registerSessionTools(r *registry) {
 			return nil, commandOut{}, err
 		}
 
-		seekTicks := int64(in.SeekMinutes) * int64(time.Minute/100)
+		seekTicks := int64(in.SeekS) * ticksPerSecond
 		if err := client.PlayCommand(ctx, session.ID, in.Command, seekTicks); err != nil {
 			return nil, commandOut{}, err
 		}

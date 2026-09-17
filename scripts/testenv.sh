@@ -221,10 +221,24 @@ video() {
   mkdir -p "$(dirname "$1")"
   # -nostdin matters: without it ffmpeg reads the while-read loop's stdin
   # looking for interactive keys and swallows a character of the next line,
-  # which silently truncates the titles that follow
+  # which silently truncates the titles that follow.
+  #
+  # a fifth argument tags the audio track's language; without one the track
+  # is untagged, which is what most of the fixtures are, so audit_language
+  # sees tagged, untagged and a language that is not there. Conditional
+  # expansion rather than an array: macOS's bash 3.2 under set -u refuses an
+  # empty one.
   ffmpeg -nostdin -loglevel error -y \
     -f lavfi -i "testsrc2=s=${3:-1280x720}:r=5" -f lavfi -i "anullsrc=r=22050:cl=mono" \
-    -t "${2:-1}" -c:v "${4:-libx264}" -pix_fmt yuv420p -c:a aac -shortest "$1"
+    -t "${2:-1}" -c:v "${4:-libx264}" -pix_fmt yuv420p -c:a aac \
+    ${5:+-metadata:s:a:0} ${5:+"language=$5"} -shortest "$1"
+}
+
+# subtitle PATH - a one-line SubRip file. The servers read its language from
+# the name: "Film (1999).eng.srt" beside "Film (1999).mp4" is English.
+subtitle() {
+  mkdir -p "$(dirname "$1")"
+  printf '1\n00:00:00,000 --> 00:00:00,900\nA line.\n' >"$1"
 }
 
 # poster PATH - a 2:3 jpeg with a test pattern, so the scanner picks it up
@@ -354,6 +368,8 @@ fixtures() {
     movie_nfo "$dir" "$title" "$year" "$tmdb" "$imdb" "$runtime" "$genre" "$director" "$plot"
     poster "${dir}/poster.jpg"
   done <<<"$MOVIES"
+  # one film carries an English subtitle, for audit_language to find
+  subtitle "${DATA}/media/movies/The Thirteenth Floor (1999)/The Thirteenth Floor (1999).eng.srt"
 
   # the clean shows: "<show>/Season NN/<show> SNNENN.mp4" with an nfo beside each
   while IFS='|' read -r folder title year tmdb tvdb imdb genre plot; do
@@ -369,7 +385,7 @@ fixtures() {
 
   # the messy movies
   m="${DATA}/media/messy-movies"
-  video "${m}/Princess Mononoke (1997)/Princess Mononoke (1997).mp4" 1 640x360 mpeg4
+  video "${m}/Princess Mononoke (1997)/Princess Mononoke (1997).mp4" 1 640x360 mpeg4 jpn
   video "${m}/Arrival (2016)/Arrival (2016).mp4" 1 640x360
   movie_nfo "${m}/Arrival (2016)" "Arrival" 2016 329865 tt2543164 116 Drama "Denis Villeneuve" ""
   video "${m}/Dune (2021)/Dune (2021).mp4" 1 640x360

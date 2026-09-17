@@ -25,8 +25,20 @@ func TestItemGet(t *testing.T) {
 		t.Error("no overview")
 	}
 	// the probe: an h264 video and an aac audio stream in an mp4
-	if v := str(out["video"]); !strings.Contains(v, "h264") || !strings.Contains(v, "1280x720") {
-		t.Errorf("video = %q", v)
+	// the same fields as an episode row, not a sentence to parse back
+	if str(out["video_codec"]) != "h264" || num(t, out["width"], "width") != 1280 || num(t, out["height"], "height") != 720 {
+		t.Errorf("video = %v %vx%v", out["video_codec"], out["width"], out["height"])
+	}
+	if num(t, out["size"], "size") < 1024 {
+		t.Errorf("size = %v, want bytes", out["size"])
+	}
+	// the fixtures are encoded at 5 frames a second, and a test pattern
+	// claims no HDR
+	if fps, _ := out["frame_rate"].(float64); fps < 4.9 || fps > 5.1 {
+		t.Errorf("frame_rate = %v, want the fixture's 5", out["frame_rate"])
+	}
+	if out["hdr"] != nil {
+		t.Errorf("hdr = %v on an SDR test pattern", out["hdr"])
 	}
 	// audio is fields, not a sentence: the codec reads as the codec whether
 	// or not the track is tagged with a language
@@ -36,8 +48,10 @@ func TestItemGet(t *testing.T) {
 	if c := str(out["container"]); c != "mp4" && c != "mov,mp4,m4a,3gp,3g2,mj2" {
 		t.Errorf("container = %q", c)
 	}
-	if numOr0(out["runtime_minutes"]) != 0 {
-		t.Errorf("a one-second file has %v minutes", out["runtime_minutes"])
+	// seconds, like every duration a tool answers with: in minutes this file
+	// read as 0, which said nothing about the unit at all
+	if n := numOr0(out["runtime_s"]); n < 1 || n > 2 {
+		t.Errorf("a one-second file has runtime_s %v", out["runtime_s"])
 	}
 	// people come from the nfo (and the provider): the director at least
 	var director bool
