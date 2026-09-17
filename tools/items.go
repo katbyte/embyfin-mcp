@@ -25,7 +25,7 @@ type itemSummary struct {
 	Path                string            `json:"path,omitempty"`
 	MetadataProviderIDs map[string]string `json:"metadata_provider_ids,omitempty" jsonschema:"keyed tmdb, imdb, tvdb"`
 	Video               string            `json:"video,omitempty"                 jsonschema:"codec, resolution and bitrate of the primary video stream"`
-	Audio               []string          `json:"audio,omitempty"`
+	Audio               []audioTrack      `json:"audio,omitempty"                 jsonschema:"one entry per audio track: language, codec, channels and bitrate"`
 	Subtitles           []string          `json:"subtitles,omitempty"`
 	Container           string            `json:"container,omitempty"`
 	SizeMB              int64             `json:"size_mb,omitempty"`
@@ -61,14 +61,7 @@ func summarise(it *embyfin.Item) itemSummary {
 				s.Video = fmt.Sprintf("%s %dx%d @ %d kbps", st.Codec, st.Width, st.Height, st.BitRate/1000)
 			}
 		case "Audio":
-			desc := st.Codec
-			if st.Language != "" {
-				desc = st.Language + " " + desc
-			}
-			if st.Channels > 0 {
-				desc = fmt.Sprintf("%s %dch", desc, st.Channels)
-			}
-			s.Audio = append(s.Audio, desc)
+			s.Audio = append(s.Audio, audioTrackOf(&st))
 		case "Subtitle":
 			lang := st.Language
 			if lang == "" {

@@ -679,6 +679,31 @@ func rows(t *testing.T, v any, field string) []map[string]any {
 }
 
 // num pulls a JSON number out of a decoded field.
+// decimal reads a fractional number: a ratio, a margin or a frame rate, where
+// rounding to an int would pass a check that should fail.
+func decimal(t *testing.T, v any, field string) float64 {
+	t.Helper()
+
+	f, ok := v.(float64)
+	if !ok {
+		t.Fatalf("%s is %T (%v), want a number", field, v, v)
+	}
+
+	return f
+}
+
+// object reads a nested object.
+func object(t *testing.T, v any, field string) map[string]any {
+	t.Helper()
+
+	m, ok := v.(map[string]any)
+	if !ok {
+		t.Fatalf("%s is %T (%v), want an object", field, v, v)
+	}
+
+	return m
+}
+
 func num(t *testing.T, v any, field string) int {
 	t.Helper()
 

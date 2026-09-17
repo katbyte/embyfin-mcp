@@ -28,7 +28,9 @@ func TestItemGet(t *testing.T) {
 	if v := str(out["video"]); !strings.Contains(v, "h264") || !strings.Contains(v, "1280x720") {
 		t.Errorf("video = %q", v)
 	}
-	if a := strs(t, out["audio"], "audio"); len(a) != 1 || !strings.Contains(a[0], "aac") {
+	// audio is fields, not a sentence: the codec reads as the codec whether
+	// or not the track is tagged with a language
+	if a := rows(t, out["audio"], "audio"); len(a) != 1 || str(a[0]["codec"]) != "aac" || str(a[0]["language"]) == "" || num(t, a[0]["channels"], "channels") <= 0 {
 		t.Errorf("audio = %v", a)
 	}
 	if c := str(out["container"]); c != "mp4" && c != "mov,mp4,m4a,3gp,3g2,mj2" {

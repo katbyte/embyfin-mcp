@@ -76,6 +76,12 @@ type wireStream struct {
 	Height   int    `json:"Height,omitempty"`
 	BitRate  int64  `json:"BitRate,omitempty"`
 	Language string `json:"Language,omitempty"`
+	// the servers spell the frame rate and the colour transfer on the stream,
+	// and a canned one has to answer them the same way or the fields nothing
+	// reads look like fields nothing sends
+	Channels         int     `json:"Channels,omitempty"`
+	AverageFrameRate float32 `json:"AverageFrameRate,omitempty"`
+	ColorTransfer    string  `json:"ColorTransfer,omitempty"`
 }
 
 func (s *fakeSeries) item() wireItem {
@@ -107,8 +113,8 @@ func (s *fakeSeries) items() []wireItem {
 			it.MediaSources = []wireSource{{
 				Container: "mkv", Size: 700 << 20,
 				MediaStreams: []wireStream{
-					{Type: "Video", Codec: "h264", Width: 1920, Height: 1080, BitRate: 4_000_000},
-					{Type: "Audio", Codec: "aac", Language: "eng"},
+					{Type: "Video", Codec: "h264", Width: 1920, Height: 1080, BitRate: 4_000_000, AverageFrameRate: 23.976, ColorTransfer: "bt709"},
+					{Type: "Audio", Codec: "aac", Language: "eng", Channels: 6, BitRate: 448_000},
 				},
 			}}
 		}
@@ -116,6 +122,18 @@ func (s *fakeSeries) items() []wireItem {
 	}
 
 	return out
+}
+
+// searchFold is how the servers' own search compares a term against a title:
+// punctuation is not significant, so a search for "Americas" finds
+// "AMERICA'S". An ampersand is NOT the word "and" though - which is why
+// resolveSearchTerms falls back to shorter heads of a title, and why the fake
+// has to keep the distinction rather than fold everything.
+func searchFold(s string) string {
+	s = strings.ToLower(s)
+	s = strings.NewReplacer("'", "", "\u2019", "", ":", "", ",", "", ".", "", "!", "", "?", "", "-", " ").Replace(s)
+
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // tvServer is a canned Emby holding one TV library and the series given. It
@@ -187,7 +205,7 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !slices.Contains(want, it.Type) })
 		}
 		if term := q.Get("SearchTerm"); term != "" {
-			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !strings.Contains(strings.ToLower(it.Name), strings.ToLower(term)) })
+			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !strings.Contains(searchFold(it.Name), searchFold(term)) })
 		}
 		// a series as the parent is its own episodes; the library is all of them
 		if parent := q.Get("ParentId"); parent != "" && parent != "lib" {
@@ -287,6 +305,46 @@ func boolean(t *testing.T, v any, field string) bool {
 }
 
 // text pulls a string out of a decoded field, "" when it was absent.
+// decimal reads a fractional number out of an answer: a ratio or a margin,
+// where rounding to an int would quietly pass a test that should fail.
+func decimal(t *testing.T, v any, field string) float64 {
+	t.Helper()
+
+	f, ok := v.(float64)
+	if !ok {
+		t.Fatalf("%s is %T (%v), want a number", field, v, v)
+	}
+
+	return f
+}
+
+// object reads a nested object out of an answer.
+func object(t *testing.T, v any, field string) map[string]any {
+	t.Helper()
+
+	m, ok := v.(map[string]any)
+	if !ok {
+		t.Fatalf("%s is %T (%v), want an object", field, v, v)
+	}
+
+	return m
+}
+
+// texts reads a list of strings out of an answer.
+func texts(v any) []string {
+	list, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+
+	out := make([]string, 0, len(list))
+	for _, item := range list {
+		out = append(out, text(item))
+	}
+
+	return out
+}
+
 func text(v any) string {
 	if s, ok := v.(string); ok {
 		return s

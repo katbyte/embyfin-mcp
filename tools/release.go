@@ -26,7 +26,10 @@ import (
 // releaseMarkers are the shapes that end a title and begin the rest of a
 // release name, most specific first: the episode, then a season on its own.
 var releaseMarkers = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)(^|[^a-z0-9])s(\d{1,2})[. _-]?e(\d{1,3})(?:[. _-]?e(\d{1,3}))?([^a-z0-9]|$)`),
+	// SxxExx, and the two ways a file says it holds a run of them: E01E02,
+	// and E01-05. The bare second number needs the hyphen, or "S02E01.1080p"
+	// would read as episodes 1 to 108.
+	regexp.MustCompile(`(?i)(^|[^a-z0-9])s(\d{1,2})[. _-]?e(\d{1,3})(?:[. _-]?e(\d{1,3})|-(\d{1,3}))?([^a-z0-9]|$)`),
 	regexp.MustCompile(`(?i)(^|[^a-z0-9])(\d{1,2})x(\d{2})([^a-z0-9]|$)`),
 	regexp.MustCompile(`(?i)(^|[^a-z0-9])s(\d{1,2})([^a-z0-9]|$)`),
 	regexp.MustCompile(`(?i)(^|[^a-z0-9])season[. _-]+(\d{1,2})([^a-z0-9]|$)`),
@@ -66,6 +69,20 @@ type release struct {
 	Season     int
 	Episode    int
 	EpisodeEnd int
+}
+
+// sitePrefix is the index or tracker stamped on the front of a name before
+// the show begins: "www.example.org    -    Some Show 2016 S07E02 ...". Folders
+// fed from one source can carry it on most of their names, and left on it is
+// four words of noise on the front of every title, so nothing matches.
+//
+// Two shapes, both anchored at the start and both needing a separator, so a
+// title that merely contains dots ("The.Red.Green.Show") is never mistaken
+// for a host: a www. host followed by anything, or a bare host whose top
+// level is one anyone stamps names with, followed by a spaced dash.
+var sitePrefix = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)^[\[({\s]*www\.[a-z0-9][a-z0-9.-]*[a-z0-9][\])}\s]*[-–—_:|]+[\s.]*`),
+	regexp.MustCompile(`(?i)^[\[({\s]*[a-z0-9][a-z0-9-]*\.(?:org|com|net|info|tv|me|cc|io|to|se|eu|is|xyz|club|party|site|link|online|pw|ws)[\])}\s]*\s+[-–—]+\s+`),
 }
 
 var (
@@ -114,6 +131,15 @@ func parseRelease(name string) release {
 // holds no show name - a "Season 01" folder, or a bare "S01E01.mkv".
 func parseSegment(name string) release {
 	s := fileExtension.ReplaceAllString(strings.TrimSpace(name), "")
+	for _, re := range sitePrefix {
+		// only a pattern that matched ends the search, and only if it left
+		// something behind: a name that is nothing but a host keeps its name
+		if stripped := re.ReplaceAllString(s, ""); stripped != s && stripped != "" {
+			s = stripped
+
+			break
+		}
+	}
 
 	var out release
 	cut := len(s)
@@ -130,9 +156,9 @@ func parseSegment(name string) release {
 		cut = at
 		groups := re.FindStringSubmatch(s)
 		switch len(groups) {
-		case 6: // SxxExx, maybe a second episode
+		case 7: // SxxExx, maybe a run of them: E01E02 or E01-05
 			out.Season, out.Episode = atoi(groups[2]), atoi(groups[3])
-			out.EpisodeEnd = atoi(groups[4])
+			out.EpisodeEnd = max(atoi(groups[4]), atoi(groups[5]))
 		case 5: // 1x02
 			out.Season, out.Episode = atoi(groups[2]), atoi(groups[3])
 		case 4: // Sxx or Season xx
@@ -157,17 +183,38 @@ func parseSegment(name string) release {
 	head = spaceRun.ReplaceAllString(head, " ")
 
 	// what is left may still run into the encode's words when the name had no
-	// season marker at all
+	// season marker at all. Only then: past a marker the head is the title,
+	// and cutting it at a word that happens to also name a codec or a
+	// streaming service is how "The Red Green Show" becomes "The Green Show".
+	//
+	// The first word is never junk either, whatever it spells. Shows are
+	// called Max Headroom, Stan Against Evil, Web Therapy and Dual Survival,
+	// and a rule that reads those as an encode leaves nothing to search for.
 	words := strings.Fields(head)
-	for i, w := range words {
-		if releaseJunk[strings.ToLower(strings.Trim(w, "()[]-"))] {
-			words = words[:i]
+	if cut == len(s) && len(words) > 1 {
+		for i, w := range words[1:] {
+			word := strings.ToLower(strings.Trim(w, "()[]-"))
+			if !releaseJunk[word] {
+				continue
+			}
+			// a single letter is junk only in front of a number: the h of
+			// "H 264" ends a title, the H of "S H I E L D" is in one. Every
+			// other junk word is junk wherever it stands.
+			if len(word) == 1 && !startsWithDigit(words[min(i+2, len(words)-1)]) {
+				continue
+			}
+			words = words[:i+1]
+
 			break
 		}
 	}
 	out.Title = strings.Trim(strings.Join(words, " "), " -._([{")
 
 	return out
+}
+
+func startsWithDigit(s string) bool {
+	return s != "" && s[0] >= '0' && s[0] <= '9'
 }
 
 func atoi(s string) int {
@@ -178,6 +225,63 @@ func atoi(s string) int {
 
 var notAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
 
+// initialism is a title's dotted acronym: the P.D. of "Chicago P.D.", the
+// S.W.A.T., the S.H.I.E.L.D. Scene naming drops those points as reliably as
+// it drops apostrophes, and the two spellings have to meet somewhere.
+//
+// They cannot meet at the punctuation strip that follows, because that turns
+// "p.d." into "p d" and "pd" stays "pd": two words against one, which scores
+// as a different show rather than a worse match. That is what made this one
+// worse than the apostrophes - "Chicago P.D." did not merely rank low against
+// a search for "Chicago PD", it ranked below Chicago Fire, Hope, Justice and
+// Med, which share a word with it.
+var initialism = regexp.MustCompile(`(?:\b[a-z]\.){2,}`)
+
+// spacedInitialism is the same acronym after a release name has had its dots
+// turned into spaces: "Marvels.Agents.of.S.H.I.E.L.D" arrives as single
+// letters in a row. Both spellings have to land on the same word as the
+// library's "S.H.I.E.L.D.", so a run of single letters closes up too.
+var spacedInitialism = regexp.MustCompile(`\b[a-z](?: [a-z])+\b`)
+
+// foldAccents strips the diacritics off a title, by the same table the
+// spelling audit folds by. Scene naming drops them as reliably as it drops
+// apostrophes - "90 Day Fiancé" arrives as "90 Day Fiance" - and the servers'
+// own search folds them too, so a scorer that does not ranks the very series
+// the search just found at 0.5 and refuses to commit to it.
+func foldAccents(s string) string {
+	if isASCII(s) {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r < 128 {
+			b.WriteRune(r)
+
+			continue
+		}
+		if folded := foldLetter(r); folded != "" {
+			b.WriteString(folded)
+
+			continue
+		}
+		b.WriteRune(r) // not a letter we know: leave it for notAlphanumeric
+	}
+
+	return b.String()
+}
+
+func isASCII(s string) bool {
+	for i := range len(s) {
+		if s[i] >= 128 {
+			return false
+		}
+	}
+
+	return true
+}
+
 // normaliseTitle folds a title to what two spellings of the same show have in
 // common: case, the ampersand written out, apostrophes, and every other mark
 // that a release name and a library differ on.
@@ -185,9 +289,13 @@ func normaliseTitle(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, "&", " and ")
 	s = strings.NewReplacer("'", "", "’", "", "`", "").Replace(s)
+	s = foldAccents(s)
+	s = initialism.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, ".", "") })
 	s = notAlphanumeric.ReplaceAllString(s, " ")
+	s = strings.TrimSpace(spaceRun.ReplaceAllString(s, " "))
+	s = spacedInitialism.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, " ", "") })
 
-	return strings.TrimSpace(spaceRun.ReplaceAllString(s, " "))
+	return s
 }
 
 // withoutThe drops a leading article, which a library and a release name
@@ -200,6 +308,43 @@ func withoutThe(s string) string {
 	}
 
 	return s
+}
+
+// acronymScore matches a name that abbreviates what the library spells out,
+// or the other way round: "Law and Order SVU" against "Law & Order: Special
+// Victims Unit", "CSI NY" against "CSI: New York". The abbreviation is
+// usually the only thing saying WHICH show it is, so reading it is the
+// difference between the right series and its parent.
+func acronymScore(q, c string) (score float64, matchedOn string) {
+	qw, cw := strings.Fields(q), strings.Fields(c)
+
+	shared := 0
+	for shared < len(qw) && shared < len(cw) && qw[shared] == cw[shared] {
+		shared++
+	}
+	if shared == 0 {
+		return 0, ""
+	}
+
+	short, long := qw[shared:], cw[shared:]
+	if len(short) > len(long) {
+		short, long = long, short
+	}
+	// one word against the several it stands for
+	if len(short) != 1 || len(long) < 2 {
+		return 0, ""
+	}
+
+	var initials strings.Builder
+	for _, w := range long {
+		initials.WriteString(w[:1])
+	}
+	if initials.String() != short[0] {
+		return 0, ""
+	}
+
+	// not quite an exact title, because the two sides do not literally agree
+	return 0.95, "title with the acronym spelled out"
 }
 
 // dice is the overlap of two word lists: twice what they share over what
@@ -235,14 +380,24 @@ func titleScore(query, candidate string) (score float64, matchedOn string) {
 		return 0.97, "title without the article"
 	}
 
-	short, long := q, c
-	if len(short) > len(long) {
-		short, long = long, short
+	if score, how := acronymScore(q, c); score > 0 {
+		return score, how
 	}
-	if strings.HasPrefix(long, short+" ") {
-		// "Doctor Who" against "Doctor Who Confidential": right as far as it
-		// goes, and wrong often enough not to be certain
-		return 0.80 + 0.15*float64(len(short))/float64(len(long)), "title prefix"
+
+	// a prefix match is not one fact but two, and they point opposite ways.
+	if strings.HasPrefix(c, q+" ") {
+		// the library's title carries words the name does not: "Doctor Who"
+		// against "Doctor Who Confidential". Right as far as it goes, and
+		// wrong often enough not to be certain.
+		return 0.80 + 0.15*float64(len(q))/float64(len(c)), "title prefix"
+	}
+	if strings.HasPrefix(q, c+" ") {
+		// the NAME carries words the library's title does not, which is how
+		// a spin-off matches its parent: "Law and Order SVU" against "Law &
+		// Order", "CSI Miami" against "CSI". The extra words are the whole
+		// point of the name - they are what says which show it is - so this
+		// has to score below anything a caller would act on unattended.
+		return math.Min(0.65, 0.55+0.1*float64(len(c))/float64(len(q))), "the library's title is a prefix of this name, which is how a spin-off matches its parent"
 	}
 
 	if d := dice(strings.Fields(q), strings.Fields(c)); d > 0 {
@@ -291,6 +446,13 @@ func abs(n int) int {
 // "24 Hours in A&E" matches no search for "24 Hours in A and E".
 func resolveSearchTerms(title string) []string {
 	terms := []string{title}
+	// "S W A T" is how a release name spells the library's "S.W.A.T.", and
+	// the servers' search finds neither from the other: it folds the points
+	// but not the spaces. Asking for the closed-up spelling as well is what
+	// makes the series findable at all.
+	if closed := normaliseTitle(title); closed != "" && !strings.EqualFold(closed, title) {
+		terms = append(terms, closed)
+	}
 	words := strings.Fields(title)
 	for _, n := range []int{3, 2, 1} {
 		if len(words) > n {
@@ -299,6 +461,75 @@ func resolveSearchTerms(title string) []string {
 	}
 
 	return terms
+}
+
+// seriesCandidate is one series the library holds that a name could mean,
+// and how sure we are of it.
+type seriesCandidate struct {
+	SeriesID  string  `json:"series_id"`
+	Name      string  `json:"name"`
+	Year      int     `json:"year,omitempty"`
+	Score     float64 `json:"score"          jsonschema:"0 to 1. 1 is the same title once case, punctuation, accents and the ampersand are folded; below about 0.9 is a guess a caller should not act on unattended"`
+	MatchedOn string  `json:"matched_on"     jsonschema:"what made the match: the title, the title without its article, an acronym spelled out, a prefix of it, or words in common"`
+	Path      string  `json:"path,omitempty"`
+
+	RunnerUp     float64 `json:"runner_up_score,omitempty" jsonschema:"what the next best candidate scored, when there was one. A high score with a high runner-up is a near-tie, not a certainty"`
+	RunnerUpName string  `json:"runner_up,omitempty"`
+}
+
+// rankSeries asks the library for a parsed name and scores what comes back,
+// best first. It also hands back every series it saw, scored or not, because
+// a caller that has to choose one wants to know whether the search found a
+// single thing or a hundred.
+func rankSeries(ctx context.Context, client *embyfin.Client, rel release, parent string) ([]seriesCandidate, []embyfin.Item, error) {
+	// ask for the title, then for shorter heads of it until something scores
+	// well enough to stop looking
+	best := 0.0
+	seen := []embyfin.Item{}
+	scored := map[string]seriesCandidate{}
+	for _, term := range resolveSearchTerms(rel.Title) {
+		items, _, err := client.Search(ctx, embyfin.SearchOptions{
+			SearchTerm: term, IncludeItemTypes: "Series", ParentID: parent, Limit: 50,
+			Fields: "Path,ProductionYear,OriginalTitle",
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		for i := range items {
+			it := &items[i]
+			if slices.ContainsFunc(seen, func(s embyfin.Item) bool { return s.ID == it.ID }) {
+				continue
+			}
+			seen = append(seen, *it)
+			score, how := scoreSeries(rel, it)
+			if score <= 0 {
+				continue
+			}
+			scored[it.ID] = seriesCandidate{SeriesID: it.ID, Name: it.Name, Year: it.ProductionYear, Score: score, MatchedOn: how, Path: it.Path}
+			best = math.Max(best, score)
+		}
+		if best >= 0.95 {
+			break
+		}
+	}
+
+	rows := make([]seriesCandidate, 0, len(scored))
+	for _, row := range scored {
+		rows = append(rows, row)
+	}
+	slices.SortFunc(rows, func(a, b seriesCandidate) int {
+		if a.Score != b.Score {
+			if a.Score > b.Score {
+				return -1
+			}
+
+			return 1
+		}
+
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	return rows, seen, nil
 }
 
 func registerResolveTools(r *registry) {
@@ -310,21 +541,13 @@ func registerResolveTools(r *registry) {
 		Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
 		Limit   int    `json:"limit,omitempty"   jsonschema:"maximum candidates to return, default 5"`
 	}
-	type resolveRow struct {
-		SeriesID  string  `json:"series_id"`
-		Name      string  `json:"name"`
-		Year      int     `json:"year,omitempty"`
-		Score     float64 `json:"score"          jsonschema:"0 to 1. 1 is the same title once case, punctuation and the ampersand are folded; below about 0.9 is a guess a caller should not act on unattended"`
-		MatchedOn string  `json:"matched_on"     jsonschema:"what made the match: the title, the title without its article, a prefix of it, or words in common"`
-		Path      string  `json:"path,omitempty"`
-	}
 	type resolveOut struct {
-		Title      string       `json:"parsed_title"                 jsonschema:"the title read out of the name, with the season, encode and group taken off"`
-		Year       int          `json:"parsed_year,omitempty"`
-		Season     int          `json:"parsed_season,omitempty"      jsonschema:"the season the name carried, when it carried one"`
-		Episode    int          `json:"parsed_episode,omitempty"`
-		EpisodeEnd int          `json:"parsed_episode_end,omitempty" jsonschema:"set when the name covers several episodes (S01E01E02)"`
-		Candidates []resolveRow `json:"candidates"                   jsonschema:"the library's series that could be it, best first"`
+		Title      string            `json:"parsed_title"                 jsonschema:"the title read out of the name, with the season, encode and group taken off"`
+		Year       int               `json:"parsed_year,omitempty"`
+		Season     int               `json:"parsed_season,omitempty"      jsonschema:"the season the name carried, when it carried one"`
+		Episode    int               `json:"parsed_episode,omitempty"`
+		EpisodeEnd int               `json:"parsed_episode_end,omitempty" jsonschema:"set when the name covers several episodes (S01E01E02)"`
+		Candidates []seriesCandidate `json:"candidates"                   jsonschema:"the library's series that could be it, best first"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "show_resolve",
@@ -346,7 +569,7 @@ func registerResolveTools(r *registry) {
 		if normaliseTitle(rel.Title) == "" {
 			return nil, resolveOut{}, fmt.Errorf("no title could be read out of %q: it is all season, encode and group", in.Title)
 		}
-		out := resolveOut{Title: rel.Title, Year: rel.Year, Season: rel.Season, Episode: rel.Episode, EpisodeEnd: rel.EpisodeEnd, Candidates: []resolveRow{}}
+		out := resolveOut{Title: rel.Title, Year: rel.Year, Season: rel.Season, Episode: rel.Episode, EpisodeEnd: rel.EpisodeEnd, Candidates: []seriesCandidate{}}
 
 		folder, err := resolveLibrary(ctx, client, in.Library)
 		if err != nil {
@@ -357,48 +580,10 @@ func registerResolveTools(r *registry) {
 			parent = folder.ItemID
 		}
 
-		// ask for the title, then for shorter heads of it until something
-		// scores well enough to stop looking
-		best := 0.0
-		scored := map[string]resolveRow{}
-		for _, term := range resolveSearchTerms(rel.Title) {
-			items, _, serr := client.Search(ctx, embyfin.SearchOptions{
-				SearchTerm: term, IncludeItemTypes: "Series", ParentID: parent, Limit: 50,
-				Fields: "Path,ProductionYear,OriginalTitle",
-			})
-			if serr != nil {
-				return nil, resolveOut{}, serr
-			}
-			for i := range items {
-				it := &items[i]
-				if _, seen := scored[it.ID]; seen {
-					continue
-				}
-				score, how := scoreSeries(rel, it)
-				if score <= 0 {
-					continue
-				}
-				scored[it.ID] = resolveRow{SeriesID: it.ID, Name: it.Name, Year: it.ProductionYear, Score: score, MatchedOn: how, Path: it.Path}
-				best = math.Max(best, score)
-			}
-			if best >= 0.95 {
-				break
-			}
+		rows, _, err := rankSeries(ctx, client, rel, parent)
+		if err != nil {
+			return nil, resolveOut{}, err
 		}
-
-		rows := make([]resolveRow, 0, len(scored))
-		for _, row := range scored {
-			rows = append(rows, row)
-		}
-		slices.SortFunc(rows, func(a, b resolveRow) int {
-			if a.Score != b.Score {
-				if a.Score > b.Score {
-					return -1
-				}
-				return 1
-			}
-			return strings.Compare(a.Name, b.Name)
-		})
 		out.Candidates = append(out.Candidates, rows[:min(len(rows), limit)]...)
 
 		return nil, out, nil

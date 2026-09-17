@@ -1,6 +1,7 @@
 package embyfin
 
 import (
+	"cmp"
 	"slices"
 
 	"github.com/katbyte/go-kt/pointer"
@@ -84,6 +85,12 @@ func mediaStreamFromEmby(d *emby.MediaStream) MediaStream {
 	return MediaStream{
 		Type: string(d.Type), Codec: d.Codec, Language: d.Language, Width: d.Width, Height: d.Height,
 		BitRate: int64(d.BitRate), Channels: d.Channels, DisplayTitle: d.DisplayTitle, IsExternal: pointer.From(d.IsExternal),
+		// the servers give both; AverageFrameRate is the one over the whole
+		// file, RealFrameRate the container's nominal one, and either is
+		// enough to tell 23.976 from 60
+		FrameRate:       cmp.Or(d.AverageFrameRate, d.RealFrameRate),
+		ColourTransfer:  d.ColorTransfer,
+		ColourPrimaries: d.ColorPrimaries,
 	}
 }
 

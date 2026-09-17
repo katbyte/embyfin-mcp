@@ -136,6 +136,28 @@ func TestLibraryEpisodesCarryQualityFacts(t *testing.T) {
 	if row["video_codec"] != "h264" || row["container"] != "mkv" {
 		t.Errorf("codec = %v, container = %v", row["video_codec"], row["container"])
 	}
+	// the frame rate comes off the stream like the rest: it is the fact that
+	// says whether a 2160p row is a remaster or something a machine made
+	if fps := decimal(t, row["frame_rate"], "frame_rate"); fps != 23.976 {
+		t.Errorf("frame_rate = %v, want 23.976", fps)
+	}
+	// bt709 is not an HDR claim, so nothing is claimed
+	if row["hdr"] != nil {
+		t.Errorf("hdr = %v on a bt709 file", row["hdr"])
+	}
+	// audio is fields, not a sentence to parse back: the codec is the codec
+	// whether or not the track carries a language, and the bitrate is there
+	// at all, which is what says whether a newer codec is the better track
+	tracks := objects(t, row["audio"], "audio")
+	if len(tracks) != 1 {
+		t.Fatalf("audio = %v", row["audio"])
+	}
+	if tracks[0]["codec"] != "aac" || tracks[0]["language"] != "eng" {
+		t.Errorf("audio track = %v", tracks[0])
+	}
+	if number(t, tracks[0]["channels"], "channels") != 6 || number(t, tracks[0]["bitrate"], "bitrate") != 448000 {
+		t.Errorf("audio track lacks channels or bitrate: %v", tracks[0])
+	}
 	if number(t, row["width"], "width") != 1920 || number(t, row["height"], "height") != 1080 {
 		t.Errorf("resolution = %vx%v", row["width"], row["height"])
 	}
@@ -151,10 +173,79 @@ func TestLibraryEpisodesCarryQualityFacts(t *testing.T) {
 		t.Errorf("show_episodes row lacks the quality facts: %v", first)
 	}
 
-	// asked for without them, the rows are the bare listing
+	// asked for without them, the rows are the bare listing: no facts, and
+	// no path either - the longest field on the row, and one a reconcile
+	// working from season and episode numbers never reads. A sweep of a
+	// library of hundreds of thousands of episodes is tens of megabytes of
+	// paths nobody asked for.
 	lean := mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows", "quality": false})
-	if row := objects(t, lean["episodes"], "episodes")[0]; row["width"] != nil || row["container"] != nil {
-		t.Errorf("quality=false still carried the facts: %v", row)
+	leanRow := objects(t, lean["episodes"], "episodes")[0]
+	if leanRow["width"] != nil || leanRow["container"] != nil || leanRow["path"] != nil {
+		t.Errorf("quality=false still carried the facts or the path: %v", leanRow)
+	}
+	// what is left still names the episode
+	if leanRow["series"] != "Severance" || number(t, leanRow["season"], "season") != 1 || leanRow["id"] == nil {
+		t.Errorf("quality=false dropped what names the episode: %v", leanRow)
+	}
+}
+
+// C6 again, on the batch: an exists check is asked "do you have it" to decide
+// keep-or-trash, and immediately after "is mine better" to decide
+// trash-or-upgrade. Answering only the first is a second read per series,
+// which for a folder spanning hundreds of shows is hundreds of round trips
+// for facts the first read already had in its hand.
+func TestShowEpisodesExistCarriesQualityOnHits(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{
+		{season: 1, number: 1, name: "Good News About Hell", path: "/m/s01e01.mkv"},
+		{season: 1, number: 3, name: "In Perpetuity", missing: true},
+	}
+	f := tvServer(t, s)
+	cs := session(t, f, Options{})
+
+	batch := []map[string]any{{"season": 1, "episode": 1}, {"season": 1, "episode": 2}, {"season": 1, "episode": 3}}
+	out := mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "sev", "episodes": batch, "quality": true})
+	rows := objects(t, out["episodes"], "episodes")
+
+	hit := rows[0]
+	for _, field := range []string{"width", "height", "bitrate", "size", "runtime_s"} {
+		if n := number(t, hit[field], field); n <= 0 {
+			t.Errorf("a hit lacks %s: %v", field, hit)
+		}
+	}
+	if hit["video_codec"] != "h264" || hit["container"] != "mkv" {
+		t.Errorf("a hit lacks the codec or container: %v", hit)
+	}
+
+	// a miss has nothing to say about a file that is not there, and a batch
+	// is mostly misses: the facts stay off both the unknown episode and the
+	// record with no file
+	for _, row := range []map[string]any{rows[1], rows[2]} {
+		if row["width"] != nil || row["size"] != nil || row["container"] != nil {
+			t.Errorf("a miss carried quality facts: %v", row)
+		}
+	}
+
+	// and they are off by default, so the answer stays small for a caller
+	// that only asked whether the library holds the episode
+	plain := mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "sev", "episodes": batch})
+	if row := objects(t, plain["episodes"], "episodes")[0]; row["width"] != nil || row["size"] != nil {
+		t.Errorf("quality was not asked for and came anyway: %v", row)
+	}
+
+	// the media sources are pulled only for the call that wanted them: they
+	// are the expensive half of an episode read
+	asked := f.requests("/Shows/sev/Episodes")
+	if len(asked) != 2 {
+		t.Fatalf("episode reads = %d, want one per call", len(asked))
+	}
+	if !strings.Contains(asked[0].Query, "MediaSources") {
+		t.Errorf("quality=true did not ask for the media sources: %s", asked[0].Query)
+	}
+	if strings.Contains(asked[1].Query, "MediaSources") {
+		t.Errorf("the plain call asked for the media sources anyway: %s", asked[1].Query)
 	}
 }
 
@@ -447,5 +538,420 @@ func TestShowEpisodesExistRefusesAnAmbiguousName(t *testing.T) {
 	byID := mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "sev-messy", "episodes": []map[string]any{{"season": 1, "episode": 2}}})
 	if boolean(t, objects(t, byID["episodes"], "episodes")[0]["exists"], "exists") {
 		t.Error("the messy copy holds only S01E01, so S01E02 is not there")
+	}
+}
+
+// C7: a reconcile asks after one series per show it found in the folder, and
+// a folder of thousands of releases spans hundreds of shows. One call per
+// show is hundreds of round trips, so the batch takes series as readily as
+// episodes - and the answer for one series cannot be allowed to depend on
+// the other thirty-four resolving, or a single ambiguous name costs the
+// whole page.
+func TestShowEpisodesExistAnswersSeveralSeries(t *testing.T) {
+	t.Parallel()
+
+	shows := showLibrary(3, 1, 2) // A, B, C, one season, two episodes each
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	out := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"queries": []map[string]any{
+			{"series_id": "sA", "episodes": []map[string]any{{"season": 1, "episode": 1}, {"season": 1, "episode": 9}}},
+			{"series": "B", "episodes": []map[string]any{{"season": 1, "episode": 2}}},
+			{"series": "no such show", "episodes": []map[string]any{{"season": 1, "episode": 1}}},
+			{"series_id": "sC", "episodes": []map[string]any{{"season": 1, "episode": 1}}},
+		},
+	})
+
+	groups := objects(t, out["results"], "results")
+	if len(groups) != 4 {
+		t.Fatalf("asked after 4 series, answered %d: %v", len(groups), groups)
+	}
+	// the groups come back in the order asked, which is what lets a caller
+	// line them up with the releases it asked about
+	for i, want := range []string{"A", "B", "no such show", "C"} {
+		if got := text(groups[i]["series"]); got != want {
+			t.Errorf("group %d is for %q, want %q", i, got, want)
+		}
+	}
+
+	// the series that resolved are answered
+	first := objects(t, groups[0]["episodes"], "episodes")
+	if !boolean(t, first[0]["exists"], "exists") || boolean(t, first[1]["exists"], "exists") {
+		t.Errorf("A: S01E01 and S01E09 = %v", first)
+	}
+	if !boolean(t, objects(t, groups[1]["episodes"], "episodes")[0]["exists"], "exists") {
+		t.Errorf("B: S01E02 = %v", groups[1])
+	}
+	if !boolean(t, objects(t, groups[3]["episodes"], "episodes")[0]["exists"], "exists") {
+		t.Errorf("C answered nothing after the failure above it: %v", groups[3])
+	}
+
+	// the one that did not resolve says so on its own group, and says it
+	// rather than reporting the episodes absent - "we hold none of these" and
+	// "we could not look" send a reconcile in opposite directions
+	bad := groups[2]
+	if text(bad["error"]) == "" {
+		t.Errorf("an unresolvable series carried no error: %v", bad)
+	}
+	if rows := objects(t, bad["episodes"], "episodes"); len(rows) != 0 {
+		t.Errorf("an unresolvable series answered for its episodes anyway: %v", rows)
+	}
+	if number(t, bad["absent"], "absent") != 0 {
+		t.Errorf("an unresolvable series counted absences: %v", bad)
+	}
+
+	// absent totals the batch: one episode asked after that nothing holds
+	if got := number(t, out["absent"], "absent"); got != 1 {
+		t.Errorf("absent = %d across the batch, want 1", got)
+	}
+
+	// a batch answers in results, not in the single-series fields
+	if out["episodes"] != nil || text(out["series"]) != "" {
+		t.Errorf("a batch answered in the single-series shape too: %v", out)
+	}
+}
+
+// The two shapes are alternatives, not a mixture: silently ignoring half of
+// what was asked is worse than refusing it.
+func TestShowEpisodesExistRefusesBothShapesAtOnce(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t, severance()), Options{})
+
+	msg := mustRefuse(t, cs, "show_episodes_exist", map[string]any{
+		"series_id": "sev",
+		"episodes":  []map[string]any{{"season": 1, "episode": 1}},
+		"queries":   []map[string]any{{"series_id": "sev", "episodes": []map[string]any{{"season": 1, "episode": 1}}}},
+	})
+	if !strings.Contains(msg, "not both") {
+		t.Errorf("mixing the shapes said: %s", msg)
+	}
+
+	// and a batch bigger than it will answer for names the limit, rather
+	// than timing out somewhere in the middle of it
+	big := make([]map[string]any, 0, 51)
+	for range 51 {
+		big = append(big, map[string]any{"series_id": "sev", "episodes": []map[string]any{{"season": 1, "episode": 1}}})
+	}
+	if msg := mustRefuse(t, cs, "show_episodes_exist", map[string]any{"queries": big}); !strings.Contains(msg, "50") {
+		t.Errorf("an oversized batch said: %s", msg)
+	}
+}
+
+// The name path and show_resolve were asked the same question and disagreed:
+// resolve matched "24 Hours in A and E" to "24 Hours in A&E" at 1.0 while the
+// name path matched it to hundreds of series and committed to none. Scene
+// naming strips apostrophes, colons and ampersands, so a name path that needs
+// them punctuated the library's way fails on most real input - and every one
+// of these is a name that failed in the field.
+func TestSeriesByNameFoldsPunctuationTheWayResolveDoes(t *testing.T) {
+	t.Parallel()
+
+	shows := []*fakeSeries{
+		{id: "ae", name: "24 Hours in A&E", year: 2011},
+		{id: "gath", name: "A Gatherer's Adventure in Isekai", year: 2024},
+		{id: "swx", name: "AMERICA'S SWEETHEARTS: Dallas Cowboys Cheerleaders", year: 2024},
+		{id: "davies", name: "Alan Davies: As Yet Untitled", year: 2015},
+	}
+	for _, s := range shows {
+		s.episodes = []ep{{season: 1, number: 1, name: "One", path: "/m/" + s.id + "/s01e01.mkv"}}
+	}
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	for _, tc := range []struct{ ask, want string }{
+		{"24 Hours in A and E", "ae"},
+		{"A Gatherers Adventure in Isekai", "gath"},
+		{"AMERICAS SWEETHEARTS Dallas Cowboys Cheerleaders", "swx"},
+		{"Alan Davies As Yet Untitled", "davies"},
+	} {
+		out := mustCall(t, cs, "show_episodes_exist", map[string]any{
+			"series": tc.ask, "episodes": []map[string]any{{"season": 1, "episode": 1}},
+		})
+		if got := text(out["series_id"]); got != tc.want {
+			t.Errorf("%q resolved to %q, want %s", tc.ask, got, tc.want)
+		}
+	}
+}
+
+// A refusal is read by a caller working through a batch of shows, and it is
+// competing for the same context the answers need. A loose name can match
+// most of a library; spelling all of those out made the error dearer than the
+// answer it replaced, and a batch of them worse than no batching at all.
+func TestAnAmbiguousNameRefusesBriefly(t *testing.T) {
+	t.Parallel()
+
+	shows := make([]*fakeSeries, 0, 40)
+	for i := range 40 {
+		shows = append(shows, &fakeSeries{
+			id: fmt.Sprintf("dup%02d", i), name: "Repeat", year: 1990 + i,
+			episodes: []ep{{season: 1, number: 1, name: "One", path: fmt.Sprintf("/media/a/very/long/path/that/costs/bytes/Repeat (%d)/S01E01.mkv", 1990+i)}},
+		})
+	}
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	msg := mustRefuse(t, cs, "show_episodes_exist", map[string]any{
+		"series": "Repeat", "episodes": []map[string]any{{"season": 1, "episode": 1}},
+	})
+
+	// it still says how many there were, and still hands over enough to
+	// choose between: the count is the fact, the long tail is not
+	for _, want := range []string{"matches 40 series", "showing 5", "35 more not listed", "give series_id"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal does not carry %q: %s", want, msg)
+		}
+	}
+	if n := strings.Count(msg, " id dup"); n != 5 {
+		t.Errorf("the refusal lists %d series, want 5: %s", n, msg)
+	}
+	if len(msg) > 800 {
+		t.Errorf("the refusal is %d bytes; 40 matches must not cost more than the answer would", len(msg))
+	}
+}
+
+// C8: the facts are not one thing. A reconcile comparing resolution and
+// bitrate across thousands of episodes pays, on every row, for a subtitle
+// list thirty languages long and a path it addresses nothing by - which is
+// most of the answer, and the answer is what runs out first.
+func TestEpisodeFactsCanBeNarrowed(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{{season: 1, number: 1, name: "Good News About Hell", path: "/m/s01e01.mkv"}}
+	f := tvServer(t, s)
+	cs := session(t, f, Options{})
+
+	want := []string{"width", "height", "video_codec", "bitrate", "size", "audio"}
+	for _, tc := range []struct {
+		tool string
+		args map[string]any
+		rows string
+	}{
+		{"show_episodes_exist", map[string]any{"series_id": "sev", "episodes": []map[string]any{{"season": 1, "episode": 1}}, "fields": want}, "episodes"},
+		{"library_episodes", map[string]any{"library": "Shows", "fields": want}, "episodes"},
+	} {
+		out := mustCall(t, cs, tc.tool, tc.args)
+		row := objects(t, out[tc.rows], tc.rows)[0]
+
+		for _, field := range want {
+			if row[field] == nil {
+				t.Errorf("%s: asked for %s and did not get it: %v", tc.tool, field, row)
+			}
+		}
+		// what was not asked for is not there - including the two that cost
+		// the most
+		for _, gone := range []string{"path", "subtitles", "container", "runtime_s"} {
+			if row[gone] != nil {
+				t.Errorf("%s: %s was not asked for: %v", tc.tool, gone, row)
+			}
+		}
+		// what names the episode is never optional: a row nobody can line up
+		// against a release is not a smaller answer, it is no answer
+		if row["id"] == nil || number(t, row["season"], "season") != 1 || number(t, row["episode"], "episode") != 1 {
+			t.Errorf("%s: narrowing dropped what identifies the row: %v", tc.tool, row)
+		}
+	}
+
+	// asking for facts is asking for the facts: fields alone turns them on,
+	// so a caller does not have to pass quality as well and wonder which wins
+	only := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series_id": "sev", "episodes": []map[string]any{{"season": 1, "episode": 1}}, "fields": []string{"height"},
+	})
+	if row := objects(t, only["episodes"], "episodes")[0]; number(t, row["height"], "height") != 1080 {
+		t.Errorf("fields alone did not turn the facts on: %v", row)
+	}
+
+	// a field nobody has is refused, rather than quietly answering without
+	// it: a typo that drops the fact a decision turns on still looks like an
+	// answer
+	msg := mustRefuse(t, cs, "library_episodes", map[string]any{"library": "Shows", "fields": []string{"width", "heigth"}})
+	if !strings.Contains(msg, "heigth") || !strings.Contains(msg, "video_codec") {
+		t.Errorf("a misspelled field said: %s", msg)
+	}
+
+	// and asked for nothing off the file, the file is not read: the media
+	// sources are the expensive half of the query
+	f.reset()
+	mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows", "fields": []string{"runtime_s"}})
+	for _, r := range f.requests("/Items") {
+		if strings.Contains(r.Query, "MediaSources") {
+			t.Errorf("nothing off the file was asked for, but the media sources were read: %s", r.Query)
+		}
+	}
+}
+
+// C9: a show held under two library entries is split by EPISODE, not
+// duplicated - one entry with season 1 and another with the rest is a shape a
+// folder rename leaves behind. Asked about the wrong half, an exists
+// check answers known:false for an episode the library is holding, which is
+// well-formed, confident and wrong. It has to say there is somewhere else to
+// look.
+func TestShowEpisodesExistWarnsWhenAShowIsSplit(t *testing.T) {
+	t.Parallel()
+
+	first := &fakeSeries{
+		id: "split-a", name: "Some Procedural", year: 2000,
+		ids:      map[string]string{"Tmdb": "90001"},
+		episodes: []ep{{season: 1, number: 1, name: "Pilot", path: "/media/s/Some Procedural (2000)/S01E01.mkv"}},
+	}
+	rest := &fakeSeries{
+		id: "split-b", name: "Some Procedural", year: 2000,
+		ids:      map[string]string{"Tmdb": "90001"},
+		episodes: []ep{{season: 4, number: 12, name: "Twelve", path: "/media/s/Some Procedural - 2000/S04E12.mkv"}},
+	}
+	cs := session(t, tvServer(t, first, rest, severance()), Options{})
+
+	// the half that does not hold S04E12 still has to point at the half that does
+	out := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series_id": "split-a",
+		"episodes":  []map[string]any{{"season": 1, "episode": 1}, {"season": 4, "episode": 12}},
+	})
+	rows := objects(t, out["episodes"], "episodes")
+	if !boolean(t, rows[0]["exists"], "exists") || boolean(t, rows[1]["exists"], "exists") {
+		t.Fatalf("this entry holds S01E01 and not S04E12: %v", rows)
+	}
+	warning := text(out["warning"])
+	if warning == "" {
+		t.Fatal("an absence against a split show came back with nothing to say it might be elsewhere")
+	}
+	for _, want := range []string{"split-b", "not proof", "audit_duplicates"} {
+		if !strings.Contains(warning, want) {
+			t.Errorf("the warning does not carry %q: %s", want, warning)
+		}
+	}
+
+	// the other entry comes back as an id, not only as prose: a caller
+	// working through hundreds of shows has to act on it, not read it
+	if others := texts(out["duplicate_entries"]); len(others) != 1 || others[0] != "split-b" {
+		t.Errorf("duplicate_entries = %v, want [split-b]", out["duplicate_entries"])
+	}
+
+	// and they come back even when nothing is absent: two entries holding the
+	// same episodes at different quality is the other half of this shape, and
+	// the entry asked may not be the one worth comparing against
+	held := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series_id": "split-a", "episodes": []map[string]any{{"season": 1, "episode": 1}},
+	})
+	if others := texts(held["duplicate_entries"]); len(others) != 1 {
+		t.Errorf("a show held twice said nothing about it when nothing was absent: %v", held)
+	}
+	// the warning is about an absence, so it only speaks when there is one
+	if text(held["warning"]) != "" {
+		t.Errorf("a call with nothing absent warned anyway: %v", held["warning"])
+	}
+
+	// a show held once says nothing, however much is absent
+	alone := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series": "Severance", "episodes": []map[string]any{{"season": 9, "episode": 9}},
+	})
+	if text(alone["warning"]) != "" {
+		t.Errorf("a show held once warned about itself: %v", alone["warning"])
+	}
+}
+
+// C10: being the only candidate is not being a match. "Sentai Daishikkaku"
+// turned up exactly one series - a different show scoring 0.30 on the bare
+// word "Sentai" - and the answer was handed over with nothing on it to say
+// so. The caller went on to ask what that series was missing, and believed
+// the answer.
+func TestSeriesByNameRefusesALoneGuess(t *testing.T) {
+	t.Parallel()
+
+	shows := []*fakeSeries{
+		{id: "jetman", name: "Chojin Sentai Jetman", year: 1991, episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/j.mkv"}}},
+		{id: "swat75", name: "S.W.A.T.", year: 1975, episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/s.mkv"}}},
+	}
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	msg := mustRefuse(t, cs, "show_episodes_exist", map[string]any{
+		"series": "Sentai Daishikkaku", "episodes": []map[string]any{{"season": 1, "episode": 1}},
+	})
+	for _, want := range []string{"nothing well enough", "Jetman", "guess"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal does not carry %q: %s", want, msg)
+		}
+	}
+
+	// a release name spelling an initialism with spaces still finds the
+	// series the library spells with points - the search has to be asked for
+	// the closed-up spelling, because the servers fold the points but not
+	// the spaces
+	out := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series": "S W A T", "episodes": []map[string]any{{"season": 1, "episode": 1}},
+	})
+	if text(out["series_id"]) != "swat75" {
+		t.Errorf("S W A T resolved to %v", out["series_id"])
+	}
+}
+
+// C11: the score belongs on the way out, not only in the refusal. A caller
+// deciding whether to keep a file has to be able to tell a 1.00 from a 0.92,
+// and the only way to see one used to be to make the query ambiguous on
+// purpose.
+func TestShowEpisodesExistReportsHowItMatched(t *testing.T) {
+	t.Parallel()
+
+	shows := []*fakeSeries{
+		{id: "svu", name: "Law & Order: Special Victims Unit", year: 1999, episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/svu.mkv"}}},
+		{id: "lao", name: "Law & Order", year: 1990, episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/lao.mkv"}}},
+	}
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	// the abbreviation is the whole point of the name: it says which show
+	out := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series": "Law And Order SVU", "episodes": []map[string]any{{"season": 1, "episode": 1}},
+	})
+	if text(out["series_id"]) != "svu" {
+		t.Fatalf("Law And Order SVU resolved to %v, not Special Victims Unit", out["series_id"])
+	}
+	match, ok := out["matched"].(map[string]any)
+	if !ok {
+		t.Fatalf("the answer does not say how it matched: %v", out)
+	}
+	if score := decimal(t, match["score"], "score"); score < seriesConfident {
+		t.Errorf("matched at %v but answered anyway", score)
+	}
+	if text(match["matched_on"]) == "" {
+		t.Errorf("the match does not say what matched: %v", match)
+	}
+	// the runner-up is what tells a near-tie from a certainty
+	if match["runner_up_score"] == nil {
+		t.Errorf("no runner-up reported, so a caller cannot see how close it was: %v", match)
+	}
+
+	// asked by id there is nothing to match, and nothing is claimed
+	byID := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series_id": "svu", "episodes": []map[string]any{{"season": 1, "episode": 1}},
+	})
+	if byID["matched"] != nil {
+		t.Errorf("an id needs no matching: %v", byID["matched"])
+	}
+}
+
+// Every tool that reports audio reports it the same way. item_get used to say
+// "eng aac 6ch" while an episode row said {language, codec, channels,
+// bitrate}, and two tools disagreeing on the shape of one fact is how a
+// caller that read one gets the other wrong.
+func TestItemGetReportsAudioTheWayEpisodeRowsDo(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{{season: 1, number: 1, name: "Good News About Hell", path: "/m/s01e01.mkv"}}
+	cs := session(t, tvServer(t, s), Options{})
+
+	item := mustCall(t, cs, "item_get", map[string]any{"id": "sev-1-1"})
+	row := objects(t, mustCall(t, cs, "show_episodes", map[string]any{"series_id": "sev"})["episodes"], "episodes")[0]
+
+	fromItem := objects(t, item["audio"], "audio")
+	fromRow := objects(t, row["audio"], "audio")
+	if len(fromItem) != 1 || len(fromRow) != 1 {
+		t.Fatalf("item_get audio = %v, episode row audio = %v", item["audio"], row["audio"])
+	}
+	for _, field := range []string{"language", "codec", "channels", "bitrate"} {
+		if fromItem[0][field] == nil {
+			t.Errorf("item_get's track has no %s: %v", field, fromItem[0])
+		}
+		if fromItem[0][field] != fromRow[0][field] {
+			t.Errorf("%s: item_get says %v, the episode row says %v", field, fromItem[0][field], fromRow[0][field])
+		}
 	}
 }

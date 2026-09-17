@@ -226,61 +226,127 @@ func missingFromGuide(ctx context.Context, guide seriesGuide, series *embyfin.It
 	return out
 }
 
-// resolveSeries finds the series a tool was pointed at: by id, or by name
-// when the caller has only that, optionally within one library. A name that
-// matches more than one series is refused with the matches rather than one
-// of them being picked - a library holding the same show twice is ordinary
-// (a tidy copy and a messy one), and guessing between them would answer a
-// question about the wrong files.
-func resolveSeries(ctx context.Context, client *embyfin.Client, id, name, library string) (*embyfin.Item, error) {
+// resolveSeriesMatch finds the series a tool was pointed at: by id, or by
+// name when the caller has only that, optionally within one library. A name
+// that matches more than one series is refused with the matches rather than
+// one of them being picked - a library holding the same show twice is
+// ordinary (a tidy copy and a messy one), and guessing between them would
+// answer a question about the wrong files.
+//
+// It also says how sure it is.
+// The score comes back on the way out, not only in the refusal: a caller
+// deciding whether to keep a file needs to see a 0.92 for what it is, and the
+// only way to see one used to be to make the query ambiguous on purpose.
+func resolveSeriesMatch(ctx context.Context, client *embyfin.Client, id, name, library string) (*embyfin.Item, *seriesCandidate, error) {
 	if id != "" {
-		return client.ItemByID(ctx, id)
+		item, err := client.ItemByID(ctx, id)
+
+		return item, nil, err
 	}
 	if strings.TrimSpace(name) == "" {
-		return nil, errors.New("a series is required: give series_id, or series by name")
+		return nil, nil, errors.New("a series is required: give series_id, or series by name")
 	}
 
-	opts := embyfin.SearchOptions{SearchTerm: name, IncludeItemTypes: "Series", Fields: "Path,ProductionYear"}
 	folder, err := resolveLibrary(ctx, client, library)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	parent := ""
 	if folder != nil {
-		opts.ParentID = folder.ItemID
-	}
-	items, _, err := client.Search(ctx, opts)
-	if err != nil {
-		return nil, err
+		parent = folder.ItemID
 	}
 
-	// an exact title beats the others the server's search turned up
-	var exact []embyfin.Item
-	for i := range items {
-		if strings.EqualFold(items[i].Name, name) {
-			exact = append(exact, items[i])
+	// the same matcher show_resolve answers with, because the two were asked
+	// the same question and disagreed: "24 Hours in A and E" is how every
+	// scene name spells "24 Hours in A&E", and a plain search for it matches
+	// hundreds of series and commits to none. Apostrophes, colons and
+	// ampersands are stripped by the naming conventions this is fed from, so
+	// a name path that needs them punctuated right fails on most real input.
+	rows, seen, err := rankSeries(ctx, client, parseRelease(name), parent)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	byID := func(id string) (*embyfin.Item, error) {
+		for i := range seen {
+			if seen[i].ID == id {
+				return &seen[i], nil
+			}
 		}
+
+		return client.ItemByID(ctx, id)
 	}
-	if len(exact) == 0 {
-		exact = items
+	switch {
+	case len(rows) == 0 && len(seen) == 1:
+		// nothing scored, but the library holds exactly one thing answering
+		// to that search: a partial name, and no other reading of it
+		return &seen[0], &seriesCandidate{
+			SeriesID: seen[0].ID, Name: seen[0].Name, Year: seen[0].ProductionYear,
+			MatchedOn: "the only series the search found - the title itself did not match",
+		}, nil
+	case len(rows) == 0:
+		return nil, nil, fmt.Errorf("no series named %q", name)
 	}
-	switch len(exact) {
-	case 0:
-		return nil, fmt.Errorf("no series named %q", name)
-	case 1:
-		return &exact[0], nil
+
+	// one clear winner is the answer. A tie is not: two series really are
+	// called Severance, and picking either would be a guess a caller cannot
+	// see us make.
+	//
+	// Being the only candidate is NOT being a winner. "Sentai Daishikkaku"
+	// turned up one series scoring 0.30 on the bare word "Sentai" - a
+	// different show entirely - and answering with it silently was worse than
+	// refusing, because the caller went on to ask what that series was
+	// missing and believed the answer.
+	decisive := len(rows) == 1 || rows[0].Score-rows[1].Score >= seriesMargin
+	if rows[0].Score >= seriesConfident && decisive {
+		item, err := byID(rows[0].SeriesID)
+		if err != nil {
+			return nil, nil, err
+		}
+		match := rows[0]
+		if len(rows) > 1 {
+			match.RunnerUp = rows[1].Score
+			match.RunnerUpName = rows[1].Name
+		}
+
+		return item, &match, nil
 	}
 
 	where := ""
 	if folder != nil {
 		where = " in " + folder.Name
 	}
-	names := make([]string, 0, len(exact))
-	for i := range exact {
-		names = append(names, fmt.Sprintf("%s (%d) id %s at %s", exact[i].Name, exact[i].ProductionYear, exact[i].ID, exact[i].Path))
+	// a loose name can match most of a library, and the refusal is read by a
+	// caller working through a batch: the first few are what it needs to
+	// choose between, and the long tail is pure cost. A hundred matches
+	// spelled out is an error dearer than the answer it replaced.
+	shown := min(len(rows), ambiguousShown)
+	names := make([]string, 0, shown)
+	for _, row := range rows[:shown] {
+		names = append(names, fmt.Sprintf("%s (%d) id %s scored %.2f at %s", row.Name, row.Year, row.SeriesID, row.Score, row.Path))
+	}
+	rest := ""
+	if more := len(rows) - shown; more > 0 {
+		rest = fmt.Sprintf(", showing %d (%d more not listed)", shown, more)
 	}
 
-	return nil, fmt.Errorf("%q matches %d series%s: %s - give series_id, or narrow it with library", name, len(exact), where, strings.Join(names, "; "))
+	if len(rows) == 1 {
+		return nil, nil, fmt.Errorf("%q matches nothing well enough to act on%s: the closest is %s, which is a guess rather than a match - give series_id if it is the one you meant", name, where, names[0])
+	}
+
+	return nil, nil, fmt.Errorf("%q matches %d series%s%s: %s - give series_id, or narrow it with library", name, len(rows), where, rest, strings.Join(names, "; "))
 }
+
+// What the name path will commit to on its own: a score show_resolve would
+// call a match rather than a guess, and clear enough of the next candidate
+// that choosing it is not picking one of two.
+const (
+	seriesConfident = 0.9
+	seriesMargin    = 0.02
+)
+
+// ambiguousShown is how many of the matches a refusal spells out.
+const ambiguousShown = 5
 
 func registerShowTools(r *registry) {
 	client := r.client
@@ -352,7 +418,7 @@ func registerShowTools(r *registry) {
 			episodes = slices.DeleteFunc(episodes, func(e embyfin.Item) bool { return e.ParentIndexNumber != in.Season })
 		}
 
-		return nil, episodesOut{Series: series.Name, SeriesID: series.ID, Episodes: episodeRows(episodes, true)}, nil
+		return nil, episodesOut{Series: series.Name, SeriesID: series.ID, Episodes: episodeRows(episodes, true, nil)}, nil
 	})
 
 	type missingIn struct {

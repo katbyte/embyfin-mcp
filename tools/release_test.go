@@ -227,3 +227,212 @@ func TestShowResolveRefusesATitlelessName(t *testing.T) {
 
 // fmt is used by the corpus table's failure messages.
 var _ = fmt.Sprintf
+
+// The contract this tool answers under, written down because a caller acting
+// on more than it says would do real damage: show_resolve reads a NAME. It
+// says which series a name is for, never that a file is what its name claims.
+//
+// Executables padded to a plausible size and named as clean releases are a
+// real shape in download folders. They parse as perfectly good episode names -
+// the title is cut at the season marker long before the extension matters -
+// and a caller that treated "it resolved" as "it is an episode" would move
+// malware into the library it was meant to fill.
+func TestShowResolveReadsANameNotAFile(t *testing.T) {
+	t.Parallel()
+
+	shows := []*fakeSeries{{id: "911", name: "9-1-1", year: 2018}}
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	media := mustCall(t, cs, "show_resolve", map[string]any{"title": "9-1-1 S10E01 1080p WEB H264-GROUP.mkv"})
+	for _, name := range []string{
+		"9-1-1 S10E01 1080p WEB H264-GROUP.exe",
+		"9-1-1 S10E01 1080p WEB H264-GROUP.scr",
+	} {
+		out := mustCall(t, cs, "show_resolve", map[string]any{"title": name})
+		cands := objects(t, out["candidates"], "candidates")
+		if len(cands) == 0 || cands[0]["series_id"] != "911" {
+			t.Fatalf("%s resolved to %v", name, cands)
+		}
+		// identical to the .mkv, and that is the point: the answer is about
+		// the name, so nothing in it can be read as evidence about the bytes
+		if score(t, cands[0]) != score(t, objects(t, media["candidates"], "candidates")[0]) {
+			t.Errorf("%s scored differently from the same name on a .mkv, which would read as a judgement about the file", name)
+		}
+		if number(t, out["parsed_season"], "parsed_season") != 10 || number(t, out["parsed_episode"], "parsed_episode") != 1 {
+			t.Errorf("%s parsed S%vE%v", name, out["parsed_season"], out["parsed_episode"])
+		}
+	}
+}
+
+// The shapes release names arrive in, named one at a time so a failure says
+// which rule broke. The names are made up; the shapes are the ones that broke
+// the parser.
+func TestParseReleaseShapes(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		release       string
+		title         string
+		season, first int
+		last          int
+	}{
+		{"site prefix, spaced dash", "www.example.org    -    The Long Drive 2016 S07E02 Episode Title 1080p WEB-DL DDP5 1 H 264-GROUP", "The Long Drive", 7, 2, 0},
+		{"site prefix over a dotted name", "www.example.org    -    The.Blue.Yellow.Show.S02E19.Episode.Title.1080p.WEB.H264-GROUP", "The Blue Yellow Show", 2, 19, 0},
+		{"a bare host with a spaced dash", "example.net - Some.Show.S01E01.720p.HDTV.x264-GROUP", "Some Show", 1, 1, 0},
+		{"a title is not a host", "The.Night.Office.S02E03.RERIP.MULTI.1080p.WEB.H264-GROUP", "The Night Office", 2, 3, 0},
+		{"hyphen-numeric title", "www.example.org    -    9-1-1 S09E12 Episode Title REPACK 1080p WEB-DL DD 5 1 H 264-GROUP", "9-1-1", 9, 12, 0},
+		{"year in the title", "www.example.org    -    Some Remake 2024 S02E03 Episode Title 2160p WEB-DL DDP5 1 Atmos H 265-GROUP", "Some Remake", 2, 3, 0},
+		{"a run of episodes, spelled out", "www.example.org    -    Some Cartoon S06E01-E02 576p WEB-DL AAC2 0 H 264 DUAL-GROUP", "Some Cartoon", 6, 1, 2},
+		{"a run of episodes, bare", "Some.Drama.S02E01-05.2160p.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-GROUP", "Some Drama", 2, 1, 5},
+		{"a season pack numbers no episode", "Some.Anime.S01.REPACK.1080p.BluRay.Dual-Audio.AAC2.0.x265-GROUP", "Some Anime", 1, 0, 0},
+		{"a title whose first word names a codec", "Max.Headroom.S01E01.1080p.WEB.H264-GROUP", "Max Headroom", 1, 1, 0},
+		{"a title whose first word names a service", "Stan.Against.Evil.S02E04.720p.HDTV.x264-GROUP", "Stan Against Evil", 2, 4, 0},
+		{"junk still ends a title with no marker", "Web Therapy 1080p WEB-DL", "Web Therapy", 0, 0, 0},
+		{"a single letter is junk only in front of a number", "Marvels Agents of S H I E L D H 264-GROUP", "Marvels Agents of S H I E L D", 0, 0, 0},
+		{"and still is in front of one", "Some Show H 264-GROUP", "Some Show", 0, 0, 0},
+	} {
+		got := parseRelease(tc.release)
+		if !strings.EqualFold(normaliseTitle(got.Title), normaliseTitle(tc.title)) {
+			t.Errorf("%s: read %q, want %q", tc.name, got.Title, tc.title)
+		}
+		if got.Season != tc.season || got.Episode != tc.first || got.EpisodeEnd != tc.last {
+			t.Errorf("%s: read S%02dE%02d-%02d, want S%02dE%02d-%02d", tc.name, got.Season, got.Episode, got.EpisodeEnd, tc.season, tc.first, tc.last)
+		}
+	}
+}
+
+// Accents fold the way apostrophes and colons do, and for the same reason:
+// scene naming drops them, and Emby's own search drops them too - a search for
+// "90 Day Fiance" finds "90 Day Fiancé". A scorer that kept them would rank the
+// very series the search just found at 0.5 and refuse to commit to it.
+func TestTitleScoreFoldsAccents(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ release, library string }{
+		{"90 Day Fiance", "90 Day Fiancé"},
+		{"Pokemon", "Pokémon"},
+		{"Amelie", "Amélie"},
+		{"Los Companeros", "Los Compañeros"},
+		{"Die Brucke", "Die Brücke"},
+		{"Bjorn of the North", "Bjørn of the North"},
+		{"Strasse", "Straße"},
+	} {
+		if score, _ := titleScore(tc.release, tc.library); score != 1 {
+			t.Errorf("%q against %q scored %v, want 1: the accent is the only difference", tc.release, tc.library, score)
+		}
+	}
+
+	// folding the marks off must not fold two different shows together
+	if score, _ := titleScore("Fiance", "Finance"); score == 1 {
+		t.Error("Fiance and Finance are not the same show")
+	}
+}
+
+// A dotted acronym is a whole genre of title, and it broke worse than the
+// apostrophes did. "Chicago P.D." against a search for "Chicago PD" did not
+// just score low: the punctuation strip turned P.D. into two words, so it
+// scored BELOW Chicago Fire, Hope, Justice and Med, which at least share a
+// whole word. The right answer ranked under four wrong ones.
+func TestTitleScoreFoldsDottedAcronyms(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ release, library string }{
+		{"Chicago PD", "Chicago P.D."},
+		{"CSI Miami", "C.S.I. Miami"},
+		{"SWAT", "S.W.A.T."},
+		{"Marvels Agents of SHIELD", "Marvel's Agents of S.H.I.E.L.D."},
+		{"MASH", "M.A.S.H."},
+		{"The IT Crowd", "The I.T. Crowd"},
+	} {
+		if score, _ := titleScore(tc.release, tc.library); score != 1 {
+			t.Errorf("%q against %q scored %v, want 1: the points are the only difference", tc.release, tc.library, score)
+		}
+	}
+
+	// and it has to beat the shows it was losing to
+	pd, _ := titleScore("Chicago PD", "Chicago P.D.")
+	for _, other := range []string{"Chicago Fire", "Chicago Med", "Chicago Justice", "Alaska PD"} {
+		if score, _ := titleScore("Chicago PD", other); score >= pd {
+			t.Errorf("Chicago PD scores %v against %q and %v against Chicago P.D.", score, other, pd)
+		}
+	}
+
+	// a word that merely ends in a point is not an acronym
+	if score, _ := titleScore("Dr Who", "Dr. Who"); score != 1 {
+		t.Errorf("Dr. Who: %v", score)
+	}
+
+	// the release name spells the same acronym with its dots already turned
+	// into spaces, and that has to land on the same word
+	for _, spelling := range []string{"Marvels.Agents.of.S.H.I.E.L.D", "Marvels Agents of S H I E L D", "Marvels Agents of SHIELD"} {
+		if score, _ := titleScore(parseRelease(spelling).Title, "Marvel's Agents of S.H.I.E.L.D."); score != 1 {
+			t.Errorf("%q scored %v", spelling, score)
+		}
+	}
+
+	// single letters that are words in their own right are not an acronym:
+	// the ampersand in "A&E" becomes "and", which breaks the run
+	if score, _ := titleScore("24 Hours in A and E", "24 Hours in A&E"); score != 1 {
+		t.Errorf("24 Hours in A&E: %v", score)
+	}
+}
+
+// A prefix match is two different facts pointing opposite ways, and reading
+// them as one is how a spin-off resolves to its parent. "Law and Order SVU"
+// scored 0.91 against "Law & Order" - over the floor, acted on unattended -
+// and the library was holding Special Victims Unit all along.
+func TestTitleScoreReadsPrefixesDirectionally(t *testing.T) {
+	t.Parallel()
+
+	// the name carries words the library's title does not: those words are
+	// what says which show it is, so this cannot be acted on
+	for _, tc := range []struct{ release, library string }{
+		{"Law and Order SVU", "Law & Order"},
+		{"CSI Miami", "CSI"},
+		{"Star Trek Deep Space Nine", "Star Trek"},
+	} {
+		score, how := titleScore(tc.release, tc.library)
+		if score >= seriesConfident {
+			t.Errorf("%q against %q scored %v (%s): a spin-off must not resolve to its parent", tc.release, tc.library, score, how)
+		}
+	}
+
+	// the other way round is the Doctor Who Confidential case, which is worth
+	// something but still not a certainty
+	score, _ := titleScore("Doctor Who", "Doctor Who Confidential")
+	if score < 0.8 || score >= 1 {
+		t.Errorf("Doctor Who against its spin-off scored %v", score)
+	}
+}
+
+// An abbreviation is usually the only thing in a name saying WHICH show it
+// is, so it has to be read rather than dropped.
+func TestTitleScoreReadsAcronyms(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ release, library string }{
+		{"Law and Order SVU", "Law & Order: Special Victims Unit"},
+		{"CSI NY", "CSI: New York"},
+		// and the same in reverse, when the name spells out what the library
+		// abbreviates
+		{"Law and Order Special Victims Unit", "Law & Order SVU"},
+	} {
+		score, how := titleScore(tc.release, tc.library)
+		if score < seriesConfident {
+			t.Errorf("%q against %q scored %v (%s)", tc.release, tc.library, score, how)
+		}
+	}
+
+	// the acronym has to be the right one
+	if score, _ := titleScore("Law and Order SVU", "Law & Order: Criminal Intent"); score >= seriesConfident {
+		t.Errorf("SVU matched Criminal Intent at %v", score)
+	}
+
+	// and SVU must beat the parent it was losing to
+	svu, _ := titleScore("Law and Order SVU", "Law & Order: Special Victims Unit")
+	parent, _ := titleScore("Law and Order SVU", "Law & Order")
+	if svu <= parent {
+		t.Errorf("SVU scores %v and its parent %v", svu, parent)
+	}
+}

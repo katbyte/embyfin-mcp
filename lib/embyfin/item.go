@@ -22,6 +22,18 @@ type MediaStream struct {
 	Channels     int    `json:"Channels,omitempty"`
 	DisplayTitle string `json:"DisplayTitle,omitempty"`
 	IsExternal   bool   `json:"IsExternal,omitempty"`
+
+	// FrameRate is the video's frames per second, which is the one fact
+	// about a file a release cannot inflate: a scripted drama at 59.94 or 60
+	// was interpolated from a 23.976 master by something, because no
+	// broadcast or disc master of one ships at 60p.
+	FrameRate float32 `json:"AverageFrameRate,omitempty"`
+	// ColourTransfer and ColourPrimaries say whether the file claims HDR
+	// (smpte2084, arib-std-b67 / bt2020). Claimed on a source that cannot
+	// have been HDR, they are a claim about the encode rather than the
+	// picture.
+	ColourTransfer  string `json:"ColorTransfer,omitempty"`
+	ColourPrimaries string `json:"ColorPrimaries,omitempty"`
 }
 
 type MediaSource struct {

@@ -56,6 +56,15 @@ func newFakeServer(t *testing.T) *fakeServer {
 	return f
 }
 
+// reset forgets the calls seen so far, for a test that cares about what one
+// call asked the server for rather than what every call did.
+func (f *fakeServer) reset() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.seen = nil
+}
+
 // requests returns the calls made to a path, in order.
 func (f *fakeServer) requests(path string) []request {
 	f.mu.Lock()

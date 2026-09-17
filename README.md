@@ -50,7 +50,7 @@ API object (`BaseItemDto` runs to 150 fields; `item_get` returns about 15).
 
 ### What else is in the box
 
-- **84 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than twelve thousand.
+- **85 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than twelve thousand.
 - **Two Go SDKs.** `lib/emby` and `lib/jf` are complete typed clients for the Emby and Jellyfin APIs - all 499 and 346 operations, generated from the servers' own OpenAPI documents, standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
@@ -183,14 +183,15 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 | identify | `item_identify` (candidates from the server's providers) → `item_identify_apply` |
 | artwork | `item_artwork` (current images plus remote candidates) → `item_artwork_set` |
 | subtitles | `item_subtitle_search` → `item_subtitle_download` |
-| shows | `show_seasons`, `show_episodes` (with quality on each row), `show_episodes_exist` (does it have these episodes?), `show_missing` (what a series is missing, and whether it could tell), `show_resolve` (a release name to a series, scored) |
+| shows | `show_seasons`, `show_episodes` (with quality on each row), `show_episodes_exist` (does it have these episodes? up to 50 series a call, with the match score and any duplicate entries), `show_missing` (what a series is missing, and whether it could tell), `show_resolve` (a release name to a series, scored) |
 | users | `user_list`, `user_get` (permissions, libraries, and how much they have watched), `user_history`, `user_next_up`, `user_in_progress` (with positions), `user_favourites`, `user_stats` (films and episodes watched, hours, series finished, top genres and series) |
+| quality | `quality_compare` (which of two copies is better, by how much, and why) |
 | sessions | `session_list`, `session_play`, `session_command`, `session_message` |
 | playlists | `playlist_list`, `playlist_get`, `playlist_create`, `playlist_edit` (rename, move an entry), `playlist_add`, `playlist_remove`, `playlist_delete` |
 | collections | `collection_list`, `collection_get`, `collection_create`, `collection_edit` (rename, sort name, overview), `collection_add`, `collection_remove`, `collection_delete` |
 
 `item_delete` (permanently removes the media file) and `library_delete` are only registered
-when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set. `--read-only` registers the 55 read
+when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set. `--read-only` registers the 56 read
 tools and nothing else, so a write tool is absent from `tools/list` rather than refused when
 called.
 
@@ -212,12 +213,12 @@ fixes what they find. `EMBYFIN_TOOLSETS=all` restores every tool.
 | `admin` | 12 | 19 | 2,500 |
 | `watching` | 13 | 20 | 2,500 |
 | `organise` | 14 | 21 | 2,700 |
-| `curation` | 34 | 41 | 7,300 |
-| `all` | 84 | 84 | 12,200 |
+| `curation` | 35 | 42 | 9,300 |
+| `all` | 85 | 85 | 14,200 |
 
 Tokens are what the model sees: each tool's name, description and input schema, measured over
 a real `tools/list` at four bytes a token. Every tool also carries an output schema, another
-12,400 tokens across `all`, but clients keep that to themselves to validate results rather than
+16,500 tokens across `all`, but clients keep that to themselves to validate results rather than
 sending it to the model.
 
 `--toolsets` also takes a resource family - `library`, `item`, `audit`, `show`, `user`,
