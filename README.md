@@ -4,8 +4,7 @@
 [![Go Version](https://img.shields.io/github/go-mod/go-version/katbyte/embyfin-mcp?color=00ADD8)](https://github.com/katbyte/embyfin-mcp/blob/main/go.mod)
 [![License](https://img.shields.io/github/license/katbyte/embyfin-mcp?color=blue)](https://github.com/katbyte/embyfin-mcp/blob/main/LICENSE)
 ![build](https://github.com/katbyte/embyfin-mcp/actions/workflows/build.yaml/badge.svg)
-![test](https://github.com/katbyte/embyfin-mcp/actions/workflows/pr-tests.yaml/badge.svg)
-![live tests](https://github.com/katbyte/embyfin-mcp/actions/workflows/pr-integration.yaml/badge.svg)
+![tests](https://github.com/katbyte/embyfin-mcp/actions/workflows/pr-integration.yaml/badge.svg)
 ![lint](https://github.com/katbyte/embyfin-mcp/actions/workflows/pr-golangci-lint.yaml/badge.svg)
 [![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/katbyte/embyfin-mcp/badges/coverage.json)](https://github.com/katbyte/embyfin-mcp/actions/workflows/coverage.yaml)
 

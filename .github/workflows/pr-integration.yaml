@@ -1,5 +1,5 @@
 ---
-name: live tests
+name: tests
 on:
   push:
     branches: [ 'main' ]
@@ -15,6 +15,10 @@ on:
       - 'acceptance/**'
       - 'integration/**'
       - 'lib/providerproxy/**'
+      # internal/pandorest's tests re-import the specs and regenerate the SDKs,
+      # failing when api-definitions/, lib/emby or lib/jf are stale
+      - 'docs/*-openapi.json'
+      - 'api-definitions/**'
       - '.github/workflows/pr-integration.yaml'
   workflow_dispatch:
 
@@ -22,6 +26,18 @@ permissions:
   contents: read
 
 jobs:
+  # the unit tests need no server: the tools against a canned one, and the
+  # parsers, scoring and SDK generation on their own
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: ./.go-version
+      - run: make test
+
   # one job per suite and backend, so a failure names which layer broke and
   # on which server: the client's view of the API, or the tools' behaviour
   # on top of it
