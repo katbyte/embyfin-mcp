@@ -23,8 +23,10 @@ GOLANGCI_LINT=$(TOOLS_BIN)/golangci-lint
 # yamllint is python installed into a repo-local venv. both rebuild when this makefile changes.
 SHELLCHECK_VERSION=v0.11.0
 YAMLLINT_VERSION=1.38.0
+ZIZMOR_VERSION=v1.30.1
 SHELLCHECK=$(TOOLS_BIN)/shellcheck
 YAMLLINT=$(TOOLS_BIN)/yamllint
+ZIZMOR=$(TOOLS_BIN)/zizmor
 
 # golangci-lint with the azproviderlint module plugin compiled in (.tools/.custom-gcl.yml);
 # lint runs use this binary, the plain go.mod one exists to bootstrap `golangci-lint custom`
@@ -65,6 +67,14 @@ $(YAMLLINT): makefile
 	@mkdir -p $(TOOLS_BIN)
 	@python3 -m venv $(TOOLS_BIN)/../venv && $(TOOLS_BIN)/../venv/bin/pip install -q yamllint==$(YAMLLINT_VERSION) && ln -sf ../venv/bin/yamllint $@
 
+$(ZIZMOR): makefile
+	@echo "==> downloading zizmor $(ZIZMOR_VERSION)..."
+	@mkdir -p $(TOOLS_BIN)
+	@case "$$(uname)" in Darwin) target=apple-darwin;; *) target=unknown-linux-gnu;; esac; \
+		arch=$$(uname -m); [ "$$arch" = "arm64" ] && arch=aarch64; \
+		curl -sSfL "https://github.com/zizmorcore/zizmor/releases/download/$(ZIZMOR_VERSION)/zizmor-$$arch-$$target.tar.gz" \
+		| tar -xz -O zizmor > $@ && chmod +x $@
+
 default: fmt build
 
 all: fmt build
@@ -85,7 +95,7 @@ docker: ## Build the embyfin-mcp container image with version info from git
 	@echo "==> building docker image..."
 	docker build --build-arg VERSION=${GIT_VERSION} --build-arg COMMIT=${GIT_COMMIT} -t embyfin-mcp .
 
-tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(SHELLCHECK) $(YAMLLINT) ## Install all pinned dev tools into .tools/bin
+tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(SHELLCHECK) $(YAMLLINT) $(ZIZMOR) ## Install all pinned dev tools into .tools/bin
 
 ##@ SDK generation (internal/pandorest)
 generate: pandorest-import pandorest-generate ## Import the specs into api-definitions/, then generate lib/emby and lib/jf from them
@@ -134,6 +144,10 @@ yamllint: $(YAMLLINT) ## Check YAML files with yamllint (config in .yamllint.yml
 shellcheck: $(SHELLCHECK) ## Check shell scripts with shellcheck
 	@echo "==> Checking shell scripts with shellcheck..."
 	@$(SHELLCHECK) scripts/*.sh
+
+zizmor: $(ZIZMOR) ## Audit GitHub workflows for security issues with zizmor
+	@echo "==> Auditing workflows with zizmor..."
+	@$(ZIZMOR) .
 
 gencheck: generate ## Check that the definitions and generated SDKs match the specs (regenerate, then diff)
 	@test -z "$$(git status --porcelain -- api-definitions lib/emby lib/jf)" || \
@@ -286,4 +300,4 @@ testenv-down: ## Remove the throwaway media server (EMBYFIN_TEST_BACKEND=emby|je
 
 check-all: build test testacc lint actionlint yamllint shellcheck depscheck gencheck apicheck ## Run build + tests (incl. live) + all linters + depscheck
 
-.PHONY: default all help fmt goimports build docker generate pandorest-import pandorest-generate pandorest-diff lint lint-fix actionlint yamllint shellcheck gencheck apicheck depscheck check-all install tools test
+.PHONY: default all help fmt goimports build docker generate pandorest-import pandorest-generate pandorest-diff lint lint-fix actionlint yamllint shellcheck zizmor gencheck apicheck depscheck check-all install tools test

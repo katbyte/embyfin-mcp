@@ -13,20 +13,24 @@ on:
         type: string
 
 permissions:
-  contents: write
-  packages: write # ghcr.io image push
+  contents: read
 
 jobs:
   goreleaser:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release
+      packages: write # ghcr.io image push
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # goreleaser derives the changelog and version from tag history
-      - uses: actions/setup-go@v7
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: ./.go-version
+          cache: false
       # dockers_v2 builds a multi-arch manifest with buildx and pushes it in one go, so it needs
       # qemu for the non-native platform, a buildx builder, and a ghcr.io login before running
       - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
@@ -48,7 +52,9 @@ jobs:
     if: always() && (github.event_name == 'workflow_dispatch' || needs.goreleaser.result == 'success')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: update tap formula (source build)
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
