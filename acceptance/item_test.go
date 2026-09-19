@@ -37,8 +37,8 @@ func TestItemGet(t *testing.T) {
 	if fps, _ := out["frame_rate"].(float64); fps < 4.9 || fps > 5.1 {
 		t.Errorf("frame_rate = %v, want the fixture's 5", out["frame_rate"])
 	}
-	if out["hdr"] != nil {
-		t.Errorf("hdr = %v on an SDR test pattern", out["hdr"])
+	if hdr := str(out["hdr"]); hdr != "sdr" && hdr != "unknown" {
+		t.Errorf("hdr = %q on an SDR test pattern", hdr)
 	}
 	// audio is fields, not a sentence: the codec reads as the codec whether
 	// or not the track is tagged with a language

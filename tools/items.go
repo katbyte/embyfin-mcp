@@ -28,7 +28,8 @@ type itemSummary struct {
 	// episode row: a caller comparing an item_get against a library_episodes
 	// row should not have to convert megabytes, minutes, or a sentence
 	qualityFacts
-	Added string `json:"added,omitempty" jsonschema:"when the item was added to the library"`
+	Added        string `json:"added,omitempty"         jsonschema:"when the item was added to the library"`
+	FileModified string `json:"file_modified,omitempty" jsonschema:"when the file itself last changed (Emby only); this moves when a download overwrites a path in place, while added does not"`
 }
 
 func summarise(it *embyfin.Item) itemSummary {
@@ -44,6 +45,7 @@ func summarise(it *embyfin.Item) itemSummary {
 		Path:                it.Path,
 		MetadataProviderIDs: providerKeys(it.ProviderIDs),
 		Added:               it.DateCreated,
+		FileModified:        it.DateModified,
 
 		// the best file speaks for the item, as it does for an episode row
 		qualityFacts: qualityOf(it),

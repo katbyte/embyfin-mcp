@@ -16,6 +16,15 @@ Comparing a download folder against a big TV library: reading every episode at o
 - `fields` on `library_episodes` and `show_episodes_exist` returns only the facts asked for.
 - A series name no longer resolves to the only candidate when that candidate is a poor match, and a spin-off no longer resolves to its parent (`Law and Order SVU` to `Law & Order`).
 - Release names with a site prefix, dotted acronyms (`Chicago P.D.`), accents, or a word like `Max` or `Stan` at the start of the title now resolve.
+- **`plan_check`**: before writing files into the library, what is at each destination path now, which series each path would join, and which entries collide with each other. Reads only. A file written over an existing path keeps the item's id and date, so nothing afterwards can show it happened.
+- **`audit_duplicate_titles`**: one episode's content filed under two episode numbers, which neither other duplicate audit can see.
+- **`audit_title_mismatch`**: episodes whose file name claims a different title from the one the server holds.
+- **`audit_duplicate_series_folders`**: shows held twice because two folder names differ only by spacing, case, an accent or punctuation.
+- Episode rows carry `date_created` and `file_modified` (Emby only), and `library_episodes`/`library_items` take `saved_since`. An overwritten file keeps its item's creation date, so this is the only way to see one.
+- Episode rows carry `runtime_multiple` and `season_median_runtime_s` where the call read a whole season: about 2 means the file holds two episodes under one number, which is why the number beside it looks missing.
+- `hdr` is now present on every row with video and says `sdr`, `hdr10`, `hlg`, `dovi`, `dovi_hdr10` or `unknown`. It used to be absent for three different reasons and callers could not tell them apart.
+- `audit_runtime` expects a file the server records as holding several episodes to run that many times the season median, and reports an impossible duration as broken metadata rather than as a percentage.
+- `audit_duplicates` groups episodes by provider id AND season and episode number, because one shared id across unrelated episodes is common; `audit_all` now includes episodes in that pass rather than only films and series.
 - **`audit_language`**: find films and episodes by the language of their audio or subtitles, including what cannot be watched in a language at all. A track with no language tag is counted separately, never as lacking the language.
 - `server_info` reports `embyfin_mcp_version`, the build answering, so a session can tell when it is running an old binary.
 - Series names are matched against the library's full list of series, read once and kept, rather than the server's search. A batch of names costs one read, shows the search failed to return now resolve, and finding a show held under two entries no longer costs a search per series.

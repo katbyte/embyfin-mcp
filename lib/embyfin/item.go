@@ -34,6 +34,12 @@ type MediaStream struct {
 	// picture.
 	ColourTransfer  string `json:"ColorTransfer,omitempty"`
 	ColourPrimaries string `json:"ColorPrimaries,omitempty"`
+	// VideoRange and VideoRangeType are the servers' own reading: "SDR",
+	// "HDR", and on Jellyfin the narrower "HDR10", "HLG", "DOVI",
+	// "DOVIWithHDR10". Emby answers only the first. Both are empty when the
+	// server has not probed the file, which is not the same as SDR.
+	VideoRange     string `json:"VideoRange,omitempty"`
+	VideoRangeType string `json:"VideoRangeType,omitempty"`
 }
 
 type MediaSource struct {
@@ -69,19 +75,25 @@ type UserData struct {
 }
 
 type Item struct {
-	ID             string    `json:"Id"`
-	Name           string    `json:"Name"`
-	OriginalTitle  string    `json:"OriginalTitle,omitempty"`
-	Type           string    `json:"Type"` // Movie, Series, Episode...
-	ProductionYear int       `json:"ProductionYear,omitempty"`
-	PremiereDate   string    `json:"PremiereDate,omitempty"`
-	DateCreated    string    `json:"DateCreated,omitempty"`
-	Path           string    `json:"Path,omitempty"`
-	Overview       string    `json:"Overview,omitempty"`
-	Genres         []string  `json:"Genres,omitempty"`
-	Tags           []string  `json:"Tags,omitempty"`     // Jellyfin
-	TagItems       []NameRef `json:"TagItems,omitempty"` // Emby
-	Studios        []NameRef `json:"Studios,omitempty"`
+	ID             string `json:"Id"`
+	Name           string `json:"Name"`
+	OriginalTitle  string `json:"OriginalTitle,omitempty"`
+	Type           string `json:"Type"` // Movie, Series, Episode...
+	ProductionYear int    `json:"ProductionYear,omitempty"`
+	PremiereDate   string `json:"PremiereDate,omitempty"`
+	DateCreated    string `json:"DateCreated,omitempty"`
+	// DateModified is when the FILE last changed, which is the only thing
+	// that moves when a download overwrites a path in place: the item keeps
+	// its id and its DateCreated, so every "what was added" view is blind to
+	// it. Emby answers it; Jellyfin's item has no such field and leaves it
+	// empty.
+	DateModified string    `json:"DateModified,omitempty"`
+	Path         string    `json:"Path,omitempty"`
+	Overview     string    `json:"Overview,omitempty"`
+	Genres       []string  `json:"Genres,omitempty"`
+	Tags         []string  `json:"Tags,omitempty"`     // Jellyfin
+	TagItems     []NameRef `json:"TagItems,omitempty"` // Emby
+	Studios      []NameRef `json:"Studios,omitempty"`
 
 	OfficialRating  string  `json:"OfficialRating,omitempty"` // the parental rating, e.g. PG-13
 	CommunityRating float64 `json:"CommunityRating,omitempty"`
@@ -170,13 +182,23 @@ type SearchOptions struct {
 	ParentIndexNumber int
 	IDs               string // comma-separated item ids
 	Filters           string // e.g. IsPlayed, IsFavorite, IsResumable
-	SortBy            string // e.g. DateCreated, DatePlayed, SortName
+	SortBy            string // e.g. DateCreated, DateModified, DatePlayed, SortName
 	SortOrder         string // Ascending or Descending
-	UserID            string // user context: adds watch state to UserData
-	EnableUserData    bool
-	Fields            string // override FieldsDefault
-	Limit             int
-	StartIndex        int
+	// SavedSince restricts to items whose metadata the server last saved at
+	// or after this time (MinDateLastSaved). It is the closest thing both
+	// servers offer to "what changed": a file written over an existing path
+	// is re-read and saved again, but so is an item someone edited, so it is
+	// a net rather than a measurement.
+	SavedSince string
+	// Path finds the item holding exactly this file. Emby answers it;
+	// Jellyfin's item query has no such parameter, so a caller needing it on
+	// both backends reads a folder and compares paths itself.
+	Path           string
+	UserID         string // user context: adds watch state to UserData
+	EnableUserData bool
+	Fields         string // override FieldsDefault
+	Limit          int
+	StartIndex     int
 }
 
 // Search returns matching library items plus the total match count
@@ -212,6 +234,8 @@ func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields stri
 		Filters:           opts.Filters,
 		SortBy:            opts.SortBy,
 		SortOrder:         opts.SortOrder,
+		MinDateLastSaved:  opts.SavedSince,
+		Path:              opts.Path,
 		ParentIndexNumber: opts.ParentIndexNumber,
 		Limit:             opts.Limit,
 		StartIndex:        opts.StartIndex,
@@ -295,6 +319,7 @@ func (c *Client) searchJF(ctx context.Context, opts SearchOptions, fields string
 		Filters:             list[jf.ItemFilter](opts.Filters),
 		SortBy:              list[jf.ItemSortBy](opts.SortBy),
 		SortOrder:           list[jf.SortOrder](opts.SortOrder),
+		MinDateLastSaved:    opts.SavedSince,
 		UserId:              opts.UserID,
 		Limit:               opts.Limit,
 		StartIndex:          opts.StartIndex,

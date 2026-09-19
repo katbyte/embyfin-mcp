@@ -426,3 +426,25 @@ func TestQualityCompareWeighsAudioByBitrateNotCodecName(t *testing.T) {
 		t.Errorf("stereo against 5.1 was answered on codec efficiency: %s", note)
 	}
 }
+
+// An unknown dynamic range is not a claim, so it cannot disagree with one:
+// only two copies that both say what they are can differ.
+func TestQualityCompareHDRCaveatNeedsTwoClaims(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t, severance()), Options{})
+	differs := func(a, b string) bool {
+		copyOf := func(hdr string) map[string]any {
+			return map[string]any{"width": 3840, "height": 2160, "video_codec": "hevc", "bitrate": 12000000, "hdr": hdr}
+		}
+		out := mustCall(t, cs, "quality_compare", map[string]any{"a": copyOf(a), "b": copyOf(b)})
+
+		return strings.Contains(strings.Join(texts(out["caveats"]), " "), "HDR formats")
+	}
+	if !differs("hdr10", "sdr") {
+		t.Error("an HDR10 copy against an SDR one went unremarked")
+	}
+	if differs("unknown", "sdr") || differs("hdr10", "unknown") {
+		t.Error("an unknown dynamic range was read as a claim")
+	}
+}

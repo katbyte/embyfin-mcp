@@ -120,9 +120,9 @@ Severance|2|1|Hello, Ms. Cobel
 Severance|2|2|Goodbye, Mrs. Selvig
 Breaking Bad|1|1|Pilot
 Breaking Bad|1|2|Cat'\''s in the Bag...
-Breaking Bad|1|3|...And the Bag'\''s in the River
+Breaking Bad|1|3|Cat'\''s in the Bag...
 The Expanse|1|1|Dulcinea
-The Expanse|1|2|The Big Empty'
+The Expanse|1|2|The Big Empty|Dulcinea'
 
 # The music library. Four artists with their real MusicBrainz ids and a
 # subset of each album's real tracklist, so the tags the scanner reads are
@@ -343,7 +343,11 @@ show_nfo() {
 
 # episode FILE_BASE SEASON EPISODE TITLE [SECONDS] [SIZE] - one episode with its nfo.
 episode() {
-  local base=$1 season=$2 ep=$3 title=$4 secs=${5:-1} size=${6:-1280x720}
+  local base=$1 season=$2 ep=$3 title=$4 secs=${5:-1} size=${6:-1280x720} filetitle=${7:-}
+  # a seventh argument names the FILE after something other than the episode,
+  # which is what a file written from another series looks like: the nfo keeps
+  # the real title, and audit_title_mismatch has the two to compare
+  [ -z "$filetitle" ] || base="${base} - ${filetitle}"
   video "${base}.mp4" "$secs" "$size"
   {
     echo '<?xml version="1.0" encoding="utf-8"?>'
@@ -378,9 +382,9 @@ fixtures() {
     show_nfo "$dir" "$title" "$year" "$tmdb" "$tvdb" "$imdb" "$genre" "$plot"
     poster "${dir}/poster.jpg"
   done <<<"$SHOWS"
-  while IFS='|' read -r show season ep title; do
+  while IFS='|' read -r show season ep title filetitle; do
     [ -n "$show" ] || continue
-    episode "$(printf '%s/media/shows/%s/Season %02d/%s S%02dE%02d' "$DATA" "$show" "$season" "$show" "$season" "$ep")" "$season" "$ep" "$title"
+    episode "$(printf '%s/media/shows/%s/Season %02d/%s S%02dE%02d' "$DATA" "$show" "$season" "$show" "$season" "$ep")" "$season" "$ep" "$title" 1 1280x720 "$filetitle"
   done <<<"$EPISODES"
 
   # the messy movies

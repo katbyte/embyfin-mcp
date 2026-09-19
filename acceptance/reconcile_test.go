@@ -24,8 +24,10 @@ func TestShowEpisodesExistQuality(t *testing.T) {
 	if fps, _ := hit["frame_rate"].(float64); fps < 4.9 || fps > 5.1 {
 		t.Errorf("frame_rate = %v, want the fixture's 5", hit["frame_rate"])
 	}
-	if hit["hdr"] != nil {
-		t.Errorf("hdr = %v on an SDR test pattern", hit["hdr"])
+	// never absent: the servers answer sdr for a test pattern, and unknown
+	// where they have not probed - either is a statement, a missing field is not
+	if hdr := str(hit["hdr"]); hdr != "sdr" && hdr != "unknown" {
+		t.Errorf("hdr = %q on an SDR test pattern", hdr)
 	}
 	tracks := rows(t, hit["audio"], "audio")
 	if len(tracks) != 1 || str(tracks[0]["codec"]) != "aac" || num(t, tracks[0]["channels"], "channels") != 1 {

@@ -33,6 +33,7 @@ func itemFromEmby(d *emby.BaseItemDto) Item {
 		ProductionYear:    d.ProductionYear,
 		PremiereDate:      d.PremiereDate,
 		DateCreated:       d.DateCreated,
+		DateModified:      d.DateModified,
 		Path:              d.Path,
 		Overview:          d.Overview,
 		Genres:            d.Genres,
@@ -91,6 +92,7 @@ func mediaStreamFromEmby(d *emby.MediaStream) MediaStream {
 		FrameRate:       cmp.Or(d.AverageFrameRate, d.RealFrameRate),
 		ColourTransfer:  d.ColorTransfer,
 		ColourPrimaries: d.ColorPrimaries,
+		VideoRange:      d.VideoRange,
 	}
 }
 

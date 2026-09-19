@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 type ep struct {
 	season, number int
 	number2        int // a file holding several episodes ends here (S01E01E02)
+	minutes        int // runtime; 30 when not given
 	name           string
 	path           string
 	missing        bool
@@ -42,6 +44,9 @@ type fakeSeries struct {
 	year     int
 	ids      map[string]string
 	episodes []ep
+	// path overrides the folder the series is built from, for the tests that
+	// care what two folders are called rather than what the shows are named
+	path string
 }
 
 // wireItem is an item as the MediaBrowser API spells one.
@@ -57,6 +62,8 @@ type wireItem struct {
 	IndexNumber       int               `json:"IndexNumber,omitempty"`
 	IndexNumberEnd    int               `json:"IndexNumberEnd,omitempty"`
 	LocationType      string            `json:"LocationType,omitempty"`
+	DateCreated       string            `json:"DateCreated,omitempty"`
+	DateModified      string            `json:"DateModified,omitempty"`
 	PremiereDate      string            `json:"PremiereDate,omitempty"`
 	ProductionYear    int               `json:"ProductionYear,omitempty"`
 	RunTimeTicks      int64             `json:"RunTimeTicks,omitempty"`
@@ -85,7 +92,7 @@ type wireStream struct {
 }
 
 func (s *fakeSeries) item() wireItem {
-	return wireItem{ID: s.id, Name: s.name, Type: "Series", Path: "/media/shows/" + s.name, ProviderIDs: s.ids, ProductionYear: s.year}
+	return wireItem{ID: s.id, Name: s.name, Type: "Series", Path: cmp.Or(s.path, "/media/shows/"+s.name), ProviderIDs: s.ids, ProductionYear: s.year}
 }
 
 // items spells a series' episodes the way the server answers them, with the
@@ -104,7 +111,9 @@ func (s *fakeSeries) items() []wireItem {
 			IndexNumber:       e.number,
 			IndexNumberEnd:    e.number2,
 			LocationType:      "FileSystem",
-			RunTimeTicks:      30 * 600_000_000,
+			RunTimeTicks:      int64(cmp.Or(e.minutes, 30)) * 600_000_000,
+			DateCreated:       "2026-09-01T10:00:00.0000000Z",
+			DateModified:      "2026-09-17T22:30:00.0000000Z",
 		}
 		if e.missing {
 			it.LocationType = "Virtual"
@@ -203,6 +212,11 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		if types := q.Get("IncludeItemTypes"); types != "" {
 			want := strings.Split(types, ",")
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !slices.Contains(want, it.Type) })
+		}
+		// the servers that have a path filter answer only the item at that
+		// exact path
+		if want := q.Get("Path"); want != "" {
+			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.Path != want })
 		}
 		if term := q.Get("SearchTerm"); term != "" {
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !strings.Contains(searchFold(it.Name), searchFold(term)) })

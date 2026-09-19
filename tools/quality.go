@@ -157,7 +157,7 @@ type copyIn struct {
 	Height     int          `json:"height,omitempty"`
 	VideoCodec string       `json:"video_codec,omitempty" jsonschema:"h264, hevc, av1..."`
 	FrameRate  float64      `json:"frame_rate,omitempty"  jsonschema:"frames per second"`
-	HDR        string       `json:"hdr,omitempty"         jsonschema:"pq or hlg"`
+	HDR        string       `json:"hdr,omitempty"         jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10; omit when unknown"`
 	Bitrate    int64        `json:"bitrate,omitempty"     jsonschema:"bits per second; otherwise worked out from size and runtime_s"`
 	Size       int64        `json:"size,omitempty"        jsonschema:"bytes"`
 	RuntimeS   int          `json:"runtime_s,omitempty"   jsonschema:"seconds"`
@@ -175,7 +175,7 @@ type copyFacts struct {
 	Aspect          float64  `json:"aspect,omitempty"            jsonschema:"the encoded frame's shape, width over height"`
 	VideoCodec      string   `json:"video_codec,omitempty"`
 	FrameRate       float64  `json:"frame_rate,omitempty"        jsonschema:"frames per second"`
-	HDR             string   `json:"hdr,omitempty"               jsonschema:"the HDR format the file claims, if any"`
+	HDR             string   `json:"hdr,omitempty"               jsonschema:"the dynamic range, or unknown when the server has not probed it"`
 	Bitrate         int64    `json:"bitrate,omitempty"           jsonschema:"bits per second as given or read"`
 	BitrateFrom     string   `json:"bitrate_from,omitempty"      jsonschema:"set when the bitrate was worked out rather than given"`
 	Effective       int64    `json:"effective_bitrate,omitempty" jsonschema:"the bitrate in h264-equivalent bits per second: what this codec's bits are worth against the other side's"`
@@ -362,7 +362,8 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 
 	// an HDR claim on a copy whose partner is SD-era is a claim about the
 	// encode, not the picture
-	if a.HDR != "" && b.HDR != "" && a.HDR != b.HDR {
+	// unknown is not a claim, so it cannot disagree with one
+	if a.HDR != "" && b.HDR != "" && a.HDR != hdrUnknown && b.HDR != hdrUnknown && a.HDR != b.HDR {
 		out.Caveats = append(out.Caveats, fmt.Sprintf("the copies claim different HDR formats (%s against %s)", a.HDR, b.HDR))
 	}
 

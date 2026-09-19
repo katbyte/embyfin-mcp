@@ -141,9 +141,10 @@ func TestLibraryEpisodesCarryQualityFacts(t *testing.T) {
 	if fps := decimal(t, row["frame_rate"], "frame_rate"); fps != 23.976 {
 		t.Errorf("frame_rate = %v, want 23.976", fps)
 	}
-	// bt709 is not an HDR claim, so nothing is claimed
-	if row["hdr"] != nil {
-		t.Errorf("hdr = %v on a bt709 file", row["hdr"])
+	// bt709 is a statement that the file is SDR, and it is said rather than
+	// left to an absent field a caller would have to read as SDR anyway
+	if row["hdr"] != "sdr" {
+		t.Errorf("hdr = %v on a bt709 file, want sdr", row["hdr"])
 	}
 	// audio is fields, not a sentence to parse back: the codec is the codec
 	// whether or not the track carries a language, and the bitrate is there
@@ -180,7 +181,7 @@ func TestLibraryEpisodesCarryQualityFacts(t *testing.T) {
 	// paths nobody asked for.
 	lean := mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows", "quality": false})
 	leanRow := objects(t, lean["episodes"], "episodes")[0]
-	if leanRow["width"] != nil || leanRow["container"] != nil || leanRow["path"] != nil {
+	if leanRow["width"] != nil || leanRow["container"] != nil || leanRow["path"] != nil || leanRow["hdr"] != nil {
 		t.Errorf("quality=false still carried the facts or the path: %v", leanRow)
 	}
 	// what is left still names the episode
@@ -223,7 +224,7 @@ func TestShowEpisodesExistCarriesQualityOnHits(t *testing.T) {
 	// is mostly misses: the facts stay off both the unknown episode and the
 	// record with no file
 	for _, row := range []map[string]any{rows[1], rows[2]} {
-		if row["width"] != nil || row["size"] != nil || row["container"] != nil {
+		if row["width"] != nil || row["size"] != nil || row["container"] != nil || row["hdr"] != nil {
 			t.Errorf("a miss carried quality facts: %v", row)
 		}
 	}
@@ -231,7 +232,7 @@ func TestShowEpisodesExistCarriesQualityOnHits(t *testing.T) {
 	// and they are off by default, so the answer stays small for a caller
 	// that only asked whether the library holds the episode
 	plain := mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "sev", "episodes": batch})
-	if row := objects(t, plain["episodes"], "episodes")[0]; row["width"] != nil || row["size"] != nil {
+	if row := objects(t, plain["episodes"], "episodes")[0]; row["width"] != nil || row["size"] != nil || row["hdr"] != nil {
 		t.Errorf("quality was not asked for and came anyway: %v", row)
 	}
 
@@ -953,5 +954,45 @@ func TestItemGetReportsAudioTheWayEpisodeRowsDo(t *testing.T) {
 		if fromItem[0][field] != fromRow[0][field] {
 			t.Errorf("%s: item_get says %v, the episode row says %v", field, fromItem[0][field], fromRow[0][field])
 		}
+	}
+}
+
+// C14: a download written over an existing path keeps the item's id and its
+// date_created, so every "what was added" view is blind to it. The file's own
+// timestamp is the only thing that moves, so without it an overwritten
+// episode stays invisible.
+func TestEpisodeRowsCarryBothDates(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{{season: 1, number: 1, name: "Good News About Hell", path: "/m/s01e01.mkv"}}
+	f := tvServer(t, s)
+	cs := session(t, f, Options{})
+
+	row := objects(t, mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows"})["episodes"], "episodes")[0]
+	if text(row["date_created"]) == "" || text(row["file_modified"]) == "" {
+		t.Errorf("row carries %v and %v", row["date_created"], row["file_modified"])
+	}
+
+	// asked for on their own, they come without the rest: the cheap sweep for
+	// "what changed" is the whole point
+	narrow := mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows", "fields": []string{"file_modified"}})
+	lean := objects(t, narrow["episodes"], "episodes")[0]
+	if text(lean["file_modified"]) == "" {
+		t.Errorf("file_modified was asked for and is missing: %v", lean)
+	}
+	for _, gone := range []string{"path", "date_created", "size", "width", "hdr"} {
+		if lean[gone] != nil {
+			t.Errorf("%s was not asked for: %v", gone, lean)
+		}
+	}
+
+	// the changed-since filter reaches the server rather than being applied
+	// to a page after the fact
+	f.reset()
+	mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows", "saved_since": "2026-09-17T00:00:00Z"})
+	asked := f.requests("/Items")
+	if len(asked) == 0 || !strings.Contains(asked[0].Query, "MinDateLastSaved=2026-09-17") {
+		t.Errorf("saved_since did not reach the server: %v", asked)
 	}
 }

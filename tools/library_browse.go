@@ -147,6 +147,7 @@ func registerLibraryBrowseTools(r *registry) {
 		Years           []int    `json:"years,omitempty"            jsonschema:"items from any of these production years"`
 		Watched         string   `json:"watched,omitempty"          jsonschema:"watched, unwatched, in_progress or favourite, in user's view"`
 		User            string   `json:"user,omitempty"             jsonschema:"whose watch state watched and sort=played read, by name or id; defaults to the first administrator"`
+		SavedSince      string   `json:"saved_since,omitempty"      jsonschema:"only items the server last SAVED at or after this time (RFC3339): the closest either server offers to 'what changed'. A file written over an existing path is re-read and saved, but so is an item somebody edited, and neither server can sort by it"`
 		Sort            string   `json:"sort,omitempty"             jsonschema:"name (default), added, premiered, year, runtime, rating, played (needs a user) or random"`
 		Desc            bool     `json:"desc,omitempty"             jsonschema:"sort descending"`
 		Limit           int      `json:"limit,omitempty"            jsonschema:"page size, default 25"`
@@ -182,6 +183,7 @@ func registerLibraryBrowseTools(r *registry) {
 			Studios:          in.Studios,
 			OfficialRatings:  in.OfficialRatings,
 			SortBy:           sortBy,
+			SavedSince:       in.SavedSince,
 			SortOrder:        "Ascending",
 			Limit:            limit,
 			StartIndex:       offset,

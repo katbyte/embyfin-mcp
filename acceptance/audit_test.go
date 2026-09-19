@@ -340,8 +340,10 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 		}
 	}
 	want := []string{
-		"audit_all", "audit_duplicates", "audit_language", "audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
-		"audit_missing_poster", "audit_multiple_versions", "audit_quality", "audit_runtime", "audit_spelling", "audit_unwatched", "audit_year_mismatch",
+		"audit_all", "audit_duplicate_series_folders", "audit_duplicate_titles", "audit_duplicates", "audit_language",
+		"audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
+		"audit_missing_poster", "audit_multiple_versions", "audit_quality", "audit_runtime", "audit_spelling",
+		"audit_title_mismatch", "audit_unwatched", "audit_year_mismatch",
 	}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {

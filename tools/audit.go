@@ -219,8 +219,9 @@ func registerAuditTools(r *registry) {
 		Groups      [][]itemSummary `json:"duplicate_groups" jsonschema:"each group shares one metadata provider id; capped at limit, total_groups is the real count"`
 	}
 	add(r, readTool, &mcp.Tool{
-		Name:        "audit_duplicates",
-		Description: "Find separate entries sharing the same tmdb/imdb id: multiple copies of the same movie or series, in one library or across libraries (compare the paths). Default limit 50 groups.",
+		Name: "audit_duplicates",
+		Description: "Find separate entries sharing the same tmdb/imdb/tvdb id: multiple copies of one film, series or episode, in one library or across libraries (compare the paths). " +
+			"Episodes are grouped by provider id AND season and episode number, because a library can carry one shared id across unrelated episodes. Default limit 50 groups.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, dupOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
@@ -251,7 +252,11 @@ func registerAuditTools(r *registry) {
 func duplicateGroups(ctx context.Context, client *embyfin.Client, in auditIn) ([][]embyfin.Item, int, error) {
 	types := in.Types
 	if types == "" {
-		types = "Movie,Series"
+		// episodes too: a library holding one episode twice is the common
+		// shape, and audit_all reports this audit's count, so the two have to
+		// sweep the same things or the overview names a number the audit
+		// cannot reproduce
+		types = "Movie,Series,Episode"
 	}
 	opts := embyfin.SearchOptions{IncludeItemTypes: types}
 
@@ -270,8 +275,16 @@ func duplicateGroups(ctx context.Context, client *embyfin.Client, in auditIn) ([
 			scanned++
 			for k, v := range it.ProviderIDs {
 				lk := strings.ToLower(k)
-				if (lk == "tmdb" || lk == "imdb") && v != "" {
+				if (lk == "tmdb" || lk == "imdb" || lk == "tvdb") && v != "" {
+					// an episode's provider id is shared far more loosely than
+					// a film's: a library can carry one imdb id on many
+					// unrelated episodes, even across different shows. Its
+					// season and episode number go into the key, so a group
+					// is at worst the same episode of the same show.
 					key := lk + ":" + v
+					if it.Type == typeEpisode {
+						key = fmt.Sprintf("%s:s%02de%02d", key, it.ParentIndexNumber, it.IndexNumber)
+					}
 					byProvider[key] = append(byProvider[key], it)
 				}
 			}
@@ -343,11 +356,15 @@ func registerAuditAll(r *registry) {
 			add(auditAllRow{Audit: c.name, Findings: res.Found, Scanned: res.Scanned})
 		}
 
+		// films, series AND episodes: this pass used to ask for the default
+		// Movie,Series, so it reported the series count as items_scanned and
+		// an episode held twice was invisible from the call that says "start
+		// here"
 		groups, scanned, err := duplicateGroups(ctx, client, auditIn{Library: in.Library})
 		if err != nil {
 			return nil, auditAllOut{}, fmt.Errorf("audit_duplicates: %w", err)
 		}
-		add(auditAllRow{Audit: "audit_duplicates", Findings: len(groups), Scanned: scanned, Note: "groups of entries sharing a provider id"})
+		add(auditAllRow{Audit: "audit_duplicates", Findings: len(groups), Scanned: scanned, Note: "groups of entries sharing a provider id, films series and episodes"})
 
 		folder, err := resolveLibrary(ctx, client, in.Library)
 		if err != nil {
@@ -475,10 +492,20 @@ func runtimeOff(actual, expected, tolerancePct int) (int, bool) {
 	return pct, pct > tolerancePct
 }
 
+// absurdRuntimeMinutes is where a runtime stops being a long episode and
+// becomes broken metadata: an "episode" that runs for weeks is a broken
+// duration, and anything computed from it is arithmetic on nonsense.
+const absurdRuntimeMinutes = absurdRuntimeS / 60
+
+// brokenRuntimeRank sorts broken durations above every percentage, because
+// they are the clearest problem in the list rather than the largest number.
+const brokenRuntimeRank = 1 << 30
+
 func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent string, in runtimeIn) (auditOut, error) {
 	type ep struct {
 		id, name, series, filePath string
 		season, index, minutes     int
+		span                       int
 	}
 	type seasonKey struct {
 		series string
@@ -503,6 +530,9 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 			seasons[k] = append(seasons[k], ep{
 				id: it.ID, name: it.Name, series: it.SeriesName, filePath: it.Path,
 				season: it.ParentIndexNumber, index: it.IndexNumber, minutes: it.RuntimeMinutes(),
+				// a file the server recorded as holding several episodes is
+				// expected to run that many times the median, not once
+				span: max(it.IndexNumberEnd-it.IndexNumber+1, 1),
 			})
 		}
 		return true
@@ -520,23 +550,45 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 		if len(eps) < 3 {
 			continue
 		}
-		mins := make([]int, len(eps))
-		for i, e := range eps {
-			mins[i] = e.minutes
+		// the median comes from the single-episode files: a season where
+		// several files hold two episodes would otherwise take the double
+		// length as normal and report the honest singles as short
+		mins := make([]int, 0, len(eps))
+		for _, e := range eps {
+			if e.span == 1 && e.minutes < absurdRuntimeMinutes {
+				mins = append(mins, e.minutes)
+			}
+		}
+		if len(mins) == 0 {
+			continue
 		}
 		slices.Sort(mins)
 		median := mins[len(mins)/2]
 
 		for _, e := range eps {
-			pct, off := runtimeOff(e.minutes, median, in.TolerancePct)
+			name := fmt.Sprintf("%s S%02dE%02d %s", e.series, e.season, e.index, e.name)
+			// a duration this long is broken metadata rather than a long
+			// episode; a percentage off a median would dress it up as a
+			// measurement
+			if e.minutes >= absurdRuntimeMinutes {
+				findings = append(findings, scored{pct: brokenRuntimeRank, finding: auditFinding{
+					ID: e.id, Name: name, Path: e.filePath,
+					Detail: fmt.Sprintf("%d min: not a runtime, the file's duration metadata is broken", e.minutes),
+				}})
+
+				continue
+			}
+			expected := median * e.span
+			pct, off := runtimeOff(e.minutes, expected, in.TolerancePct)
 			if !off {
 				continue
 			}
+			detail := fmt.Sprintf("%d min, season median %d min (%d%% off)", e.minutes, median, pct)
+			if e.span > 1 {
+				detail = fmt.Sprintf("%d min for %d episodes, season median %d min each, %d expected (%d%% off)", e.minutes, e.span, median, expected, pct)
+			}
 			findings = append(findings, scored{pct: pct, finding: auditFinding{
-				ID:     e.id,
-				Name:   fmt.Sprintf("%s S%02dE%02d %s", e.series, e.season, e.index, e.name),
-				Path:   e.filePath,
-				Detail: fmt.Sprintf("%d min, season median %d min (%d%% off)", e.minutes, median, pct),
+				ID: e.id, Name: name, Path: e.filePath, Detail: detail,
 			}})
 		}
 	}

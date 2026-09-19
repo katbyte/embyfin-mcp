@@ -88,6 +88,8 @@ func mediaStreamFromJF(d *jf.MediaStream) MediaStream {
 		FrameRate:       cmp.Or(d.AverageFrameRate, d.RealFrameRate),
 		ColourTransfer:  d.ColorTransfer,
 		ColourPrimaries: d.ColorPrimaries,
+		VideoRange:      string(d.VideoRange),
+		VideoRangeType:  string(d.VideoRangeType),
 	}
 }
 

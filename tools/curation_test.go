@@ -341,3 +341,237 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 		}
 	}
 }
+
+// C13: a row with video always states its dynamic range. It used to be
+// missing for three different reasons - SDR, not probed, and not exposed by
+// the server - and a caller reading "no HDR10 here" as "therefore Dolby
+// Vision" put files in the wrong bucket.
+func TestHDRFormatSaysWhenItDoesNotKnow(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		stream embyfin.MediaStream
+		want   string
+	}{
+		{"nothing known", embyfin.MediaStream{Type: "Video"}, "unknown"},
+		{"jellyfin's narrow reading wins", embyfin.MediaStream{VideoRangeType: "DOVIWithHDR10", VideoRange: "HDR"}, "dovi_hdr10"},
+		{"jellyfin plain dolby vision", embyfin.MediaStream{VideoRangeType: "DOVI"}, "dovi"},
+		{"emby says only HDR, the transfer says which", embyfin.MediaStream{VideoRange: "HDR", ColourTransfer: "arib-std-b67"}, "hlg"},
+		{"emby says HDR and nothing else", embyfin.MediaStream{VideoRange: "HDR"}, "hdr10"},
+		{"emby says SDR", embyfin.MediaStream{VideoRange: "SDR", ColourTransfer: "bt709"}, "sdr"},
+		{"only a transfer, and it is an HDR one", embyfin.MediaStream{ColourTransfer: "smpte2084"}, "hdr10"},
+		{"only a transfer, and it is not", embyfin.MediaStream{ColourTransfer: "bt709"}, "sdr"},
+	} {
+		if got := hdrFormat(&tc.stream); got != tc.want {
+			t.Errorf("%s: hdr = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// C15: a file holding two episodes under one number is the shape that hides
+// episodes, and the only thing that gives it away is the runtime: the servers
+// parsed one episode from the name and recorded no span, so a library reads
+// the second episode as missing and a copy of it as a duplicate.
+func TestRuntimeMultipleOnRows(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{
+		{season: 1, number: 1, name: "One", path: "/m/s01e01.mkv", minutes: 22},
+		{season: 1, number: 2, name: "Two", path: "/m/s01e02.mkv", minutes: 22},
+		{season: 1, number: 3, name: "Three", path: "/m/s01e03.mkv", minutes: 22},
+		// the double: named as one episode, runs as two
+		{season: 1, number: 4, name: "Four & Five", path: "/m/s01e04.mkv", minutes: 44},
+	}
+	cs := session(t, tvServer(t, s), Options{})
+
+	rows := objects(t, mustCall(t, cs, "show_episodes", map[string]any{"series_id": "sev"})["episodes"], "episodes")
+	byNumber := map[int]map[string]any{}
+	for _, row := range rows {
+		byNumber[number(t, row["episode"], "episode")] = row
+	}
+	if median := number(t, byNumber[1]["season_median_runtime_s"], "season_median_runtime_s"); median != 22*60 {
+		t.Errorf("season median = %ds, want 1320", median)
+	}
+	if m, ok := byNumber[1]["runtime_multiple"].(float64); !ok || m != 1 {
+		t.Errorf("an ordinary episode is %v of the median, want 1", byNumber[1]["runtime_multiple"])
+	}
+	if m, ok := byNumber[4]["runtime_multiple"].(float64); !ok || m != 2 {
+		t.Errorf("the double is %v of the median, want 2", byNumber[4]["runtime_multiple"])
+	}
+
+	// the same on an exists check, which is where a reconcile asks
+	exists := mustCall(t, cs, "show_episodes_exist", map[string]any{
+		"series_id": "sev", "episodes": []map[string]any{{"season": 1, "episode": 4}}, "quality": true,
+	})
+	if m, ok := objects(t, exists["episodes"], "episodes")[0]["runtime_multiple"].(float64); !ok || m != 2 {
+		t.Errorf("exists hit = %v", exists["episodes"])
+	}
+}
+
+// audit_runtime judged every file against the season median once, so a file
+// the server DOES record as holding two episodes was reported for being twice
+// as long as one, and a broken duration was reported as a percentage.
+func TestRuntimeAuditReadsSpansAndBrokenDurations(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{
+		{season: 1, number: 1, name: "One", path: "/m/1.mkv", minutes: 22},
+		{season: 1, number: 2, name: "Two", path: "/m/2.mkv", minutes: 22},
+		{season: 1, number: 3, name: "Three", path: "/m/3.mkv", minutes: 22},
+		// recorded as covering two episodes, and running like it
+		{season: 1, number: 4, number2: 5, name: "Four and Five", path: "/m/45.mkv", minutes: 44},
+		// a duration nobody can use
+		{season: 1, number: 6, name: "Broken", path: "/m/6.mkv", minutes: 100000},
+	}
+	cs := session(t, tvServer(t, s), Options{})
+
+	out := mustCall(t, cs, "audit_runtime", map[string]any{"types": "Episode"})
+	details := map[string]string{}
+	for _, f := range objects(t, out["findings"], "findings") {
+		details[text(f["name"])] = text(f["detail"])
+	}
+	for name := range details {
+		if strings.Contains(name, "Four and Five") {
+			t.Errorf("a file recorded as two episodes was flagged for running as two: %q", details[name])
+		}
+	}
+	broken := ""
+	for name, detail := range details {
+		if strings.Contains(name, "Broken") {
+			broken = detail
+		}
+	}
+	if !strings.Contains(broken, "duration metadata is broken") {
+		t.Errorf("a 100000 minute episode was reported as %q", broken)
+	}
+}
+
+// C16: one episode's content under two episode numbers. Neither existing
+// duplicate audit sees it - the provider ids differ because the server
+// believes they are different episodes, and both files stand alone under
+// their own item, so a library can carry the pair for years unreported.
+func TestAuditDuplicateTitles(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{
+		{season: 1, number: 1, name: "Good News About Hell", path: "/m/1.mkv", minutes: 45},
+		{season: 1, number: 2, name: "Half Loop", path: "/m/2.mkv", minutes: 45},
+		// the same episode again, under another number, near-identical length
+		{season: 1, number: 4, name: "Half Loop", path: "/m/4.mkv", minutes: 46},
+		// a shared title that is not the same content: half the length
+		{season: 2, number: 1, name: "Part One", path: "/m/21.mkv", minutes: 60},
+		{season: 2, number: 2, name: "Part One", path: "/m/22.mkv", minutes: 30},
+	}
+	cs := session(t, tvServer(t, s), Options{})
+
+	out := mustCall(t, cs, "audit_duplicate_titles", map[string]any{})
+	groups := objects(t, out["groups"], "groups")
+	if len(groups) != 2 || number(t, out["total_groups"], "total_groups") != 2 {
+		t.Fatalf("groups = %v", groups)
+	}
+
+	// the near-certain one comes first: a caller working a capped list gets
+	// the ones the runtimes agree on
+	first := groups[0]
+	if text(first["confidence"]) != "near_certain" || text(first["title"]) != "Half Loop" {
+		t.Errorf("first group = %v", first)
+	}
+	if eps := objects(t, first["episodes"], "episodes"); len(eps) != 2 ||
+		number(t, eps[0]["episode"], "episode") != 2 || number(t, eps[1]["episode"], "episode") != 4 {
+		t.Errorf("the group is not E02 and E04: %v", first["episodes"])
+	}
+	if eps := objects(t, first["episodes"], "episodes"); eps[0]["path"] == nil || number(t, eps[0]["runtime_s"], "runtime_s") != 45*60 {
+		t.Errorf("a row lacks what a caller decides on: %v", eps[0])
+	}
+
+	// the same title at half the length is a lead, not a finding to act on
+	second := groups[1]
+	if text(second["confidence"]) != "lead" {
+		t.Errorf("a shared title at half the runtime = %v", second)
+	}
+	if gap, ok := second["runtime_gap"].(float64); !ok || gap < 0.4 {
+		t.Errorf("runtime_gap = %v, want the halves to show", second["runtime_gap"])
+	}
+
+	// nothing is claimed about which copy to keep
+	for _, key := range []string{"keep", "winner", "better", "delete"} {
+		if _, claimed := first[key]; claimed {
+			t.Errorf("the audit picked a winner: %v", first)
+		}
+	}
+}
+
+// C17: a rename that changes only spacing, case or an accent leaves the old
+// folder behind, and the server builds a second series from it. The episodes
+// are then split across two entries, each answering "no" to half the
+// questions. audit_duplicates misses these because the second entry usually
+// carries no provider id - nothing matched it.
+func TestAuditDuplicateSeriesFolders(t *testing.T) {
+	t.Parallel()
+
+	shows := []*fakeSeries{
+		{
+			id: "svu", name: "Law & Order: Special Victims Unit", year: 1999, ids: map[string]string{"Tmdb": "2734"},
+			episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/a.mkv"}},
+		},
+		// the same folder with two spaces, and no provider id at all
+		{
+			id: "svu2", name: "Law & Order (1999)  - Special Victims Unit", year: 1999,
+			episodes: []ep{{season: 1, number: 2, name: "Two", path: "/m/b.mkv"}},
+		},
+		{
+			id: "sev", name: "Severance", year: 2022, ids: map[string]string{"Tmdb": "95396"},
+			episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/c.mkv"}},
+		},
+	}
+	shows[0].path = "/media/shows/Law & Order (1999) - Special Victims Unit"
+	shows[1].path = "/media/shows/Law & Order (1999)  - Special Victims Unit"
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	out := mustCall(t, cs, "audit_duplicate_series_folders", map[string]any{})
+	groups := objects(t, out["groups"], "groups")
+	if len(groups) != 1 {
+		t.Fatalf("groups = %v", groups)
+	}
+	series := objects(t, groups[0]["series"], "series")
+	if len(series) != 2 {
+		t.Fatalf("group = %v", groups[0])
+	}
+	ids := []string{text(series[0]["series_id"]), text(series[1]["series_id"])}
+	slices.Sort(ids)
+	if !slices.Equal(ids, []string{"svu", "svu2"}) {
+		t.Errorf("group holds %v, want the two Law & Order folders", ids)
+	}
+	// the answer says what they collapse to, so a caller can see why
+	if text(groups[0]["key"]) == "" {
+		t.Errorf("no key on the group: %v", groups[0])
+	}
+}
+
+// The folding itself: what counts as the same folder name, and what does not.
+func TestFolderKey(t *testing.T) {
+	t.Parallel()
+
+	for _, same := range [][]string{
+		{"Law & Order (1999) - Special Victims Unit", "Law & Order (1999)  - Special Victims Unit", "law & order (1999) - special victims unit"},
+		{"The Law According to Lidia Poët", "The Law According to Lidia Poet"},
+		{"CSI (2000) - Crime Scene Investigation", "CSI (2000)   Crime Scene Investigation"},
+	} {
+		for _, other := range same[1:] {
+			if folderKey(other) != folderKey(same[0]) {
+				t.Errorf("%q and %q are the same folder: %q against %q", other, same[0], folderKey(other), folderKey(same[0]))
+			}
+		}
+	}
+	// a year that really differs is a different folder, not a collision
+	if folderKey("The Simpsons (1987-)") == folderKey("The Simpsons (1987-2008)") {
+		t.Error("two different year ranges collapsed together")
+	}
+	if folderKey("MASH (1972)") == folderKey("MASH (1972) [dvd]") {
+		t.Error("a folder with an edition tag is not the same folder")
+	}
+}

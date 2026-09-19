@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
@@ -37,7 +38,17 @@ type episodeRow struct {
 	Title      string `json:"title,omitempty"`
 	Path       string `json:"path,omitempty"        jsonschema:"the file backing it, with the quality facts; absent when quality is off, and when the server knows of the episode but holds no file"`
 	Missing    bool   `json:"missing,omitempty"     jsonschema:"true when the server knows of the episode but holds no file for it"`
-	RuntimeS   int    `json:"runtime_s,omitempty"   jsonschema:"runtime in seconds"`
+	// A file written over an existing path keeps the item's id and its
+	// date_created, so a library read sorted by what was added cannot see it.
+	// file_modified is the only field that moves, and only Emby has it.
+	// A file holding two episodes under one number runs about twice its
+	// season's median, and the servers record no span for it: they parsed one
+	// episode from the name, so nothing but the runtime gives it away.
+	RuntimeMultiple float64 `json:"runtime_multiple,omitempty"        jsonschema:"this file's runtime over its season's median, when the call read a whole season: about 2 means it probably holds two episodes under one number, and the number next to it will look missing"`
+	SeasonMedian    int     `json:"season_median_runtime_s,omitempty" jsonschema:"the median runtime of the season this was compared against, in seconds"`
+	DateCreated     string  `json:"date_created,omitempty"            jsonschema:"when the item was added to the library; unchanged when a file is written over an existing path"`
+	FileModified    string  `json:"file_modified,omitempty"           jsonschema:"when the file itself last changed (Emby only; Jellyfin's item carries no such field). This is what moves when a download overwrites a path in place"`
+	RuntimeS        int     `json:"runtime_s,omitempty"               jsonschema:"runtime in seconds"`
 
 	qualityFacts
 }
@@ -66,10 +77,17 @@ func episodeFacts(it *embyfin.Item, quality bool, keep map[string]bool) episodeR
 		return row
 	}
 	row.Path = it.Path
+	row.DateCreated, row.FileModified = it.DateCreated, it.DateModified
 	row.qualityFacts = qualityOf(it)
 	if keep != nil {
 		if !keep["path"] {
 			row.Path = ""
+		}
+		if !keep["date_created"] {
+			row.DateCreated = ""
+		}
+		if !keep["file_modified"] {
+			row.FileModified = ""
 		}
 		if !keep["runtime_s"] {
 			row.RuntimeS = 0
@@ -92,7 +110,7 @@ type qualityFacts struct {
 	Height     int          `json:"height,omitempty"`
 	VideoCodec string       `json:"video_codec,omitempty"`
 	FrameRate  float64      `json:"frame_rate,omitempty"  jsonschema:"frames per second. The one fact a release cannot inflate: a scripted show at 59.94 or 60 was interpolated from a 23.976 master, because no broadcast or disc master of one ships at 60p. Read it beside the resolution - 2160p at 23.976 is plausibly a remaster, 2160p at 59.94 is machine-made"`
-	HDR        string       `json:"hdr,omitempty"         jsonschema:"the HDR format the file claims (pq/hlg), from its colour transfer. Claimed on a source that cannot have been HDR - an SD-era show - it is a claim about the encode, not the picture"`
+	HDR        string       `json:"hdr,omitempty"         jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10, or unknown when the server has not said. Present on every row with video: an absent field would read as SDR, and 'we did not look' is not a measurement"`
 	Audio      []audioTrack `json:"audio,omitempty"       jsonschema:"one entry per audio track"`
 	Subtitles  []string     `json:"subtitles,omitempty"   jsonschema:"one entry per subtitle track, by language"`
 }
@@ -127,15 +145,72 @@ type audioTrack struct {
 	Bitrate  int64  `json:"bitrate,omitempty"  jsonschema:"bits per second, when known"`
 }
 
-// hdrFormat names what a stream's colour transfer claims, and nothing when it
-// claims nothing. The names are the transfer functions themselves rather than
-// a marketing label: a file either carries one or it does not.
+// The dynamic range a file carries, or that nobody has established.
+const (
+	hdrUnknown = "unknown"
+	hdrSDR     = "sdr"
+	hdr10      = "hdr10"
+	hdrHLG     = "hlg"
+	hdrDOVI    = "dovi"
+	hdrDOVI10  = "dovi_hdr10"
+)
+
+// hdrFormat reads the server's own answer first and the colour transfer
+// second, and says "unknown" when neither settles it.
+//
+// This field used to be absent for three different reasons - the file is SDR,
+// the server never probed it, or the server does not expose what it found -
+// and a caller could not tell them apart. One did not: reading an absent
+// field as "no HDR10, therefore Dolby Vision" put files in the wrong
+// bucket. Two files of one release, one answering "pq" and the next
+// answering nothing, is inconsistent metadata rather than two formats, and
+// only an explicit unknown can say so.
 func hdrFormat(st *embyfin.MediaStream) string {
-	switch strings.ToLower(st.ColourTransfer) {
+	// Jellyfin's narrow reading, when it has one
+	switch strings.ToLower(st.VideoRangeType) {
+	case "sdr":
+		return hdrSDR
+	case "hdr10", "hdr10plus":
+		return hdr10
+	case "hlg":
+		return hdrHLG
+	case "dovi", "doviwithsdr":
+		return hdrDOVI
+	case "doviwithhdr10", "doviwithhlg":
+		return hdrDOVI10
+	}
+
+	// then the broad one both servers answer: Emby says only SDR or HDR
+	switch strings.ToLower(st.VideoRange) {
+	case "sdr":
+		return hdrSDR
+	case "hdr":
+		if format := hdrFromTransfer(st.ColourTransfer); format != "" {
+			return format
+		}
+
+		return hdr10
+	}
+
+	// and last the transfer function, which a file can carry without the
+	// server having formed an opinion about it
+	if format := hdrFromTransfer(st.ColourTransfer); format != "" {
+		return format
+	}
+	if st.ColourTransfer != "" {
+		// a transfer that is not an HDR one is itself a statement
+		return hdrSDR
+	}
+
+	return hdrUnknown
+}
+
+func hdrFromTransfer(transfer string) string {
+	switch strings.ToLower(transfer) {
 	case "smpte2084", "smpte-st-2084", "pq":
-		return "pq"
+		return hdr10
 	case "arib-std-b67", "hlg":
-		return "hlg"
+		return hdrHLG
 	}
 
 	return ""
@@ -146,7 +221,7 @@ func hdrFormat(st *embyfin.MediaStream) string {
 // On a series dubbed into thirty languages the subtitle and audio lists are
 // most of the row, and the path is most of the rest; across thousands of
 // episodes that is megabytes of answer nobody reads.
-var factNames = []string{"path", "runtime_s", "container", "size", "bitrate", "width", "height", "video_codec", "frame_rate", "hdr", "audio", "subtitles"}
+var factNames = []string{"path", "date_created", "file_modified", "runtime_s", "runtime_multiple", "container", "size", "bitrate", "width", "height", "video_codec", "frame_rate", "hdr", "audio", "subtitles"}
 
 // mediaFacts are the ones that need the server's media sources, which is the
 // expensive half of an episode read: asked for none of them, we do not ask.
@@ -275,8 +350,55 @@ func episodeRows(items []embyfin.Item, quality bool, keep map[string]bool) []epi
 	for i := range items {
 		out = append(out, episodeFacts(&items[i], quality, keep))
 	}
+	withRuntimeMultiples(out, keep)
 
 	return out
+}
+
+// runtimeMedianMin is how many episodes a season needs before its median
+// means anything. Two files tell you nothing about which is the odd one.
+const runtimeMedianMin = 3
+
+// absurdRuntimeS is where a runtime stops being a long episode and becomes
+// broken metadata: an "episode" that runs for weeks is a duration nobody can
+// use, and a multiple computed from it would be arithmetic on nonsense.
+const absurdRuntimeS = 12 * 60 * 60
+
+// withRuntimeMultiples fills in each row's runtime against its season's
+// median, for the rows of a season the caller actually read whole. A page of
+// a library-wide sweep holds part of a season, and a median taken from part
+// of one is a different number on every page - so those rows are left
+// without, and audit_runtime answers that question across a library instead.
+func withRuntimeMultiples(rows []episodeRow, keep map[string]bool) {
+	if keep != nil && !keep["runtime_multiple"] {
+		return
+	}
+
+	seasons := map[[2]string][]int{}
+	for _, row := range rows {
+		if row.RuntimeS > 0 && row.RuntimeS < absurdRuntimeS {
+			key := [2]string{row.SeriesID, strconv.Itoa(row.Season)}
+			seasons[key] = append(seasons[key], row.RuntimeS)
+		}
+	}
+	for key, runtimes := range seasons {
+		if len(runtimes) < runtimeMedianMin {
+			delete(seasons, key)
+
+			continue
+		}
+		slices.Sort(runtimes)
+		seasons[key] = []int{runtimes[len(runtimes)/2]}
+	}
+
+	for i := range rows {
+		median := seasons[[2]string{rows[i].SeriesID, strconv.Itoa(rows[i].Season)}]
+		if len(median) == 0 || median[0] <= 0 || rows[i].RuntimeS <= 0 || rows[i].RuntimeS >= absurdRuntimeS {
+			continue
+		}
+		rows[i].SeasonMedian = median[0]
+		rows[i].RuntimeMultiple = math.Round(float64(rows[i].RuntimeS)/float64(median[0])*100) / 100
+	}
 }
 
 // How many episodes a bulk read answers with by default, and the most it
@@ -362,6 +484,10 @@ type existsRow struct {
 	// miss has nothing to say about a file that is not there, and a batch is
 	// mostly misses
 	RuntimeS int `json:"runtime_s,omitempty" jsonschema:"runtime in seconds"`
+	// about 2 means this file probably holds two episodes under one number,
+	// which is why the number beside it reads as absent
+	RuntimeMultiple float64 `json:"runtime_multiple,omitempty"        jsonschema:"this file's runtime over its season's median"`
+	SeasonMedian    int     `json:"season_median_runtime_s,omitempty" jsonschema:"the median it was compared against, in seconds"`
 	qualityFacts
 }
 
@@ -431,13 +557,31 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 		}
 	}
 
-	fields := "Path"
+	fields := "Path,DateCreated,DateModified"
 	if quality && needsMediaSources(keep) {
-		fields = "Path,MediaSources"
+		fields = "Path,MediaSources,DateCreated,DateModified"
 	}
 	held, err := episodesHeld(ctx, r.client, series.ID, seasons, fields)
 	if err != nil {
 		return existsGroup{Series: series.Name, SeriesID: series.ID, Episodes: []existsRow{}, Error: err.Error()}, err
+	}
+
+	// the season's median, from every episode the read returned rather than
+	// only the ones asked after
+	medians := map[int][]int{}
+	for _, e := range held {
+		if runtime := int(e.RunTimeTicks / ticksPerSecond); runtime > 0 && runtime < absurdRuntimeS {
+			medians[e.ParentIndexNumber] = append(medians[e.ParentIndexNumber], runtime)
+		}
+	}
+	for season, runtimes := range medians {
+		if len(runtimes) < runtimeMedianMin {
+			delete(medians, season)
+
+			continue
+		}
+		slices.Sort(runtimes)
+		medians[season] = []int{runtimes[len(runtimes)/2]}
 	}
 
 	out := existsGroup{Series: series.Name, SeriesID: series.ID, Match: match, Episodes: []existsRow{}}
@@ -450,7 +594,11 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 				row.File = fmt.Sprintf("S%02dE%02dE%02d", e.ParentIndexNumber, e.IndexNumber, e.IndexNumberEnd)
 			}
 			if quality && row.Exists {
-				row.RuntimeS = int(e.RunTimeTicks / 10_000_000)
+				row.RuntimeS = int(e.RunTimeTicks / ticksPerSecond)
+				if median := medians[e.ParentIndexNumber]; len(median) == 1 && row.RuntimeS > 0 && row.RuntimeS < absurdRuntimeS {
+					row.SeasonMedian = median[0]
+					row.RuntimeMultiple = math.Round(float64(row.RuntimeS)/float64(median[0])*100) / 100
+				}
 				row.qualityFacts = qualityOf(e)
 				if keep != nil {
 					if !keep["path"] {
@@ -492,15 +640,16 @@ func registerEpisodeTools(r *registry) {
 	client := r.client
 
 	type exportIn struct {
-		Library  string   `json:"library,omitempty"   jsonschema:"name or id; default every library"`
-		SeriesID string   `json:"series_id,omitempty" jsonschema:"one series, in place of a library"`
-		Season   int      `json:"season,omitempty"    jsonschema:"one season; needs series_id"`
-		Quality  *bool    `json:"quality,omitempty"   jsonschema:"the facts and the path on each row; default true"`
-		Fields   []string `json:"fields,omitempty"    jsonschema:"only these facts on each row: path, runtime_s, container, size, bitrate, width, height, video_codec, frame_rate, hdr, audio, subtitles"`
-		WithFile *bool    `json:"with_file,omitempty" jsonschema:"only episodes with a file; default true"`
-		Limit    int      `json:"limit,omitempty"     jsonschema:"page size, default 500, max 1000"`
-		Cursor   string   `json:"cursor,omitempty"    jsonschema:"from the previous page"`
-		Offset   int      `json:"offset,omitempty"    jsonschema:"start here, in place of a cursor"`
+		Library    string   `json:"library,omitempty"     jsonschema:"name or id; default every library"`
+		SeriesID   string   `json:"series_id,omitempty"   jsonschema:"one series, in place of a library"`
+		Season     int      `json:"season,omitempty"      jsonschema:"one season; needs series_id"`
+		Quality    *bool    `json:"quality,omitempty"     jsonschema:"the facts and the path on each row; default true"`
+		Fields     []string `json:"fields,omitempty"      jsonschema:"only these facts on each row: path, runtime_s, container, size, bitrate, width, height, video_codec, frame_rate, hdr, audio, subtitles"`
+		WithFile   *bool    `json:"with_file,omitempty"   jsonschema:"only episodes with a file; default true"`
+		Limit      int      `json:"limit,omitempty"       jsonschema:"page size, default 500, max 1000"`
+		SavedSince string   `json:"saved_since,omitempty" jsonschema:"only items the server last SAVED at or after this time (RFC3339). The closest either server offers to 'what changed': a file written over an existing path is re-read and saved, but so is an item somebody edited, so it is a net rather than a measurement. Neither server can sort by it"`
+		Cursor     string   `json:"cursor,omitempty"      jsonschema:"from the previous page"`
+		Offset     int      `json:"offset,omitempty"      jsonschema:"start here, in place of a cursor"`
 	}
 	type exportOut struct {
 		Total    int          `json:"total"            jsonschema:"episodes matching across every page"`
@@ -537,13 +686,14 @@ func registerEpisodeTools(r *registry) {
 			IncludeItemTypes:  "Episode",
 			ParentIndexNumber: in.Season,
 			SortBy:            episodeSweepSort,
+			SavedSince:        in.SavedSince,
 			SortOrder:         "Ascending",
 			Limit:             limit,
 			StartIndex:        offset,
-			Fields:            "Path,MediaSources",
+			Fields:            "Path,MediaSources,DateCreated,DateModified",
 		}
 		if !quality || !needsMediaSources(keep) {
-			opts.Fields = "Path"
+			opts.Fields = "Path,DateCreated,DateModified"
 		}
 
 		switch {
@@ -574,6 +724,10 @@ func registerEpisodeTools(r *registry) {
 		}
 
 		out := exportOut{Total: total, Offset: offset, Episodes: []episodeRow{}}
+		// a season is only whole here when the call was scoped to one series;
+		// across a library the page boundary decides the median, which is not
+		// a fact about the season
+		scoped := in.SeriesID != ""
 		for i := range items {
 			it := &items[i]
 			if in.Season > 0 && it.ParentIndexNumber != in.Season {
@@ -583,6 +737,9 @@ func registerEpisodeTools(r *registry) {
 				continue
 			}
 			out.Episodes = append(out.Episodes, episodeFacts(it, quality, keep))
+		}
+		if scoped {
+			withRuntimeMultiples(out.Episodes, keep)
 		}
 		// the cursor walks the query, not the rows kept: a page whose rows
 		// were all filtered out still has pages after it
