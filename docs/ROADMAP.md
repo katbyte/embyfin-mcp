@@ -28,7 +28,7 @@ Design rules, in priority order:
 | watching | `user_list`, `user_get`, `user_history`, `user_next_up`, `user_in_progress`, `user_favourites`, `user_stats`, `item_last_watched`, `item_watch_history`, `item_set_watched`, `item_set_progress`, `item_set_favourite`, `item_instant_mix` | "who watched what, what is next" |
 | organise | `collection_*`, `playlist_*` (create, edit, add, remove, delete) | "group these" |
 | remote | `session_list`, `session_play`, `session_command`, `session_message` | "play Dune on the living-room TV" |
-| admin | `server_stats`, `server_activity`, `server_devices`, `server_logs`, `server_log`, `task_list`, `task_run`, `library_scan`, `library_create`, `library_edit`, `library_delete`, `item_delete` | "keep it healthy" |
+| admin | `server_stats`, `server_activity`, `server_devices`, `server_logs`, `server_log`, `task_list`, `task_run`, `library_scan`, `library_create`, `library_edit`, `library_delete`, `item_delete`, `audit_orphans`, `item_orphans_delete` | "keep it healthy" |
 
 ## Candidates
 
@@ -40,8 +40,7 @@ Design rules, in priority order:
 
 ## Guarded / deliberately excluded
 
-- `item_delete` (removes the media file) and `library_delete`: only registered
-  when `--enable-delete` (`EMBYFIN_ENABLE_DELETE`) is set.
+- `item_delete` (removes the media file), `item_orphans_delete` and `library_delete`: only registered when `--enable-delete` (`EMBYFIN_ENABLE_DELETE`) is set.
 - Not wrapping **as tools**, ever: streaming and transcoding, image byte
   delivery, DLNA, Sync, device pairing, server configuration and auth settings,
   user passwords, Live TV, SyncPlay, plugins and packages. `lib/emby` and

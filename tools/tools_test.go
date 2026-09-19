@@ -46,7 +46,7 @@ func TestRegisterAllKinds(t *testing.T) {
 	if len(all) <= len(dflt) || len(dflt) <= len(ro) || len(ro) == 0 {
 		t.Fatalf("counts all=%d default=%d read-only=%d", len(all), len(dflt), len(ro))
 	}
-	for _, name := range []string{"item_delete", "library_delete"} {
+	for _, name := range []string{"item_delete", "item_orphans_delete", "library_delete"} {
 		if slices.Contains(dflt, name) {
 			t.Errorf("%s registered without --enable-delete", name)
 		}
@@ -249,6 +249,8 @@ func TestMatchPattern(t *testing.T) {
 		{"item_*", "item_get", true},
 		{"item_*", "library_items", false},
 		{"*_delete", "item_delete", true},
+		// the documented way to turn every destructive tool off has to reach this one
+		{"*_delete", "item_orphans_delete", true},
 		{"*", "anything", true},
 	} {
 		if got := matchPattern(tc.pattern, tc.name); got != tc.want {

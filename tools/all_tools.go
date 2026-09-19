@@ -102,10 +102,11 @@ var Toolsets = map[string][]string{
 		"session_list", "session_play", "session_command", "session_message",
 	},
 	// running the server rather than using it: statistics, activity, logs,
-	// scheduled tasks, scans, libraries, and the tools that remove things
+	// scheduled tasks, scans, libraries, what a removed library leaves behind,
+	// and the tools that remove things
 	"admin": {
 		"server_stats", "server_activity", "server_devices", "server_logs", "server_log",
-		"task_list", "task_run", "library_scan", "library_create", "library_edit", "library_delete", "item_delete",
+		"task_list", "task_run", "library_scan", "library_create", "library_edit", "library_delete", "item_delete", "audit_orphans", "item_orphans_delete",
 	},
 }
 
@@ -251,6 +252,7 @@ func queueTools(r *registry) {
 	registerTitleMismatchAudit(r)
 	registerFolderAudit(r)
 	registerPlanTools(r)
+	registerOrphanTools(r)
 	registerSpellingTools(r)
 	registerMediaAudits(r)
 	registerItemTools(r)

@@ -32,6 +32,7 @@ func itemFromJF(d *jf.BaseItemDto) Item {
 		PremiereDate:      d.PremiereDate,
 		DateCreated:       d.DateCreated,
 		Path:              d.Path,
+		ParentID:          d.ParentId,
 		Overview:          d.Overview,
 		Genres:            d.Genres,
 		Tags:              d.Tags,

@@ -35,6 +35,7 @@ func itemFromEmby(d *emby.BaseItemDto) Item {
 		DateCreated:       d.DateCreated,
 		DateModified:      d.DateModified,
 		Path:              d.Path,
+		ParentID:          d.ParentId,
 		Overview:          d.Overview,
 		Genres:            d.Genres,
 		Tags:              d.Tags,

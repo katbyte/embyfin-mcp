@@ -94,6 +94,9 @@ type Item struct {
 	Tags         []string  `json:"Tags,omitempty"`     // Jellyfin
 	TagItems     []NameRef `json:"TagItems,omitempty"` // Emby
 	Studios      []NameRef `json:"Studios,omitempty"`
+	// ParentID is the folder holding the item. An item a removed library
+	// left behind can point at a parent the server no longer has.
+	ParentID string `json:"ParentId,omitempty"`
 
 	OfficialRating  string  `json:"OfficialRating,omitempty"` // the parental rating, e.g. PG-13
 	CommunityRating float64 `json:"CommunityRating,omitempty"`
@@ -488,6 +491,25 @@ func (c *Client) DeleteItem(ctx context.Context, id string) error {
 	}
 
 	_, err := c.jf.DeleteItem(ctx, id)
+
+	return err
+}
+
+// DeleteItems permanently removes items AND their media files from disk, in
+// one request. The two servers differ on an id they cannot find: Emby skips
+// it, Jellyfin works through the ids in order and answers 400 at the first
+// one, with the ones before it already gone. Emby deletes a folder's items
+// with it.
+func (c *Client) DeleteItems(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if c.isEmby() {
+		_, err := c.emby.DeleteItems(ctx, emby.DeleteItemsOperationOptions{Ids: strings.Join(ids, ",")})
+		return err
+	}
+
+	_, err := c.jf.DeleteItems(ctx, jf.DeleteItemsOperationOptions{Ids: ids})
 
 	return err
 }

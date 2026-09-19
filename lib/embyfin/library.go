@@ -8,6 +8,7 @@ import (
 
 	"github.com/katbyte/go-kt/pointer"
 
+	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
@@ -366,6 +367,29 @@ func (c *Client) RemoveLibraryPath(ctx context.Context, folder *VirtualFolder, p
 	_, err := c.jf.RemoveMediaPath(ctx, jf.RemoveMediaPathOperationOptions{Name: folder.Name, Path: path, RefreshLibrary: new(true)})
 
 	return err
+}
+
+// PathExists says whether the server can see a file or folder at path, as
+// its own process sees it - which is what decides what its delete would
+// touch. Both servers answer 404 for a path they cannot find, and each checks
+// only the kind it is asked about, so a folder is asked after, then a file.
+func (c *Client) PathExists(ctx context.Context, path string) (bool, error) {
+	for _, isFile := range []bool{false, true} {
+		var err error
+		if c.isEmby() {
+			_, err = c.emby.PostEnvironmentValidatePath(ctx, emby.ValidatePath{IsFile: new(isFile)}, emby.PostEnvironmentValidatePathOperationOptions{Path: path})
+		} else {
+			_, err = c.jf.ValidatePath(ctx, jf.ValidatePathDto{Path: path, IsFile: new(isFile)})
+		}
+		switch {
+		case err == nil:
+			return true, nil
+		case !apiclient.IsNotFound(err):
+			return false, err
+		}
+	}
+
+	return false, nil
 }
 
 // ScanLibrary scans one library's folders for new, changed and removed

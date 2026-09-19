@@ -216,7 +216,7 @@ func TestItemFamilyIsComplete(t *testing.T) {
 	}
 	want := []string{
 		"item_artwork", "item_artwork_set", "item_batch_edit", "item_delete", "item_edit", "item_find_by_metadata_id", "item_get",
-		"item_identify", "item_identify_apply", "item_instant_mix", "item_last_watched", "item_refresh",
+		"item_identify", "item_identify_apply", "item_instant_mix", "item_last_watched", "item_orphans_delete", "item_refresh",
 		"item_set_favourite", "item_set_progress", "item_set_watched", "item_similar", "item_subtitle_download", "item_subtitle_search",
 		"item_watch_history",
 	}
