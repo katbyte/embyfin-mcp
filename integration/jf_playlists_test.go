@@ -107,30 +107,42 @@ func TestJFCollections(t *testing.T) {
 		}
 		return ids
 	}
-	if got := members(); !slices.Equal(got, []string{a.Id, b.Id}) {
-		t.Errorf("after CreateCollection members = %v, want %s and %s", got, alien, aliens)
+	// each step waits for what it asked for: the server answers a collection
+	// change before it has applied it, and a read straight after can still
+	// see the membership from before
+	holds := func(step string, want ...string) {
+		t.Helper()
+
+		var got []string
+		if !poll(editPatience, func() bool {
+			got = members()
+
+			return slices.Equal(got, want)
+		}) {
+			t.Errorf("%s members = %v, want %v", step, got, want)
+		}
 	}
+	holds("after CreateCollection", a.Id, b.Id)
 	if _, err := jfc.AddToCollection(ctx, id, jf.AddToCollectionOperationOptions{Ids: []string{c.Id}}); err != nil {
 		t.Fatal(err)
 	}
-	if got := members(); len(got) != 3 {
-		t.Errorf("after AddToCollection members = %v", got)
-	}
+	holds("after AddToCollection", a.Id, b.Id, c.Id)
 	if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
 		t.Fatal(err)
 	}
-	if got := members(); !slices.Equal(got, []string{b.Id, c.Id}) {
-		t.Errorf("after RemoveFromCollection members = %v", got)
-	}
+	holds("after RemoveFromCollection", b.Id, c.Id)
 	// removing an item the collection does not hold is answered 204 and
 	// changes nothing, which is why lib/embyfin checks membership first
 	if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
 		t.Errorf("removing a non-member = %v", err)
 	}
-	if got := members(); !slices.Equal(got, []string{b.Id, c.Id}) {
-		t.Errorf("after removing a non-member members = %v", got)
-	}
-	if it := must(jfc.GetItem(ctx, id, jf.GetItemOperationOptions{UserId: adminID})).Model; it.Type != jf.BaseItemKindBoxSet || it.Name != "SDK Collection" || it.ChildCount != 2 {
-		t.Errorf("the collection as an item = %+v", it)
+	holds("after removing a non-member", b.Id, c.Id)
+	var item *jf.BaseItemDto
+	if !poll(editPatience, func() bool {
+		item = must(jfc.GetItem(ctx, id, jf.GetItemOperationOptions{UserId: adminID})).Model
+
+		return item != nil && item.Type == jf.BaseItemKindBoxSet && item.Name == "SDK Collection" && item.ChildCount == 2
+	}) {
+		t.Errorf("the collection as an item = %+v", item)
 	}
 }

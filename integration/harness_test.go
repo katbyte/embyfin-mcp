@@ -55,6 +55,11 @@ import (
 // itself with three other suites, where a music scan has come in just over.
 const scanPatience = 6 * time.Minute
 
+// editPatience is how long a change to an item is given to show up in
+// what the server answers. Jellyfin applies a collection change a moment
+// after it answers the request, so a read straight after it can miss it.
+const editPatience = 30 * time.Second
+
 // libraryFixture is one of the libraries the suite creates. The folders are
 // the container-side paths scripts/testenv.sh lays out.
 type libraryFixture struct {

@@ -115,16 +115,34 @@ func jfCount(ctx context.Context, parentID string, kind jf.BaseItemKind) int {
 	return res.Model.TotalRecordCount
 }
 
+// jfScanNudge asks for the library scan again, once, when nothing has been
+// found by a third of the patience. The scan a library create queues does not
+// always run, and then every count stays at zero however long the wait: CI saw
+// a music library sit empty for the whole six minutes.
+func jfScanNudge(ctx context.Context) func(found int) {
+	due, asked := time.Now().Add(scanPatience/3), false
+
+	return func(found int) {
+		if found > 0 || asked || time.Now().Before(due) {
+			return
+		}
+		asked = true
+		_, _ = jfc.RefreshLibrary(ctx)
+	}
+}
+
 // jfWaitForItems polls until the scan has found everything the fixture
 // holds.
 func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l libraryFixture) {
 	t.Helper()
 
+	nudge := jfScanNudge(ctx)
 	var last string
 	if l.CollectionType == "music" {
 		ok := poll(scanPatience, func() bool {
 			a, s := jfCount(ctx, parentID, jf.BaseItemKindMusicAlbum), jfCount(ctx, parentID, jf.BaseItemKindAudio)
 			last = fmt.Sprintf("%d albums, %d songs", a, s)
+			nudge(a + s)
 
 			return a == l.Albums && s == l.Songs
 		})
@@ -138,6 +156,7 @@ func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l librar
 	ok := poll(scanPatience, func() bool {
 		m, s, e := jfCount(ctx, parentID, jf.BaseItemKindMovie), jfCount(ctx, parentID, jf.BaseItemKindSeries), jfCount(ctx, parentID, jf.BaseItemKindEpisode)
 		last = fmt.Sprintf("%d movies, %d series, %d episodes", m, s, e)
+		nudge(m + s + e)
 
 		return m == l.Movies && s == l.Series && e == l.Episodes
 	})
