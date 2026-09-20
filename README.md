@@ -45,7 +45,7 @@ differences between them live in one package, and every tool is tested against b
 | `audit_duplicate_titles` | one episode's content filed under two episode numbers: a season holding the same episode title twice, which neither other duplicate audit can see. Runtimes within 5% make it near certain; matching titles alone are a lead |
 | `audit_title_mismatch` | episodes whose file name claims a different title from the one the server holds, both strings side by side: the tell that a file from another series was written to this path |
 | `audit_duplicate_series_folders` | shows held twice because two folders name the same series - a rename that changed only spacing, case, an accent or punctuation - which splits the episodes across two entries that each answer "no" to half the questions |
-| `audit_orphans` | items a renamed or removed library folder left behind: outside every library, so no library lists them but every sweep counts them. `item_orphans_delete` removes them once their folder is gone |
+| `audit_orphans` | items a renamed or removed library folder left behind: outside every library, so no library lists them but every sweep counts them. `item_orphans_delete` removes them once their folder is gone ([how](#cleaning-up-after-a-removed-library)) |
 
 The design principle: **detection is code, correction is judgment.** The server runs cheap
 deterministic checks over the whole library and produces worklists; the AI reasons only about
@@ -205,8 +205,7 @@ spend a client's context by default. `--toolsets` / `EMBYFIN_TOOLSETS` loads the
 actually needs, and `core` comes along with whatever else is asked for, because nothing else
 can find a library or open an item.
 
-**Curating a library needs `EMBYFIN_TOOLSETS=curation`** - the audits and everything that
-fixes what they find. `EMBYFIN_TOOLSETS=all` restores every tool.
+**Curating a library needs `EMBYFIN_TOOLSETS=curation`** - every audit but `audit_orphans`, and everything that fixes what they find. Cleaning up after a removed library is in `admin` ([below](#cleaning-up-after-a-removed-library)). `EMBYFIN_TOOLSETS=all` restores every tool.
 
 | toolset | tools | with core | ~tokens |
 |---|---|---|---|
@@ -272,6 +271,18 @@ tool.
 6. `audit_spelling` finds the genres, tags and studios typed several ways; `metadata_rename`
    merges each group, and `item_batch_edit` puts the right genre on a whole franchise.
 7. `audit_missing_episodes` lists the gaps in each series to fill.
+
+### Cleaning up after a removed library
+
+A library whose folder is renamed or removed can leave its items behind. No library lists them and nothing can play them, but every sweep of the server counts them. Deleting an item deletes its file, so they are only removed once their folder is gone.
+
+1. Load the tools with `--toolsets admin --enable-delete`, without `--read-only`. Deleting is off by default.
+2. `audit_orphans` lists them by folder, and says whether the server can still see each folder.
+3. `item_orphans_delete folder=...` shows what it would delete. Nothing is deleted without `confirm=true`.
+4. `item_orphans_delete folder=... confirm=true` deletes up to `limit` items a call, 2,000 by default. Call it again until `remaining` is 0.
+5. Turn `--enable-delete` off again.
+
+It refuses a folder inside a library or holding one, a folder the server can still see, and a path with `.` or `..` in it, and checks the folder again before every batch.
 
 ## Using the clients on their own
 

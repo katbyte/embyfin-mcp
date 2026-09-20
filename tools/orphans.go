@@ -365,6 +365,37 @@ func deleteOrphanBatch(ctx context.Context, client *embyfin.Client, batch []emby
 	return gone, failed
 }
 
+// settled reads back the items a delete would not take, and says how many
+// are gone anyway and which are still there. A server that deletes a folder's
+// items with it takes some of them after the failure.
+func settled(ctx context.Context, client *embyfin.Client, failures []orphanFailure) (int, []orphanFailure) {
+	gone := 0
+	var left []orphanFailure
+	for start := 0; start < len(failures); start += orphanBatch {
+		batch := failures[start:min(start+orphanBatch, len(failures))]
+		ids := make([]string, len(batch))
+		for i, f := range batch {
+			ids[i] = f.ID
+		}
+		held, err := stillHeld(ctx, client, ids)
+		if err != nil {
+			left = append(left, batch...)
+
+			continue
+		}
+		for _, f := range batch {
+			if held[f.ID] {
+				left = append(left, f)
+
+				continue
+			}
+			gone++
+		}
+	}
+
+	return gone, left
+}
+
 // depth is how many folders deep a path is.
 func depth(p string) int { return strings.Count(trimSep(p), "/") + strings.Count(trimSep(p), `\`) }
 
@@ -497,6 +528,7 @@ func registerOrphanTools(r *registry) {
 
 		// deepest first: an item goes before the folder holding it, so no
 		// delete depends on a server taking a folder's items with it
+		var failures []orphanFailure
 		targets := slices.SortedFunc(slices.Values(orphans), func(a, b embyfin.Item) int {
 			return cmp.Or(cmp.Compare(depth(b.Path), depth(a.Path)), strings.Compare(a.Path, b.Path), strings.Compare(a.ID, b.ID))
 		})
@@ -516,12 +548,14 @@ func registerOrphanTools(r *registry) {
 			}
 			deleted, failed := deleteOrphanBatch(ctx, client, targets[start:min(start+orphanBatch, len(targets))])
 			out.Deleted += deleted
-			for _, f := range failed {
-				if len(out.Failed) < 20 {
-					out.Failed = append(out.Failed, f)
-				}
-			}
+			failures = append(failures, failed...)
 		}
+		// a failure can be undone later in the same run: an item the server
+		// would not delete on its own goes when the folder holding it does,
+		// so what failed is read back before any of it is reported
+		gone, failures := settled(ctx, client, failures)
+		out.Deleted += gone
+		out.Failed = append(out.Failed, failures[:min(len(failures), 20)]...)
 		out.Remaining = out.Found - out.Deleted
 
 		return nil, out, nil

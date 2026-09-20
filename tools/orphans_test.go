@@ -142,7 +142,7 @@ func newOrphanServer(t *testing.T, jellyfin bool) *orphanServer {
 	o.mux.HandleFunc("DELETE /Items/{id}", func(w http.ResponseWriter, r *http.Request) {
 		o.mu.Lock()
 		defer o.mu.Unlock()
-		if !o.remove(r.PathValue("id")) {
+		if !o.remove(r.PathValue("id"), true) {
 			http.Error(w, "not found", http.StatusNotFound)
 
 			return
@@ -229,7 +229,7 @@ func (o *orphanServer) deleteBatch(w http.ResponseWriter, r *http.Request) {
 
 			return
 		}
-		if !o.remove(id) && o.jellyfin {
+		if !o.remove(id, true) && o.jellyfin {
 			http.Error(w, "Error processing request.", http.StatusBadRequest)
 
 			return
@@ -238,9 +238,10 @@ func (o *orphanServer) deleteBatch(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// remove deletes an item, and on Emby what a folder holds; the caller holds mu.
-func (o *orphanServer) remove(id string) bool {
-	if o.refuse[id] {
+// remove deletes an item, and on Emby what a folder holds; the caller holds
+// mu. A refused id is refused when it is named, not when its folder takes it.
+func (o *orphanServer) remove(id string, direct bool) bool {
+	if direct && o.refuse[id] {
 		return false
 	}
 	i := slices.IndexFunc(o.items, func(it orphanItem) bool { return it.ID == id })
@@ -252,7 +253,7 @@ func (o *orphanServer) remove(id string) bool {
 	if !o.jellyfin {
 		for _, child := range slices.Clone(o.items) {
 			if child.ParentID == id {
-				o.remove(child.ID)
+				o.remove(child.ID, false)
 			}
 		}
 	}
@@ -456,5 +457,25 @@ func TestItemOrphansDeleteOnJellyfin(t *testing.T) {
 		if strings.Contains(req.Query, "Path=") {
 			t.Errorf("Jellyfin was sent Emby's query: %s", req.Query)
 		}
+	}
+}
+
+// A server that takes a folder's items with it can carry off an item it would
+// not delete on its own. Against a real server that left a run reporting
+// seven failures where two were real, so what failed is read back before any
+// of it is reported.
+func TestItemOrphansDeleteReadsBackWhatFailed(t *testing.T) {
+	t.Parallel()
+
+	o := newOrphanServer(t, false)
+	o.refuse["o3"] = true // the server will not delete it when it is named
+	cs := session(t, o.fakeServer, Options{EnableDelete: true})
+
+	out := mustCall(t, cs, "item_orphans_delete", map[string]any{"folder": "/data/doc", "confirm": true})
+	if number(t, out["deleted"], "deleted") != 5 || number(t, out["remaining"], "remaining") != 0 || out["failed"] != nil {
+		t.Errorf("an item that went with its folder was reported as a failure: %v", out)
+	}
+	if o.holds("o3") {
+		t.Error("o3 is still there")
 	}
 }
