@@ -34,18 +34,6 @@ import (
 // for it alone answers with every item it holds.
 const orphanTypes = "Movie,Series,Season,Episode,Video,MusicVideo,Trailer,Audio,Book,Photo,PhotoAlbum,MusicAlbum,Folder"
 
-// orphanPage is how many items one sweep request reads. A server pays for a
-// page mostly in walking past the ones before it, and about the same for ten
-// thousand rows as for one thousand, so a sweep of a few hundred thousand
-// items goes in a few large pages.
-const orphanPage = 10000
-
-// orphanSweepSort is the order the sweep reads in: when items were added,
-// then name. The default, name alone, costs Emby several times as much deep
-// into a large library, and in this order an item added mid-sweep lands at
-// the end rather than shifting a page not yet read.
-const orphanSweepSort = "DateCreated,SortName"
-
 // orphanBatch is how many items one delete request names: few enough for
 // the ids to fit a URL on either server, and a request that fails is settled
 // one id at a time, which is cheaper for a small batch.
@@ -133,6 +121,16 @@ func parentDir(p string) string {
 	return p[:i]
 }
 
+// baseName is the last segment of a path, either separator.
+func baseName(p string) string {
+	p = trimSep(p)
+	if i := strings.LastIndexAny(p, `/\`); i >= 0 {
+		return p[i+1:]
+	}
+
+	return p
+}
+
 // within says whether path is root or inside it, a whole path segment at a
 // time: /data/docs is not inside /data/doc.
 func within(path, root string) bool {
@@ -211,19 +209,8 @@ func orphanFolder(path string, libs []libraryPath) string {
 // only a sweep of everything the server holds reaches it.
 func sweepOrphans(ctx context.Context, client *embyfin.Client, libs []libraryPath, root string) ([]embyfin.Item, int, error) {
 	var found []embyfin.Item
-	scanned := 0
-	opts := embyfin.SearchOptions{
-		IncludeItemTypes: orphanTypes, Fields: "Path,ParentId",
-		SortBy: orphanSweepSort, SortOrder: "Ascending", Limit: orphanPage,
-	}
-	for start := 0; ; start += orphanPage {
-		opts.StartIndex = start
-		items, total, err := client.Search(ctx, opts)
-		if err != nil {
-			return nil, scanned, err
-		}
+	scanned, err := sweepAll(ctx, client, embyfin.SearchOptions{IncludeItemTypes: orphanTypes, Fields: "Path,ParentId"}, func(items []embyfin.Item) {
 		for i := range items {
-			scanned++
 			it := items[i]
 			if !onDisk(it.Path) {
 				continue
@@ -236,10 +223,9 @@ func sweepOrphans(ctx context.Context, client *embyfin.Client, libs []libraryPat
 			}
 			found = append(found, it)
 		}
-		if len(items) < orphanPage || start+len(items) >= total {
-			return found, scanned, nil
-		}
-	}
+	})
+
+	return found, scanned, err
 }
 
 // folderState asks the server whether it can see a folder.

@@ -97,6 +97,40 @@ func sweepOptions(ctx context.Context, client *embyfin.Client, library, types, d
 	return opts, nil
 }
 
+// sweepPage is how many items one sweep request reads. A server pays for a
+// page mostly in walking past the ones before it, and about the same for ten
+// thousand rows as for one thousand, so a sweep of a few hundred thousand
+// items goes in a few large pages.
+const sweepPage = 10000
+
+// sweepSort is the order a sweep reads in: when items were added, then name.
+// The default, name alone, costs Emby several times as much deep into a large
+// library - half an hour against a minute on one of a few hundred thousand -
+// and in this order an item added mid-sweep lands at the end rather than
+// shifting a page not yet read.
+const sweepSort = "DateCreated,SortName"
+
+// sweepAll reads every item matching opts, a page at a time, and says how
+// many it read. It is for the audits that sweep a whole server rather than a
+// library: SearchAll's smaller pages and default order cost a large library
+// dearly.
+func sweepAll(ctx context.Context, client *embyfin.Client, opts embyfin.SearchOptions, cb func(items []embyfin.Item)) (int, error) {
+	opts.SortBy, opts.SortOrder, opts.Limit = sweepSort, "Ascending", sweepPage
+	scanned := 0
+	for start := 0; ; start += sweepPage {
+		opts.StartIndex = start
+		items, total, err := client.Search(ctx, opts)
+		if err != nil {
+			return scanned, err
+		}
+		scanned += len(items)
+		cb(items)
+		if len(items) < sweepPage || start+len(items) >= total {
+			return scanned, nil
+		}
+	}
+}
+
 // userInLibrary resolves a user and checks they may see the library (nil is
 // every library). Jellyfin lists a library's items for a user who may not see
 // it when the library is named as the parent, so the check is made here for

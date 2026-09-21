@@ -387,6 +387,13 @@ fixtures() {
     episode "$(printf '%s/media/shows/%s/Season %02d/%s S%02dE%02d' "$DATA" "$show" "$season" "$show" "$season" "$ep")" "$season" "$ep" "$title" 1 1280x720 "$filetitle"
   done <<<"$EPISODES"
 
+  # two Blu-ray streams, outside every library: the disc audit's live test
+  # copies them into a film's folder to make the shape it looks for, and takes
+  # them away again. Left in a library they would be two more films for every
+  # test that counts one.
+  video "${DATA}/media/disc-src/00000.m2ts" 1 320x180
+  video "${DATA}/media/disc-src/00001.m2ts" 1 320x180
+
   # the messy movies
   m="${DATA}/media/messy-movies"
   video "${m}/Princess Mononoke (1997)/Princess Mononoke (1997).mp4" 1 640x360 mpeg4 jpn

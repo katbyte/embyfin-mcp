@@ -21,6 +21,7 @@ Comparing a download folder against a big TV library: reading every episode at o
 - **`audit_title_mismatch`**: episodes whose file name claims a different title from the one the server holds.
 - **`audit_duplicate_series_folders`**: shows held twice because two folder names differ only by spacing, case, an accent or punctuation.
 - **`audit_orphans`**: items the server still holds under a folder no library covers, which is what a renamed or removed library folder leaves behind. No library lists them, but every sweep of the server counts them.
+- **`audit_disc_folders`**: a disc copied into the library as its own files rather than as a film. With no BDMV or VIDEO_TS structure around them the server makes a film of each stream and matches each on its own, which files short clips under the names of other films.
 - **`item_orphans_delete`**: deletes those items, only under a folder the server can no longer see, because deleting an item deletes its file. It shows what it would delete unless `confirm` is set, and needs `--enable-delete`.
 - Episode rows carry `date_created` and `file_modified` (Emby only), and `library_episodes`/`library_items` take `saved_since`. An overwritten file keeps its item's creation date, so this is the only way to see one.
 - Episode rows carry `runtime_multiple` and `season_median_runtime_s` where the call read a whole season: about 2 means the file holds two episodes under one number, which is why the number beside it looks missing.
