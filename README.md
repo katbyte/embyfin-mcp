@@ -30,7 +30,7 @@ differences between them live in one package, and every tool is tested against b
 | audit | what it catches |
 |---|---|
 | `audit_all` | every audit in one call, counts only, so one call says where a library needs work - start here after a scan |
-| `audit_missing_metadata_provider` | items with no tmdb/imdb/tvdb id: never matched, so nothing else can be filled in automatically; `item_identify` fixes them |
+| `audit_missing_metadata_provider` | items with no provider id of any kind (a link to a show's website or Facebook page is not one): never matched, so nothing else can be filled in automatically; `item_identify` fixes them. `missing` drills down to the providers named: `missing=tmdb` also finds a show matched on TVDB or IMDB but not on TMDB, and `ignore` leaves out libraries whose items never carry an id, such as YouTube |
 | `audit_missing_poster` | items with no primary image; `item_artwork` and `item_artwork_set` fix them |
 | `audit_missing_overview` | items with no plot text, usually a failed match; `item_refresh` or `item_identify` fix them |
 | `audit_year_mismatch` | items whose folder says `(2021)` while the matched metadata says 1984: the wrong edition, or the wrong film |
@@ -201,7 +201,7 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 ### Choosing which tools load
 
 **The default is `core`: seven read-only tools, about 1,100 tokens.** The whole surface is
-around 15,200 tokens of tool definitions before anyone asks a question, which is a poor way to
+around 15,300 tokens of tool definitions before anyone asks a question, which is a poor way to
 spend a client's context by default. `--toolsets` / `EMBYFIN_TOOLSETS` loads the groups a session
 actually needs, and `core` comes along with whatever else is asked for, because nothing else
 can find a library or open an item.
@@ -215,8 +215,8 @@ can find a library or open an item.
 | `admin` | 14 | 21 | 3,000 |
 | `watching` | 13 | 20 | 2,500 |
 | `organise` | 14 | 21 | 2,700 |
-| `curation` | 41 | 48 | 9,900 |
-| `all` | 93 | 93 | 15,200 |
+| `curation` | 41 | 48 | 10,000 |
+| `all` | 93 | 93 | 15,300 |
 
 Tokens are what the model sees: each tool's name, description and input schema, measured over
 a real `tools/list` at four bytes a token. Every tool also carries an output schema, another

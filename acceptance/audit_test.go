@@ -84,6 +84,47 @@ func TestAuditMissingMetadataProvider(t *testing.T) {
 	if n := len(rows(t, out["findings"], "findings")); n != 1 || num(t, out["total_findings"], "total_findings") != 2 {
 		t.Errorf("limit 1 = %d findings of %v", n, out["total_findings"])
 	}
+
+	// missing names the providers to look for. The messy films' sidecars
+	// carry TMDB and IMDB ids and never a TVDB one, so every film lacks
+	// TVDB, and each lists the ids it does have
+	out = call(t, "audit_missing_metadata_provider", map[string]any{"library": "Messy Movies", "missing": "tvdb"})
+	if n := num(t, out["total_findings"], "total_findings"); n != messyMovies() {
+		t.Errorf("missing tvdb = %d, want every messy film (%d): %v", n, messyMovies(), out["findings"])
+	}
+	for _, f := range rows(t, out["findings"], "findings") {
+		detail, unmatched := str(f["detail"]), title(str(f["name"])) == "Princess Mononoke"
+		switch {
+		case unmatched && detail != "no tvdb id":
+			t.Errorf("a film matched nowhere has no ids to list: %v", f)
+		case !unmatched && !strings.HasPrefix(detail, "no tvdb id; has tmdb:"):
+			t.Errorf("a film matched on TMDB does not say so: %v", f)
+		}
+	}
+	// TMDB alone finds only the film matched nowhere
+	out = call(t, "audit_missing_metadata_provider", map[string]any{"library": "Messy Movies", "missing": "tmdb"})
+	if got := findings(t, out); !slices.Equal(got, []string{"Princess Mononoke"}) {
+		t.Errorf("missing tmdb = %v, want [Princess Mononoke]", got)
+	}
+	// and a misspelling is refused rather than flagging every item
+	if msg := callErr(t, "audit_missing_metadata_provider", map[string]any{"missing": "tmbd"}); !strings.Contains(msg, "tmdb, imdb, tvdb") {
+		t.Errorf("a misspelled provider = %s", msg)
+	}
+
+	// ignore leaves a library out by its folder, before its items are
+	// counted: without the messy show library its unmatched show goes, and
+	// its two series come off the count
+	all := call(t, "audit_missing_metadata_provider", nil)
+	out = call(t, "audit_missing_metadata_provider", map[string]any{"ignore": []any{"messy shows"}})
+	if got := findings(t, out); !slices.Equal(got, []string{"Princess Mononoke"}) {
+		t.Errorf("ignoring Messy Shows = %v, want [Princess Mononoke]", got)
+	}
+	if got, want := num(t, out["items_scanned"], "items_scanned"), num(t, all["items_scanned"], "items_scanned")-2; got != want {
+		t.Errorf("ignoring Messy Shows scanned %d, want %d", got, want)
+	}
+	if msg := callErr(t, "audit_missing_metadata_provider", map[string]any{"ignore": []any{"No Such Library"}}); !strings.Contains(msg, "no library named") {
+		t.Errorf("an unknown library = %s", msg)
+	}
 }
 
 func TestAuditMissingOverview(t *testing.T) {

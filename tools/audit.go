@@ -37,8 +37,9 @@ type auditOut struct {
 }
 
 // runAudit sweeps matching items and collects findings from check. check
-// returns (finding detail, true) when the item is suspect.
-func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields string, check func(*embyfin.Item) (string, bool)) (auditOut, error) {
+// returns (finding detail, true) when the item is suspect. skip, when set,
+// leaves an item out before it is counted as scanned.
+func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields string, skip func(*embyfin.Item) bool, check func(*embyfin.Item) (string, bool)) (auditOut, error) {
 	types := in.Types
 	if types == "" {
 		types = "Movie,Series"
@@ -61,6 +62,9 @@ func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields st
 	out := auditOut{Findings: []auditFinding{}}
 	sweepErr := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
 		for i := range items {
+			if skip != nil && skip(&items[i]) {
+				continue
+			}
 			out.Scanned++
 			detail, suspect := check(&items[i])
 			if !suspect {
@@ -98,22 +102,20 @@ type auditCheck struct {
 	fields      string // the item fields the check needs, on top of the lean set
 	types       string // default item types, "" for Movie,Series
 	check       func(*embyfin.Item) (string, bool)
+	// tool, when set, registers the audit's tool in place of the shared one,
+	// for an audit with options of its own; audit_all still runs check
+	tool func(r *registry, c auditCheck)
 }
 
 // auditChecks are the per-item audits, in the order audit_all reports them.
 var auditChecks = []auditCheck{
 	{
-		name:        "audit_missing_metadata_provider",
-		description: "Sweep the library for items with no metadata provider ids (tmdb/imdb/tvdb): unmatched items that need identification (item_identify).",
-		fields:      embyfin.FieldsLean,
-		check: func(it *embyfin.Item) (string, bool) {
-			for _, p := range []string{"tmdb", "imdb", "tvdb"} {
-				if providerID(it, p) != "" {
-					return "", false
-				}
-			}
-			return "no tmdb/imdb/tvdb id", true
-		},
+		name: "audit_missing_metadata_provider",
+		description: "Sweep the library for items with no metadata provider id of any kind (a link to its website or social pages is not one): unmatched items that need identification (item_identify). " +
+			"missing drills down to the providers named, so missing=tmdb also finds items matched elsewhere but not on TMDB; each finding lists the ids the item does have.",
+		fields: embyfin.FieldsLean,
+		check:  noProviderID,
+		tool:   registerProviderAudit,
 	},
 	{
 		name:        "audit_missing_poster",
@@ -185,6 +187,83 @@ func checkYearMismatch(it *embyfin.Item) (string, bool) {
 	return "", false
 }
 
+// metadataProviders are the providers missing can name, in the order a
+// finding lists the ids an item does have. AniDB and MyAnimeList are where an
+// anime library matches, often with none of the other three.
+var metadataProviders = []string{"tmdb", "imdb", "tvdb", "anidb", "myanimelist"}
+
+// providerLinks are what a server keeps beside an item's provider ids that
+// are not ids: links to its pages elsewhere, which a provider passes along
+// with a match. An item holding only these matches nothing.
+var providerLinks = []string{"official website", "fan site", "facebook", "instagram", "twitter", "x (twitter)", "reddit", "youtube", "wikipedia"}
+
+// noProviderID flags an item with no provider id of any kind. Whichever
+// provider matched an item, it was matched, so this is the default.
+func noProviderID(it *embyfin.Item) (string, bool) {
+	links := false
+	for key, id := range it.ProviderIDs {
+		switch {
+		case id == "":
+		case slices.Contains(providerLinks, strings.ToLower(key)):
+			links = true
+		default:
+			return "", false
+		}
+	}
+	if links {
+		return "no provider id, only links to its pages", true
+	}
+
+	return "no provider id", true
+}
+
+// missingProviders flags an item holding none of the providers named: tmdb
+// alone finds one matched elsewhere but not on TMDB. A finding names the ids
+// the item does have, which are what find it on the provider it lacks.
+func missingProviders(missing []string) func(*embyfin.Item) (string, bool) {
+	return func(it *embyfin.Item) (string, bool) {
+		for _, p := range missing {
+			if providerID(it, p) != "" {
+				return "", false
+			}
+		}
+
+		detail := "no " + strings.Join(missing, "/") + " id"
+		has := make([]string, 0, len(metadataProviders))
+		for _, p := range metadataProviders {
+			if id := providerID(it, p); id != "" {
+				has = append(has, p+":"+id)
+			}
+		}
+		if len(has) > 0 {
+			detail += "; has " + strings.Join(has, " ")
+		}
+
+		return detail, true
+	}
+}
+
+// parseProviders reads the providers a caller named, comma-separated and in
+// any case, in metadataProviders order. None named is nil.
+func parseProviders(s string) ([]string, error) {
+	named := map[string]bool{}
+	for p := range strings.SplitSeq(s, ",") {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p == "" {
+			continue
+		}
+		if !slices.Contains(metadataProviders, p) {
+			return nil, fmt.Errorf("unknown provider %q; choose from: %s", p, strings.Join(metadataProviders, ", "))
+		}
+		named[p] = true
+	}
+	if len(named) == 0 {
+		return nil, nil
+	}
+
+	return slices.DeleteFunc(slices.Clone(metadataProviders), func(p string) bool { return !named[p] }), nil
+}
+
 // auditCheckByName finds a table entry, for tests and for audit_all.
 func auditCheckByName(name string) *auditCheck {
 	for i := range auditChecks {
@@ -200,6 +279,11 @@ func registerAuditTools(r *registry) {
 	client := r.client
 	for i := range auditChecks {
 		c := auditChecks[i]
+		if c.tool != nil {
+			c.tool(r, c)
+
+			continue
+		}
 		add(r, readTool, &mcp.Tool{
 			Name:        c.name,
 			Description: c.description,
@@ -207,7 +291,7 @@ func registerAuditTools(r *registry) {
 			if in.Types == "" {
 				in.Types = c.types
 			}
-			out, err := runAudit(ctx, client, in, c.fields, c.check)
+			out, err := runAudit(ctx, client, in, c.fields, nil, c.check)
 
 			return nil, out, err
 		})
@@ -245,6 +329,74 @@ func registerAuditTools(r *registry) {
 
 	registerRuntimeAudit(r)
 	registerAuditAll(r)
+}
+
+// registerProviderAudit adds audit_missing_metadata_provider, which takes the
+// providers to look for, and the libraries to leave out, on top of the
+// options every audit shares.
+func registerProviderAudit(r *registry, c auditCheck) {
+	client := r.client
+
+	type providerIn struct {
+		auditIn
+		Missing string   `json:"missing,omitempty" jsonschema:"comma-separated providers the item has none of: tmdb, imdb, tvdb, anidb, myanimelist. Default: no provider id of any kind"`
+		Ignore  []string `json:"ignore,omitempty"  jsonschema:"libraries to leave out, by name or id: ones whose items never carry an id, such as a YouTube library"`
+	}
+
+	add(r, readTool, &mcp.Tool{
+		Name:        c.name,
+		Description: c.description,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in providerIn) (*mcp.CallToolResult, auditOut, error) {
+		missing, err := parseProviders(in.Missing)
+		if err != nil {
+			return nil, auditOut{}, err
+		}
+		ignored, err := libraryFolders(ctx, client, in.Ignore)
+		if err != nil {
+			return nil, auditOut{}, err
+		}
+		var skip func(*embyfin.Item) bool
+		if len(ignored) > 0 {
+			skip = func(it *embyfin.Item) bool {
+				_, under := inLibrary(it.Path, ignored)
+
+				return under
+			}
+		}
+		if in.Types == "" {
+			in.Types = c.types
+		}
+		check := c.check
+		if len(missing) > 0 {
+			check = missingProviders(missing)
+		}
+		out, err := runAudit(ctx, client, in.auditIn, c.fields, skip, check)
+
+		return nil, out, err
+	})
+}
+
+// libraryFolders are the folders of the libraries named, by name or id. A
+// name that matches no library is refused: leaving out nothing, when the
+// caller meant to leave something out, reads as a finding.
+func libraryFolders(ctx context.Context, client *embyfin.Client, names []string) ([]libraryPath, error) {
+	var folders []libraryPath
+	for _, name := range names {
+		if name = strings.TrimSpace(name); name == "" {
+			continue
+		}
+		folder, err := resolveLibrary(ctx, client, name)
+		if err != nil {
+			return nil, err
+		}
+		for _, loc := range folder.Locations {
+			if loc = trimSep(loc); loc != "" {
+				folders = append(folders, libraryPath{library: folder.Name, path: loc})
+			}
+		}
+	}
+
+	return folders, nil
 }
 
 // duplicateGroups sweeps the library and groups items by shared tmdb/imdb id,
@@ -349,7 +501,7 @@ func registerAuditAll(r *registry) {
 
 		for i := range auditChecks {
 			c := &auditChecks[i]
-			res, err := runAudit(ctx, client, auditIn{Library: in.Library, Types: c.types, Limit: 1}, c.fields, c.check)
+			res, err := runAudit(ctx, client, auditIn{Library: in.Library, Types: c.types, Limit: 1}, c.fields, nil, c.check)
 			if err != nil {
 				return nil, auditAllOut{}, fmt.Errorf("%s: %w", c.name, err)
 			}
