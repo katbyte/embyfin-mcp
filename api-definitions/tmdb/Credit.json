@@ -1,0 +1,470 @@
+{
+  "Name": "Credit",
+  "Tag": "Credit",
+  "Operations": [
+    {
+      "Name": "CreditDetails",
+      "OperationId": "credit-details",
+      "Method": "GET",
+      "Path": "/3/credit/{credit_id}",
+      "Description": "Details",
+      "PathParameters": [
+        {
+          "Name": "credit_id",
+          "Argument": "creditId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CreditDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "CreditDetailsResponse",
+      "Fields": [
+        {
+          "Name": "CreditType",
+          "JsonName": "credit_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Department",
+          "JsonName": "department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Job",
+          "JsonName": "job",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Media",
+          "JsonName": "media",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CreditDetailsResponseMedia"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Person",
+          "JsonName": "person",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CreditDetailsResponsePerson"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CreditDetailsResponseMedia",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Character",
+          "JsonName": "character",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Episodes",
+          "JsonName": "episodes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CreditDetailsResponseMediaEpisodes"
+            }
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Seasons",
+          "JsonName": "seasons",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CreditDetailsResponseMediaSeasons"
+            }
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CreditDetailsResponseMediaEpisodes",
+      "Fields": [
+        {
+          "Name": "AirDate",
+          "JsonName": "air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EpisodeNumber",
+          "JsonName": "episode_number",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Order",
+          "JsonName": "order",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProductionCode",
+          "JsonName": "production_code",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Runtime",
+          "JsonName": "runtime",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SeasonNumber",
+          "JsonName": "season_number",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ShowId",
+          "JsonName": "show_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StillPath",
+          "JsonName": "still_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CreditDetailsResponseMediaSeasons",
+      "Fields": [
+        {
+          "Name": "AirDate",
+          "JsonName": "air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EpisodeCount",
+          "JsonName": "episode_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "SeasonNumber",
+          "JsonName": "season_number",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ShowId",
+          "JsonName": "show_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CreditDetailsResponsePerson",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Gender",
+          "JsonName": "gender",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "KnownForDepartment",
+          "JsonName": "known_for_department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "ProfilePath",
+          "JsonName": "profile_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -2,9 +2,9 @@
 
 ## API specs
 
-The two backends publish OpenAPI documents, vendored here as the reference
-for `lib/emby` and `lib/jf` - and, unlike Audiobookshelf's, they are build
-inputs. `internal/pandorest` (see its [README](../internal/pandorest/README.md))
+The two backends and TMDB publish OpenAPI documents, vendored here as the
+reference for `lib/emby`, `lib/jf` and `lib/tmdb` - and, unlike
+Audiobookshelf's, they are build inputs. `internal/pandorest` (see its [README](../internal/pandorest/README.md))
 imports each into checked-in definitions under `api-definitions/<server>/`,
 fixing the document's known bugs with named workarounds on the way, and
 generates the two clients from those definitions. `make generate` runs both
@@ -16,6 +16,7 @@ and `make apicheck` proves every operation in each spec has a method.
 |---|---|---|
 | `emby-openapi.json` | a stock Emby 4.10 server's own `/emby/openapi.json` | Emby Server API 4.10.0.40 - 433 paths, 499 operations (HEAD and OPTIONS skipped) |
 | `jellyfin-openapi.json` | <https://repo.jellyfin.org/files/openapi/stable/> | Jellyfin API 12.0.0 - 294 paths, 346 operations |
+| `tmdb-openapi.json` | <https://developer.themoviedb.org/openapi/tmdb-api.json> | tmdb-api 3 - 148 paths, 152 operations |
 
 Emby's published document (<https://swagger.emby.media/openapi.json>) is
 still the 4.1.1 one, eight years behind the server, so the vendored copy is
@@ -69,6 +70,23 @@ document and fails the import once it is not.
     (`/Videos/{itemId}/master.m3u8` and the rest), which the server still
     answers. Nothing here streams, so no workaround adds them back.
 
+- TMDB (`tmdb-*`), whose document is drawn from the examples in its docs
+  site rather than from its code:
+  - No operation is tagged; each is grouped by the first segment of its path.
+  - Every request body is declared as one `RAW_BODY` string, the docs site's
+    placeholder; the real shape is only in the request example, so it is
+    taken from there (`{"value": 8.5}` for a rating).
+  - A list an example left empty declares no item type, a field an example
+    left null declares no type, and a field an example happened to give a
+    whole number is an integer where TMDB answers fractions (`vote_average`,
+    a review's `rating`). Each takes the type the same field has elsewhere in
+    the document.
+  - Five operations declare an id a string that every other declares an
+    integer (`movie_id` on `movie-keywords`), and a list's details declare its
+    `id` a string where TMDB answers a number, its item status the reverse.
+  - The rating operations declare a `Content-Type` header parameter, which
+    OpenAPI says to ignore; the importer ignores it in every document.
+
 Array query parameters follow the document: Jellyfin's are sent one key per
 value (its comma binder accepts both, and the parameters without it only read
 repeated keys), Emby's comma-separated.
@@ -81,6 +99,9 @@ repeated keys), Emby's comma-separated.
   server prefers. A key acts as the server itself, not as
   a user, so anything user-scoped (watch state, favourites, next up, resume)
   takes a user id.
+- TMDB takes its API Read Access Token, a JWT, as an `Authorization: Bearer`
+  header, and the older API Key as the `api_key` query parameter; `lib/tmdb`
+  sends whichever it is given the way TMDB reads it.
 - Both servers descend from the same MediaBrowser codebase, so the item
   model (`BaseItemDto`), the `/Items` query, sessions, playlists and
   collections are the same shape. The differences the neutral layer

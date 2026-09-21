@@ -331,3 +331,62 @@ func TestImportFailures(t *testing.T) {
 		})
 	}
 }
+
+// The shapes TMDB's document has that the servers' do not: every type
+// inline, named after its operation; a request body declared inline; a
+// Content-Type header parameter, which OpenAPI says to ignore; and "_id"
+// beside "id".
+func TestInlineShapes(t *testing.T) {
+	t.Parallel()
+
+	spec, err := openapi.Parse([]byte(`{
+  "openapi": "3.1.0", "info": {"title": "tmdb-api", "version": "3"},
+  "paths": {
+    "/3/movie/{movie_id}": {"get": {"operationId": "movie-details", "tags": ["Movie"],
+      "parameters": [{"name": "movie_id", "in": "path", "required": true, "schema": {"type": "integer", "format": "int32"}}],
+      "responses": {"200": {"content": {"application/json": {"schema": {"type": "object", "properties": {
+        "id": {"type": "integer"}, "_id": {"type": "string"}, "title": {"type": "string"}}}}}}}}},
+    "/3/movie/{movie_id}/rating": {"post": {"operationId": "movie-add-rating", "tags": ["Movie"],
+      "parameters": [{"name": "movie_id", "in": "path", "required": true, "schema": {"type": "integer"}},
+        {"name": "Content-Type", "in": "header", "required": true, "schema": {"type": "string"}}],
+      "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"value": {"type": "number"}}}}}},
+      "responses": {"200": {"content": {"application/json": {"schema": {"type": "object", "properties": {"success": {"type": "boolean"}}}}}}}}}
+  }
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := FromSpec(config.Service{Name: "tmdb", Package: "tmdb", Naming: config.OperationIDNaming, Auth: "TMDB"}, spec, nil, func(msg string) { t.Log(msg) })
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ops := map[string]*definitions.Operation{}
+	for _, op := range svc.Operations() {
+		ops[op.Name] = op
+	}
+	details, rating := ops["MovieDetails"], ops["MovieAddRating"]
+	if details == nil || rating == nil {
+		t.Fatalf("operations = %v", ops)
+	}
+	// named after the method, not the path (GetN3MovieByMovieId...)
+	if details.Response.Type.ReferenceName != "MovieDetailsResponse" || rating.Request.Type.ReferenceName != "MovieAddRatingRequest" {
+		t.Errorf("response %+v, request %+v", details.Response.Type, rating.Request.Type)
+	}
+	if len(rating.Options) != 0 {
+		t.Errorf("the Content-Type header became an option: %+v", rating.Options)
+	}
+
+	models := svc.Models()
+	fields := make([]string, 0, len(models["MovieDetailsResponse"].Fields))
+	for _, f := range models["MovieDetailsResponse"].Fields {
+		fields = append(fields, f.Name+"="+f.JSONName+":"+string(f.Type.Type))
+	}
+	slices.Sort(fields)
+	if want := []string{"Id=id:Integer", "Title=title:String", "UnderscoreId=_id:String"}; !slices.Equal(fields, want) {
+		t.Errorf("fields = %v, want %v", fields, want)
+	}
+	if value := models["MovieAddRatingRequest"]; value == nil || len(value.Fields) != 1 || value.Fields[0].Type.Type != definitions.Double {
+		t.Errorf("the rating body = %+v", value)
+	}
+}

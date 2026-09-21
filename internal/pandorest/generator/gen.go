@@ -24,9 +24,9 @@ type gen struct {
 
 func newGen(svc *definitions.Service, opts Options) (*gen, error) {
 	switch svc.Auth {
-	case "Emby", "Jellyfin":
+	case "Emby", "Jellyfin", "TMDB":
 	default:
-		return nil, fmt.Errorf("%s: unknown Auth %q (want Emby or Jellyfin)", svc.Name, svc.Auth)
+		return nil, fmt.Errorf("%s: unknown Auth %q (want Emby, Jellyfin or TMDB)", svc.Name, svc.Auth)
 	}
 	if svc.Package == "" || !isIdent(svc.Package) {
 		return nil, fmt.Errorf("%s: %q is not a package name", svc.Name, svc.Package)
@@ -37,7 +37,7 @@ func newGen(svc *definitions.Service, opts Options) (*gen, error) {
 		opts:      opts,
 		models:    svc.Models(),
 		constants: svc.Constants(),
-		declared:  map[string]string{"Client": "client.go", "New": "client.go"},
+		declared:  map[string]string{"Client": "client.go", "New": "client.go", "DefaultBaseURL": "client.go"},
 	}, nil
 }
 
@@ -252,6 +252,9 @@ func firstSentence(s string) string {
 }
 
 func (g *gen) clientFile() string {
+	if g.svc.Auth == "TMDB" {
+		return g.fileHeader(tmdbClient)
+	}
 	server := "Emby"
 	if g.svc.Auth == "Jellyfin" {
 		server = "Jellyfin"
@@ -329,3 +332,31 @@ func (g *gen) docFile() string {
 
 	return b.String()
 }
+
+// tmdbClient is the client for TMDB, a hosted API rather than a server of the
+// caller's own: it lives at one address, and takes a read access token or an
+// API key.
+const tmdbClient = `// DefaultBaseURL is where the TMDB API lives.
+const DefaultBaseURL = "https://api.themoviedb.org"
+
+// Client is a client for the TMDB API; each of its operations is a method.
+// Requests go through Client.Client, the shared base client.
+type Client struct {
+	Client *client.Client
+}
+
+// New returns a client for the TMDB API at baseURL (DefaultBaseURL, or a
+// stand-in for it) that authenticates with an API Read Access Token or the
+// older API Key.
+func New(baseURL, token string) (*Client, error) {
+	if token == "" {
+		return nil, errors.New("a TMDB read access token or API key is required")
+	}
+	c, err := client.New(baseURL, client.TMDBToken(token))
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{Client: c}, nil
+}
+`

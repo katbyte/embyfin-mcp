@@ -191,6 +191,19 @@ func New(opts Options) (*Proxy, error) {
 // Addr is the address the proxy is listening on.
 func (p *Proxy) Addr() string { return p.listener.Addr().String() }
 
+// Transport is for a client in the same process, such as an SDK under test:
+// it sends every request through the proxy, on the loopback address
+// whatever the proxy listens on, and trusts the certificates the proxy mints.
+func (p *Proxy) Transport() *http.Transport {
+	pool := x509.NewCertPool()
+	pool.AddCert(p.ca)
+
+	return &http.Transport{
+		Proxy:           http.ProxyURL(&url.URL{Scheme: "http", Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(p.Port()))}),
+		TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12},
+	}
+}
+
 // Port is the port the proxy is listening on.
 func (p *Proxy) Port() int {
 	addr, ok := p.listener.Addr().(*net.TCPAddr)

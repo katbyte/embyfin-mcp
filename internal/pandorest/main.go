@@ -58,7 +58,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 
 	fs := flag.NewFlagSet("pandorest "+cmd, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	services := fs.String("service", "", "comma-separated services to process (default all: emby, jellyfin)")
+	services := fs.String("service", "", "comma-separated services to process (default all: emby, jellyfin, tmdb)")
 	root := fs.String("root", ".", "repository root the config paths are relative to")
 	quiet := fs.Bool("quiet", false, "do not log each workaround and warning")
 	var oldDir, newDir *string

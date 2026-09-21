@@ -53,6 +53,13 @@ var All = []Workaround{
 	embyCodecDisplayText{},
 	embyPropertyConditionValue{},
 	jellyfinCreatePlaylistQuery{},
+	tmdbTags{},
+	tmdbRawBodies{},
+	tmdbEmptyLists{},
+	tmdbNullFields{},
+	tmdbStringIDs{},
+	tmdbWholeNumbers{},
+	tmdbListIDs{},
 }
 
 // Apply runs every workaround for a service, logging each, and returns the

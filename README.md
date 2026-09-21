@@ -58,7 +58,7 @@ API object (`BaseItemDto` runs to 150 fields; `item_get` returns about 15).
 ### What else is in the box
 
 - **95 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than twelve thousand.
-- **Two Go SDKs.** `lib/emby` and `lib/jf` are complete typed clients for the Emby and Jellyfin APIs - all 499 and 346 operations, generated from the servers' own OpenAPI documents, standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
+- **Three Go SDKs.** `lib/emby`, `lib/jf` and `lib/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents, standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
 ## Installation
@@ -310,14 +310,24 @@ for _, it := range res.Model.Items { ... }
 all, err := c.GetItemsComplete(ctx, jf.GetItemsOperationOptions{Recursive: new(true)}) // every page
 ```
 
+`lib/tmdb` is the same for TMDB, generated from TMDB's own OpenAPI document; it takes an API Read Access Token or the older API Key:
+
+```go
+import "github.com/katbyte/embyfin-mcp/lib/tmdb"
+
+c, err := tmdb.New(tmdb.DefaultBaseURL, os.Getenv("EMBYFIN_TMDB_TOKEN"))
+film, err := c.MovieDetails(ctx, 550, tmdb.MovieDetailsOperationOptions{AppendToResponse: "credits"})
+found, err := c.FindById(ctx, "tt0137523", tmdb.FindByIdOperationOptions{ExternalSource: "imdb_id"})
+```
+
 They are generated from the servers' own OpenAPI documents (`docs/`, see
 [docs/README.md](docs/README.md)) by `internal/pandorest`, a generator kept in this
 repository and modelled on [hashicorp/pandora](https://github.com/hashicorp/pandora): an
 importer normalises each spec into checked-in definitions (`api-definitions/`, one file per
 tag) through named workarounds for the spec's known bugs, a differ reports what a spec
 refresh changes, and a generator writes one file per operation and model from the
-definitions. That is **a method for every one of Emby's 499 operations and Jellyfin's
-346**, each with typed options, a typed body, a `{Model, HttpResponse}` result, the
+definitions. That is **a method for every one of Emby's 499 operations, Jellyfin's 346 and
+TMDB's 152**, each with typed options, a typed body, a `{Model, HttpResponse}` result, the
 status codes the operation documents (anything else is an error), and a `Complete` pager on
 every paged list. `make apicheck` proves the coverage claim against the spec, `make gencheck`
 (and the unit tests) fail when the generated code is stale, and the integration suite proves
@@ -352,7 +362,7 @@ against both servers:
 
 | | Covers | Command |
 |---|---|---|
-| `integration/` | the `lib/emby` and `lib/jf` clients: bespoke tests that the calls the tools rely on decode with their fields populated and do what they say, and a sweep that calls every GET in each document against the server and classifies the ones that cannot answer in a container | `make testacc-integration` |
+| `integration/` | the `lib/emby` and `lib/jf` clients: bespoke tests that the calls the tools rely on decode with their fields populated and do what they say, and a sweep that calls every GET in each document against the server and classifies the ones that cannot answer in a container. `lib/tmdb` gets the same sweep against the real TMDB API, recorded once with a token and replayed with none (`make test-tmdb`, `make record-tmdb`) | `make testacc-integration` |
 | `acceptance/` | the tools: name resolution, projections, audits, provider flows, and journeys that chain them (edits during a library scan and through a refresh, every fixable audit fixed and re-audited, the fixes each audit names with the fetchers on and off, a client's playback reaching the history tools, a series watched through, a user restricted to one library, a library's whole life, deletes letting go of what held their items, writes repeated and made in parallel, copies of a film watched, a genre added, renamed and removed, lookups that must change nothing), and the built binary itself over stdio and HTTP (flags and environment reaching the server, nothing but protocol on stdout, the bearer check, clean shutdown, refusing to start without a token) | `make testacc-acceptance` |
 
 ```bash
@@ -366,9 +376,9 @@ Coverage has to span every suite or it lies: `go test -cover ./...` reports a fr
 `tools/`, because almost everything real happens in the live suites behind the `integration`
 tag. `make cover` runs each into its own binary coverage directory and merges them with
 `go tool covdata` - stdlib tooling, no third-party merger - which is what the badge reports.
-The generated `lib/emby` and `lib/jf` are left out of the number and reported on a line of
+The generated `lib/emby`, `lib/jf` and `lib/tmdb` are left out of the number and reported on a line of
 their own: they are one method per operation, and the integration suite exercises the ones
-the tools rely on rather than all 781.
+the tools rely on rather than all 997.
 
 **Every tool is exercised on both servers.** Tool coverage is enforced rather than claimed: the
 acceptance suite records every tool it calls and fails if the server registered one nothing

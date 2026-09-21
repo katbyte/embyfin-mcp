@@ -1,0 +1,1896 @@
+{
+  "Name": "Account",
+  "Tag": "Account",
+  "Operations": [
+    {
+      "Name": "AccountAddFavorite",
+      "OperationId": "account-add-favorite",
+      "Method": "POST",
+      "Path": "/3/account/{account_id}/favorite",
+      "Description": "Add Favorite",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountAddFavoriteRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountAddFavoriteResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountAddToWatchlist",
+      "OperationId": "account-add-to-watchlist",
+      "Method": "POST",
+      "Path": "/3/account/{account_id}/watchlist",
+      "Description": "Add To Watchlist",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountAddToWatchlistRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountAddToWatchlistResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountDetails",
+      "OperationId": "account-details",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}",
+      "Description": "Details",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountFavoriteTv",
+      "OperationId": "account-favorite-tv",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/favorite/tv",
+      "Description": "Favorite TV",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountFavoriteTvResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountGetFavorites",
+      "OperationId": "account-get-favorites",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/favorite/movies",
+      "Description": "Favorite Movies",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountGetFavoritesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountLists",
+      "OperationId": "account-lists",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/lists",
+      "Description": "Lists",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountListsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountRatedMovies",
+      "OperationId": "account-rated-movies",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/rated/movies",
+      "Description": "Rated Movies",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountRatedMoviesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountRatedTv",
+      "OperationId": "account-rated-tv",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/rated/tv",
+      "Description": "Rated TV",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountRatedTvResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountRatedTvEpisodes",
+      "OperationId": "account-rated-tv-episodes",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/rated/tv/episodes",
+      "Description": "Rated TV Episodes",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountRatedTvEpisodesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountWatchlistMovies",
+      "OperationId": "account-watchlist-movies",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/watchlist/movies",
+      "Description": "Watchlist Movies",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountWatchlistMoviesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AccountWatchlistTv",
+      "OperationId": "account-watchlist-tv",
+      "Method": "GET",
+      "Path": "/3/account/{account_id}/watchlist/tv",
+      "Description": "Watchlist TV",
+      "PathParameters": [
+        {
+          "Name": "account_id",
+          "Argument": "accountId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AccountWatchlistTvResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "AccountAddFavoriteRequest",
+      "Fields": [
+        {
+          "Name": "Favorite",
+          "JsonName": "favorite",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "MediaId",
+          "JsonName": "media_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountAddFavoriteResponse",
+      "Fields": [
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountAddToWatchlistRequest",
+      "Fields": [
+        {
+          "Name": "MediaId",
+          "JsonName": "media_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Watchlist",
+          "JsonName": "watchlist",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountAddToWatchlistResponse",
+      "Fields": [
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountDetailsResponse",
+      "Fields": [
+        {
+          "Name": "Avatar",
+          "JsonName": "avatar",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "AccountDetailsResponseAvatar"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IncludeAdult",
+          "JsonName": "include_adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Iso31661",
+          "JsonName": "iso_3166_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Username",
+          "JsonName": "username",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountDetailsResponseAvatar",
+      "Fields": [
+        {
+          "Name": "Gravatar",
+          "JsonName": "gravatar",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "AccountDetailsResponseAvatarGravatar"
+          }
+        },
+        {
+          "Name": "Tmdb",
+          "JsonName": "tmdb",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "AccountDetailsResponseAvatarTmdb"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountDetailsResponseAvatarGravatar",
+      "Fields": [
+        {
+          "Name": "Hash",
+          "JsonName": "hash",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountDetailsResponseAvatarTmdb",
+      "Fields": [
+        {
+          "Name": "AvatarPath",
+          "JsonName": "avatar_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountFavoriteTvResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountFavoriteTvResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountFavoriteTvResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountGetFavoritesResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountGetFavoritesResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountGetFavoritesResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountListsResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountListsResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountListsResponseResults",
+      "Fields": [
+        {
+          "Name": "Description",
+          "JsonName": "description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FavoriteCount",
+          "JsonName": "favorite_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemCount",
+          "JsonName": "item_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ListType",
+          "JsonName": "list_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountRatedMoviesResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountRatedMoviesResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountRatedMoviesResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Rating",
+          "JsonName": "rating",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountRatedTvEpisodesResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountRatedTvEpisodesResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountRatedTvEpisodesResponseResults",
+      "Fields": [
+        {
+          "Name": "AirDate",
+          "JsonName": "air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EpisodeNumber",
+          "JsonName": "episode_number",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProductionCode",
+          "JsonName": "production_code",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Rating",
+          "JsonName": "rating",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Runtime",
+          "JsonName": "runtime",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SeasonNumber",
+          "JsonName": "season_number",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ShowId",
+          "JsonName": "show_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StillPath",
+          "JsonName": "still_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountRatedTvResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountRatedTvResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountRatedTvResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Rating",
+          "JsonName": "rating",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountWatchlistMoviesResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountWatchlistMoviesResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountWatchlistMoviesResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountWatchlistTvResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "AccountWatchlistTvResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AccountWatchlistTvResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

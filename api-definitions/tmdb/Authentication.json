@@ -1,0 +1,371 @@
+{
+  "Name": "Authentication",
+  "Tag": "Authentication",
+  "Operations": [
+    {
+      "Name": "AuthenticationCreateGuestSession",
+      "OperationId": "authentication-create-guest-session",
+      "Method": "GET",
+      "Path": "/3/authentication/guest_session/new",
+      "Description": "Create Guest Session",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateGuestSessionResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateRequestToken",
+      "OperationId": "authentication-create-request-token",
+      "Method": "GET",
+      "Path": "/3/authentication/token/new",
+      "Description": "Create Request Token",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateRequestTokenResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSession",
+      "OperationId": "authentication-create-session",
+      "Method": "POST",
+      "Path": "/3/authentication/session/new",
+      "Description": "Create Session",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateSessionRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateSessionResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionFromLogin",
+      "OperationId": "authentication-create-session-from-login",
+      "Method": "POST",
+      "Path": "/3/authentication/token/validate_with_login",
+      "Description": "Create Session (with login)",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateSessionFromLoginRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateSessionFromLoginResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionFromV4Token",
+      "OperationId": "authentication-create-session-from-v4-token",
+      "Method": "POST",
+      "Path": "/3/authentication/session/convert/4",
+      "Description": "Create Session (from v4 token)",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateSessionFromV4TokenRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationCreateSessionFromV4TokenResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthenticationDeleteSession",
+      "OperationId": "authentication-delete-session",
+      "Method": "DELETE",
+      "Path": "/3/authentication/session",
+      "Description": "Delete Session",
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationDeleteSessionRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationDeleteSessionResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "AuthenticationValidateKey",
+      "OperationId": "authentication-validate-key",
+      "Method": "GET",
+      "Path": "/3/authentication",
+      "Description": "Validate Key",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "AuthenticationValidateKeyResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "AuthenticationCreateGuestSessionResponse",
+      "Fields": [
+        {
+          "Name": "ExpiresAt",
+          "JsonName": "expires_at",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GuestSessionId",
+          "JsonName": "guest_session_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateRequestTokenResponse",
+      "Fields": [
+        {
+          "Name": "ExpiresAt",
+          "JsonName": "expires_at",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RequestToken",
+          "JsonName": "request_token",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionFromLoginRequest",
+      "Fields": [
+        {
+          "Name": "Password",
+          "JsonName": "password",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RequestToken",
+          "JsonName": "request_token",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Username",
+          "JsonName": "username",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionFromLoginResponse",
+      "Fields": [
+        {
+          "Name": "ExpiresAt",
+          "JsonName": "expires_at",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "RequestToken",
+          "JsonName": "request_token",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionFromV4TokenRequest",
+      "Fields": [
+        {
+          "Name": "AccessToken",
+          "JsonName": "access_token",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionFromV4TokenResponse",
+      "Fields": [
+        {
+          "Name": "SessionId",
+          "JsonName": "session_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionRequest",
+      "Fields": [
+        {
+          "Name": "RequestToken",
+          "JsonName": "request_token",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationCreateSessionResponse",
+      "Fields": [
+        {
+          "Name": "SessionId",
+          "JsonName": "session_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationDeleteSessionRequest",
+      "Fields": [
+        {
+          "Name": "SessionId",
+          "JsonName": "session_id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationDeleteSessionResponse",
+      "Fields": [
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "AuthenticationValidateKeyResponse",
+      "Fields": [
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    }
+  ]
+}

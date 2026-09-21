@@ -68,6 +68,15 @@ var Services = []Service{
 		Naming:      OperationIDNaming,
 		Auth:        "Jellyfin",
 	},
+	{
+		Name:        "tmdb",
+		Package:     "tmdb",
+		Spec:        "docs/tmdb-openapi.json",
+		Definitions: "api-definitions/tmdb",
+		Output:      "lib/tmdb",
+		Naming:      OperationIDNaming,
+		Auth:        "TMDB",
+	},
 }
 
 // Select returns the named services, or all of them for an empty list.

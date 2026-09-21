@@ -1,0 +1,150 @@
+{
+  "Name": "Review",
+  "Tag": "Review",
+  "Operations": [
+    {
+      "Name": "ReviewDetails",
+      "OperationId": "review-details",
+      "Method": "GET",
+      "Path": "/3/review/{review_id}",
+      "Description": "Details",
+      "PathParameters": [
+        {
+          "Name": "review_id",
+          "Argument": "reviewId",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ReviewDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ReviewDetailsResponse",
+      "Fields": [
+        {
+          "Name": "Author",
+          "JsonName": "author",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "AuthorDetails",
+          "JsonName": "author_details",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ReviewDetailsResponseAuthorDetails"
+          }
+        },
+        {
+          "Name": "Content",
+          "JsonName": "content",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CreatedAt",
+          "JsonName": "created_at",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaId",
+          "JsonName": "media_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaTitle",
+          "JsonName": "media_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UpdatedAt",
+          "JsonName": "updated_at",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Url",
+          "JsonName": "url",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ReviewDetailsResponseAuthorDetails",
+      "Fields": [
+        {
+          "Name": "AvatarPath",
+          "JsonName": "avatar_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Rating",
+          "JsonName": "rating",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "Username",
+          "JsonName": "username",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

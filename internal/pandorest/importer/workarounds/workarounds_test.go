@@ -90,3 +90,30 @@ func TestNames(t *testing.T) {
 		seen[w.Name()] = true
 	}
 }
+
+// A TMDB request body's shape is read off its example: whole numbers are
+// integers, anything else numeric a number.
+func TestSchemaOf(t *testing.T) {
+	t.Parallel()
+
+	s, err := schemaOf([]byte(`{"media_type": "movie", "media_id": 550, "favorite": true, "value": 8.5, "ids": [1, 2], "none": null}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for name, p := range s.Properties {
+		got[name] = p.Type
+		if p.Items != nil {
+			got[name] += " of " + p.Items.Type
+		}
+	}
+	want := map[string]string{"media_type": "string", "media_id": "integer", "favorite": "boolean", "value": "number", "ids": "array of integer", "none": ""}
+	if s.Type != openapi.TypeObject || len(got) != len(want) {
+		t.Fatalf("schema = %+v", got)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("%s = %q, want %q", k, got[k], v)
+		}
+	}
+}

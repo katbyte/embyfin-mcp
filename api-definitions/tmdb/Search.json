@@ -1,0 +1,1289 @@
+{
+  "Name": "Search",
+  "Tag": "Search",
+  "Operations": [
+    {
+      "Name": "SearchCollection",
+      "OperationId": "search-collection",
+      "Method": "GET",
+      "Path": "/3/search/collection",
+      "Description": "Collection",
+      "Options": [
+        {
+          "Name": "query",
+          "Field": "Query",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "include_adult",
+          "Field": "IncludeAdult",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "region",
+          "Field": "Region",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchCollectionResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchCompany",
+      "OperationId": "search-company",
+      "Method": "GET",
+      "Path": "/3/search/company",
+      "Description": "Company",
+      "Options": [
+        {
+          "Name": "query",
+          "Field": "Query",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchCompanyResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchKeyword",
+      "OperationId": "search-keyword",
+      "Method": "GET",
+      "Path": "/3/search/keyword",
+      "Description": "Keyword",
+      "Options": [
+        {
+          "Name": "query",
+          "Field": "Query",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchKeywordResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchMovie",
+      "OperationId": "search-movie",
+      "Method": "GET",
+      "Path": "/3/search/movie",
+      "Description": "Movie",
+      "Options": [
+        {
+          "Name": "query",
+          "Field": "Query",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "include_adult",
+          "Field": "IncludeAdult",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "primary_release_year",
+          "Field": "PrimaryReleaseYear",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "region",
+          "Field": "Region",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "year",
+          "Field": "Year",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchMovieResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchMulti",
+      "OperationId": "search-multi",
+      "Method": "GET",
+      "Path": "/3/search/multi",
+      "Description": "Multi",
+      "Options": [
+        {
+          "Name": "query",
+          "Field": "Query",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "include_adult",
+          "Field": "IncludeAdult",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchMultiResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchPerson",
+      "OperationId": "search-person",
+      "Method": "GET",
+      "Path": "/3/search/person",
+      "Description": "Person",
+      "Options": [
+        {
+          "Name": "query",
+          "Field": "Query",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "include_adult",
+          "Field": "IncludeAdult",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchPersonResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "SearchTv",
+      "OperationId": "search-tv",
+      "Method": "GET",
+      "Path": "/3/search/tv",
+      "Description": "TV",
+      "Options": [
+        {
+          "Name": "query",
+          "Field": "Query",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "first_air_date_year",
+          "Field": "FirstAirDateYear",
+          "In": "Query",
+          "Description": "Search only the first air date. Valid values are: 1000..9999",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "include_adult",
+          "Field": "IncludeAdult",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "year",
+          "Field": "Year",
+          "In": "Query",
+          "Description": "Search the first air date and all episode air dates. Valid values are: 1000..9999",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "SearchTvResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "SearchCollectionResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchCollectionResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchCollectionResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchCompanyResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchCompanyResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchCompanyResponseResults",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LogoPath",
+          "JsonName": "logo_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchKeywordResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchKeywordResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchKeywordResponseResults",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchMovieResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchMovieResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchMovieResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchMultiResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchMultiResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchMultiResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchPersonResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchPersonResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchPersonResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Gender",
+          "JsonName": "gender",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "KnownFor",
+          "JsonName": "known_for",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchPersonResponseResultsKnownFor"
+            }
+          }
+        },
+        {
+          "Name": "KnownForDepartment",
+          "JsonName": "known_for_department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "ProfilePath",
+          "JsonName": "profile_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchPersonResponseResultsKnownFor",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchTvResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "SearchTvResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "SearchTvResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

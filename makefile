@@ -98,14 +98,14 @@ docker: ## Build the embyfin-mcp container image with version info from git
 tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(SHELLCHECK) $(YAMLLINT) $(ZIZMOR) ## Install all pinned dev tools into .tools/bin
 
 ##@ SDK generation (internal/pandorest)
-generate: pandorest-import pandorest-generate ## Import the specs into api-definitions/, then generate lib/emby and lib/jf from them
+generate: pandorest-import pandorest-generate ## Import the specs into api-definitions/, then generate lib/emby, lib/jf and lib/tmdb from them
 
 pandorest-import: ## Import docs/*-openapi.json into api-definitions/, applying the workarounds
 	@echo "==> importing the OpenAPI specs into api-definitions/..."
 	go run ./internal/pandorest import
 
-pandorest-generate: ## Generate lib/emby and lib/jf from api-definitions/
-	@echo "==> generating lib/emby and lib/jf from api-definitions/..."
+pandorest-generate: ## Generate lib/emby, lib/jf and lib/tmdb from api-definitions/
+	@echo "==> generating lib/emby, lib/jf and lib/tmdb from api-definitions/..."
 	go run ./internal/pandorest generate
 
 pandorest-diff: ## Report what the specs in docs/ change against the checked-in api-definitions/
@@ -150,12 +150,12 @@ zizmor: $(ZIZMOR) ## Audit GitHub workflows for security issues with zizmor
 	@$(ZIZMOR) .
 
 gencheck: generate ## Check that the definitions and generated SDKs match the specs (regenerate, then diff)
-	@test -z "$$(git status --porcelain -- api-definitions lib/emby lib/jf)" || \
-		(git status --short -- api-definitions lib/emby lib/jf; echo; \
-		echo "api-definitions/, lib/emby or lib/jf is stale. Run 'make generate' and commit."; exit 1)
+	@test -z "$$(git status --porcelain -- api-definitions lib/emby lib/jf lib/tmdb)" || \
+		(git status --short -- api-definitions lib/emby lib/jf lib/tmdb; echo; \
+		echo "api-definitions/, lib/emby, lib/jf or lib/tmdb is stale. Run 'make generate' and commit."; exit 1)
 
-apicheck: ## Check that the definitions match the specs and every operation has a method in lib/emby and lib/jf
-	@echo "==> Checking API coverage of lib/emby and lib/jf..."
+apicheck: ## Check that the definitions match the specs and every operation has a method in lib/emby, lib/jf and lib/tmdb
+	@echo "==> Checking API coverage of lib/emby, lib/jf and lib/tmdb..."
 	@go run ./internal/pandorest check -quiet
 
 depscheck: ## Check that go.mod/go.sum and vendor/ are in sync
@@ -231,6 +231,15 @@ testacc-acceptance-%:
 
 testacc: testacc-integration testacc-acceptance ## Run both live suites for both backends, each in its own container
 
+# TMDB is not a server the suites run: its sweep replays recorded answers and needs neither a
+# container nor a token, and a recording needs a token and nothing else
+test-tmdb: ## Sweep every TMDB GET against the recorded answers (no server, no token)
+	go test -tags integration -count=1 -run 'TestTMDBSweep$$' ./integration/ -timeout ${TEST_TIMEOUT} -v
+
+record-tmdb: ## Record the TMDB sweep against the real API (needs EMBYFIN_TMDB_TOKEN)
+	@[ -n "$${EMBYFIN_TMDB_TOKEN}$${EMBYFIN_TMDB_KEY}" ] || (echo 'EMBYFIN_TMDB_TOKEN must be set to record'; exit 1)
+	EMBYFIN_TEST_RECORD=1 go test -tags integration -count=1 -run 'TestTMDBSweep$$' ./integration/ -timeout ${TEST_TIMEOUT} -v
+
 # Coverage has to span all three suites or it lies: the unit tests alone report
 # a fraction for tools/, because almost everything real happens in the live
 # suites behind the integration tag. Each writes binary coverage into its own
@@ -238,7 +247,7 @@ testacc: testacc-integration testacc-acceptance ## Run both live suites for both
 # third-party merger.
 COVERDIR?=.coverage
 COVERPKG=./tools/...,./lib/...,./cli/...,./internal/...
-SDKS=/lib/emby/\|/lib/jf/
+SDKS=/lib/emby/\|/lib/jf/\|/lib/tmdb/
 # (the comma leads each backend's pair: foreach joins its results with spaces, which the
 # recipes strip, so a trailing one would run two backends' directories together)
 COVERDIRS=$(COVERDIR)/unit$(foreach b,$(BACKENDS),,$(COVERDIR)/integration-$(b),$(COVERDIR)/acceptance-$(b))
@@ -254,7 +263,7 @@ cover: ## Run every suite with coverage and report the total
 		$(MAKE) --no-print-directory cover-acceptance-$$b || exit 1; \
 	done
 	@go tool covdata textfmt -i=$(subst $(space),,$(COVERDIRS)) -o=$(COVERDIR)/coverage.all
-	@# lib/emby and lib/jf are generated, one mechanical method per operation (845 of
+	@# lib/emby, lib/jf and lib/tmdb are generated, one mechanical method per operation (997 of
 	@# them); the suites exercise the ones the tools rely on, so the total is for the
 	@# hand-written code and the SDKs get a line of their own (the per-package
 	@# figures below include them)

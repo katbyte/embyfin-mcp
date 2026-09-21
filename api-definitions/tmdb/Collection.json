@@ -1,0 +1,525 @@
+{
+  "Name": "Collection",
+  "Tag": "Collection",
+  "Operations": [
+    {
+      "Name": "CollectionDetails",
+      "OperationId": "collection-details",
+      "Method": "GET",
+      "Path": "/3/collection/{collection_id}",
+      "Description": "Details",
+      "PathParameters": [
+        {
+          "Name": "collection_id",
+          "Argument": "collectionId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CollectionDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "CollectionImages",
+      "OperationId": "collection-images",
+      "Method": "GET",
+      "Path": "/3/collection/{collection_id}/images",
+      "Description": "Images",
+      "PathParameters": [
+        {
+          "Name": "collection_id",
+          "Argument": "collectionId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "include_image_language",
+          "Field": "IncludeImageLanguage",
+          "In": "Query",
+          "Description": "specify a comma separated list of ISO-639-1 values to query, for example: `en-US,null`",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CollectionImagesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "CollectionTranslations",
+      "OperationId": "collection-translations",
+      "Method": "GET",
+      "Path": "/3/collection/{collection_id}/translations",
+      "Description": "Translations",
+      "PathParameters": [
+        {
+          "Name": "collection_id",
+          "Argument": "collectionId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CollectionTranslationsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "CollectionDetailsResponse",
+      "Fields": [
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Parts",
+          "JsonName": "parts",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CollectionDetailsResponseParts"
+            }
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CollectionDetailsResponseParts",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CollectionImagesResponse",
+      "Fields": [
+        {
+          "Name": "Backdrops",
+          "JsonName": "backdrops",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CollectionImagesResponseBackdrops"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Posters",
+          "JsonName": "posters",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CollectionImagesResponsePosters"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CollectionImagesResponseBackdrops",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "aspect_ratio",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "FilePath",
+          "JsonName": "file_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "height",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CollectionImagesResponsePosters",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "aspect_ratio",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "FilePath",
+          "JsonName": "file_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "height",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CollectionTranslationsResponse",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Translations",
+          "JsonName": "translations",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CollectionTranslationsResponseTranslations"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CollectionTranslationsResponseTranslations",
+      "Fields": [
+        {
+          "Name": "Data",
+          "JsonName": "data",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CollectionTranslationsResponseTranslationsData"
+          }
+        },
+        {
+          "Name": "EnglishName",
+          "JsonName": "english_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso31661",
+          "JsonName": "iso_3166_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CollectionTranslationsResponseTranslationsData",
+      "Fields": [
+        {
+          "Name": "Homepage",
+          "JsonName": "homepage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

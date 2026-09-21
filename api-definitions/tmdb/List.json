@@ -1,0 +1,665 @@
+{
+  "Name": "List",
+  "Tag": "List",
+  "Operations": [
+    {
+      "Name": "ListAddMovie",
+      "OperationId": "list-add-movie",
+      "Method": "POST",
+      "Path": "/3/list/{list_id}/add_item",
+      "Description": "Add Movie",
+      "PathParameters": [
+        {
+          "Name": "list_id",
+          "Argument": "listId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListAddMovieRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListAddMovieResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ListCheckItemStatus",
+      "OperationId": "list-check-item-status",
+      "Method": "GET",
+      "Path": "/3/list/{list_id}/item_status",
+      "Description": "Check Item Status",
+      "PathParameters": [
+        {
+          "Name": "list_id",
+          "Argument": "listId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "movie_id",
+          "Field": "MovieId",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListCheckItemStatusResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ListClear",
+      "OperationId": "list-clear",
+      "Method": "POST",
+      "Path": "/3/list/{list_id}/clear",
+      "Description": "Clear",
+      "PathParameters": [
+        {
+          "Name": "list_id",
+          "Argument": "listId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "confirm",
+          "Field": "Confirm",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListClearResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ListCreate",
+      "OperationId": "list-create",
+      "Method": "POST",
+      "Path": "/3/list",
+      "Description": "Create",
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListCreateRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListCreateResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ListDelete",
+      "OperationId": "list-delete",
+      "Method": "DELETE",
+      "Path": "/3/list/{list_id}",
+      "Description": "Delete",
+      "PathParameters": [
+        {
+          "Name": "list_id",
+          "Argument": "listId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListDeleteResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ListDetails",
+      "OperationId": "list-details",
+      "Method": "GET",
+      "Path": "/3/list/{list_id}",
+      "Description": "Details",
+      "PathParameters": [
+        {
+          "Name": "list_id",
+          "Argument": "listId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ListRemoveMovie",
+      "OperationId": "list-remove-movie",
+      "Method": "POST",
+      "Path": "/3/list/{list_id}/remove_item",
+      "Description": "Remove Movie",
+      "PathParameters": [
+        {
+          "Name": "list_id",
+          "Argument": "listId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "session_id",
+          "Field": "SessionId",
+          "In": "Query",
+          "Required": true,
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Request": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListRemoveMovieRequest"
+        }
+      },
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ListRemoveMovieResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ListAddMovieRequest",
+      "Fields": [
+        {
+          "Name": "MediaId",
+          "JsonName": "media_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListAddMovieResponse",
+      "Fields": [
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListCheckItemStatusResponse",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemPresent",
+          "JsonName": "item_present",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListClearResponse",
+      "Fields": [
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListCreateRequest",
+      "Fields": [
+        {
+          "Name": "Description",
+          "JsonName": "description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Language",
+          "JsonName": "language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListCreateResponse",
+      "Fields": [
+        {
+          "Name": "ListId",
+          "JsonName": "list_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Success",
+          "JsonName": "success",
+          "Type": {
+            "Type": "Boolean"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListDeleteResponse",
+      "Fields": [
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListDetailsResponse",
+      "Fields": [
+        {
+          "Name": "CreatedBy",
+          "JsonName": "created_by",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Description",
+          "JsonName": "description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FavoriteCount",
+          "JsonName": "favorite_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ItemCount",
+          "JsonName": "item_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Items",
+          "JsonName": "items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ListDetailsResponseItems"
+            }
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListDetailsResponseItems",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListRemoveMovieRequest",
+      "Fields": [
+        {
+          "Name": "MediaId",
+          "JsonName": "media_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ListRemoveMovieResponse",
+      "Fields": [
+        {
+          "Name": "StatusCode",
+          "JsonName": "status_code",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "StatusMessage",
+          "JsonName": "status_message",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

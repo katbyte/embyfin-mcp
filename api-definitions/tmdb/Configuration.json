@@ -1,0 +1,322 @@
+{
+  "Name": "Configuration",
+  "Tag": "Configuration",
+  "Operations": [
+    {
+      "Name": "ConfigurationCountries",
+      "OperationId": "configuration-countries",
+      "Method": "GET",
+      "Path": "/3/configuration/countries",
+      "Description": "Countries",
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ConfigurationCountriesResponse"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ConfigurationDetails",
+      "OperationId": "configuration-details",
+      "Method": "GET",
+      "Path": "/3/configuration",
+      "Description": "Details",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ConfigurationDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ConfigurationJobs",
+      "OperationId": "configuration-jobs",
+      "Method": "GET",
+      "Path": "/3/configuration/jobs",
+      "Description": "Jobs",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ConfigurationJobsResponse"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ConfigurationLanguages",
+      "OperationId": "configuration-languages",
+      "Method": "GET",
+      "Path": "/3/configuration/languages",
+      "Description": "Languages",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ConfigurationLanguagesResponse"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ConfigurationPrimaryTranslations",
+      "OperationId": "configuration-primary-translations",
+      "Method": "GET",
+      "Path": "/3/configuration/primary_translations",
+      "Description": "Primary Translations",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "String"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "ConfigurationTimezones",
+      "OperationId": "configuration-timezones",
+      "Method": "GET",
+      "Path": "/3/configuration/timezones",
+      "Description": "Timezones",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "List",
+          "NestedItem": {
+            "Type": "Reference",
+            "ReferenceName": "ConfigurationTimezonesResponse"
+          }
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ConfigurationCountriesResponse",
+      "Fields": [
+        {
+          "Name": "EnglishName",
+          "JsonName": "english_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso31661",
+          "JsonName": "iso_3166_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NativeName",
+          "JsonName": "native_name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConfigurationDetailsResponse",
+      "Fields": [
+        {
+          "Name": "ChangeKeys",
+          "JsonName": "change_keys",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Images",
+          "JsonName": "images",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ConfigurationDetailsResponseImages"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConfigurationDetailsResponseImages",
+      "Fields": [
+        {
+          "Name": "BackdropSizes",
+          "JsonName": "backdrop_sizes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "BaseUrl",
+          "JsonName": "base_url",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "LogoSizes",
+          "JsonName": "logo_sizes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "PosterSizes",
+          "JsonName": "poster_sizes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "ProfileSizes",
+          "JsonName": "profile_sizes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "SecureBaseUrl",
+          "JsonName": "secure_base_url",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "StillSizes",
+          "JsonName": "still_sizes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConfigurationJobsResponse",
+      "Fields": [
+        {
+          "Name": "Department",
+          "JsonName": "department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Jobs",
+          "JsonName": "jobs",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConfigurationLanguagesResponse",
+      "Fields": [
+        {
+          "Name": "EnglishName",
+          "JsonName": "english_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConfigurationTimezonesResponse",
+      "Fields": [
+        {
+          "Name": "Iso31661",
+          "JsonName": "iso_3166_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Zones",
+          "JsonName": "zones",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

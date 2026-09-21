@@ -1,0 +1,307 @@
+{
+  "Name": "Company",
+  "Tag": "Company",
+  "Operations": [
+    {
+      "Name": "CompanyAlternativeNames",
+      "OperationId": "company-alternative-names",
+      "Method": "GET",
+      "Path": "/3/company/{company_id}/alternative_names",
+      "Description": "Alternative Names",
+      "PathParameters": [
+        {
+          "Name": "company_id",
+          "Argument": "companyId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CompanyAlternativeNamesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "CompanyDetails",
+      "OperationId": "company-details",
+      "Method": "GET",
+      "Path": "/3/company/{company_id}",
+      "Description": "Details",
+      "PathParameters": [
+        {
+          "Name": "company_id",
+          "Argument": "companyId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CompanyDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "CompanyImages",
+      "OperationId": "company-images",
+      "Method": "GET",
+      "Path": "/3/company/{company_id}/images",
+      "Description": "Images",
+      "PathParameters": [
+        {
+          "Name": "company_id",
+          "Argument": "companyId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "CompanyImagesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "CompanyAlternativeNamesResponse",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CompanyAlternativeNamesResponseResults"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CompanyAlternativeNamesResponseResults",
+      "Fields": [
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Type",
+          "JsonName": "type",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CompanyDetailsResponse",
+      "Fields": [
+        {
+          "Name": "Description",
+          "JsonName": "description",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Headquarters",
+          "JsonName": "headquarters",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Homepage",
+          "JsonName": "homepage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LogoPath",
+          "JsonName": "logo_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ParentCompany",
+          "JsonName": "parent_company",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "CompanyDetailsResponseParentCompany"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CompanyDetailsResponseParentCompany",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LogoPath",
+          "JsonName": "logo_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CompanyImagesResponse",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Logos",
+          "JsonName": "logos",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "CompanyImagesResponseLogos"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "CompanyImagesResponseLogos",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "aspect_ratio",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "FilePath",
+          "JsonName": "file_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FileType",
+          "JsonName": "file_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "height",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

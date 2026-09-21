@@ -1,0 +1,17 @@
+{
+  "Name": "tmdb",
+  "Package": "tmdb",
+  "Title": "tmdb-api",
+  "ApiVersion": "3",
+  "Source": "docs/tmdb-openapi.json",
+  "Auth": "TMDB",
+  "Workarounds": [
+    "tmdb-tags",
+    "tmdb-raw-bodies",
+    "tmdb-empty-lists",
+    "tmdb-null-fields",
+    "tmdb-string-ids",
+    "tmdb-whole-numbers",
+    "tmdb-list-ids"
+  ]
+}

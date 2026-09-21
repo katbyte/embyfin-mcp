@@ -353,8 +353,8 @@ func registerShowTools(r *registry) {
 	client := r.client
 
 	var guide seriesGuide
-	if r.opts.TMDBKey != "" {
-		guide = tmdb.NewWithTransport(r.opts.TMDBKey, r.opts.ProviderTransport)
+	if facts := tmdbFacts(r.opts); facts != nil {
+		guide = facts
 	}
 
 	type seasonsIn struct {

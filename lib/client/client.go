@@ -81,6 +81,22 @@ func (t JellyfinToken) Authorize(req *http.Request) {
 	req.Header.Set("Authorization", mediaBrowserAuth("MediaBrowser", string(t)))
 }
 
+// TMDBToken authenticates to TMDB with an API Read Access Token, which is a
+// JWT and goes in the Authorization header as a bearer, or with the older API
+// Key, which goes in the api_key query parameter.
+type TMDBToken string
+
+func (t TMDBToken) Authorize(req *http.Request) {
+	if strings.HasPrefix(string(t), "eyJ") {
+		req.Header.Set("Authorization", "Bearer "+string(t))
+
+		return
+	}
+	q := req.URL.Query()
+	q.Set("api_key", string(t))
+	req.URL.RawQuery = q.Encode()
+}
+
 func mediaBrowserAuth(scheme, token string) string {
 	return fmt.Sprintf(`%s Client=%q, Device=%q, DeviceId=%q, Version=%q, Token=%q`, scheme, UserAgent, UserAgent, UserAgent, version.Version, token)
 }

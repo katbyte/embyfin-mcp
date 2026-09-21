@@ -17,7 +17,7 @@ func TestSelect(t *testing.T) {
 	if err != nil || len(one) != 1 || one[0].Package != "jf" {
 		t.Errorf("Select(jellyfin) = %+v, %v", one, err)
 	}
-	if _, err := Select("emby,plex"); err == nil || !strings.Contains(err.Error(), `unknown service "plex" (have emby, jellyfin)`) {
+	if _, err := Select("emby,plex"); err == nil || !strings.Contains(err.Error(), `unknown service "plex" (have emby, jellyfin, tmdb)`) {
 		t.Errorf("Select with an unknown service = %v", err)
 	}
 }

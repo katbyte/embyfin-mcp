@@ -584,10 +584,7 @@ type runtimeOut struct {
 func registerRuntimeAudit(r *registry) {
 	client := r.client
 	opts := r.opts
-	var provider *tmdb.Client
-	if opts.TMDBKey != "" {
-		provider = tmdb.NewWithTransport(opts.TMDBKey, opts.ProviderTransport)
-	}
+	provider := tmdbFacts(opts)
 
 	desc := "Find media files whose runtime disagrees with what it should be: truncated downloads, wrong files, or wrong matches. Episodes are compared to the median of their season (needs 3+ episodes); movies to TMDB's runtime"
 	if provider == nil {
@@ -763,7 +760,7 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 	return out, nil
 }
 
-func auditMovieRuntimes(ctx context.Context, client *embyfin.Client, provider *tmdb.Client, parent string, in runtimeIn) (runtimeOut, error) {
+func auditMovieRuntimes(ctx context.Context, client *embyfin.Client, provider *tmdb.Facts, parent string, in runtimeIn) (runtimeOut, error) {
 	maxLookups := in.MaxLookups
 	if maxLookups <= 0 {
 		maxLookups = defaultTMDBLookups
@@ -823,6 +820,19 @@ func auditMovieRuntimes(ctx context.Context, client *embyfin.Client, provider *t
 			return out, nil
 		}
 	}
+}
+
+// tmdbFacts is how the tools ask TMDB, or nil when no token is set.
+func tmdbFacts(opts Options) *tmdb.Facts {
+	if opts.TMDBKey == "" {
+		return nil
+	}
+	facts, err := tmdb.NewFacts(opts.TMDBKey, opts.ProviderTransport)
+	if err != nil {
+		return nil
+	}
+
+	return facts
 }
 
 // providerID returns the item's id for a metadata provider, matched case-insensitively.

@@ -349,3 +349,30 @@ func TestListHelpers(t *testing.T) {
 		t.Errorf("JSONObject = %q", got)
 	}
 }
+
+// TMDB takes its read access token, a JWT, as a bearer; the older API key
+// goes in the query, beside whatever the call already asks for.
+func TestTMDBToken(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ token, bearer, key string }{
+		{"eyJhbGciOiJIUzI1NiJ9.e30.sig", "Bearer eyJhbGciOiJIUzI1NiJ9.e30.sig", ""},
+		{"0123456789abcdef0123456789abcdef", "", "0123456789abcdef0123456789abcdef"},
+	} {
+		var bearer, key, query string
+		c := serve(t, TMDBToken(tc.token), func(w http.ResponseWriter, r *http.Request) {
+			bearer, key, query = r.Header.Get("Authorization"), r.URL.Query().Get("api_key"), r.URL.Query().Get("query")
+			w.WriteHeader(http.StatusOK)
+		})
+		opts := RequestOptions{
+			HttpMethod: http.MethodGet, Path: "/3/search/movie", ExpectedStatusCodes: []int{http.StatusOK},
+			OptionsObject: options{query: map[string][]string{"query": {"alien"}}},
+		}
+		if _, err := execute(t, c, opts, nil); err != nil {
+			t.Fatal(err)
+		}
+		if bearer != tc.bearer || key != tc.key || query != "alien" {
+			t.Errorf("%s: bearer %q, api_key %q, query %q", tc.token[:6], bearer, key, query)
+		}
+	}
+}

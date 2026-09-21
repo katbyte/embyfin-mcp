@@ -1,0 +1,2357 @@
+{
+  "Name": "Person",
+  "Tag": "Person",
+  "Operations": [
+    {
+      "Name": "ChangesPeopleList",
+      "OperationId": "changes-people-list",
+      "Method": "GET",
+      "Path": "/3/person/changes",
+      "Description": "People List",
+      "Options": [
+        {
+          "Name": "end_date",
+          "Field": "EndDate",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "start_date",
+          "Field": "StartDate",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "ChangesPeopleListResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonChanges",
+      "OperationId": "person-changes",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/changes",
+      "Description": "Changes",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "end_date",
+          "Field": "EndDate",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "start_date",
+          "Field": "StartDate",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonChangesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonCombinedCredits",
+      "OperationId": "person-combined-credits",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/combined_credits",
+      "Description": "Combined Credits",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonCombinedCreditsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonDetails",
+      "OperationId": "person-details",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}",
+      "Description": "Details",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "append_to_response",
+          "Field": "AppendToResponse",
+          "In": "Query",
+          "Description": "comma separated list of endpoints within this namespace, 20 items max",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonDetailsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonExternalIds",
+      "OperationId": "person-external-ids",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/external_ids",
+      "Description": "External IDs",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonExternalIdsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonImages",
+      "OperationId": "person-images",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/images",
+      "Description": "Images",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonImagesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonLatestId",
+      "OperationId": "person-latest-id",
+      "Method": "GET",
+      "Path": "/3/person/latest",
+      "Description": "Latest",
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonLatestIdResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonMovieCredits",
+      "OperationId": "person-movie-credits",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/movie_credits",
+      "Description": "Movie Credits",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonMovieCreditsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonPopularList",
+      "OperationId": "person-popular-list",
+      "Method": "GET",
+      "Path": "/3/person/popular",
+      "Description": "Popular",
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonPopularListResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonTaggedImages",
+      "OperationId": "person-tagged-images",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/tagged_images",
+      "Description": "Tagged Images",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonTaggedImagesResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "PersonTvCredits",
+      "OperationId": "person-tv-credits",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/tv_credits",
+      "Description": "TV Credits",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "PersonTvCreditsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "Translations",
+      "OperationId": "translations",
+      "Method": "GET",
+      "Path": "/3/person/{person_id}/translations",
+      "Description": "Translations",
+      "PathParameters": [
+        {
+          "Name": "person_id",
+          "Argument": "personId",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "TranslationsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "ChangesPeopleListResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "ChangesPeopleListResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ChangesPeopleListResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonChangesResponse",
+      "Fields": [
+        {
+          "Name": "Changes",
+          "JsonName": "changes",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonChangesResponseChanges"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonChangesResponseChanges",
+      "Fields": [
+        {
+          "Name": "Items",
+          "JsonName": "items",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonChangesResponseChangesItems"
+            }
+          }
+        },
+        {
+          "Name": "Key",
+          "JsonName": "key",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonChangesResponseChangesItems",
+      "Fields": [
+        {
+          "Name": "Action",
+          "JsonName": "action",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso31661",
+          "JsonName": "iso_3166_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Time",
+          "JsonName": "time",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Value",
+          "JsonName": "value",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonCombinedCreditsResponse",
+      "Fields": [
+        {
+          "Name": "Cast",
+          "JsonName": "cast",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonCombinedCreditsResponseCast"
+            }
+          }
+        },
+        {
+          "Name": "Crew",
+          "JsonName": "crew",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonCombinedCreditsResponseCrew"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonCombinedCreditsResponseCast",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Character",
+          "JsonName": "character",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CreditId",
+          "JsonName": "credit_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Order",
+          "JsonName": "order",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonCombinedCreditsResponseCrew",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CreditId",
+          "JsonName": "credit_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Department",
+          "JsonName": "department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Job",
+          "JsonName": "job",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonDetailsResponse",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AlsoKnownAs",
+          "JsonName": "also_known_as",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Biography",
+          "JsonName": "biography",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Birthday",
+          "JsonName": "birthday",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Deathday",
+          "JsonName": "deathday",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Gender",
+          "JsonName": "gender",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Homepage",
+          "JsonName": "homepage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ImdbId",
+          "JsonName": "imdb_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "KnownForDepartment",
+          "JsonName": "known_for_department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaceOfBirth",
+          "JsonName": "place_of_birth",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "ProfilePath",
+          "JsonName": "profile_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonExternalIdsResponse",
+      "Fields": [
+        {
+          "Name": "FacebookId",
+          "JsonName": "facebook_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FreebaseId",
+          "JsonName": "freebase_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FreebaseMid",
+          "JsonName": "freebase_mid",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ImdbId",
+          "JsonName": "imdb_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "InstagramId",
+          "JsonName": "instagram_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TiktokId",
+          "JsonName": "tiktok_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "TvrageId",
+          "JsonName": "tvrage_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TwitterId",
+          "JsonName": "twitter_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "WikidataId",
+          "JsonName": "wikidata_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "YoutubeId",
+          "JsonName": "youtube_id",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonImagesResponse",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Profiles",
+          "JsonName": "profiles",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonImagesResponseProfiles"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonImagesResponseProfiles",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "aspect_ratio",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "FilePath",
+          "JsonName": "file_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "height",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonLatestIdResponse",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "AlsoKnownAs",
+          "JsonName": "also_known_as",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "Biography",
+          "JsonName": "biography",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Birthday",
+          "JsonName": "birthday",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Deathday",
+          "JsonName": "deathday",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Gender",
+          "JsonName": "gender",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Homepage",
+          "JsonName": "homepage",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ImdbId",
+          "JsonName": "imdb_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "KnownForDepartment",
+          "JsonName": "known_for_department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PlaceOfBirth",
+          "JsonName": "place_of_birth",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "ProfilePath",
+          "JsonName": "profile_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonMovieCreditsResponse",
+      "Fields": [
+        {
+          "Name": "Cast",
+          "JsonName": "cast",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonMovieCreditsResponseCast"
+            }
+          }
+        },
+        {
+          "Name": "Crew",
+          "JsonName": "crew",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonMovieCreditsResponseCrew"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonMovieCreditsResponseCast",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Character",
+          "JsonName": "character",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CreditId",
+          "JsonName": "credit_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Order",
+          "JsonName": "order",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonMovieCreditsResponseCrew",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CreditId",
+          "JsonName": "credit_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Department",
+          "JsonName": "department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Job",
+          "JsonName": "job",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonPopularListResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonPopularListResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonPopularListResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "Gender",
+          "JsonName": "gender",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "KnownFor",
+          "JsonName": "known_for",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonPopularListResponseResultsKnownFor"
+            }
+          }
+        },
+        {
+          "Name": "KnownForDepartment",
+          "JsonName": "known_for_department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "ProfilePath",
+          "JsonName": "profile_path",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonPopularListResponseResultsKnownFor",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonTaggedImagesResponse",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonTaggedImagesResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonTaggedImagesResponseResults",
+      "Fields": [
+        {
+          "Name": "AspectRatio",
+          "JsonName": "aspect_ratio",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "FilePath",
+          "JsonName": "file_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Height",
+          "JsonName": "height",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ImageType",
+          "JsonName": "image_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Media",
+          "JsonName": "media",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "PersonTaggedImagesResponseResultsMedia"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Width",
+          "JsonName": "width",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonTaggedImagesResponseResultsMedia",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MediaType",
+          "JsonName": "media_type",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonTvCreditsResponse",
+      "Fields": [
+        {
+          "Name": "Cast",
+          "JsonName": "cast",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonTvCreditsResponseCast"
+            }
+          }
+        },
+        {
+          "Name": "Crew",
+          "JsonName": "crew",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "PersonTvCreditsResponseCrew"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonTvCreditsResponseCast",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Character",
+          "JsonName": "character",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CreditId",
+          "JsonName": "credit_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EpisodeCount",
+          "JsonName": "episode_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "PersonTvCreditsResponseCrew",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "CreditId",
+          "JsonName": "credit_id",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Department",
+          "JsonName": "department",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EpisodeCount",
+          "JsonName": "episode_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Job",
+          "JsonName": "job",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TranslationsResponse",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Translations",
+          "JsonName": "translations",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "TranslationsResponseTranslations"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TranslationsResponseTranslations",
+      "Fields": [
+        {
+          "Name": "Data",
+          "JsonName": "data",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "TranslationsResponseTranslationsData"
+          }
+        },
+        {
+          "Name": "EnglishName",
+          "JsonName": "english_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso31661",
+          "JsonName": "iso_3166_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso6391",
+          "JsonName": "iso_639_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "TranslationsResponseTranslationsData",
+      "Fields": [
+        {
+          "Name": "Biography",
+          "JsonName": "biography",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

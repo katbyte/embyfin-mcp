@@ -288,3 +288,26 @@ func TestRenderRejects(t *testing.T) {
 		})
 	}
 }
+
+// TMDB is a hosted API: its client knows where it lives, and takes a read
+// access token or an API key.
+//
+//nolint:paralleltest // writes the testdata package the other test would remove
+func TestGenerateTMDBClient(t *testing.T) {
+	spec, err := openapi.Parse([]byte(`{"openapi": "3.1.0", "info": {"title": "tmdb-api", "version": "3"}, "paths": {
+    "/3/configuration": {"get": {"operationId": "configuration-details", "tags": ["Configuration"],
+      "responses": {"200": {"content": {"application/json": {"schema": {"type": "object", "properties": {"change_keys": {"type": "array", "items": {"type": "string"}}}}}}}}}}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := importer.FromSpec(config.Service{Name: "mini", Package: "mini", Naming: config.OperationIDNaming, Auth: "TMDB"}, spec, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := read(t, generateInModule(t, svc), "client.go")
+	for _, want := range []string{`const DefaultBaseURL = "https://api.themoviedb.org"`, "client.New(baseURL, client.TMDBToken(token))"} {
+		if !strings.Contains(client, want) {
+			t.Errorf("client.go has no %s:\n%s", want, client)
+		}
+	}
+}

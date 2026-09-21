@@ -120,6 +120,13 @@ func (im *importer) operation(namer *uniqueNamer, method, path string, op *opena
 		case openapi.InQuery:
 			in = definitions.InQuery
 		case openapi.InHeader:
+			// OpenAPI says a header parameter named Accept, Content-Type or
+			// Authorization is to be ignored: the body, the response and the
+			// credentials set those (TMDB declares Content-Type on its
+			// rating operations anyway)
+			if slices.ContainsFunc([]string{"Accept", "Content-Type", "Authorization"}, func(h string) bool { return strings.EqualFold(h, prm.Name) }) {
+				continue
+			}
 			in = definitions.InHeader
 		default:
 			continue
@@ -145,8 +152,16 @@ func (im *importer) operation(namer *uniqueNamer, method, path string, op *opena
 		o.Options = append(o.Options, opt)
 	}
 
-	o.Request = im.requestBody(method, path, op.RequestBody)
-	o.Response = im.responseBody(method, path, op)
+	// the owner the operation's inline request and response types are named
+	// after: the method itself where methods are named by operationId, since
+	// a path-built name (GetN3TvBySeriesIdSeasonBySeasonNumber) is what that
+	// naming is there to avoid
+	owner := pathMethodName(method, path)
+	if im.cfg.Naming == config.OperationIDNaming {
+		owner = o.Name
+	}
+	o.Request = im.requestBody(method, path, owner, op.RequestBody)
+	o.Response = im.responseBody(method, path, owner, op)
 	o.ExpectedStatusCodes = im.expectedStatusCodes(method, path, op)
 
 	return o
@@ -240,17 +255,18 @@ func pickJSON(content map[string]*openapi.MediaType) (string, bool) {
 	return "", false
 }
 
-func (im *importer) requestBody(method, path string, rb *openapi.RequestBody) *definitions.Body {
+func (im *importer) requestBody(method, path, owner string, rb *openapi.RequestBody) *definitions.Body {
 	if rb == nil || len(rb.Content) == 0 {
 		return nil
 	}
-	owner := pathMethodName(method, path)
 	if ct, ok := pickJSON(rb.Content); ok {
 		s := rb.Content[ct].Schema
 		switch {
 		case s == nil:
 			return &definitions.Body{ContentType: "application/json", Type: definitions.TypeRef{Type: definitions.RawObject}}
-		case s.Type == openapi.TypeArray, s.RefName() != "":
+		// an inline object with its fields declared (TMDB writes every body
+		// this way) is a model like any other
+		case s.Type == openapi.TypeArray, s.RefName() != "", s.Type == openapi.TypeObject && len(s.Properties) > 0:
 			return &definitions.Body{ContentType: "application/json", Type: im.typeRef(s, owner, "Request")}
 		default:
 			return &definitions.Body{ContentType: "application/json", Type: definitions.TypeRef{Type: definitions.RawObject}}
@@ -267,7 +283,7 @@ func (im *importer) requestBody(method, path string, rb *openapi.RequestBody) *d
 	return nil
 }
 
-func (im *importer) responseBody(method, path string, op *openapi.Operation) *definitions.Body {
+func (im *importer) responseBody(method, path, owner string, op *openapi.Operation) *definitions.Body {
 	for _, code := range openapi.SortedKeys(op.Responses) {
 		if !strings.HasPrefix(code, "2") {
 			continue
@@ -291,7 +307,7 @@ func (im *importer) responseBody(method, path string, op *openapi.Operation) *de
 			}
 			return &definitions.Body{ContentType: other, Type: definitions.TypeRef{Type: definitions.RawFile}}
 		}
-		return &definitions.Body{ContentType: "application/json", Type: im.responseType(resp.Content[jsonType].Schema, pathMethodName(method, path))}
+		return &definitions.Body{ContentType: "application/json", Type: im.responseType(resp.Content[jsonType].Schema, owner)}
 	}
 
 	if method == http.MethodGet {

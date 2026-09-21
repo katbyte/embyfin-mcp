@@ -85,7 +85,14 @@ type RequestBody struct {
 
 // MediaType is the schema of one media type of a body or response.
 type MediaType struct {
-	Schema *Schema `json:"schema"`
+	Schema   *Schema             `json:"schema"`
+	Examples map[string]*Example `json:"examples"`
+}
+
+// Example is one named example of a media type's content. TMDB's document
+// keeps the only true shape of its request bodies here.
+type Example struct {
+	Value json.RawMessage `json:"value"`
 }
 
 // Response is one status code of an operation. Ref is set when the response

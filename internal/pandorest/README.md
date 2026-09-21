@@ -1,17 +1,17 @@
 # pandorest
 
-pandorest generates the Emby and Jellyfin SDKs, `lib/emby` and `lib/jf`, from
-the servers' vendored OpenAPI documents.
+pandorest generates the Emby, Jellyfin and TMDB SDKs, `lib/emby`, `lib/jf` and
+`lib/tmdb`, from their vendored OpenAPI documents.
 
 Inspired by [Pandora](https://github.com/hashicorp/pandora), the
 [go-azure-sdk](https://github.com/hashicorp/go-azure-sdk) generator: the same
-importer, definitions, differ and generator pipeline, scaled down to two
+importer, definitions, differ and generator pipeline, scaled down to three
 documents:
 
 ```
-docs/emby-openapi.json ──┐                     ┌─ api-definitions/emby/*.json ──┐
-                         ├─ import ────────────┤                                ├─ generate ─ lib/emby, lib/jf
-docs/jellyfin-openapi.json┘  (workarounds)     └─ api-definitions/jellyfin/*.json┘
+docs/emby-openapi.json ────┐                   ┌─ api-definitions/emby/*.json ─────┐
+docs/jellyfin-openapi.json ├─ import ──────────┼─ api-definitions/jellyfin/*.json ─┼─ generate ─ lib/emby, lib/jf, lib/tmdb
+docs/tmdb-openapi.json ────┘  (workarounds)    └─ api-definitions/tmdb/*.json ─────┘
                                                           │
                                            diff ──────────┘  (what a refreshed spec changes)
 ```
@@ -33,7 +33,7 @@ for both documents.
 
 | Package | Pandora's | Does |
 |---|---|---|
-| `config` | `config/resource-manager.hcl` | the two services: spec, definitions and output paths, naming, authorizer |
+| `config` | `config/resource-manager.hcl` | the services: spec, definitions and output paths, naming, authorizer |
 | `openapi` | the swagger parser | decodes the subset of OpenAPI 3 the documents use, mutably |
 | `importer/workarounds` | `importer-rest-api-specs/components/dataworkarounds` | one named fix per document bug |
 | `importer` | `importer-rest-api-specs` | normalises a patched document into definitions, strictly |
@@ -46,20 +46,29 @@ for both documents.
 
 `import` loads each document, applies its workarounds, and normalises it:
 
-- **Names.** Jellyfin's operationIds are hand-written and unique, so methods
-  are named after them (`GetItems`, `GetSimilarItems`). Emby's are machine-made
-  and lossy (`getAudiocodecs`, and duplicates), so its methods are named after
-  the method and path: `GET /Items/{Id}/Similar` is `GetItemsByIdSimilar`.
-  Schema names lose their dots and underscores (`QueryResult_BaseItemDto` is
-  `QueryResultBaseItemDto`); fields keep the API's spelling (`Id`, `ImdbId`).
+- **Names.** Jellyfin's and TMDB's operationIds are hand-written and unique,
+  so methods are named after them (`GetItems`, `GetSimilarItems`; TMDB's
+  `movie-details` is `MovieDetails`). Emby's are machine-made and lossy
+  (`getAudiocodecs`, and duplicates), so its methods are named after the method
+  and path: `GET /Items/{Id}/Similar` is `GetItemsByIdSimilar`. Schema names
+  lose their dots and underscores (`QueryResult_BaseItemDto` is
+  `QueryResultBaseItemDto`); fields keep the API's spelling (`Id`, `ImdbId`),
+  and a field with a leading underscore beside its plain twin takes an
+  `Underscore` prefix (TMDB's `_id` beside `id` is `UnderscoreId`).
 - **Types.** `Integer` (int), `Integer64`, `Float`, `Double`, `String`,
   `Boolean`, `List`, `Dictionary`, `Reference` to a model or enum, `RawObject`
   for JSON of no declared shape (untyped objects, unions, "binary" JSON
   documents), `Any`, and `RawFile` for bodies that are not JSON. An inline
-  object becomes a model named after its owner and field.
+  object becomes a model named after its owner and field; an operation's
+  inline request and response are named after the operation, by its method
+  name where methods are named by operationId (TMDB, which declares no
+  shared schemas at all, answers `MovieDetails` with a
+  `MovieDetailsResponse`).
 - **Operations.** Path parameters in template order; query and header
   parameters as options, with lists comma-separated or one key per value as
-  the document says; the JSON request body or raw bytes; the success response
+  the document says, and a header named `Accept`, `Content-Type` or
+  `Authorization` ignored, as OpenAPI says; the JSON request body, a model
+  whether declared or inline, or raw bytes; the success response
   (JSON, a file, or nothing); `ExpectedStatusCodes` from the 2xx responses;
   and `Pageable` for a GET with `StartIndex` and `Limit` that answers `Items`
   and `TotalRecordCount`.
@@ -198,4 +207,4 @@ Resource ID types and parsers (the servers' ids are opaque strings), per-model
 predicates for `CompleteMatchingPredicate`, `Default<Name>OperationOptions`
 constructors (the zero value is the default), long-running operation pollers,
 API versions, the Terraform and documentation generators, and the data API
-server: two documents in one repository need none of it.
+server: three documents in one repository need none of it.

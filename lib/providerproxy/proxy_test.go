@@ -101,6 +101,39 @@ func TestReplayServesRecording(t *testing.T) {
 	}
 }
 
+// A client in the same process reaches the recordings through Transport,
+// trusting the proxy's own certificate rather than skipping the check.
+func TestTransportTrustsTheProxy(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeCassette(t, dir, cassette{
+		Host: "api.themoviedb.org",
+		Interactions: []*interaction{{
+			Key: "GET api.themoviedb.org/3/movie/550", Method: "GET", Host: "api.themoviedb.org", Path: "/3/movie/550",
+			Status: 200, Headers: map[string]string{"Content-Type": "application/json"}, Body: `{"id":550}`,
+		}},
+	})
+	p, err := New(Options{CassetteDir: dir, Addr: "127.0.0.1:0", Logger: log.New(io.Discard, "", 0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = p.Close() }()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://api.themoviedb.org/3/movie/550", http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := (&http.Client{Transport: p.Transport()}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if body, _ := io.ReadAll(resp.Body); resp.StatusCode != http.StatusOK || string(body) != `{"id":550}` {
+		t.Errorf("%d %s", resp.StatusCode, body)
+	}
+}
+
 // A request with no recording must fail loudly rather than look like an empty
 // but successful response, which would let a test pass for the wrong reason.
 func TestReplayMissIsLoud(t *testing.T) {

@@ -1,7 +1,9 @@
 package importer
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/internal/pandorest/definitions"
@@ -148,9 +150,25 @@ func (im *importer) addInlineModel(name string, s *openapi.Schema) {
 func (im *importer) objectModel(name, schemaName string, s *openapi.Schema) definitions.Model {
 	m := definitions.Model{Name: name, SchemaName: schemaName, Description: cleanText(s.Description)}
 	seen := map[string]string{}
-	for _, prop := range openapi.SortedKeys(s.Properties) {
+	// a property with a leading underscore goes last, so that beside its
+	// plain twin (TMDB's "_id" and "id") the plain one keeps the plain name
+	// and the other takes an Underscore prefix, rather than the plain one
+	// being dropped
+	underscored := func(p string) int {
+		if strings.HasPrefix(p, "_") {
+			return 1
+		}
+
+		return 0
+	}
+	props := openapi.SortedKeys(s.Properties)
+	slices.SortStableFunc(props, func(a, b string) int { return cmp.Compare(underscored(a), underscored(b)) })
+	for _, prop := range props {
 		ps := s.Properties[prop]
 		fname := fieldName(prop)
+		if _, taken := seen[fname]; taken && strings.HasPrefix(prop, "_") {
+			fname = "Underscore" + fname
+		}
 		if prev, ok := seen[fname]; ok {
 			im.warn(fmt.Sprintf("%s: properties %q and %q are both field %s; %q skipped", name, prev, prop, fname, prop))
 			continue

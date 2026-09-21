@@ -21,7 +21,7 @@ import (
 // checkMovieIDs asks TMDB about a film's ids and says what is wrong with
 // them, "" when nothing is. An IMDb id TMDB cannot place is not reported:
 // that is as likely TMDB lacking the film as the id being wrong.
-func checkMovieIDs(ctx context.Context, provider *tmdb.Client, tmdbID, imdbID string) (string, error) {
+func checkMovieIDs(ctx context.Context, provider *tmdb.Facts, tmdbID, imdbID string) (string, error) {
 	if tmdbID != "" {
 		m, err := provider.Movie(ctx, tmdbID)
 		switch {
@@ -44,10 +44,10 @@ func checkMovieIDs(ctx context.Context, provider *tmdb.Client, tmdbID, imdbID st
 		return "", nil
 	case len(f.Series) > 0:
 		s := f.Series[0]
-		return fmt.Sprintf("its IMDb id %s is a series, not a film: %s, TMDB tv %d", imdbID, s.Name, s.ID), nil
+		return fmt.Sprintf("its IMDb id %s is a series, not a film: %s, TMDB tv %d", imdbID, s.Name, s.Id), nil
 	case len(f.Episodes) > 0:
 		e := f.Episodes[0]
-		return fmt.Sprintf("its IMDb id %s is an episode, not a film: %q, S%02dE%02d of TMDB tv %d", imdbID, e.Name, e.Season, e.Episode, e.ShowID), nil
+		return fmt.Sprintf("its IMDb id %s is an episode, not a film: %q, S%02dE%02d of TMDB tv %d", imdbID, e.Name, e.SeasonNumber, e.EpisodeNumber, e.ShowId), nil
 	}
 
 	return "", nil
@@ -55,10 +55,7 @@ func checkMovieIDs(ctx context.Context, provider *tmdb.Client, tmdbID, imdbID st
 
 func registerMovieIDAudit(r *registry) {
 	client := r.client
-	var provider *tmdb.Client
-	if r.opts.TMDBKey != "" {
-		provider = tmdb.NewWithTransport(r.opts.TMDBKey, r.opts.ProviderTransport)
-	}
+	provider := tmdbFacts(r.opts)
 
 	type movieIDsIn struct {
 		Library    string `json:"library,omitempty"     jsonschema:"one library by name or id; default every library"`

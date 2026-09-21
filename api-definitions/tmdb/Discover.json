@@ -1,0 +1,918 @@
+{
+  "Name": "Discover",
+  "Tag": "Discover",
+  "Operations": [
+    {
+      "Name": "DiscoverMovie",
+      "OperationId": "discover-movie",
+      "Method": "GET",
+      "Path": "/3/discover/movie",
+      "Description": "Movie",
+      "Options": [
+        {
+          "Name": "certification",
+          "Field": "Certification",
+          "In": "Query",
+          "Description": "use in conjunction with `region`",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "certification.gte",
+          "Field": "CertificationGte",
+          "In": "Query",
+          "Description": "use in conjunction with `region`",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "certification.lte",
+          "Field": "CertificationLte",
+          "In": "Query",
+          "Description": "use in conjunction with `region`",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "certification_country",
+          "Field": "CertificationCountry",
+          "In": "Query",
+          "Description": "use in conjunction with the `certification`, `certification.gte` and `certification.lte` filters",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "include_adult",
+          "Field": "IncludeAdult",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "include_video",
+          "Field": "IncludeVideo",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "primary_release_year",
+          "Field": "PrimaryReleaseYear",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "primary_release_date.gte",
+          "Field": "PrimaryReleaseDateGte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "primary_release_date.lte",
+          "Field": "PrimaryReleaseDateLte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "region",
+          "Field": "Region",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "release_date.gte",
+          "Field": "ReleaseDateGte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "release_date.lte",
+          "Field": "ReleaseDateLte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "vote_average.gte",
+          "Field": "VoteAverageGte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "vote_average.lte",
+          "Field": "VoteAverageLte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "vote_count.gte",
+          "Field": "VoteCountGte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "vote_count.lte",
+          "Field": "VoteCountLte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "watch_region",
+          "Field": "WatchRegion",
+          "In": "Query",
+          "Description": "use in conjunction with `with_watch_monetization_types ` or `with_watch_providers `",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_cast",
+          "Field": "WithCast",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_companies",
+          "Field": "WithCompanies",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_crew",
+          "Field": "WithCrew",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_genres",
+          "Field": "WithGenres",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_keywords",
+          "Field": "WithKeywords",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_origin_country",
+          "Field": "WithOriginCountry",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_original_language",
+          "Field": "WithOriginalLanguage",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_people",
+          "Field": "WithPeople",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_release_type",
+          "Field": "WithReleaseType",
+          "In": "Query",
+          "Description": "possible values are: [1, 2, 3, 4, 5, 6] can be a comma (`AND`) or pipe (`OR`) separated query, can be used in conjunction with `region`",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "with_runtime.gte",
+          "Field": "WithRuntimeGte",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "with_runtime.lte",
+          "Field": "WithRuntimeLte",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "with_watch_monetization_types",
+          "Field": "WithWatchMonetizationTypes",
+          "In": "Query",
+          "Description": "possible values are: [flatrate, free, ads, rent, buy] use in conjunction with `watch_region`, can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_watch_providers",
+          "Field": "WithWatchProviders",
+          "In": "Query",
+          "Description": "use in conjunction with `watch_region`, can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_companies",
+          "Field": "WithoutCompanies",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_genres",
+          "Field": "WithoutGenres",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_keywords",
+          "Field": "WithoutKeywords",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_watch_providers",
+          "Field": "WithoutWatchProviders",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "year",
+          "Field": "Year",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DiscoverMovieResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "DiscoverTv",
+      "OperationId": "discover-tv",
+      "Method": "GET",
+      "Path": "/3/discover/tv",
+      "Description": "TV",
+      "Options": [
+        {
+          "Name": "air_date.gte",
+          "Field": "AirDateGte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "air_date.lte",
+          "Field": "AirDateLte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "first_air_date_year",
+          "Field": "FirstAirDateYear",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "first_air_date.gte",
+          "Field": "FirstAirDateGte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "first_air_date.lte",
+          "Field": "FirstAirDateLte",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "include_adult",
+          "Field": "IncludeAdult",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "include_null_first_air_dates",
+          "Field": "IncludeNullFirstAirDates",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "page",
+          "Field": "Page",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "screened_theatrically",
+          "Field": "ScreenedTheatrically",
+          "In": "Query",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "sort_by",
+          "Field": "SortBy",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "timezone",
+          "Field": "Timezone",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "vote_average.gte",
+          "Field": "VoteAverageGte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "vote_average.lte",
+          "Field": "VoteAverageLte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "vote_count.gte",
+          "Field": "VoteCountGte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "vote_count.lte",
+          "Field": "VoteCountLte",
+          "In": "Query",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "watch_region",
+          "Field": "WatchRegion",
+          "In": "Query",
+          "Description": "use in conjunction with `with_watch_monetization_types ` or `with_watch_providers `",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_companies",
+          "Field": "WithCompanies",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_genres",
+          "Field": "WithGenres",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_keywords",
+          "Field": "WithKeywords",
+          "In": "Query",
+          "Description": "can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_networks",
+          "Field": "WithNetworks",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "with_origin_country",
+          "Field": "WithOriginCountry",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_original_language",
+          "Field": "WithOriginalLanguage",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_runtime.gte",
+          "Field": "WithRuntimeGte",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "with_runtime.lte",
+          "Field": "WithRuntimeLte",
+          "In": "Query",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "with_status",
+          "Field": "WithStatus",
+          "In": "Query",
+          "Description": "possible values are: [0, 1, 2, 3, 4, 5], can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_watch_monetization_types",
+          "Field": "WithWatchMonetizationTypes",
+          "In": "Query",
+          "Description": "possible values are: [flatrate, free, ads, rent, buy] use in conjunction with `watch_region`, can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_watch_providers",
+          "Field": "WithWatchProviders",
+          "In": "Query",
+          "Description": "use in conjunction with `watch_region`, can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_companies",
+          "Field": "WithoutCompanies",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_genres",
+          "Field": "WithoutGenres",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_keywords",
+          "Field": "WithoutKeywords",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "without_watch_providers",
+          "Field": "WithoutWatchProviders",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "with_type",
+          "Field": "WithType",
+          "In": "Query",
+          "Description": "possible values are: [0, 1, 2, 3, 4, 5, 6], can be a comma (`AND`) or pipe (`OR`) separated query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "DiscoverTvResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "DiscoverMovieResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DiscoverMovieResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DiscoverMovieResponseResults",
+      "Fields": [
+        {
+          "Name": "Adult",
+          "JsonName": "adult",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ReleaseDate",
+          "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Video",
+          "JsonName": "video",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DiscoverTvResponse",
+      "Fields": [
+        {
+          "Name": "Page",
+          "JsonName": "page",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "DiscoverTvResponseResults"
+            }
+          }
+        },
+        {
+          "Name": "TotalPages",
+          "JsonName": "total_pages",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TotalResults",
+          "JsonName": "total_results",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "DiscoverTvResponseResults",
+      "Fields": [
+        {
+          "Name": "BackdropPath",
+          "JsonName": "backdrop_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "FirstAirDate",
+          "JsonName": "first_air_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "GenreIds",
+          "JsonName": "genre_ids",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Integer"
+            }
+          }
+        },
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginCountry",
+          "JsonName": "origin_country",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "String"
+            }
+          }
+        },
+        {
+          "Name": "OriginalLanguage",
+          "JsonName": "original_language",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "OriginalName",
+          "JsonName": "original_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Overview",
+          "JsonName": "overview",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Popularity",
+          "JsonName": "popularity",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "PosterPath",
+          "JsonName": "poster_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "VoteAverage",
+          "JsonName": "vote_average",
+          "Type": {
+            "Type": "Double"
+          }
+        },
+        {
+          "Name": "VoteCount",
+          "JsonName": "vote_count",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

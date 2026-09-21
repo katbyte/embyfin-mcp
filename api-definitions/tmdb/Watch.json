@@ -1,0 +1,1153 @@
+{
+  "Name": "Watch",
+  "Tag": "Watch",
+  "Operations": [
+    {
+      "Name": "WatchProviderTvList",
+      "OperationId": "watch-provider-tv-list",
+      "Method": "GET",
+      "Path": "/3/watch/providers/tv",
+      "Description": "TV Providers",
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "watch_region",
+          "Field": "WatchRegion",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "WatchProviderTvListResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "WatchProvidersAvailableRegions",
+      "OperationId": "watch-providers-available-regions",
+      "Method": "GET",
+      "Path": "/3/watch/providers/regions",
+      "Description": "Available Regions",
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "WatchProvidersAvailableRegionsResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "WatchProvidersMovieList",
+      "OperationId": "watch-providers-movie-list",
+      "Method": "GET",
+      "Path": "/3/watch/providers/movie",
+      "Description": "Movie Providers",
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "watch_region",
+          "Field": "WatchRegion",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "WatchProvidersMovieListResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "WatchProviderTvListResponse",
+      "Fields": [
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "WatchProviderTvListResponseResults"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WatchProviderTvListResponseResults",
+      "Fields": [
+        {
+          "Name": "DisplayPriorities",
+          "JsonName": "display_priorities",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "WatchProviderTvListResponseResultsDisplayPriorities"
+          }
+        },
+        {
+          "Name": "DisplayPriority",
+          "JsonName": "display_priority",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LogoPath",
+          "JsonName": "logo_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProviderId",
+          "JsonName": "provider_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "provider_name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WatchProviderTvListResponseResultsDisplayPriorities",
+      "Fields": [
+        {
+          "Name": "AE",
+          "JsonName": "AE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AR",
+          "JsonName": "AR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AT",
+          "JsonName": "AT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AU",
+          "JsonName": "AU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BE",
+          "JsonName": "BE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BG",
+          "JsonName": "BG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BO",
+          "JsonName": "BO",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BR",
+          "JsonName": "BR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CA",
+          "JsonName": "CA",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CH",
+          "JsonName": "CH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CL",
+          "JsonName": "CL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CO",
+          "JsonName": "CO",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CR",
+          "JsonName": "CR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CV",
+          "JsonName": "CV",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CZ",
+          "JsonName": "CZ",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "DE",
+          "JsonName": "DE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "DK",
+          "JsonName": "DK",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EC",
+          "JsonName": "EC",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EE",
+          "JsonName": "EE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EG",
+          "JsonName": "EG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ES",
+          "JsonName": "ES",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "FI",
+          "JsonName": "FI",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "FR",
+          "JsonName": "FR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GB",
+          "JsonName": "GB",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GH",
+          "JsonName": "GH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GR",
+          "JsonName": "GR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GT",
+          "JsonName": "GT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HK",
+          "JsonName": "HK",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HN",
+          "JsonName": "HN",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HU",
+          "JsonName": "HU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ID",
+          "JsonName": "ID",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IE",
+          "JsonName": "IE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IL",
+          "JsonName": "IL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IN",
+          "JsonName": "IN",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IT",
+          "JsonName": "IT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "JP",
+          "JsonName": "JP",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LT",
+          "JsonName": "LT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LV",
+          "JsonName": "LV",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MU",
+          "JsonName": "MU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MX",
+          "JsonName": "MX",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MY",
+          "JsonName": "MY",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MZ",
+          "JsonName": "MZ",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NL",
+          "JsonName": "NL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NO",
+          "JsonName": "NO",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NZ",
+          "JsonName": "NZ",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PE",
+          "JsonName": "PE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PH",
+          "JsonName": "PH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PL",
+          "JsonName": "PL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PT",
+          "JsonName": "PT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PY",
+          "JsonName": "PY",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "RU",
+          "JsonName": "RU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SA",
+          "JsonName": "SA",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SE",
+          "JsonName": "SE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SG",
+          "JsonName": "SG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SI",
+          "JsonName": "SI",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SK",
+          "JsonName": "SK",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TH",
+          "JsonName": "TH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TR",
+          "JsonName": "TR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TW",
+          "JsonName": "TW",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "UG",
+          "JsonName": "UG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "US",
+          "JsonName": "US",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "VE",
+          "JsonName": "VE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ZA",
+          "JsonName": "ZA",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WatchProvidersAvailableRegionsResponse",
+      "Fields": [
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "WatchProvidersAvailableRegionsResponseResults"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WatchProvidersAvailableRegionsResponseResults",
+      "Fields": [
+        {
+          "Name": "EnglishName",
+          "JsonName": "english_name",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Iso31661",
+          "JsonName": "iso_3166_1",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "NativeName",
+          "JsonName": "native_name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WatchProvidersMovieListResponse",
+      "Fields": [
+        {
+          "Name": "Results",
+          "JsonName": "results",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "WatchProvidersMovieListResponseResults"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WatchProvidersMovieListResponseResults",
+      "Fields": [
+        {
+          "Name": "DisplayPriorities",
+          "JsonName": "display_priorities",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "WatchProvidersMovieListResponseResultsDisplayPriorities"
+          }
+        },
+        {
+          "Name": "DisplayPriority",
+          "JsonName": "display_priority",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LogoPath",
+          "JsonName": "logo_path",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "ProviderId",
+          "JsonName": "provider_id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ProviderName",
+          "JsonName": "provider_name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "WatchProvidersMovieListResponseResultsDisplayPriorities",
+      "Fields": [
+        {
+          "Name": "AE",
+          "JsonName": "AE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AR",
+          "JsonName": "AR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AT",
+          "JsonName": "AT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "AU",
+          "JsonName": "AU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BE",
+          "JsonName": "BE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BG",
+          "JsonName": "BG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BO",
+          "JsonName": "BO",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "BR",
+          "JsonName": "BR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CA",
+          "JsonName": "CA",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CH",
+          "JsonName": "CH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CL",
+          "JsonName": "CL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CO",
+          "JsonName": "CO",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CR",
+          "JsonName": "CR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CV",
+          "JsonName": "CV",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "CZ",
+          "JsonName": "CZ",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "DE",
+          "JsonName": "DE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "DK",
+          "JsonName": "DK",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EC",
+          "JsonName": "EC",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EE",
+          "JsonName": "EE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "EG",
+          "JsonName": "EG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ES",
+          "JsonName": "ES",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "FI",
+          "JsonName": "FI",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "FR",
+          "JsonName": "FR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GB",
+          "JsonName": "GB",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GH",
+          "JsonName": "GH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GR",
+          "JsonName": "GR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "GT",
+          "JsonName": "GT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HK",
+          "JsonName": "HK",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HN",
+          "JsonName": "HN",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "HU",
+          "JsonName": "HU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ID",
+          "JsonName": "ID",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IE",
+          "JsonName": "IE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IL",
+          "JsonName": "IL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IN",
+          "JsonName": "IN",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "IT",
+          "JsonName": "IT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "JP",
+          "JsonName": "JP",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LT",
+          "JsonName": "LT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "LV",
+          "JsonName": "LV",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MU",
+          "JsonName": "MU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MX",
+          "JsonName": "MX",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MY",
+          "JsonName": "MY",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "MZ",
+          "JsonName": "MZ",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NL",
+          "JsonName": "NL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NO",
+          "JsonName": "NO",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "NZ",
+          "JsonName": "NZ",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PE",
+          "JsonName": "PE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PH",
+          "JsonName": "PH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PL",
+          "JsonName": "PL",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PT",
+          "JsonName": "PT",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "PY",
+          "JsonName": "PY",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "RU",
+          "JsonName": "RU",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SA",
+          "JsonName": "SA",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SE",
+          "JsonName": "SE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SG",
+          "JsonName": "SG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SI",
+          "JsonName": "SI",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "SK",
+          "JsonName": "SK",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TH",
+          "JsonName": "TH",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TR",
+          "JsonName": "TR",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "TW",
+          "JsonName": "TW",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "UG",
+          "JsonName": "UG",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "US",
+          "JsonName": "US",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "VE",
+          "JsonName": "VE",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "ZA",
+          "JsonName": "ZA",
+          "Type": {
+            "Type": "Integer"
+          }
+        }
+      ]
+    }
+  ]
+}

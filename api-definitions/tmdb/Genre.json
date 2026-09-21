@@ -1,0 +1,132 @@
+{
+  "Name": "Genre",
+  "Tag": "Genre",
+  "Operations": [
+    {
+      "Name": "GenreMovieList",
+      "OperationId": "genre-movie-list",
+      "Method": "GET",
+      "Path": "/3/genre/movie/list",
+      "Description": "Movie List",
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GenreMovieListResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    },
+    {
+      "Name": "GenreTvList",
+      "OperationId": "genre-tv-list",
+      "Method": "GET",
+      "Path": "/3/genre/tv/list",
+      "Description": "TV List",
+      "Options": [
+        {
+          "Name": "language",
+          "Field": "Language",
+          "In": "Query",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
+      "Response": {
+        "ContentType": "application/json",
+        "Type": {
+          "Type": "Reference",
+          "ReferenceName": "GenreTvListResponse"
+        }
+      },
+      "ExpectedStatusCodes": [
+        200
+      ]
+    }
+  ],
+  "Models": [
+    {
+      "Name": "GenreMovieListResponse",
+      "Fields": [
+        {
+          "Name": "Genres",
+          "JsonName": "genres",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GenreMovieListResponseGenres"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GenreMovieListResponseGenres",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GenreTvListResponse",
+      "Fields": [
+        {
+          "Name": "Genres",
+          "JsonName": "genres",
+          "Type": {
+            "Type": "List",
+            "NestedItem": {
+              "Type": "Reference",
+              "ReferenceName": "GenreTvListResponseGenres"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "Name": "GenreTvListResponseGenres",
+      "Fields": [
+        {
+          "Name": "Id",
+          "JsonName": "id",
+          "Type": {
+            "Type": "Integer"
+          }
+        },
+        {
+          "Name": "Name",
+          "JsonName": "name",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ]
+    }
+  ]
+}
