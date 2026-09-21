@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
@@ -25,7 +26,9 @@ type FlagData struct {
 	Listen       string   `mapstructure:"listen"`
 	AuthToken    string   `mapstructure:"auth-token"`
 	AllowNoAuth  bool     `mapstructure:"allow-no-auth"`
+	TMDBToken    string   `mapstructure:"tmdb-token"`
 	TMDBKey      string   `mapstructure:"tmdb-key"`
+	AnimeList    string   `mapstructure:"anime-list"`
 }
 
 func configureFlags(root *cobra.Command) error {
@@ -42,7 +45,9 @@ func configureFlags(root *cobra.Command) error {
 	pflags.String("listen", "", "serve MCP over HTTP on this address (e.g. :8080) instead of stdio")
 	pflags.String("auth-token", "", "bearer token required on the HTTP endpoint (consider exporting to EMBYFIN_AUTH_TOKEN instead)")
 	pflags.Bool("allow-no-auth", false, "serve HTTP with no bearer token: anyone who can reach the port can use every tool")
-	pflags.String("tmdb-key", "", "TMDB API key or read access token, enables the provider-backed audits and show_missing's fallback (consider exporting to EMBYFIN_TMDB_KEY instead)")
+	pflags.String("tmdb-token", "", "TMDB API Read Access Token, or the older API Key, enables the provider-backed audits and show_missing's fallback (consider exporting to EMBYFIN_TMDB_TOKEN instead)")
+	pflags.String("tmdb-key", "", "the same as --tmdb-token, by its older name")
+	pflags.String("anime-list", "", "where audit_anime_ids reads the Anime-Lists mapping from: a URL or a file (default the list on GitHub)")
 
 	// binding map for viper/pflag -> env
 	m := map[string]string{ //nolint:gosec // G101: these are env var names, not credentials
@@ -57,7 +62,9 @@ func configureFlags(root *cobra.Command) error {
 		"listen":        "EMBYFIN_LISTEN",
 		"auth-token":    "EMBYFIN_AUTH_TOKEN",
 		"allow-no-auth": "EMBYFIN_ALLOW_NO_AUTH",
+		"tmdb-token":    "EMBYFIN_TMDB_TOKEN",
 		"tmdb-key":      "EMBYFIN_TMDB_KEY",
+		"anime-list":    "EMBYFIN_ANIME_LIST",
 	}
 
 	for name, env := range m {
@@ -84,6 +91,16 @@ func configureFlags(root *cobra.Command) error {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); !ok {
 			clog.Log.Errorf("Error reading config file: %v", err)
+		}
+	}
+
+	// a config file spells a setting the way the environment does, less
+	// the prefix - TMDB_TOKEN for --tmdb-token - and viper only matches a key
+	// spelled as the flag is, so every two-word setting was ignored. Carried
+	// across as defaults, they still lose to a flag or the environment.
+	for name := range m {
+		if alt := strings.ReplaceAll(name, "-", "_"); alt != name && viper.InConfig(alt) {
+			viper.SetDefault(name, viper.Get(alt))
 		}
 	}
 
@@ -127,6 +144,7 @@ func (f *FlagData) ToolOptions() tools.Options {
 		Toolsets:     sets,
 		Allow:        f.AllowTools,
 		Deny:         f.DenyTools,
-		TMDBKey:      f.TMDBKey,
+		TMDBKey:      cmp.Or(f.TMDBToken, f.TMDBKey),
+		AnimeList:    f.AnimeList,
 	}
 }

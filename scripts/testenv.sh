@@ -394,6 +394,11 @@ fixtures() {
   video "${DATA}/media/disc-src/00000.m2ts" 1 320x180
   video "${DATA}/media/disc-src/00001.m2ts" 1 320x180
 
+  # a special long enough to be one, outside every library: the anime audit
+  # takes anything under three minutes among a show's specials for an
+  # opening or a trailer, and its live test copies this into a show it stages
+  video "${DATA}/media/anime-src/special.mp4" 200 160x90
+
   # the messy movies
   m="${DATA}/media/messy-movies"
   video "${m}/Princess Mononoke (1997)/Princess Mononoke (1997).mp4" 1 640x360 mpeg4 jpn

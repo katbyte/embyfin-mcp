@@ -91,6 +91,43 @@ func TestEnvironmentOverridesConfigFile(t *testing.T) {
 	}
 }
 
+// A config file names a setting the way the environment does, less the
+// prefix: TMDB_TOKEN for --tmdb-token. viper matched a file's keys against
+// the flags' own spelling, so every two-word setting in a file was ignored
+// without a word.
+func TestConfigFileTwoWordKeys(t *testing.T) {
+	home := t.TempDir()
+	write(t, home, "SERVER=http://from-home\nTMDB_TOKEN=from-home\nREAD_ONLY=true\nDENY_TOOLS=item_delete\n")
+
+	f := load(t, home, t.TempDir())
+	if f.ToolOptions().TMDBKey != "from-home" || !f.ReadOnly || len(f.DenyTools) != 1 || f.DenyTools[0] != "item_delete" {
+		t.Errorf("tmdb token %q, read only %v, deny %v: want each from the file", f.TMDBToken, f.ReadOnly, f.DenyTools)
+	}
+
+	// and the environment still beats the file
+	t.Setenv("EMBYFIN_TMDB_TOKEN", "from-env")
+	if got := load(t, home, t.TempDir()).ToolOptions().TMDBKey; got != "from-env" {
+		t.Errorf("tmdb token = %q, want the environment", got)
+	}
+}
+
+// TMDB calls its credential a read access token, so the setting is named for
+// that; its older name still works, and the new one wins where both are set.
+//
+//nolint:paralleltest // viper is global state; these mutate it
+func TestTMDBTokenAndItsOlderName(t *testing.T) {
+	home := t.TempDir()
+
+	write(t, home, "TMDB_KEY=older\n")
+	if got := load(t, home, t.TempDir()).ToolOptions().TMDBKey; got != "older" {
+		t.Errorf("TMDB_KEY alone = %q", got)
+	}
+	write(t, home, "TMDB_KEY=older\nTMDB_TOKEN=newer\n")
+	if got := load(t, home, t.TempDir()).ToolOptions().TMDBKey; got != "newer" {
+		t.Errorf("both = %q, want the token", got)
+	}
+}
+
 // Every documented EMBYFIN_* variable has to actually reach its field; a
 // typo in the binding map is invisible until someone sets the variable and
 // nothing happens.
@@ -110,7 +147,9 @@ func TestEnvironmentBindings(t *testing.T) {
 		{"EMBYFIN_LISTEN", ":8080", func(f *FlagData) bool { return f.Listen == ":8080" }},
 		{"EMBYFIN_AUTH_TOKEN", "bearer", func(f *FlagData) bool { return f.AuthToken == "bearer" }},
 		{"EMBYFIN_ALLOW_NO_AUTH", on, func(f *FlagData) bool { return f.AllowNoAuth }},
-		{"EMBYFIN_TMDB_KEY", "tmdb", func(f *FlagData) bool { return f.TMDBKey == "tmdb" }},
+		{"EMBYFIN_TMDB_TOKEN", "token", func(f *FlagData) bool { return f.TMDBToken == "token" }},
+		{"EMBYFIN_TMDB_KEY", "key", func(f *FlagData) bool { return f.TMDBKey == "key" }},
+		{"EMBYFIN_ANIME_LIST", "/lists/anime.xml", func(f *FlagData) bool { return f.AnimeList == "/lists/anime.xml" }},
 		{"EMBYFIN_TOOLSETS", "curation", func(f *FlagData) bool { return len(f.Toolsets) == 1 && f.Toolsets[0] == "curation" }},
 		{"EMBYFIN_ALLOW_TOOLS", testTool, func(f *FlagData) bool { return len(f.AllowTools) == 1 && f.AllowTools[0] == testTool }},
 		{"EMBYFIN_DENY_TOOLS", "*_delete", func(f *FlagData) bool { return len(f.DenyTools) == 1 && f.DenyTools[0] == "*_delete" }},

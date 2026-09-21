@@ -326,7 +326,7 @@ func TestAuditRuntimeMoviesNeedsAKey(t *testing.T) {
 	if !res.IsError {
 		t.Fatal("movie mode ran without a TMDB key")
 	}
-	if tc, ok := res.Content[0].(*mcp.TextContent); !ok || !strings.Contains(tc.Text, "EMBYFIN_TMDB_KEY") {
+	if tc, ok := res.Content[0].(*mcp.TextContent); !ok || !strings.Contains(tc.Text, "EMBYFIN_TMDB_TOKEN") {
 		t.Errorf("the refusal does not say how to fix it: %v", res.Content)
 	}
 

@@ -167,7 +167,7 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 	// the server knows of no episode it has no file for, which on Emby 4.10
 	// and on stock Jellyfin it never does: read the run from the provider
 	if guide == nil {
-		out.Reason = "the server keeps no record of an episode it has no file for (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 no longer imports them), and no metadata provider is configured to be asked instead: set EMBYFIN_TMDB_KEY (or --tmdb-key) and restart."
+		out.Reason = "the server keeps no record of an episode it has no file for (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 no longer imports them), and no metadata provider is configured to be asked instead: set EMBYFIN_TMDB_TOKEN (or --tmdb-token) and restart."
 
 		return out, nil
 	}
@@ -428,7 +428,7 @@ func registerShowTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "show_missing",
-		Description: "Episodes a series has no file for. The run comes from the server's own records when it keeps them (stock Jellyfin needs the TheTVDB plugin and Emby 4.10 no longer imports them), else from TMDB read by the series' metadata provider id when EMBYFIN_TMDB_KEY is set. " +
+		Description: "Episodes a series has no file for. The run comes from the server's own records when it keeps them (stock Jellyfin needs the TheTVDB plugin and Emby 4.10 no longer imports them), else from TMDB read by the series' metadata provider id when EMBYFIN_TMDB_TOKEN is set. " +
 			"Read 'supported' before 'missing': when it is false the run could not be established at all and 'missing' is null, which is unknown rather than complete. 'gaps_on_disk' is given either way and is weaker: it can only see episodes skipped between the files, never ones after the last episode held.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in missingIn) (*mcp.CallToolResult, missingOut, error) {
 		out, err := showMissing(ctx, client, guide, in.SeriesID, in.Unaired)

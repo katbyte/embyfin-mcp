@@ -36,4 +36,4 @@ services:
       # - "EMBYFIN_TOOLSETS=curation"  # the audits and everything that fixes what they find; default core
       # - "EMBYFIN_READ_ONLY=true"     # only register tools that never change server state
       # - "EMBYFIN_ENABLE_DELETE=true" # opt in to item_delete and library_delete
-      # - "EMBYFIN_TMDB_KEY=..."       # or in .env: enables audit_runtime for movies
+      # - "EMBYFIN_TMDB_TOKEN=..."       # or in .env: enables audit_runtime for movies

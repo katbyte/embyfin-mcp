@@ -494,7 +494,7 @@ func TestShowMissingUnanswerableIsNotEmpty(t *testing.T) {
 		t.Errorf("source = %v, want %s", out["source"], sourceNone)
 	}
 	reason := text(out["reason"])
-	if !strings.Contains(reason, "EMBYFIN_TMDB_KEY") {
+	if !strings.Contains(reason, "EMBYFIN_TMDB_TOKEN") {
 		t.Errorf("the reason does not say what would make the answer knowable: %q", reason)
 	}
 }

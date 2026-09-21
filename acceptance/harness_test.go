@@ -8,6 +8,7 @@
 package acceptance
 
 import (
+	"cmp"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -397,12 +398,16 @@ func providerTransport() (http.RoundTripper, error) {
 // tmdbKey is what audit_runtime uses for movies. Recording needs a real one;
 // replay matches with any, because the proxy redacts api_key.
 func tmdbKey() string {
-	if k := os.Getenv("EMBYFIN_TMDB_KEY"); k != "" {
+	if k := cmp.Or(os.Getenv("EMBYFIN_TMDB_TOKEN"), os.Getenv("EMBYFIN_TMDB_KEY")); k != "" {
 		return k
 	}
 
 	return "replay"
 }
+
+// animeList is the list audit_anime_ids reads here: a few invented entries
+// in Anime-Lists' shape, so the suite never fetches the real one.
+var animeList = filepath.Join("testdata", "anime-list.xml")
 
 func start() error {
 	client, err := embyfin.New(backend, os.Getenv("EMBYFIN_SERVER"), os.Getenv("EMBYFIN_TOKEN"))
@@ -416,7 +421,7 @@ func start() error {
 
 	ctx = context.Background()
 	srv := mcp.NewServer(&mcp.Implementation{Name: "embyfin-mcp", Version: "test"}, nil)
-	if _, err := tools.RegisterAll(srv, client, tools.Options{EnableDelete: true, TMDBKey: tmdbKey(), ProviderTransport: rt}); err != nil {
+	if _, err := tools.RegisterAll(srv, client, tools.Options{EnableDelete: true, TMDBKey: tmdbKey(), ProviderTransport: rt, AnimeList: animeList}); err != nil {
 		return err
 	}
 	st, ct := mcp.NewInMemoryTransports()

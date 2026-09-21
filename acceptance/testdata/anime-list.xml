@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A few invented entries in the shape Anime-Lists publishes, for audit_anime_ids' live test. -->
+<anime-list>
+  <anime anidbid="9101" tvdbid="71001" defaulttvdbseason="1" episodeoffset="" tmdbtv="81001" tmdbseason="1" tmdboffset="" tmdbid="" imdbid="">
+    <name>Zzyzx Senki</name>
+  </anime>
+  <anime anidbid="9102" tvdbid="71001" defaulttvdbseason="0" episodeoffset="" tmdbtv="81001" tmdbseason="0" tmdboffset="2" tmdbid="" imdbid="">
+    <name>Zzyzx Senki OVA</name>
+    <mapping-list>
+      <mapping anidbseason="1" tvdbseason="0">;1-3;2-4;</mapping>
+    </mapping-list>
+  </anime>
+  <anime anidbid="9104" tvdbid="72001" defaulttvdbseason="0" episodeoffset="" tmdbtv="82001" tmdbseason="0" tmdboffset="" tmdbid="" imdbid="">
+    <name>Zzyzx Gaiden</name>
+  </anime>
+  <anime anidbid="9105" tvdbid="73001" defaulttvdbseason="0" episodeoffset="" tmdbtv="83001" tmdbseason="0" tmdboffset="" tmdbid="" imdbid="">
+    <name>Zzyzx Tokubetsu-hen</name>
+  </anime>
+</anime-list>

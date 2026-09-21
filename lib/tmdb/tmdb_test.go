@@ -110,7 +110,7 @@ func TestErrorsNameTheKey(t *testing.T) {
 	c, _ := newTMDB(t, func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "nope", http.StatusUnauthorized)
 	})
-	if _, err := c.MovieRuntime(t.Context(), "1"); err == nil || !contains(err.Error(), "EMBYFIN_TMDB_KEY") {
+	if _, err := c.MovieRuntime(t.Context(), "1"); err == nil || !contains(err.Error(), "EMBYFIN_TMDB_TOKEN") {
 		t.Errorf("a 401 should say which key to check: %v", err)
 	}
 
@@ -252,5 +252,78 @@ func TestSeriesID(t *testing.T) {
 	id, err := c.SeriesID(t.Context(), "imdb_id", "tt0000000")
 	if err != nil || id != "" {
 		t.Errorf("unplaceable id = %q, %v", id, err)
+	}
+}
+
+// A film's facts come in the one request the runtime already makes, so the
+// two share it.
+func TestMovie(t *testing.T) {
+	t.Parallel()
+
+	c, calls := newTMDB(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/3/movie/348" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":348,"title":"Alien","release_date":"1979-05-25","runtime":117,"imdb_id":"tt0078748"}`))
+	})
+
+	m, err := c.Movie(t.Context(), "348")
+	if err != nil || m.ID != 348 || m.Title != "Alien" || m.Year() != 1979 || m.IMDbID != "tt0078748" {
+		t.Fatalf("movie = %+v, %v", m, err)
+	}
+	if minutes, err := c.MovieRuntime(t.Context(), "348"); err != nil || minutes != 117 {
+		t.Errorf("runtime = %d, %v", minutes, err)
+	}
+	if n := atomic.LoadInt32(calls); n != 1 {
+		t.Errorf("TMDB was asked %d times for one film, want 1", n)
+	}
+
+	// an id TMDB does not know is a film with no id, not an error
+	if m, err := c.Movie(t.Context(), "999999"); err != nil || m.ID != 0 || m.Year() != 0 {
+		t.Errorf("unknown film = %+v, %v", m, err)
+	}
+}
+
+// An IMDb id can name a film, a series or an episode, and TMDB says which.
+func TestFind(t *testing.T) {
+	t.Parallel()
+
+	c, calls := newTMDB(t, func(w http.ResponseWriter, r *http.Request) {
+		if src := r.URL.Query().Get("external_source"); src != "imdb_id" {
+			http.Error(w, "external_source = "+src, http.StatusBadRequest)
+			return
+		}
+		switch r.URL.Path {
+		case "/3/find/tt9000001":
+			_, _ = w.Write([]byte(`{"movie_results":[{"id":9001,"title":"Zzyzx","release_date":"2001-01-01"}],"tv_results":[],"tv_episode_results":[]}`))
+		case "/3/find/tt9000002":
+			_, _ = w.Write([]byte(`{"movie_results":[],"tv_results":[{"id":9002,"name":"Zzyzx Show","first_air_date":"2014-01-19"}],"tv_episode_results":[]}`))
+		case "/3/find/tt9000003":
+			_, _ = w.Write([]byte(`{"movie_results":[],"tv_results":[],"tv_episode_results":[{"id":99,"name":"Episode 21","show_id":9003,"season_number":1,"episode_number":21}]}`))
+		default:
+			_, _ = w.Write([]byte(`{"movie_results":[],"tv_results":[],"tv_episode_results":[]}`))
+		}
+	})
+	ctx := t.Context()
+
+	if f, err := c.Find(ctx, "imdb_id", "tt9000001"); err != nil || len(f.Movies) != 1 || f.Movies[0].ID != 9001 || len(f.Series) != 0 {
+		t.Errorf("a film = %+v, %v", f, err)
+	}
+	if f, err := c.Find(ctx, "imdb_id", "tt9000002"); err != nil || len(f.Series) != 1 || f.Series[0].Name != "Zzyzx Show" {
+		t.Errorf("a series = %+v, %v", f, err)
+	}
+	if f, err := c.Find(ctx, "imdb_id", "tt9000003"); err != nil || len(f.Episodes) != 1 || f.Episodes[0].ShowID != 9003 || f.Episodes[0].Episode != 21 {
+		t.Errorf("an episode = %+v, %v", f, err)
+	}
+	if f, err := c.Find(ctx, "imdb_id", "tt0000000"); err != nil || len(f.Movies)+len(f.Series)+len(f.Episodes) != 0 {
+		t.Errorf("nothing = %+v, %v", f, err)
+	}
+	// SeriesID answers from the same lookup
+	if id, err := c.SeriesID(ctx, "imdb_id", "tt9000002"); err != nil || id != "9002" {
+		t.Errorf("series id = %q, %v", id, err)
+	}
+	if n := atomic.LoadInt32(calls); n != 4 {
+		t.Errorf("TMDB was asked %d times, want once per id", n)
 	}
 }

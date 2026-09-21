@@ -22,10 +22,10 @@ type Client struct {
 	key  string
 	http *http.Client
 
-	mu      sync.Mutex
-	runtime map[string]int       // tmdb movie id -> minutes (0 = unknown), memoised per process
-	guides  map[string][]Episode // tmdb series id -> its episodes, memoised per process
-	series  map[string]string    // "<source>:<id>" -> tmdb series id ("" = TMDB cannot place it)
+	mu     sync.Mutex
+	movies map[string]Movie     // tmdb movie id -> the film (ID 0 = unknown), memoised per process
+	guides map[string][]Episode // tmdb series id -> its episodes, memoised per process
+	found  map[string]Found     // "<source>:<id>" -> what TMDB holds under it, memoised per process
 }
 
 // New returns a client; key may be a v3 API key or a v4 read access token (JWT).
@@ -38,36 +38,58 @@ func New(key string) *Client {
 // transport.
 func NewWithTransport(key string, rt http.RoundTripper) *Client {
 	return &Client{
-		key:     key,
-		http:    &http.Client{Timeout: 15 * time.Second, Transport: rt},
-		runtime: map[string]int{},
-		guides:  map[string][]Episode{},
-		series:  map[string]string{},
+		key:    key,
+		http:   &http.Client{Timeout: 15 * time.Second, Transport: rt},
+		movies: map[string]Movie{},
+		guides: map[string][]Episode{},
+		found:  map[string]Found{},
 	}
+}
+
+// Movie is what TMDB holds for a film: enough to tell whether a library's
+// ids for it agree, and how long it runs.
+type Movie struct {
+	ID          int    `json:"id"`
+	Title       string `json:"title"`
+	ReleaseDate string `json:"release_date"`
+	Runtime     int    `json:"runtime"` // minutes, 0 when TMDB has none
+	IMDbID      string `json:"imdb_id"`
+}
+
+// Year is the year TMDB dates the film to, 0 when it has no date.
+func (m Movie) Year() int {
+	year, _ := strconv.Atoi(m.ReleaseDate[:min(len(m.ReleaseDate), 4)])
+
+	return year
+}
+
+// Movie returns TMDB's film for a movie id; its ID is 0 when TMDB does not
+// know the id.
+func (c *Client) Movie(ctx context.Context, id string) (Movie, error) {
+	c.mu.Lock()
+	m, ok := c.movies[id]
+	c.mu.Unlock()
+	if ok {
+		return m, nil
+	}
+
+	if err := c.get(ctx, "/movie/"+url.PathEscape(id), &m); err != nil {
+		return Movie{}, err
+	}
+
+	c.mu.Lock()
+	c.movies[id] = m
+	c.mu.Unlock()
+
+	return m, nil
 }
 
 // MovieRuntime returns TMDB's runtime in minutes for a movie id, or 0 when
 // TMDB does not know the film or has no runtime for it.
 func (c *Client) MovieRuntime(ctx context.Context, id string) (int, error) {
-	c.mu.Lock()
-	minutes, ok := c.runtime[id]
-	c.mu.Unlock()
-	if ok {
-		return minutes, nil
-	}
+	m, err := c.Movie(ctx, id)
 
-	var out struct {
-		Runtime int `json:"runtime"`
-	}
-	if err := c.get(ctx, "/movie/"+url.PathEscape(id), &out); err != nil {
-		return 0, err
-	}
-
-	c.mu.Lock()
-	c.runtime[id] = out.Runtime
-	c.mu.Unlock()
-
-	return out.Runtime, nil
+	return m.Runtime, err
 }
 
 func (c *Client) get(ctx context.Context, p string, into any) error {
@@ -103,7 +125,7 @@ func (c *Client) getQuery(ctx context.Context, p string, q url.Values, into any)
 	case resp.StatusCode == http.StatusNotFound:
 		return nil // unknown id: leave the zero value
 	case resp.StatusCode == http.StatusUnauthorized:
-		return fmt.Errorf("tmdb GET %s: HTTP 401 (check EMBYFIN_TMDB_KEY)", p)
+		return fmt.Errorf("tmdb GET %s: HTTP 401 (check EMBYFIN_TMDB_TOKEN)", p)
 	case resp.StatusCode >= 300:
 		return fmt.Errorf("tmdb GET %s: HTTP %d", p, resp.StatusCode)
 	}
@@ -175,34 +197,60 @@ func (c *Client) SeriesEpisodes(ctx context.Context, id string) ([]Episode, erro
 	return out, nil
 }
 
+// Found is what TMDB holds under another provider's id: the films, series
+// and episodes it names. An IMDb id is any of the three, which is how a film
+// matched to a series' or an episode's id shows itself.
+type Found struct {
+	Movies []struct {
+		ID          int    `json:"id"`
+		Title       string `json:"title"`
+		ReleaseDate string `json:"release_date"`
+	} `json:"movie_results"`
+	Series []struct {
+		ID           int    `json:"id"`
+		Name         string `json:"name"`
+		FirstAirDate string `json:"first_air_date"`
+	} `json:"tv_results"`
+	Episodes []struct {
+		ID      int    `json:"id"`
+		Name    string `json:"name"`
+		ShowID  int    `json:"show_id"`
+		Season  int    `json:"season_number"`
+		Episode int    `json:"episode_number"`
+	} `json:"tv_episode_results"`
+}
+
+// Find returns what TMDB holds under another provider's id: source is a
+// TMDB external source (imdb_id, tvdb_id). Nothing found is an empty Found,
+// not an error.
+func (c *Client) Find(ctx context.Context, source, id string) (Found, error) {
+	memo := source + ":" + id
+	c.mu.Lock()
+	f, ok := c.found[memo]
+	c.mu.Unlock()
+	if ok {
+		return f, nil
+	}
+
+	if err := c.getQuery(ctx, "/find/"+url.PathEscape(id), url.Values{"external_source": {source}}, &f); err != nil {
+		return Found{}, err
+	}
+
+	c.mu.Lock()
+	c.found[memo] = f
+	c.mu.Unlock()
+
+	return f, nil
+}
+
 // SeriesID is the TMDB series id for a series known by another provider's
 // id: source is a TMDB external source (tvdb_id, imdb_id). It returns "" for
 // an id TMDB cannot place.
 func (c *Client) SeriesID(ctx context.Context, source, id string) (string, error) {
-	memo := source + ":" + id
-	c.mu.Lock()
-	found, ok := c.series[memo]
-	c.mu.Unlock()
-	if ok {
-		return found, nil
-	}
-
-	var out struct {
-		TV []struct {
-			ID int `json:"id"`
-		} `json:"tv_results"`
-	}
-	if err := c.getQuery(ctx, "/find/"+url.PathEscape(id), url.Values{"external_source": {source}}, &out); err != nil {
+	f, err := c.Find(ctx, source, id)
+	if err != nil || len(f.Series) == 0 {
 		return "", err
 	}
-	found = ""
-	if len(out.TV) > 0 {
-		found = strconv.Itoa(out.TV[0].ID)
-	}
 
-	c.mu.Lock()
-	c.series[memo] = found
-	c.mu.Unlock()
-
-	return found, nil
+	return strconv.Itoa(f.Series[0].ID), nil
 }

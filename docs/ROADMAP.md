@@ -24,7 +24,7 @@ Design rules, in priority order:
 | Area | Tools | Answers |
 |---|---|---|
 | know the library | `server_info`, `library_list`, `library_get`, `library_search`, `library_items`, `library_filters`, `library_recent`, `library_genres`, `library_people`, `person_get`, `item_get`, `item_find_by_metadata_id`, `item_similar`, `show_seasons`, `show_episodes`, `show_episodes_exist`, `show_missing`, `show_resolve`, `library_episodes` | "what do I have, and what shape is it in" |
-| curation | `audit_all` + 16 audits, `quality_compare`, `item_identify` → `item_identify_apply`, `item_refresh`, `item_edit`, `item_batch_edit`, `metadata_rename`, `item_artwork` → `item_artwork_set`, `item_subtitle_search` → `item_subtitle_download` | "what is wrong, and fix it" |
+| curation | `audit_all` + 18 audits, `quality_compare`, `item_identify` → `item_identify_apply`, `item_refresh`, `item_edit`, `item_batch_edit`, `metadata_rename`, `item_artwork` → `item_artwork_set`, `item_subtitle_search` → `item_subtitle_download` | "what is wrong, and fix it" |
 | watching | `user_list`, `user_get`, `user_history`, `user_next_up`, `user_in_progress`, `user_favourites`, `user_stats`, `item_last_watched`, `item_watch_history`, `item_set_watched`, `item_set_progress`, `item_set_favourite`, `item_instant_mix` | "who watched what, what is next" |
 | organise | `collection_*`, `playlist_*` (create, edit, add, remove, delete) | "group these" |
 | remote | `session_list`, `session_play`, `session_command`, `session_message` | "play Dune on the living-room TV" |

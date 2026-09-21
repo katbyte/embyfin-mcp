@@ -45,6 +45,9 @@ type Options struct {
 	// audit_runtime for movies, and show_missing's fallback for a server that
 	// keeps no record of a series' run. Empty disables them.
 	TMDBKey string
+	// AnimeList is where audit_anime_ids reads the Anime-Lists mapping: a
+	// URL, or a file on disk. Empty is the list its maintainers publish.
+	AnimeList string
 	// ProviderTransport, when set, carries the calls embyfin-mcp itself
 	// makes to metadata providers (TMDB). The tests point it at a
 	// record/replay proxy; nil is the default transport.
@@ -79,7 +82,7 @@ var Toolsets = map[string][]string{
 	"curation": {
 		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
 		"audit_year_mismatch", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_titles", "audit_title_mismatch", "audit_duplicate_series_folders", "audit_disc_folders", "quality_compare", "plan_check",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_titles", "audit_title_mismatch", "audit_duplicate_series_folders", "audit_disc_folders", "audit_anime_ids", "audit_movie_ids", "quality_compare", "plan_check",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "item_batch_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes", "show_episodes_exist", "show_missing", "show_resolve",
@@ -252,6 +255,8 @@ func queueTools(r *registry) {
 	registerTitleMismatchAudit(r)
 	registerFolderAudit(r)
 	registerDiscAudit(r)
+	registerAnimeAudit(r)
+	registerMovieIDAudit(r)
 	registerPlanTools(r)
 	registerOrphanTools(r)
 	registerSpellingTools(r)

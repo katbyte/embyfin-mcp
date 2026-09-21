@@ -275,7 +275,7 @@ cover-acceptance-%:
 cover-html: cover ## Run every suite with coverage and open the HTML report
 	@go tool cover -html=$(COVERDIR)/coverage.out
 
-record: ## Re-record the provider cassettes against the real TMDB/TheTVDB/OMDb, for each backend (needs EMBYFIN_TMDB_KEY)
+record: ## Re-record the provider cassettes against the real TMDB/TheTVDB/OMDb, for each backend (needs EMBYFIN_TMDB_TOKEN)
 	@for b in $(BACKENDS); do $(MAKE) --no-print-directory record-$$b || exit 1; done
 
 record-%:

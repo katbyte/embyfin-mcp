@@ -491,7 +491,7 @@ func registerAuditAll(r *registry) {
 	client := r.client
 	add(r, readTool, &mcp.Tool{
 		Name:        "audit_all",
-		Description: "Run every audit and report only the counts, so one call says where a library needs work: unmatched items, missing posters and overviews, year mismatches, duplicates, multiple versions, episode runtimes against their season, low-quality files, missing episodes and spelling variants. Start here, then call the audit whose count is not zero for its worklist. Movie runtime against TMDB is not included (audit_runtime types=Movie is paged and needs EMBYFIN_TMDB_KEY), nor audit_unwatched, which is about viewing rather than a defect.",
+		Description: "Run every audit and report only the counts, so one call says where a library needs work: unmatched items, missing posters and overviews, year mismatches, duplicates, multiple versions, episode runtimes against their season, low-quality files, missing episodes and spelling variants. Start here, then call the audit whose count is not zero for its worklist. Movie runtime against TMDB is not included (audit_runtime types=Movie is paged and needs EMBYFIN_TMDB_TOKEN), nor audit_unwatched, which is about viewing rather than a defect.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditAllIn) (*mcp.CallToolResult, auditAllOut, error) {
 		out := auditAllOut{Audits: []auditAllRow{}}
 		add := func(row auditAllRow) {
@@ -569,7 +569,7 @@ const (
 
 type runtimeIn struct {
 	Library      string `json:"library,omitempty"           jsonschema:"restrict to one library by name or id"`
-	Types        string `json:"types,omitempty"             jsonschema:"Episode compares each episode to its season's median (no external data); Movie compares to TMDB's runtime and needs EMBYFIN_TMDB_KEY. Default Episode"`
+	Types        string `json:"types,omitempty"             jsonschema:"Episode compares each episode to its season's median (no external data); Movie compares to TMDB's runtime and needs EMBYFIN_TMDB_TOKEN. Default Episode"`
 	TolerancePct int    `json:"tolerance_percent,omitempty" jsonschema:"flag when the file runtime differs from the expected one by more than this percent, default 20"`
 	Limit        int    `json:"limit,omitempty"             jsonschema:"maximum findings to return, default 100"`
 	StartIndex   int    `json:"start_index,omitempty"       jsonschema:"Movie only: skip this many movies, to continue a previous sweep from its next_start_index"`
@@ -591,7 +591,7 @@ func registerRuntimeAudit(r *registry) {
 
 	desc := "Find media files whose runtime disagrees with what it should be: truncated downloads, wrong files, or wrong matches. Episodes are compared to the median of their season (needs 3+ episodes); movies to TMDB's runtime"
 	if provider == nil {
-		desc += " (movie mode disabled: set EMBYFIN_TMDB_KEY to enable)"
+		desc += " (movie mode disabled: set EMBYFIN_TMDB_TOKEN to enable)"
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "audit_runtime",
@@ -619,7 +619,7 @@ func registerRuntimeAudit(r *registry) {
 			return nil, runtimeOut{auditOut: out}, err
 		case "movie", "movies":
 			if provider == nil {
-				return nil, runtimeOut{}, errors.New("movie runtime audit needs a TMDB key: set EMBYFIN_TMDB_KEY (or --tmdb-key) and restart")
+				return nil, runtimeOut{}, errors.New("movie runtime audit needs a TMDB token: set EMBYFIN_TMDB_TOKEN (or --tmdb-token) and restart")
 			}
 			out, err := auditMovieRuntimes(ctx, client, provider, parent, in)
 			return nil, out, err

@@ -303,19 +303,19 @@ func TestAuditRuntimeMovies(t *testing.T) {
 
 // needsTMDBCassette skips the movie runtime audit when it cannot run: a
 // recording needs a real TMDB key, and a replay needs the recording to have
-// been made (make record with EMBYFIN_TMDB_KEY set).
+// been made (make record with EMBYFIN_TMDB_TOKEN set).
 func needsTMDBCassette(t *testing.T) {
 	t.Helper()
 
 	if recording() {
-		if os.Getenv("EMBYFIN_TMDB_KEY") == "" {
-			t.Skip("recording the TMDB runtime lookups needs EMBYFIN_TMDB_KEY")
+		if os.Getenv("EMBYFIN_TMDB_TOKEN") == "" && os.Getenv("EMBYFIN_TMDB_KEY") == "" {
+			t.Skip("recording the TMDB runtime lookups needs EMBYFIN_TMDB_TOKEN")
 		}
 		return
 	}
 	raw, err := os.ReadFile(filepath.Join(cassetteDir(), "api.themoviedb.org.json"))
 	if err != nil || !strings.Contains(string(raw), `"key": "GET api.themoviedb.org/3/movie/348"`) {
-		t.Skip("the TMDB runtime lookups have not been recorded; run make record with EMBYFIN_TMDB_KEY set")
+		t.Skip("the TMDB runtime lookups have not been recorded; run make record with EMBYFIN_TMDB_TOKEN set")
 	}
 }
 
@@ -381,9 +381,9 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 		}
 	}
 	want := []string{
-		"audit_all", "audit_disc_folders", "audit_duplicate_series_folders", "audit_duplicate_titles", "audit_duplicates", "audit_language",
+		"audit_all", "audit_anime_ids", "audit_disc_folders", "audit_duplicate_series_folders", "audit_duplicate_titles", "audit_duplicates", "audit_language",
 		"audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
-		"audit_missing_poster", "audit_multiple_versions", "audit_orphans", "audit_quality", "audit_runtime", "audit_spelling",
+		"audit_missing_poster", "audit_movie_ids", "audit_multiple_versions", "audit_orphans", "audit_quality", "audit_runtime", "audit_spelling",
 		"audit_title_mismatch", "audit_unwatched", "audit_year_mismatch",
 	}
 	slices.Sort(got)
