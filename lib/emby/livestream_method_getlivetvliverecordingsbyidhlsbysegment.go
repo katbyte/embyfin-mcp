@@ -25,7 +25,7 @@ func (c Client) GetLiveTvLiveRecordingsByIdHlsBySegment(ctx context.Context, id 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/LiveTv/LiveRecordings/%s/hls/%s", url.PathEscape(id), url.PathEscape(segment)),
 		StreamResponse: true,
 	}

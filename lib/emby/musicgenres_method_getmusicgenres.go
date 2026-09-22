@@ -633,7 +633,7 @@ func (c Client) GetMusicGenres(ctx context.Context, options GetMusicGenresOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/MusicGenres",
 	}

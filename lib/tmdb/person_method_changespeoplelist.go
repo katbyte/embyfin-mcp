@@ -50,7 +50,7 @@ func (c Client) ChangesPeopleList(ctx context.Context, options ChangesPeopleList
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/person/changes",
 	}

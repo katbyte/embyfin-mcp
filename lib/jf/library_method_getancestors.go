@@ -44,7 +44,7 @@ func (c Client) GetAncestors(ctx context.Context, itemId string, options GetAnce
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Ancestors", url.PathEscape(itemId)),
 	}

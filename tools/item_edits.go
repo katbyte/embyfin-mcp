@@ -121,8 +121,13 @@ func cleanNames(names []string) []string {
 func registerItemEditTools(r *registry) {
 	client := r.client
 
-	type batchIn struct {
-		IDs            []string `json:"ids"                       jsonschema:"the library item ids to change"`
+	type editIn struct {
+		IDs      []string `json:"ids"                 jsonschema:"the library item ids to change: one, or many for the same change"`
+		Name     string   `json:"name,omitempty"      jsonschema:"new display title (one item only)"`
+		SortName string   `json:"sort_name,omitempty" jsonschema:"new sort title (one item only)"`
+		Overview string   `json:"overview,omitempty"  jsonschema:"new overview/plot text (one item only)"`
+		Year     int      `json:"year,omitempty"      jsonschema:"new production year (one item only)"`
+		// the name lists: replaced whole, or edited by adding and removing
 		Genres         []string `json:"genres,omitempty"          jsonschema:"replace each item's genres with these"`
 		AddGenres      []string `json:"add_genres,omitempty"      jsonschema:"genres to add to each item's own, keeping the rest"`
 		RemoveGenres   []string `json:"remove_genres,omitempty"   jsonschema:"genres to take off each item, keeping the rest"`
@@ -132,43 +137,75 @@ func registerItemEditTools(r *registry) {
 		Studios        []string `json:"studios,omitempty"         jsonschema:"replace each item's studios with these"`
 		AddStudios     []string `json:"add_studios,omitempty"     jsonschema:"studios to add to each item's own"`
 		RemoveStudios  []string `json:"remove_studios,omitempty"  jsonschema:"studios to take off each item"`
-		OfficialRating string   `json:"official_rating,omitempty" jsonschema:"the parental rating to set on every item, e.g. PG-13"`
+		OfficialRating string   `json:"official_rating,omitempty" jsonschema:"the parental rating to set, e.g. PG-13"`
 	}
-	type batchOut struct {
-		Updated int      `json:"items_updated"`
-		Items   []string `json:"items"         jsonschema:"the titles changed, in the order given"`
+	type editOut struct {
+		Changed []string `json:"changed" jsonschema:"the fields changed, on every item"`
+		Updated int      `json:"updated" jsonschema:"items changed"`
+		Items   []string `json:"items"   jsonschema:"the titles changed, in the order given"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "item_batch_edit",
-		Description: "Apply the same metadata change to many items in one call: a genre on forty films, a tag on a franchise, a studio spelled right everywhere it was typed. genres, tags and studios replace the list on every item; add_* and remove_* edit each item's own list, keeping the rest. Fields left out are untouched. Use item_edit for one item or for fields that differ per item, and metadata_rename to rename a value wherever it is used. Changes server state.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in batchIn) (*mcp.CallToolResult, batchOut, error) {
+		Name:        "item_edit",
+		Description: "Change an item's metadata, or make the same change on many items in one call: title, sort title, overview and year on one item; genres, tags, studios and the parental rating on one or forty. genres, tags and studios replace the list on every item; add_* and remove_* edit each item's own list, keeping the rest. Fields left out are untouched. metadata_rename renames a value wherever it is used. Changes server state.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
 		if len(in.IDs) == 0 {
-			return nil, batchOut{}, errNoItems
+			return nil, editOut{}, errNoItems
+		}
+		single := map[string]bool{"name": in.Name != "", "sort_name": in.SortName != "", "overview": in.Overview != "", "year": in.Year > 0}
+		if len(in.IDs) > 1 {
+			for _, f := range []string{"name", "sort_name", "overview", "year"} {
+				if single[f] {
+					return nil, editOut{}, fmt.Errorf("%s is one item's own: pass one id to set it", f)
+				}
+			}
 		}
 		edits := []listEdit{
 			{field: fieldGenres, replace: in.Genres, replaceGiven: in.Genres != nil, add: in.AddGenres, remove: in.RemoveGenres},
 			{field: fieldTags, replace: in.Tags, replaceGiven: in.Tags != nil, add: in.AddTags, remove: in.RemoveTags},
 			{field: fieldStudios, replace: in.Studios, replaceGiven: in.Studios != nil, add: in.AddStudios, remove: in.RemoveStudios},
 		}
-		changes := false
+		var changed []string
+		for f, set := range map[string]bool{"Name": single["name"], "SortName": single["sort_name"], "Overview": single["overview"], "ProductionYear": single["year"]} {
+			if set {
+				changed = append(changed, f)
+			}
+		}
 		for _, e := range edits {
 			if err := e.validate(); err != nil {
-				return nil, batchOut{}, err
+				return nil, editOut{}, err
 			}
-			changes = changes || !e.empty()
+			if !e.empty() {
+				changed = append(changed, strings.ToUpper(e.field[:1])+e.field[1:])
+			}
 		}
 		rating := strings.TrimSpace(in.OfficialRating)
-		if !changes && rating == "" {
-			return nil, batchOut{}, errors.New("nothing to change: pass genres, tags or studios (or their add_ and remove_ forms), or official_rating")
+		if rating != "" {
+			changed = append(changed, "OfficialRating")
 		}
+		if len(changed) == 0 {
+			return nil, editOut{}, errors.New("nothing to change: pass name, sort_name, overview, year, genres, tags or studios (or their add_ and remove_ forms), or official_rating")
+		}
+		slices.Sort(changed)
 
 		admin, err := client.ResolveUser(ctx, "")
 		if err != nil {
-			return nil, batchOut{}, err
+			return nil, editOut{}, err
 		}
-		out := batchOut{Items: make([]string, 0, len(in.IDs))}
+		out := editOut{Changed: changed, Items: make([]string, 0, len(in.IDs))}
 		for _, id := range in.IDs {
 			full, err := client.EditItem(ctx, admin.ID, id, func(full map[string]any) (bool, error) {
+				if single["name"] {
+					full["Name"] = in.Name
+				}
+				if single["sort_name"] {
+					full["SortName"], full["ForcedSortName"] = in.SortName, in.SortName
+				}
+				if single["overview"] {
+					full["Overview"] = in.Overview
+				}
+				if single["year"] {
+					full["ProductionYear"] = in.Year
+				}
 				for _, e := range edits {
 					if !e.empty() {
 						setVocabulary(full, e.field, e.apply(vocabularyOf(full, e.field)))
@@ -187,38 +224,6 @@ func registerItemEditTools(r *registry) {
 		}
 
 		return nil, out, nil
-	})
-
-	type progressIn struct {
-		ID        string `json:"id"             jsonschema:"the library item id"`
-		User      string `json:"user,omitempty" jsonschema:"user name or id; defaults to the first administrator"`
-		PositionS int    `json:"position_s"     jsonschema:"where to resume from, in seconds from the start; above zero (item_set_watched watched=false clears a resume point)"`
-	}
-	type progressOut struct {
-		Item      string `json:"item"`
-		User      string `json:"user"`
-		PositionS int    `json:"position_s"`
-	}
-	add(r, writeTool, &mcp.Tool{
-		Name:        "item_set_progress",
-		Description: "Set where a user is in a film or episode, so it shows under continue watching from that point, and mark it not yet watched. user_in_progress lists what is in progress. Changes server state.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in progressIn) (*mcp.CallToolResult, progressOut, error) {
-		if in.PositionS <= 0 {
-			return nil, progressOut{}, errors.New("position_s must be above zero; to clear a resume point, mark the item unwatched with item_set_watched")
-		}
-		user, err := client.ResolveUser(ctx, in.User)
-		if err != nil {
-			return nil, progressOut{}, err
-		}
-		it, err := visibleTo(ctx, client, user, in.ID)
-		if err != nil {
-			return nil, progressOut{}, err
-		}
-		if err := client.SetProgress(ctx, user.ID, in.ID, int64(in.PositionS)*ticksPerSecond); err != nil {
-			return nil, progressOut{}, err
-		}
-
-		return nil, progressOut{Item: it.Name, User: user.Name, PositionS: in.PositionS}, nil
 	})
 }
 

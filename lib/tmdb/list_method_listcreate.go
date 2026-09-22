@@ -42,7 +42,7 @@ func (c Client) ListCreate(ctx context.Context, input ListCreateRequest, options
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/3/list",
 	}

@@ -21,7 +21,7 @@ func (c Client) PostSystemShutdown(ctx context.Context) (result PostSystemShutdo
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/System/Shutdown",
 	}
 

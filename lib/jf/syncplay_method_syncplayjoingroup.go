@@ -21,7 +21,7 @@ func (c Client) SyncPlayJoinGroup(ctx context.Context, input JoinGroupRequestDto
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Join",
 	}
 

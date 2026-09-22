@@ -53,7 +53,7 @@ func (c Client) GetAudioByIdUniversalByContainer(ctx context.Context, id string,
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Audio/%s/universal.%s", url.PathEscape(id), url.PathEscape(container)),
 		StreamResponse: true,

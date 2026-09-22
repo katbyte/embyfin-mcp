@@ -61,7 +61,7 @@ func (c Client) PostPlaylists(ctx context.Context, options PostPlaylistsOperatio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Playlists",
 	}

@@ -23,7 +23,7 @@ func (c Client) GetMetadataEditorInfo(ctx context.Context, itemId string) (resul
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Items/%s/MetadataEditor", url.PathEscape(itemId)),
 	}
 

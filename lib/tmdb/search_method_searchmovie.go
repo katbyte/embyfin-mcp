@@ -66,7 +66,7 @@ func (c Client) SearchMovie(ctx context.Context, options SearchMovieOperationOpt
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/search/movie",
 	}

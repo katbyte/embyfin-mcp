@@ -49,7 +49,7 @@ func (c Client) GetUsers(ctx context.Context, options GetUsersOperationOptions) 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Users",
 	}

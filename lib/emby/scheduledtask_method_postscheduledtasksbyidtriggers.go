@@ -24,7 +24,7 @@ func (c Client) PostScheduledTasksByIdTriggers(ctx context.Context, id string, i
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/ScheduledTasks/%s/Triggers", url.PathEscape(id)),
 	}
 

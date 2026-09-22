@@ -43,7 +43,7 @@ func (c Client) GetConfigurationPages(ctx context.Context, options GetConfigurat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/web/ConfigurationPages",
 	}

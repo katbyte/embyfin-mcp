@@ -57,7 +57,7 @@ func (c Client) GetSystemActivityLogEntries(ctx context.Context, options GetSyst
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/System/ActivityLog/Entries",
 	}

@@ -22,7 +22,7 @@ func (c Client) RemoveUserFromPlaylist(ctx context.Context, playlistId string, u
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Playlists/%s/Users/%s", url.PathEscape(playlistId), url.PathEscape(userId)),
 	}
 

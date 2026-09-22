@@ -21,7 +21,7 @@ func (c Client) PersonLatestId(ctx context.Context) (result PersonLatestIdOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/person/latest",
 	}
 

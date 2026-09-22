@@ -152,7 +152,7 @@ func (c Client) GetRecordings(ctx context.Context, options GetRecordingsOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Recordings",
 	}

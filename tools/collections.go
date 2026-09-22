@@ -151,11 +151,20 @@ func registerCollectionTools(r *registry) {
 			return nil, removeOut{}, err
 		}
 
+		// counted by what the collection holds before and after
+		before, err := client.CollectionMembers(ctx, col.ID)
+		if err != nil {
+			return nil, removeOut{}, err
+		}
 		if err := client.RemoveFromCollection(ctx, col.ID, in.ItemIDs); err != nil {
 			return nil, removeOut{}, err
 		}
+		after, err := client.CollectionMembers(ctx, col.ID)
+		if err != nil {
+			return nil, removeOut{}, err
+		}
 
-		return nil, removeOut{Removed: len(in.ItemIDs), From: col.Name}, nil
+		return nil, removeOut{Removed: max(len(before)-len(after), 0), From: col.Name}, nil
 	})
 
 	type editIn struct {
@@ -166,7 +175,7 @@ func registerCollectionTools(r *registry) {
 	}
 	type editOut struct {
 		Name    string   `json:"name"`
-		Updated []string `json:"updated_fields"`
+		Updated []string `json:"changed"`
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "collection_edit",

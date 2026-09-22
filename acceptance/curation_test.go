@@ -92,9 +92,9 @@ func TestLibraryItems(t *testing.T) {
 
 	// watch state, in a user's view
 	mononoke := findItem(t, "Movies", "Movie", "Princess Mononoke")
-	call(t, "item_set_watched", map[string]any{"id": mononoke, "user": "alice", "watched": true})
+	call(t, "item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": true})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_watched", map[string]any{"id": mononoke, "user": "alice", "watched": false})
+		_, _ = invoke("item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": false})
 	})
 	out = call(t, "library_items", map[string]any{"library": "Movies", "watched": "watched", "user": "alice"})
 	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Princess Mononoke"}) {
@@ -214,7 +214,8 @@ func TestLibraryEdit(t *testing.T) {
 	}
 }
 
-func TestItemBatchEdit(t *testing.T) {
+// item_edit makes the same change on many items in one call.
+func TestItemEditMany(t *testing.T) {
 	arrival := findItem(t, "Messy Movies", "Movie", "Arrival")
 	dune := findItem(t, "Messy Movies", "Movie", "Dune")
 	before := map[string]map[string]any{}
@@ -223,17 +224,21 @@ func TestItemBatchEdit(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for id, b := range before {
-			_, _ = invoke("item_batch_edit", map[string]any{"ids": []any{id}, "genres": b["genres"], "tags": b["tags"], "studios": b["studios"]})
+			_, _ = invoke("item_edit", map[string]any{"ids": []any{id}, "genres": b["genres"], "tags": b["tags"], "studios": b["studios"]})
 		}
 	})
 
-	out := call(t, "item_batch_edit", map[string]any{
+	out := call(t, "item_edit", map[string]any{
 		"ids":        []any{arrival, dune},
 		"add_genres": []any{"Mystery"}, "add_tags": []any{"watchlist", "alien"}, "studios": []any{"Paramount Pictures"},
 		"official_rating": "R",
 	})
-	if num(t, out["items_updated"], "items_updated") != 2 || !slices.Equal(strs(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
-		t.Errorf("item_batch_edit = %v", out)
+	if num(t, out["updated"], "updated") != 2 || !slices.Equal(strs(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
+		t.Errorf("item_edit = %v", out)
+	}
+	// the fields changed, sorted
+	if !slices.Equal(strs(t, out["changed"], "changed"), []string{"Genres", "OfficialRating", "Studios", "Tags"}) {
+		t.Errorf("item_edit changed = %v", out["changed"])
 	}
 	for id, b := range before {
 		got := call(t, "item_get", map[string]any{"id": id})
@@ -256,7 +261,7 @@ func TestItemBatchEdit(t *testing.T) {
 	}
 
 	// remove what was added, case-insensitively, leaving the rest
-	call(t, "item_batch_edit", map[string]any{"ids": []any{arrival, dune}, "remove_genres": []any{"mystery"}, "remove_tags": []any{"WATCHLIST"}})
+	call(t, "item_edit", map[string]any{"ids": []any{arrival, dune}, "remove_genres": []any{"mystery"}, "remove_tags": []any{"WATCHLIST"}})
 	got := call(t, "item_get", map[string]any{"id": dune})
 	if slices.Contains(strs(t, got["genres"], "genres"), "Mystery") || slices.Contains(strs(t, got["tags"], "tags"), "watchlist") || !slices.Contains(strs(t, got["tags"], "tags"), "alien") {
 		t.Errorf("after removing = genres %v tags %v", got["genres"], got["tags"])
@@ -264,11 +269,15 @@ func TestItemBatchEdit(t *testing.T) {
 
 	for want, args := range map[string]map[string]any{
 		"one or the other":            {"ids": []any{dune}, "tags": []any{"a"}, "add_tags": []any{"b"}},
-		"nothing to":                  {"ids": []any{dune}},
+		"nothing to change":           {"ids": []any{dune}},
 		`missing properties: ["ids"]`: {"add_tags": []any{"b"}},
+		// a title, sort title, overview or year is one item's own
+		"name is one item's own":     {"ids": []any{arrival, dune}, "name": "Zzyzx"},
+		"overview is one item's own": {"ids": []any{arrival, dune}, "overview": "Zzyzx"},
+		"year is one item's own":     {"ids": []any{arrival, dune}, "year": 2000},
 	} {
-		if msg := callErr(t, "item_batch_edit", args); !strings.Contains(msg, want) {
-			t.Errorf("item_batch_edit %v: %s", args, msg)
+		if msg := callErr(t, "item_edit", args); !strings.Contains(msg, want) {
+			t.Errorf("item_edit %v: %s", args, msg)
 		}
 	}
 }
@@ -280,7 +289,7 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 	interstellar := findItem(t, "Messy Movies", "Movie", "Interstellar")
 	t.Cleanup(func() {
 		for _, id := range []string{dune, interstellar} {
-			_, _ = invoke("item_batch_edit", map[string]any{
+			_, _ = invoke("item_edit", map[string]any{
 				"ids": []any{id}, "remove_genres": []any{"Science-Fiction"}, "remove_tags": []any{"Sci-Fi", "Sci Fi"}, "remove_studios": []any{"Syncopy", "Syncopy Films"},
 			})
 		}
@@ -293,8 +302,8 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 	}
 
 	// both nfos say Science Fiction, and Dune gets it hyphenated as well
-	call(t, "item_batch_edit", map[string]any{"ids": []any{dune}, "add_genres": []any{"Science-Fiction"}, "add_tags": []any{"Sci-Fi"}, "add_studios": []any{"Syncopy"}})
-	call(t, "item_batch_edit", map[string]any{"ids": []any{interstellar}, "add_tags": []any{"Sci Fi"}, "add_studios": []any{"Syncopy Films"}})
+	call(t, "item_edit", map[string]any{"ids": []any{dune}, "add_genres": []any{"Science-Fiction"}, "add_tags": []any{"Sci-Fi"}, "add_studios": []any{"Syncopy"}})
+	call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "add_tags": []any{"Sci Fi"}, "add_studios": []any{"Syncopy Films"}})
 
 	out = call(t, "audit_spelling", map[string]any{"library": "Messy Movies"})
 	groups := map[string]map[string]any{}
@@ -328,15 +337,15 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 
 	// merge each: a rename onto a spelling, a rename in place, a removal
 	out = call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Science-Fiction", "to": "Science Fiction", "library": "Messy Movies"})
-	if num(t, out["items_updated"], "items_updated") != 1 || !slices.Equal(strs(t, out["items"], "items"), []string{"Dune"}) {
+	if num(t, out["updated"], "updated") != 1 || !slices.Equal(strs(t, out["items"], "items"), []string{"Dune"}) {
 		t.Errorf("genre rename = %v", out)
 	}
 	out = call(t, "metadata_rename", map[string]any{"field": "tags", "from": "Sci Fi", "to": "Sci-Fi"})
-	if num(t, out["items_updated"], "items_updated") != 1 {
+	if num(t, out["updated"], "updated") != 1 {
 		t.Errorf("tag rename = %v", out)
 	}
 	out = call(t, "metadata_rename", map[string]any{"field": "studios", "from": "Syncopy Films", "remove": true, "library": "Messy Movies"})
-	if num(t, out["items_updated"], "items_updated") != 1 {
+	if num(t, out["updated"], "updated") != 1 {
 		t.Errorf("studio removal = %v", out)
 	}
 	got := call(t, "item_get", map[string]any{"id": dune})
@@ -351,7 +360,7 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 		t.Errorf("after merging, %d groups remain", n)
 	}
 	// renaming what nothing carries changes nothing
-	if out := call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Nonexistent", "to": "Drama"}); num(t, out["items_updated"], "items_updated") != 0 {
+	if out := call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Nonexistent", "to": "Drama"}); num(t, out["updated"], "updated") != 0 {
 		t.Errorf("renaming an unused genre = %v", out)
 	}
 
@@ -462,9 +471,9 @@ func TestAuditUnwatched(t *testing.T) {
 	}
 
 	dune := findItem(t, "Movies", "Movie", "Dune")
-	call(t, "item_set_watched", map[string]any{"id": dune, "user": "alice", "watched": true})
+	call(t, "item_set_state", map[string]any{"id": dune, "user": "alice", "watched": true})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_watched", map[string]any{"id": dune, "user": "alice", "watched": false})
+		_, _ = invoke("item_set_state", map[string]any{"id": dune, "user": "alice", "watched": false})
 	})
 	out = call(t, "audit_unwatched", map[string]any{"library": "Movies"})
 	if got := findings(t, out); len(got) != 7 || slices.Contains(got, "Dune") {
@@ -480,8 +489,8 @@ func TestAuditUnwatched(t *testing.T) {
 	series := findItem(t, "Shows", "Series", "Severance")
 	eps := call(t, "show_episodes", map[string]any{"series_id": series})
 	first := str(rows(t, eps["episodes"], "episodes")[0]["id"])
-	call(t, "item_set_watched", map[string]any{"id": first, "watched": true})
-	t.Cleanup(func() { _, _ = invoke("item_set_watched", map[string]any{"id": first, "watched": false}) })
+	call(t, "item_set_state", map[string]any{"id": first, "watched": true})
+	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": first, "watched": false}) })
 	out = call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})
 	if got := findings(t, out); !slices.Equal(got, []string{"Breaking Bad", "The Expanse"}) {
 		t.Errorf("unwatched series = %v, want Breaking Bad and The Expanse", got)
@@ -530,8 +539,14 @@ func TestPersonGet(t *testing.T) {
 		t.Errorf("by id with types=Series = %v", byID)
 	}
 
-	if msg := callErr(t, "person_get", map[string]any{"person": "Scott"}); !strings.Contains(msg, "Ridley Scott") {
-		t.Errorf("a partial name should suggest the full one: %s", msg)
+	// a partial name answers with the people it could mean, and nothing else
+	near := call(t, "person_get", map[string]any{"person": "Scott"})
+	var ridley bool
+	for _, p := range rows(t, near["candidates"], "candidates") {
+		ridley = ridley || (str(p["name"]) == "Ridley Scott" && str(p["id"]) != "")
+	}
+	if !ridley || near["name"] != nil || len(rows(t, near["credits"], "credits")) != 0 {
+		t.Errorf("a partial name should offer the full one: %v", near)
 	}
 	if msg := callErr(t, "person_get", map[string]any{"person": "Nobody Atall"}); !strings.Contains(msg, "Nobody Atall") {
 		t.Errorf("an unknown person: %s", msg)

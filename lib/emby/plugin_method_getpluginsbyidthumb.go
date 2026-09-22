@@ -25,7 +25,7 @@ func (c Client) GetPluginsByIdThumb(ctx context.Context, id string) (result GetP
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Plugins/%s/Thumb", url.PathEscape(id)),
 		StreamResponse: true,
 	}

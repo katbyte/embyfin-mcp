@@ -23,7 +23,7 @@ func (c Client) SetRemoteAccess(ctx context.Context, input StartupRemoteAccessDt
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Startup/RemoteAccess",
 	}
 

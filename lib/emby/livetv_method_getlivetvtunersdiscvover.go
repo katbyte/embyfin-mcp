@@ -22,7 +22,7 @@ func (c Client) GetLiveTvTunersDiscvover(ctx context.Context) (result GetLiveTvT
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/Tuners/Discvover",
 	}
 

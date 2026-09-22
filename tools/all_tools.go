@@ -74,7 +74,7 @@ type Options struct {
 var Toolsets = map[string][]string{
 	// enough to find things and read them: the base every other set assumes
 	"core": {
-		"server_info", "library_list", "library_get", "library_search", "library_items", "item_get", "item_find_by_metadata_id",
+		"server_info", "library_list", "library_get", "library_items", "item_get", "item_find_by_metadata_id",
 	},
 	// find what is wrong with a library and fix it: every audit, identify
 	// and refresh, the metadata, artwork and subtitle editors, and the
@@ -83,16 +83,16 @@ var Toolsets = map[string][]string{
 		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
 		"audit_year_mismatch", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
 		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_titles", "audit_title_mismatch", "audit_duplicate_series_folders", "audit_disc_folders", "audit_anime_ids", "audit_movie_ids", "audit_media_facts", "quality_compare", "plan_check",
-		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "item_batch_edit", "metadata_rename",
+		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes", "show_episodes_exist", "show_missing", "show_resolve",
-		"library_episodes", "library_export", "library_recent", "library_genres", "library_filters", "library_people", "person_get",
+		"library_episodes", "library_export", "library_recent", "library_genres", "library_filters", "person_get",
 	},
 	// who watched what, and keeping watch state right: the users, their
 	// history, what is next and in progress, favourites, played flags
 	"watching": {
-		"user_list", "user_get", "user_history", "user_next_up", "user_in_progress", "user_favourites", "user_stats",
-		"item_watch_history", "item_last_watched", "item_set_watched", "item_set_progress", "item_set_favourite",
+		"user_list", "user_get", "user_history", "user_next_up", "user_in_progress", "user_stats",
+		"item_watch_history", "item_last_watched", "item_set_state",
 		"item_instant_mix",
 	},
 	// group things: shared collections and per-user playlists
@@ -117,10 +117,10 @@ var Toolsets = map[string][]string{
 // enough to find things, read them, and keep watch state in sync.
 var EssentialTools = []string{
 	"library_list",
-	"library_search",
+	"library_items",
 	"item_get",
 	"user_next_up",
-	"item_set_watched",
+	"item_set_state",
 }
 
 type toolKind int

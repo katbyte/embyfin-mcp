@@ -22,7 +22,7 @@ func (c Client) GetSystemConfiguration(ctx context.Context) (result GetSystemCon
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Configuration",
 	}
 

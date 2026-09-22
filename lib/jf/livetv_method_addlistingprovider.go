@@ -56,7 +56,7 @@ func (c Client) AddListingProvider(ctx context.Context, input ListingsProviderIn
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/LiveTv/ListingProviders",
 	}

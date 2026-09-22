@@ -21,7 +21,7 @@ func (c Client) GetGuideInfo(ctx context.Context) (result GetGuideInfoOperationR
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/GuideInfo",
 	}
 

@@ -23,7 +23,7 @@ func (c Client) UpdateSeriesTimer(ctx context.Context, timerId string, input Ser
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/LiveTv/SeriesTimers/%s", url.PathEscape(timerId)),
 	}
 

@@ -23,7 +23,7 @@ func (c Client) ReviewDetails(ctx context.Context, reviewId string) (result Revi
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/review/%s", url.PathEscape(reviewId)),
 	}
 

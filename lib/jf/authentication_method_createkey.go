@@ -41,7 +41,7 @@ func (c Client) CreateKey(ctx context.Context, options CreateKeyOperationOptions
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Auth/Keys",
 	}

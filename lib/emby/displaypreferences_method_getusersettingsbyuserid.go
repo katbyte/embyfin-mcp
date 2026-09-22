@@ -24,7 +24,7 @@ func (c Client) GetUserSettingsByUserId(ctx context.Context, userId string) (res
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/UserSettings/%s", url.PathEscape(userId)),
 	}
 

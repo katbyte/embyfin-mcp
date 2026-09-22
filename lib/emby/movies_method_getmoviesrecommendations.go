@@ -86,7 +86,7 @@ func (c Client) GetMoviesRecommendations(ctx context.Context, options GetMoviesR
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Movies/Recommendations",
 	}

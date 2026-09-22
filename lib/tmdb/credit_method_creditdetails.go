@@ -43,7 +43,7 @@ func (c Client) CreditDetails(ctx context.Context, creditId string, options Cred
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/credit/%s", url.PathEscape(creditId)),
 	}

@@ -21,7 +21,7 @@ func (c Client) GetEndpointInfo(ctx context.Context) (result GetEndpointInfoOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Endpoint",
 	}
 

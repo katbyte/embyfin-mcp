@@ -23,7 +23,7 @@ func (c Client) GetRemoteImageProviders(ctx context.Context, itemId string) (res
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Items/%s/RemoteImages/Providers", url.PathEscape(itemId)),
 	}
 

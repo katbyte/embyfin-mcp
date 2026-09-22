@@ -21,7 +21,7 @@ func (c Client) GetSystemInfo(ctx context.Context) (result GetSystemInfoOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Info",
 	}
 

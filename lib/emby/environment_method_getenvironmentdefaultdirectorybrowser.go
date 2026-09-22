@@ -22,7 +22,7 @@ func (c Client) GetEnvironmentDefaultDirectoryBrowser(ctx context.Context) (resu
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Environment/DefaultDirectoryBrowser",
 	}
 

@@ -105,7 +105,7 @@ func (c Client) GetShowsNextUp(ctx context.Context, options GetShowsNextUpOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Shows/NextUp",
 	}

@@ -22,7 +22,7 @@ func (c Client) CompanyAlternativeNames(ctx context.Context, companyId int) (res
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/company/%d/alternative_names", companyId),
 	}
 

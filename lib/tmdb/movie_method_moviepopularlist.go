@@ -52,7 +52,7 @@ func (c Client) MoviePopularList(ctx context.Context, options MoviePopularListOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/movie/popular",
 	}

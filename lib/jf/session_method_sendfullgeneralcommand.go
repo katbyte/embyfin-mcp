@@ -23,7 +23,7 @@ func (c Client) SendFullGeneralCommand(ctx context.Context, sessionId string, in
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Sessions/%s/Command", url.PathEscape(sessionId)),
 	}
 

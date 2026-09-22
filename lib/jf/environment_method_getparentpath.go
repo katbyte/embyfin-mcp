@@ -42,7 +42,7 @@ func (c Client) GetParentPath(ctx context.Context, options GetParentPathOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Environment/ParentPath",
 	}

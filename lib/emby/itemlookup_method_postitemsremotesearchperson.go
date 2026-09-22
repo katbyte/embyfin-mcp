@@ -23,7 +23,7 @@ func (c Client) PostItemsRemoteSearchPerson(ctx context.Context, input RemoteSea
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Person",
 	}
 

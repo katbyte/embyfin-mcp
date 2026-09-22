@@ -22,7 +22,7 @@ func (c Client) GetSystemInfo(ctx context.Context) (result GetSystemInfoOperatio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Info",
 	}
 

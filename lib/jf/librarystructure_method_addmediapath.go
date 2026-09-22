@@ -43,7 +43,7 @@ func (c Client) AddMediaPath(ctx context.Context, input MediaPathDto, options Ad
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Library/VirtualFolders/Paths",
 	}

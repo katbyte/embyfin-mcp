@@ -41,7 +41,7 @@ func (c Client) CloseLiveStream(ctx context.Context, options CloseLiveStreamOper
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/LiveStreams/Close",
 	}

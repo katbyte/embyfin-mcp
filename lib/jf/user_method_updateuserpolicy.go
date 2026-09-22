@@ -23,7 +23,7 @@ func (c Client) UpdateUserPolicy(ctx context.Context, userId string, input UserP
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s/Policy", url.PathEscape(userId)),
 	}
 

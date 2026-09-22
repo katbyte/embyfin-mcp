@@ -47,7 +47,7 @@ func (c Client) GetSystemLogsByName(ctx context.Context, name string, options Ge
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/System/Logs/%s", url.PathEscape(name)),
 		StreamResponse: true,

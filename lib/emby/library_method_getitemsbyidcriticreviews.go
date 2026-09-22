@@ -52,7 +52,7 @@ func (c Client) GetItemsByIdCriticReviews(ctx context.Context, id string, option
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/CriticReviews", url.PathEscape(id)),
 	}

@@ -22,7 +22,7 @@ func (c Client) GetAuthProviders(ctx context.Context) (result GetAuthProvidersOp
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Auth/Providers",
 	}
 

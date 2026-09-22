@@ -146,9 +146,9 @@ func TestParallelEditsKeepEveryChange(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := range 6 {
 		wg.Go(func() {
-			res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "item_batch_edit", Arguments: map[string]any{"ids": []any{"1"}, "add_tags": []any{fmt.Sprintf("tag-%d", i)}}})
+			res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "item_edit", Arguments: map[string]any{"ids": []any{"1"}, "add_tags": []any{fmt.Sprintf("tag-%d", i)}}})
 			if err != nil || res.IsError {
-				t.Errorf("item_batch_edit tag-%d: %v %v", i, err, res)
+				t.Errorf("item_edit tag-%d: %v %v", i, err, res)
 			}
 		})
 	}
@@ -246,7 +246,8 @@ func TestReplaceAllNeedsFetchers(t *testing.T) {
 }
 
 // Copies of a film share its provider ids, and Emby marks them all when one
-// is watched or favourited: a user's counts are by film.
+// is watched or favourited: a user's counts are by film. The counts are
+// user_stats' alone; user_get reads the account and never sweeps the library.
 func TestCountsByTitle(t *testing.T) {
 	t.Parallel()
 
@@ -258,24 +259,38 @@ func TestCountsByTitle(t *testing.T) {
 		_, _ = io.WriteString(w, `{"Items":[],"TotalRecordCount":0}`)
 	})
 	alien := func(id string) string {
-		return `{"Id":"` + id + `","Name":"Alien","Type":"Movie","ProviderIds":{"Tmdb":"348","Imdb":"tt0078748"}}`
+		return `{"Id":"` + id + `","Name":"Alien","Type":"Movie","ProviderIds":{"Tmdb":"348","Imdb":"tt0078748"},"UserData":{"Played":true,"IsFavorite":true}}`
 	}
 	f.mux.HandleFunc("GET /Users/u2/Items", func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		switch {
-		case q.Get("Filters") == "IsPlayed" && q.Get("IncludeItemTypes") == "Movie":
-			_, _ = io.WriteString(w, `{"Items":[`+alien("1")+`,`+alien("2")+`,{"Id":"3","Name":"Alien","Type":"Movie","ProviderIds":{"Imdb":"tt0078748"}},{"Id":"4","Name":"Aliens","Type":"Movie","ProviderIds":{"Tmdb":"679"}},{"Id":"5","Name":"Zzyzx Home Video","Type":"Movie"}],"TotalRecordCount":5}`)
-		case q.Get("Filters") == "IsFavorite":
-			_, _ = io.WriteString(w, `{"Items":[`+alien("1")+`,`+alien("2")+`],"TotalRecordCount":2}`)
-		default:
+		// the one sweep: every film and episode with its state
+		if r.URL.Query().Get("IncludeItemTypes") != "Movie,Episode" {
 			_, _ = io.WriteString(w, `{"Items":[],"TotalRecordCount":0}`)
+			return
 		}
+		_, _ = io.WriteString(w, `{"Items":[`+alien("1")+`,`+alien("2")+`,{"Id":"3","Name":"Alien","Type":"Movie","ProviderIds":{"Imdb":"tt0078748"},"UserData":{"Played":true}},{"Id":"4","Name":"Aliens","Type":"Movie","ProviderIds":{"Tmdb":"679"},"UserData":{"Played":true}},{"Id":"5","Name":"Zzyzx Home Video","Type":"Movie","UserData":{"Played":true}}],"TotalRecordCount":5}`)
 	})
 	cs := session(t, f, Options{})
 
-	out, msg := callTool(t, cs, "user_get", map[string]any{"user": "alice"})
+	out, msg := callTool(t, cs, "user_stats", map[string]any{"user": "alice"})
 	if msg != "" || out["movies_watched"] != float64(3) || out["favourites"] != float64(1) {
-		t.Errorf("user_get alice = movies_watched %v favourites %v %s, want Alien, Aliens and the home video watched and Alien favourited", out["movies_watched"], out["favourites"], msg)
+		t.Errorf("user_stats alice = movies_watched %v favourites %v %s, want Alien, Aliens and the home video watched and Alien favourited", out["movies_watched"], out["favourites"], msg)
+	}
+	if n := len(f.requests("/Users/u2/Items")); n != 1 {
+		t.Errorf("user_stats swept alice's view %d times, want once", n)
+	}
+
+	f.reset()
+	out, msg = callTool(t, cs, "user_get", map[string]any{"user": "alice"})
+	if msg != "" || out["name"] != "alice" {
+		t.Errorf("user_get alice = %v %s", out, msg)
+	}
+	for _, k := range []string{"movies_watched", "episodes_watched", "in_progress", "favourites"} {
+		if _, ok := out[k]; ok {
+			t.Errorf("user_get carries %s; the counts are user_stats'", k)
+		}
+	}
+	if n := len(f.requests("/Users/u2/Items")); n != 0 {
+		t.Errorf("user_get swept alice's view %d times, want none", n)
 	}
 }
 
@@ -306,20 +321,20 @@ func TestNoChangesForAUserWhoCannotSee(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	for tool, args := range map[string]map[string]any{
-		"item_set_watched":   {"id": "e2", "user": "alice", "watched": true},
-		"item_set_favourite": {"id": "e2", "user": "alice", "favourite": true},
-		"item_set_progress":  {"id": "e2", "user": "alice", "position_s": 60},
+	for _, args := range []map[string]any{
+		{"id": "e2", "user": "alice", "watched": true},
+		{"id": "e2", "user": "alice", "favourite": true},
+		{"id": "e2", "user": "alice", "position_s": 60},
 	} {
-		if _, msg := callTool(t, cs, tool, args); !strings.Contains(msg, "alice cannot see Cat's in the Bag...") {
-			t.Errorf("%s for alice: %s", tool, msg)
+		if _, msg := callTool(t, cs, "item_set_state", args); !strings.Contains(msg, "alice cannot see Cat's in the Bag...") {
+			t.Errorf("item_set_state %v for alice: %s", args, msg)
 		}
 	}
-	if n := len(f.requests("/Users/u2/PlayedItems/e2")); n != 0 {
+	if n := len(f.requests("/Users/u2/PlayedItems/e2")) + len(f.requests("/Users/u2/FavoriteItems/e2")) + len(f.requests("/Users/u2/Items/e2/UserData")); n != 0 {
 		t.Errorf("the refused change was sent %d times", n)
 	}
-	if _, msg := callTool(t, cs, "item_set_watched", map[string]any{"id": "e2", "watched": true}); msg != "" {
-		t.Errorf("item_set_watched for root: %s", msg)
+	if _, msg := callTool(t, cs, "item_set_state", map[string]any{"id": "e2", "watched": true}); msg != "" {
+		t.Errorf("item_set_state for root: %s", msg)
 	}
 
 	// and her watch state on it is not reported

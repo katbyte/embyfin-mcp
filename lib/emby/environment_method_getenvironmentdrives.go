@@ -22,7 +22,7 @@ func (c Client) GetEnvironmentDrives(ctx context.Context) (result GetEnvironment
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Environment/Drives",
 	}
 

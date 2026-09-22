@@ -48,7 +48,7 @@ func (c Client) UploadLyrics(ctx context.Context, itemId string, input io.Reader
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Audio/%s/Lyrics", url.PathEscape(itemId)),
 	}

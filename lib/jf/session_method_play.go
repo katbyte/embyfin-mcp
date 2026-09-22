@@ -80,7 +80,7 @@ func (c Client) Play(ctx context.Context, sessionId string, options PlayOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Sessions/%s/Playing", url.PathEscape(sessionId)),
 	}

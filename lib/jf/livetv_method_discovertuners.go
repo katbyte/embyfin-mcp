@@ -43,7 +43,7 @@ func (c Client) DiscoverTuners(ctx context.Context, options DiscoverTunersOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Tuners/Discover",
 	}

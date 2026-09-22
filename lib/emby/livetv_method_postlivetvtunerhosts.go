@@ -23,7 +23,7 @@ func (c Client) PostLiveTvTunerHosts(ctx context.Context, input LiveTvTunerHostI
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveTv/TunerHosts",
 	}
 

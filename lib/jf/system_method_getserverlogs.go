@@ -21,7 +21,7 @@ func (c Client) GetServerLogs(ctx context.Context) (result GetServerLogsOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Logs",
 	}
 

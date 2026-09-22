@@ -87,7 +87,7 @@ func (c Client) GetChannelItems(ctx context.Context, channelId string, options G
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Channels/%s/Items", url.PathEscape(channelId)),
 	}

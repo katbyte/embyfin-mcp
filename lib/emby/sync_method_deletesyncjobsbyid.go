@@ -23,7 +23,7 @@ func (c Client) DeleteSyncJobsById(ctx context.Context, id string) (result Delet
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Sync/Jobs/%s", url.PathEscape(id)),
 	}
 

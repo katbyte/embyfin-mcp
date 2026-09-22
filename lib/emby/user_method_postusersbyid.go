@@ -24,7 +24,7 @@ func (c Client) PostUsersById(ctx context.Context, id string, input UserDto) (re
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s", url.PathEscape(id)),
 	}
 

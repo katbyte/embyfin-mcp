@@ -22,7 +22,7 @@ func (c Client) GetDlnaProfileInfos(ctx context.Context) (result GetDlnaProfileI
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Dlna/ProfileInfos",
 	}
 

@@ -22,7 +22,7 @@ func (c Client) PostSystemConfiguration(ctx context.Context, input ServerConfigu
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/System/Configuration",
 	}
 

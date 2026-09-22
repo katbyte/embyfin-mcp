@@ -102,7 +102,7 @@ func (c Client) PostUsersByUserIdPlayingItemsByIdProgress(ctx context.Context, u
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Users/%s/PlayingItems/%s/Progress", url.PathEscape(userId), url.PathEscape(id)),
 	}

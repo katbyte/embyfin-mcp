@@ -22,7 +22,7 @@ func (c Client) GetLiveTvInfo(ctx context.Context) (result GetLiveTvInfoOperatio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/Info",
 	}
 

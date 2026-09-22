@@ -61,7 +61,7 @@ func (c Client) GetLiveTvListingProvidersLineups(ctx context.Context, options Ge
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/ListingProviders/Lineups",
 	}

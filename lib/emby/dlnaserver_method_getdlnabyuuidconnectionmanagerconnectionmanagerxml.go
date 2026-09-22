@@ -25,7 +25,7 @@ func (c Client) GetDlnaByUuIdConnectionmanagerConnectionmanagerXml(ctx context.C
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Dlna/%s/connectionmanager/connectionmanager.xml", url.PathEscape(uuId)),
 		StreamResponse: true,
 	}

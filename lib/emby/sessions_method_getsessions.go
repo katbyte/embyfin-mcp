@@ -55,7 +55,7 @@ func (c Client) GetSessions(ctx context.Context, options GetSessionsOperationOpt
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Sessions",
 	}

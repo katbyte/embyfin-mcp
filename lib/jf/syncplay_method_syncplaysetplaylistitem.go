@@ -21,7 +21,7 @@ func (c Client) SyncPlaySetPlaylistItem(ctx context.Context, input SetPlaylistIt
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/SetPlaylistItem",
 	}
 

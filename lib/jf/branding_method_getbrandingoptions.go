@@ -21,7 +21,7 @@ func (c Client) GetBrandingOptions(ctx context.Context) (result GetBrandingOptio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Branding/Configuration",
 	}
 

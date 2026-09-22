@@ -22,7 +22,7 @@ func (c Client) GetLiveTvRecordingsGroups(ctx context.Context) (result GetLiveTv
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/Recordings/Groups",
 	}
 

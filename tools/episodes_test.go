@@ -44,29 +44,25 @@ func TestLibraryEpisodesPages(t *testing.T) {
 	cs := session(t, tvServer(t, shows...), Options{})
 
 	seen := []string{}
-	cursor := ""
-	for page := 0; ; page++ {
-		args := map[string]any{"library": "Shows", "limit": 5}
-		if cursor != "" {
-			args["cursor"] = cursor
+	const limit = 5
+	for offset, page := 0, 0; ; offset, page = offset+limit, page+1 {
+		out := mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows", "limit": limit, "offset": offset})
+		total := number(t, out["total"], "total")
+		if total != 24 {
+			t.Fatalf("total = %d, want 24", total)
 		}
-		out := mustCall(t, cs, "library_episodes", args)
-		if got := number(t, out["total"], "total"); got != 24 {
-			t.Fatalf("total = %d, want 24", got)
-		}
-		if got := number(t, out["offset"], "offset"); got != page*5 {
-			t.Errorf("page %d starts at %d", page, got)
+		if got := number(t, out["offset"], "offset"); got != offset {
+			t.Errorf("page %d starts at %d, want %d", page, got, offset)
 		}
 		for _, row := range objects(t, out["episodes"], "episodes") {
 			seen = append(seen, fmt.Sprintf("%s S%02dE%02d", row["series"], number(t, row["season"], "season"), number(t, row["episode"], "episode")))
 		}
-		next := text(out["cursor"])
-		if next == "" {
+		// the next page is offset + limit, until that is past the total
+		if offset+limit >= total {
 			break
 		}
-		cursor = next
 		if page > 10 {
-			t.Fatal("the cursor never ran out")
+			t.Fatal("the pages never ran out")
 		}
 	}
 
@@ -81,9 +77,13 @@ func TestLibraryEpisodesPages(t *testing.T) {
 	if !slices.IsSorted(seen) {
 		t.Errorf("the pages are not in one order, so a boundary can move between calls: %v", seen)
 	}
-	// a cursor from somewhere else is refused rather than read as an offset
-	if msg := mustRefuse(t, cs, "library_episodes", map[string]any{"cursor": "not-a-cursor"}); !strings.Contains(msg, "cursor") {
-		t.Errorf("a bad cursor said: %s", msg)
+	// a page past the end is empty, and still says how many there are
+	out := mustCall(t, cs, "library_episodes", map[string]any{"library": "Shows", "limit": limit, "offset": 30})
+	if rows := objects(t, out["episodes"], "episodes"); len(rows) != 0 || number(t, out["total"], "total") != 24 || number(t, out["offset"], "offset") != 30 {
+		t.Errorf("a page past the end = %v", out)
+	}
+	if _, ok := out["cursor"]; ok {
+		t.Errorf("a page carries a cursor: %v", out["cursor"])
 	}
 }
 
@@ -101,8 +101,8 @@ func TestLibraryEpisodesCostsOneQueryPerPage(t *testing.T) {
 	if n := len(objects(t, out["episodes"], "episodes")); n != 24 {
 		t.Fatalf("one page returned %d episodes, want all 24", n)
 	}
-	if out["cursor"] != nil {
-		t.Errorf("a finished sweep still points at a next page: %v", out["cursor"])
+	if number(t, out["total"], "total") != 24 || number(t, out["offset"], "offset") != 0 {
+		t.Errorf("one page of everything = total %v offset %v", out["total"], out["offset"])
 	}
 	if n := len(f.requests("/Items")) - before; n != 1 {
 		t.Errorf("24 episodes in one page cost %d item queries, want 1", n)

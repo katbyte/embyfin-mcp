@@ -42,7 +42,7 @@ func (c Client) GetEnvironmentNetworkShares(ctx context.Context, options GetEnvi
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Environment/NetworkShares",
 	}

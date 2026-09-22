@@ -22,7 +22,7 @@ func (c Client) GetLiveTvGuideInfo(ctx context.Context) (result GetLiveTvGuideIn
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/GuideInfo",
 	}
 

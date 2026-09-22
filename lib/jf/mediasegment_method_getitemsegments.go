@@ -44,7 +44,7 @@ func (c Client) GetItemSegments(ctx context.Context, itemId string, options GetI
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/MediaSegments/%s", url.PathEscape(itemId)),
 	}

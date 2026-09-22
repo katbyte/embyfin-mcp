@@ -633,7 +633,7 @@ func (c Client) GetVideoCodecs(ctx context.Context, options GetVideoCodecsOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/VideoCodecs",
 	}

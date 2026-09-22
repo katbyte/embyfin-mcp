@@ -51,7 +51,7 @@ func (c Client) MovieChanges(ctx context.Context, movieId int, options MovieChan
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/movie/%d/changes", movieId),
 	}

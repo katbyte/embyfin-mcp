@@ -244,61 +244,6 @@ func registerItemTools(r *registry) {
 		return nil, refreshOut{Refreshed: in.ID}, nil
 	})
 
-	type editIn struct {
-		ID       string   `json:"id"                  jsonschema:"the library item id"`
-		Name     string   `json:"name,omitempty"      jsonschema:"new display title"`
-		SortName string   `json:"sort_name,omitempty" jsonschema:"new sort title"`
-		Overview string   `json:"overview,omitempty"  jsonschema:"new overview/plot text"`
-		Year     int      `json:"year,omitempty"      jsonschema:"new production year"`
-		Genres   []string `json:"genres,omitempty"    jsonschema:"replacement genre list"`
-		Tags     []string `json:"tags,omitempty"      jsonschema:"replacement tag list"`
-	}
-	type editOut struct {
-		Updated []string `json:"updated_fields"`
-	}
-	add(r, writeTool, &mcp.Tool{
-		Name:        "item_edit",
-		Description: "Update an item's metadata fields (title, sort title, overview, year, genres, tags). Only provided fields change. Changes server state.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
-		admin, err := client.ResolveUser(ctx, "")
-		if err != nil {
-			return nil, editOut{}, err
-		}
-
-		var updated []string
-		if _, err := client.EditItem(ctx, admin.ID, in.ID, func(full map[string]any) (bool, error) {
-			setField := func(key string, val any, changed bool) {
-				if changed {
-					full[key] = val
-					updated = append(updated, key)
-				}
-			}
-			setField("Name", in.Name, in.Name != "")
-			setField("SortName", in.SortName, in.SortName != "")
-			setField("ForcedSortName", in.SortName, in.SortName != "")
-			setField("Overview", in.Overview, in.Overview != "")
-			setField("ProductionYear", in.Year, in.Year > 0)
-			// Jellyfin reads the plain lists; Emby reads the named records
-			setField("Genres", in.Genres, len(in.Genres) > 0)
-			if len(in.Genres) > 0 {
-				full["GenreItems"] = nameRefs(in.Genres)
-			}
-			setField("Tags", in.Tags, len(in.Tags) > 0)
-			if len(in.Tags) > 0 {
-				full["TagItems"] = nameRefs(in.Tags)
-			}
-			if len(updated) == 0 {
-				return false, errors.New("no fields to update were provided")
-			}
-
-			return true, nil
-		}); err != nil {
-			return nil, editOut{}, err
-		}
-
-		return nil, editOut{Updated: updated}, nil
-	})
-
 	type mixIn struct {
 		ID    string `json:"id"              jsonschema:"a song, album, artist, playlist, or music genre item id to seed the mix"`
 		Limit int    `json:"limit,omitempty" jsonschema:"maximum tracks, default 30"`
@@ -390,7 +335,7 @@ func registerItemTools(r *registry) {
 			return nil, historyOut{}, err
 		}
 
-		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), activityScanLimit)
+		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), activityScanLimit, 0)
 		if err != nil {
 			return nil, historyOut{}, err
 		}
@@ -411,62 +356,60 @@ func registerItemTools(r *registry) {
 		return nil, out, nil
 	})
 
-	type setWatchedIn struct {
-		ID      string `json:"id"             jsonschema:"the library item id"`
-		User    string `json:"user,omitempty" jsonschema:"user name or id; defaults to the first administrator"`
-		Watched bool   `json:"watched"        jsonschema:"true marks played, false marks unplayed"`
+	type setStateIn struct {
+		ID        string `json:"id"                   jsonschema:"the library item id"`
+		User      string `json:"user,omitempty"       jsonschema:"user name or id; defaults to the first administrator"`
+		Watched   *bool  `json:"watched,omitempty"    jsonschema:"true marks played, false marks unplayed (which also clears a resume point)"`
+		Favourite *bool  `json:"favourite,omitempty"  jsonschema:"true favourites, false unfavourites"`
+		PositionS *int   `json:"position_s,omitempty" jsonschema:"where playback resumes from, in seconds from the start, above zero: the item shows under continue watching from there and is marked not yet watched"`
 	}
-	type setWatchedOut struct {
-		Item    string `json:"item"`
-		User    string `json:"user"`
-		Watched bool   `json:"watched"`
-	}
-	add(r, writeTool, &mcp.Tool{
-		Name:        "item_set_watched",
-		Description: "Mark an item played or unplayed for a user who can see it. Emby keeps watch state by metadata provider id, so there every copy of the film (or episode) is marked with it. Changes server state.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setWatchedIn) (*mcp.CallToolResult, setWatchedOut, error) {
-		user, err := client.ResolveUser(ctx, in.User)
-		if err != nil {
-			return nil, setWatchedOut{}, err
-		}
-		if _, err := visibleTo(ctx, client, user, in.ID); err != nil {
-			return nil, setWatchedOut{}, err
-		}
-
-		if err := client.SetPlayed(ctx, user.ID, in.ID, in.Watched); err != nil {
-			return nil, setWatchedOut{}, err
-		}
-
-		return nil, setWatchedOut{Item: in.ID, User: user.Name, Watched: in.Watched}, nil
-	})
-
-	type setFavouriteIn struct {
-		ID        string `json:"id"             jsonschema:"the library item id"`
-		User      string `json:"user,omitempty" jsonschema:"user name or id; defaults to the first administrator"`
-		Favourite bool   `json:"favourite"`
-	}
-	type setFavouriteOut struct {
+	type setStateOut struct {
 		Item      string `json:"item"`
 		User      string `json:"user"`
-		Favourite bool   `json:"favourite"`
+		Watched   *bool  `json:"watched,omitempty"`
+		Favourite *bool  `json:"favourite,omitempty"`
+		PositionS *int   `json:"position_s,omitempty"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "item_set_favourite",
-		Description: "Favourite or unfavourite an item for a user who can see it. Emby keeps this by metadata provider id, so there every copy of the film is marked with it. Changes server state.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setFavouriteIn) (*mcp.CallToolResult, setFavouriteOut, error) {
+		Name:        "item_set_state",
+		Description: "Set a user's state on an item: watched or not, favourite or not, and where it resumes from, any or all in one call, for a user who can see it. Emby keeps watch state and favourites by metadata provider id, so there every copy of the film (or episode) is marked with it. user_in_progress lists the resume points. Changes server state.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setStateIn) (*mcp.CallToolResult, setStateOut, error) {
+		if in.Watched == nil && in.Favourite == nil && in.PositionS == nil {
+			return nil, setStateOut{}, errors.New("nothing to set: pass watched, favourite or position_s")
+		}
+		if in.PositionS != nil && *in.PositionS <= 0 {
+			return nil, setStateOut{}, errors.New("position_s must be above zero; to clear a resume point, pass watched false")
+		}
+		if in.PositionS != nil && in.Watched != nil && *in.Watched {
+			return nil, setStateOut{}, errors.New("position_s and watched true contradict: a resume point is part way through, watched is the end")
+		}
 		user, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
-			return nil, setFavouriteOut{}, err
+			return nil, setStateOut{}, err
 		}
-		if _, err := visibleTo(ctx, client, user, in.ID); err != nil {
-			return nil, setFavouriteOut{}, err
+		it, err := visibleTo(ctx, client, user, in.ID)
+		if err != nil {
+			return nil, setStateOut{}, err
+		}
+		if in.Favourite != nil {
+			if err := client.SetFavourite(ctx, user.ID, in.ID, *in.Favourite); err != nil {
+				return nil, setStateOut{}, err
+			}
+		}
+		if in.PositionS != nil {
+			if err := client.SetProgress(ctx, user.ID, in.ID, int64(*in.PositionS)*ticksPerSecond); err != nil {
+				return nil, setStateOut{}, err
+			}
+		}
+		// a resume point already marks the item not yet watched, and marking
+		// it unplayed again would clear the point just set
+		if in.Watched != nil && (in.PositionS == nil || *in.Watched) {
+			if err := client.SetPlayed(ctx, user.ID, in.ID, *in.Watched); err != nil {
+				return nil, setStateOut{}, err
+			}
 		}
 
-		if err := client.SetFavourite(ctx, user.ID, in.ID, in.Favourite); err != nil {
-			return nil, setFavouriteOut{}, err
-		}
-
-		return nil, setFavouriteOut{Item: in.ID, User: user.Name, Favourite: in.Favourite}, nil
+		return nil, setStateOut{Item: it.Name, User: user.Name, Watched: in.Watched, Favourite: in.Favourite, PositionS: in.PositionS}, nil
 	})
 
 	type deleteIn struct {

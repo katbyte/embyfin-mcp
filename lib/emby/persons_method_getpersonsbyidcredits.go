@@ -24,7 +24,7 @@ func (c Client) GetPersonsByIdCredits(ctx context.Context, id string) (result Ge
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Persons/%s/Credits", url.PathEscape(id)),
 	}
 

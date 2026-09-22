@@ -22,7 +22,7 @@ func (c Client) GetEnvironmentNetworkDevices(ctx context.Context) (result GetEnv
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Environment/NetworkDevices",
 	}
 

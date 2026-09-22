@@ -45,7 +45,7 @@ func (c Client) WatchProvidersMovieList(ctx context.Context, options WatchProvid
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/watch/providers/movie",
 	}

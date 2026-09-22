@@ -43,7 +43,7 @@ func (c Client) AccountAddFavorite(ctx context.Context, accountId int, input Acc
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/account/%d/favorite", accountId),
 	}

@@ -335,7 +335,7 @@ func (c Client) GetVideoStreamByContainer(ctx context.Context, itemId string, co
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/stream.%s", url.PathEscape(itemId), url.PathEscape(container)),
 		StreamResponse: true,

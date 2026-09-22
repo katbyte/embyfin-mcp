@@ -22,7 +22,7 @@ func (c Client) PostNotificationsServicesTest(ctx context.Context, input UserNot
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Notifications/Services/Test",
 	}
 

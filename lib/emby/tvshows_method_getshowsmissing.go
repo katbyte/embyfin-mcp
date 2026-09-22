@@ -633,7 +633,7 @@ func (c Client) GetShowsMissing(ctx context.Context, options GetShowsMissingOper
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Shows/Missing",
 	}

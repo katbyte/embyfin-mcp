@@ -49,7 +49,7 @@ func (c Client) GetTasks(ctx context.Context, options GetTasksOperationOptions) 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/ScheduledTasks",
 	}

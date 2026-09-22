@@ -45,7 +45,7 @@ func (c Client) PostUsersByUserIdPlayedItemsById(ctx context.Context, userId str
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Users/%s/PlayedItems/%s", url.PathEscape(userId), url.PathEscape(id)),
 	}

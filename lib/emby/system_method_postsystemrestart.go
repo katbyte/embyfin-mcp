@@ -21,7 +21,7 @@ func (c Client) PostSystemRestart(ctx context.Context) (result PostSystemRestart
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/System/Restart",
 	}
 

@@ -23,7 +23,7 @@ func (c Client) DeleteLiveTvTimersById(ctx context.Context, id string) (result D
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/LiveTv/Timers/%s", url.PathEscape(id)),
 	}
 

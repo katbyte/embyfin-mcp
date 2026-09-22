@@ -23,7 +23,7 @@ func (c Client) GetUserById(ctx context.Context, userId string) (result GetUserB
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Users/%s", url.PathEscape(userId)),
 	}
 

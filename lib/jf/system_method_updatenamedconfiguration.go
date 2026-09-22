@@ -24,7 +24,7 @@ func (c Client) UpdateNamedConfiguration(ctx context.Context, key string, input 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/System/Configuration/%s", url.PathEscape(key)),
 	}
 

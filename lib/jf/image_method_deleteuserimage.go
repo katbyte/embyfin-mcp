@@ -41,7 +41,7 @@ func (c Client) DeleteUserImage(ctx context.Context, options DeleteUserImageOper
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          "/UserImage",
 	}

@@ -60,7 +60,7 @@ func (c Client) GetQueryFiltersLegacy(ctx context.Context, options GetQueryFilte
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items/Filters",
 	}

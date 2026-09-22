@@ -22,7 +22,7 @@ func (c Client) PostDlnaProfiles(ctx context.Context, input DlnaProfilesDlnaProf
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Dlna/Profiles",
 	}
 

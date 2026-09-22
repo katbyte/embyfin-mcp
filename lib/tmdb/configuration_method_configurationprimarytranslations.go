@@ -21,7 +21,7 @@ func (c Client) ConfigurationPrimaryTranslations(ctx context.Context) (result Co
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/configuration/primary_translations",
 	}
 

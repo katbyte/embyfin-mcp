@@ -42,7 +42,7 @@ func (c Client) GetRecordingFolders(ctx context.Context, options GetRecordingFol
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Recordings/Folders",
 	}

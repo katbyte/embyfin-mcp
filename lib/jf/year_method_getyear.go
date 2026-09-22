@@ -43,7 +43,7 @@ func (c Client) GetYear(ctx context.Context, year int, options GetYearOperationO
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Years/%d", year),
 	}

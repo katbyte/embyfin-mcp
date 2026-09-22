@@ -45,7 +45,7 @@ func (c Client) GetArtistsByName(ctx context.Context, name string, options GetAr
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Artists/%s", url.PathEscape(name)),
 	}

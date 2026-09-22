@@ -21,7 +21,7 @@ func (c Client) ListBackups(ctx context.Context) (result ListBackupsOperationRes
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Backup",
 	}
 

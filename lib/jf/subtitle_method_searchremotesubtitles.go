@@ -45,7 +45,7 @@ func (c Client) SearchRemoteSubtitles(ctx context.Context, itemId string, langua
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/RemoteSearch/Subtitles/%s", url.PathEscape(itemId), url.PathEscape(language)),
 	}

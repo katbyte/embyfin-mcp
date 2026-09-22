@@ -22,7 +22,7 @@ func (c Client) GetWebConfigurationPages(ctx context.Context) (result GetWebConf
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/web/ConfigurationPages",
 	}
 

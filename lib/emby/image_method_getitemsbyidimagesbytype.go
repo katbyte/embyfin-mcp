@@ -125,7 +125,7 @@ func (c Client) GetItemsByIdImagesByType(ctx context.Context, id string, typePar
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Items/%s/Images/%s", url.PathEscape(id), url.PathEscape(string(typeParam))),
 		StreamResponse: true,

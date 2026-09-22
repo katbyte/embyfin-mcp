@@ -42,7 +42,7 @@ func (c Client) PostLiveStreamsMediaInfo(ctx context.Context, options PostLiveSt
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/LiveStreams/MediaInfo",
 	}

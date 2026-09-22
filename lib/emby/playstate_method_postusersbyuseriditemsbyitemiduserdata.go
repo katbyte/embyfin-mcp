@@ -24,7 +24,7 @@ func (c Client) PostUsersByUserIdItemsByItemIdUserData(ctx context.Context, user
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s/Items/%s/UserData", url.PathEscape(userId), url.PathEscape(itemId)),
 	}
 

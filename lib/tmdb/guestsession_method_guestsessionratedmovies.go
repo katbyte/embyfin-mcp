@@ -52,7 +52,7 @@ func (c Client) GuestSessionRatedMovies(ctx context.Context, guestSessionId stri
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/guest_session/%s/rated/movies", url.PathEscape(guestSessionId)),
 	}

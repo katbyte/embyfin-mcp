@@ -25,7 +25,7 @@ func (c Client) PostItemsByIdPlaybackInfo(ctx context.Context, id string, input 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Items/%s/PlaybackInfo", url.PathEscape(id)),
 	}
 

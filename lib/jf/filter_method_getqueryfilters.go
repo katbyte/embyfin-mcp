@@ -97,7 +97,7 @@ func (c Client) GetQueryFilters(ctx context.Context, options GetQueryFiltersOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items/Filters2",
 	}

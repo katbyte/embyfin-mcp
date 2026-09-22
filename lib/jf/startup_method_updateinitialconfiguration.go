@@ -23,7 +23,7 @@ func (c Client) UpdateInitialConfiguration(ctx context.Context, input StartupCon
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Startup/Configuration",
 	}
 

@@ -23,7 +23,7 @@ func (c Client) GetStartupConfiguration(ctx context.Context) (result GetStartupC
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Startup/Configuration",
 	}
 

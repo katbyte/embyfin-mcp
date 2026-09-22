@@ -20,7 +20,7 @@ func (c Client) ReportSessionEnded(ctx context.Context) (result ReportSessionEnd
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Sessions/Logout",
 	}
 

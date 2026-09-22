@@ -21,7 +21,7 @@ func (c Client) GetQuickConnectEnabled(ctx context.Context) (result GetQuickConn
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/QuickConnect/Enabled",
 	}
 

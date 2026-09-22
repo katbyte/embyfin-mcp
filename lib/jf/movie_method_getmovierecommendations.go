@@ -67,7 +67,7 @@ func (c Client) GetMovieRecommendations(ctx context.Context, options GetMovieRec
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Movies/Recommendations",
 	}

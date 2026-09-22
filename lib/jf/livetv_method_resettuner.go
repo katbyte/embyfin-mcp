@@ -22,7 +22,7 @@ func (c Client) ResetTuner(ctx context.Context, tunerId string) (result ResetTun
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/LiveTv/Tuners/%s/Reset", url.PathEscape(tunerId)),
 	}
 

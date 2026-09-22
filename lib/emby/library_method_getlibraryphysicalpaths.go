@@ -22,7 +22,7 @@ func (c Client) GetLibraryPhysicalPaths(ctx context.Context) (result GetLibraryP
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Library/PhysicalPaths",
 	}
 

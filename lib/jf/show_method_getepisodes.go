@@ -123,7 +123,7 @@ func (c Client) GetEpisodes(ctx context.Context, seriesId string, options GetEpi
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Shows/%s/Episodes", url.PathEscape(seriesId)),
 	}

@@ -44,7 +44,7 @@ func (c Client) GetRecording(ctx context.Context, recordingId string, options Ge
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/LiveTv/Recordings/%s", url.PathEscape(recordingId)),
 	}

@@ -22,7 +22,7 @@ func (c Client) GetDlnaProfilesDefault(ctx context.Context) (result GetDlnaProfi
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Dlna/Profiles/Default",
 	}
 

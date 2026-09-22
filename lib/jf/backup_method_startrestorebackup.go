@@ -21,7 +21,7 @@ func (c Client) StartRestoreBackup(ctx context.Context, input BackupRestoreReque
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Backup/Restore",
 	}
 

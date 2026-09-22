@@ -41,7 +41,7 @@ func (c Client) GenreTvList(ctx context.Context, options GenreTvListOperationOpt
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/genre/tv/list",
 	}

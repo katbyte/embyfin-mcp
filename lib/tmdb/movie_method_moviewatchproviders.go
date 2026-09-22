@@ -22,7 +22,7 @@ func (c Client) MovieWatchProviders(ctx context.Context, movieId int) (result Mo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/movie/%d/watch/providers", movieId),
 	}
 

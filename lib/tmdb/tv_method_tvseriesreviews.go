@@ -47,7 +47,7 @@ func (c Client) TvSeriesReviews(ctx context.Context, seriesId int, options TvSer
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/tv/%d/reviews", seriesId),
 	}

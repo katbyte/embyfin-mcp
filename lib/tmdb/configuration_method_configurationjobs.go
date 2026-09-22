@@ -21,7 +21,7 @@ func (c Client) ConfigurationJobs(ctx context.Context) (result ConfigurationJobs
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/configuration/jobs",
 	}
 

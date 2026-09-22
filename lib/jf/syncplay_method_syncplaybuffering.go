@@ -21,7 +21,7 @@ func (c Client) SyncPlayBuffering(ctx context.Context, input BufferRequestDto) (
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Buffering",
 	}
 

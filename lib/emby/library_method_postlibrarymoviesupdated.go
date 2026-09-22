@@ -21,7 +21,7 @@ func (c Client) PostLibraryMoviesUpdated(ctx context.Context) (result PostLibrar
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/Movies/Updated",
 	}
 

@@ -21,7 +21,7 @@ func (c Client) UpdateLibraryOptions(ctx context.Context, input UpdateLibraryOpt
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/VirtualFolders/LibraryOptions",
 	}
 

@@ -21,7 +21,7 @@ func (c Client) MovieLatestId(ctx context.Context) (result MovieLatestIdOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/movie/latest",
 	}
 

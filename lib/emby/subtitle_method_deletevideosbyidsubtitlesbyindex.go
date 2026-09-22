@@ -44,7 +44,7 @@ func (c Client) DeleteVideosByIdSubtitlesByIndex(ctx context.Context, id string,
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Videos/%s/Subtitles/%d", url.PathEscape(id), index),
 	}

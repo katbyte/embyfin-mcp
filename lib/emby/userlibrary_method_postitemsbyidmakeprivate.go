@@ -23,7 +23,7 @@ func (c Client) PostItemsByIdMakePrivate(ctx context.Context, id string) (result
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Items/%s/MakePrivate", url.PathEscape(id)),
 	}
 

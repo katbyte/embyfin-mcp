@@ -45,7 +45,7 @@ func (c Client) DeleteItemsByIdImagesByType(ctx context.Context, id string, type
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Images/%s", url.PathEscape(id), url.PathEscape(string(typeParam))),
 	}

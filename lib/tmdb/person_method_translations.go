@@ -22,7 +22,7 @@ func (c Client) Translations(ctx context.Context, personId int) (result Translat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/person/%d/translations", personId),
 	}
 

@@ -22,7 +22,7 @@ func (c Client) DownloadRemoteSubtitles(ctx context.Context, itemId string, subt
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Items/%s/RemoteSearch/Subtitles/%s", url.PathEscape(itemId), url.PathEscape(subtitleId)),
 	}
 

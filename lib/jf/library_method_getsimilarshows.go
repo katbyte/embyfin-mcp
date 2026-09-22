@@ -63,7 +63,7 @@ func (c Client) GetSimilarShows(ctx context.Context, itemId string, options GetS
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Shows/%s/Similar", url.PathEscape(itemId)),
 	}

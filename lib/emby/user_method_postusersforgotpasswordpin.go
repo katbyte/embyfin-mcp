@@ -23,7 +23,7 @@ func (c Client) PostUsersForgotPasswordPin(ctx context.Context, input ForgotPass
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Users/ForgotPassword/Pin",
 	}
 

@@ -42,7 +42,7 @@ func (c Client) UpdateUser(ctx context.Context, input UserDto, options UpdateUse
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Users",
 	}

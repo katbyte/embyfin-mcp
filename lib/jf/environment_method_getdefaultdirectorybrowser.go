@@ -21,7 +21,7 @@ func (c Client) GetDefaultDirectoryBrowser(ctx context.Context) (result GetDefau
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Environment/DefaultDirectoryBrowser",
 	}
 

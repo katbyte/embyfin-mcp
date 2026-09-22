@@ -47,7 +47,7 @@ func (c Client) ReportViewing(ctx context.Context, options ReportViewingOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Sessions/Viewing",
 	}

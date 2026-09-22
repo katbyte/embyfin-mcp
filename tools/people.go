@@ -11,43 +11,44 @@ import (
 )
 
 // resolvePerson finds a person by exact name (case-insensitive) or id among
-// the people whose name holds the search, and lists the near ones when none
-// matches.
-func resolvePerson(ctx context.Context, client *embyfin.Client, nameOrID string) (*embyfin.Item, error) {
+// the people whose name holds the search. When none matches exactly it
+// returns the near ones instead, so a partial name answers with the people it
+// could mean rather than an error; a name nobody has is an error.
+func resolvePerson(ctx context.Context, client *embyfin.Client, nameOrID string) (found *embyfin.Item, near []embyfin.Item, err error) {
 	nameOrID = strings.TrimSpace(nameOrID)
 	if nameOrID == "" {
-		return nil, errors.New("person is required")
+		return nil, nil, errors.New("person is required")
 	}
 	people, err := client.Persons(ctx, nameOrID, 50)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for i := range people {
 		if strings.EqualFold(people[i].Name, nameOrID) || people[i].ID == nameOrID {
-			return &people[i], nil
+			return &people[i], nil, nil
 		}
 	}
 	if len(people) == 0 {
 		// an id is no search term: look it up as one
 		if items, _, err := client.Search(ctx, embyfin.SearchOptions{IDs: nameOrID, IncludeItemTypes: "Person", Fields: "Path"}); err == nil && len(items) == 1 && items[0].ID == nameOrID {
-			return &items[0], nil
+			return &items[0], nil, nil
 		}
-		return nil, fmt.Errorf("no person named %q in the library", nameOrID)
-	}
-	names := make([]string, 0, len(people))
-	for _, p := range people {
-		names = append(names, p.Name)
+		return nil, nil, fmt.Errorf("no person named %q in the library", nameOrID)
 	}
 
-	return nil, fmt.Errorf("no person named %q (did you mean: %s)", nameOrID, strings.Join(names, ", "))
+	return nil, people, nil
 }
 
 func registerPersonTools(r *registry) {
 	client := r.client
 
 	type getIn struct {
-		Person string `json:"person"          jsonschema:"the person's name (case-insensitive) or id, from library_people"`
+		Person string `json:"person"          jsonschema:"the person's name (case-insensitive), a part of it, or their id"`
 		Types  string `json:"types,omitempty" jsonschema:"comma-separated item types to list; default Movie,Series"`
+	}
+	type personRow struct {
+		Name string `json:"name"`
+		ID   string `json:"id"`
 	}
 	type creditRow struct {
 		itemSummary
@@ -55,20 +56,29 @@ func registerPersonTools(r *registry) {
 		Role   string `json:"role,omitempty" jsonschema:"the character, for an actor"`
 	}
 	type getOut struct {
-		Name                string            `json:"name"`
-		ID                  string            `json:"id"`
+		Name                string            `json:"name,omitempty"`
+		ID                  string            `json:"id,omitempty"`
 		MetadataProviderIDs map[string]string `json:"metadata_provider_ids,omitempty"`
 		Overview            string            `json:"overview,omitempty"`
 		Born                string            `json:"born,omitempty"`
 		Credits             []creditRow       `json:"credits"                         jsonschema:"what the library holds with them in it, oldest first; a person credited twice on one item is listed twice"`
+		Candidates          []personRow       `json:"candidates,omitempty"            jsonschema:"when the name matched nobody exactly: the people it could mean, to ask again by name or id"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "person_get",
-		Description: "One actor, director or writer and everything the library holds with them in it, with how each item credits them: 'what have I got with Denis Villeneuve', 'which of my films is Sigourney Weaver in'.",
+		Description: "One actor, director or writer and everything the library holds with them in it, with how each item credits them: 'what have I got with Denis Villeneuve', 'which of my films is Sigourney Weaver in'. A part of a name that matches nobody exactly answers with the people it could mean.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getIn) (*mcp.CallToolResult, getOut, error) {
-		found, err := resolvePerson(ctx, client, in.Person)
+		found, near, err := resolvePerson(ctx, client, in.Person)
 		if err != nil {
 			return nil, getOut{}, err
+		}
+		if found == nil {
+			out := getOut{Candidates: make([]personRow, 0, len(near))}
+			for _, p := range near {
+				out.Candidates = append(out.Candidates, personRow{Name: p.Name, ID: p.ID})
+			}
+
+			return nil, out, nil
 		}
 		person, err := client.Person(ctx, found.Name, "")
 		if err != nil {

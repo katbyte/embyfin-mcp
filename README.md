@@ -27,7 +27,7 @@ differences between them live in one package, and every tool is tested against b
 
 ### What else is in the box
 
-- **97 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
+- **91 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
 - **Three Go SDKs.** `lib/emby`, `lib/jf` and `lib/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents, standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
@@ -187,27 +187,27 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 |---|---|
 | server | `server_info`, `server_stats`, `server_activity`, `server_devices`, `server_logs`, `server_log` |
 | tasks | `task_list`, `task_run` |
-| libraries | `library_list`, `library_get` (counts by type), `library_search` (by title, with filters: library, genre, year, person, sort), `library_items` (browse by genre, tag, studio, rating, year and watch state, sorted and paged), `library_filters` (every genre, tag, studio, rating and year, with counts), `library_episodes` (every episode in a library, paged, with quality), `library_recent`, `library_genres`, `library_people`, `library_scan` (every library, or one), `library_create`, `library_edit` (rename, add and remove folders, switch nfo saving), `library_delete` |
+| libraries | `library_list`, `library_get` (counts by type), `library_items` (a title search, a structured filter by genre, tag, studio, rating, year, person and watch state, or both, sorted and paged), `library_filters` (every genre, tag, studio, rating and year, with counts), `library_episodes` (every episode in a library, paged, with quality), `library_recent`, `library_genres`, `library_scan` (every library, or one), `library_create`, `library_edit` (rename, add and remove folders, switch nfo saving), `library_delete` |
 | audits | the 21 audits in [the table above](#the-audits) |
-| items | `item_get`, `item_find_by_metadata_id` (the definitive "do I already have this?"), `item_similar`, `item_refresh`, `item_edit`, `item_batch_edit` (the same genres, tags, studios or rating across many items; `add_*` and `remove_*` edit each item's own list), `item_instant_mix`, `item_last_watched`, `item_watch_history`, `item_set_watched`, `item_set_progress`, `item_set_favourite` |
+| items | `item_get`, `item_find_by_metadata_id` (the definitive "do I already have this?"), `item_similar`, `item_refresh`, `item_edit` (one item's fields, or the same genres, tags, studios or rating across many; `add_*` and `remove_*` edit each item's own list), `item_instant_mix`, `item_last_watched`, `item_watch_history`, `item_set_state` (watched, favourite and resume point, any or all) |
 | metadata | `metadata_rename` (a genre, tag or studio, everywhere it is used; renaming onto an existing value merges, `remove` drops it) |
 | people | `person_get` (an actor, director or writer and everything the library holds with them in it) |
 | identify | `item_identify` (candidates from the server's providers) → `item_identify_apply` |
 | artwork | `item_artwork` (current images plus remote candidates) → `item_artwork_set` |
 | subtitles | `item_subtitle_search` → `item_subtitle_download` |
 | shows | `show_seasons`, `show_episodes` (with quality on each row), `show_episodes_exist` (does it have these episodes? up to 50 series a call, with the match score and any duplicate entries), `show_missing` (what a series is missing, and whether it could tell), `show_resolve` (a release name to a series, scored) |
-| users | `user_list`, `user_get` (permissions, libraries, and how much they have watched), `user_history`, `user_next_up`, `user_in_progress` (with positions), `user_favourites`, `user_stats` (films and episodes watched, hours, series finished, top genres and series) |
+| users | `user_list`, `user_get` (permissions, libraries, playback preferences), `user_history`, `user_next_up`, `user_in_progress` (with positions), `user_stats` (films and episodes watched, in progress and favourited, hours, series finished, top genres and series, in one pass) |
 | quality | `quality_compare` (which of two copies is better, by how much, and why) |
 | plan | `plan_check` (before writing files: what is at each destination path now, which series it would join, which entries collide) |
 | sessions | `session_list`, `session_play`, `session_command`, `session_message` |
 | playlists | `playlist_list`, `playlist_get`, `playlist_create`, `playlist_edit` (rename, move an entry), `playlist_add`, `playlist_remove`, `playlist_delete` |
 | collections | `collection_list`, `collection_get`, `collection_create`, `collection_edit` (rename, sort name, overview), `collection_add`, `collection_remove`, `collection_delete` |
 
-`item_delete` (permanently removes the media file), `item_orphans_delete` (what a removed library left behind, once its folder is gone) and `library_delete` are only registered when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set. `--read-only` registers the 67 read tools and nothing else, so a write tool is absent from `tools/list` rather than refused when called.
+`item_delete` (permanently removes the media file), `item_orphans_delete` (what a removed library left behind, once its folder is gone) and `library_delete` are only registered when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set. `--read-only` registers the 64 read tools and nothing else, so a write tool is absent from `tools/list` rather than refused when called.
 
 ### Choosing which tools load
 
-**The default is `core`: seven read-only tools, about 1,100 tokens.** The whole surface is
+**The default is `core`: six read-only tools, about 1,000 tokens.** The whole surface is
 around 15,800 tokens of tool definitions before anyone asks a question, which is a poor way to
 spend a client's context by default. `--toolsets` / `EMBYFIN_TOOLSETS` loads the groups a session
 actually needs, and `core` comes along with whatever else is asked for, because nothing else
@@ -217,13 +217,13 @@ can find a library or open an item.
 
 | toolset | tools | with core | ~tokens |
 |---|---|---|---|
-| `core` *(default)* | 7 | 7 | 1,100 |
-| `remote` | 4 | 11 | 1,500 |
-| `admin` | 14 | 21 | 3,000 |
-| `watching` | 13 | 20 | 2,500 |
-| `organise` | 14 | 21 | 2,700 |
-| `curation` | 45 | 52 | 11,300 |
-| `all` | 97 | 97 | 16,600 |
+| `core` *(default)* | 6 | 6 | 1,000 |
+| `remote` | 4 | 10 | 1,400 |
+| `admin` | 14 | 20 | 2,800 |
+| `watching` | 10 | 16 | 2,100 |
+| `organise` | 14 | 20 | 2,500 |
+| `curation` | 43 | 49 | 11,000 |
+| `all` | 91 | 91 | 15,800 |
 
 Tokens are what the model sees: each tool's name, description and input schema, measured over
 a real `tools/list` at four bytes a token. Every tool also carries an output schema, another
@@ -255,7 +255,7 @@ embyfin-mcp tools --read-only -q    # names only
 
 `--allow-tools` and `--deny-tools` narrow whatever the toolsets left, and take comma-separated
 tool names, globs with a leading or trailing `*`, or the `essential` preset (`library_list`,
-`library_search`, `item_get`, `user_next_up`, `item_set_watched`):
+`library_items`, `item_get`, `user_next_up`, `item_set_state`):
 
 ```sh
 EMBYFIN_ALLOW_TOOLS=essential
@@ -277,7 +277,7 @@ tool.
 5. `audit_duplicates` and `audit_multiple_versions` show what to prune;
    `audit_runtime` and `audit_quality` show what to re-download.
 6. `audit_spelling` finds the genres, tags and studios typed several ways; `metadata_rename`
-   merges each group, and `item_batch_edit` puts the right genre on a whole franchise.
+   merges each group, and `item_edit` with many ids puts the right genre on a whole franchise.
 7. `audit_missing_episodes` lists the gaps in each series to fill.
 
 ### Cleaning up after a removed library

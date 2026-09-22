@@ -25,7 +25,7 @@ func (c Client) GetFile(ctx context.Context, itemId string) (result GetFileOpera
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Items/%s/File", url.PathEscape(itemId)),
 		StreamResponse: true,
 	}

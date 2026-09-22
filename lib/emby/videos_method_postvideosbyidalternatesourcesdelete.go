@@ -23,7 +23,7 @@ func (c Client) PostVideosByIdAlternateSourcesDelete(ctx context.Context, id str
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Videos/%s/AlternateSources/Delete", url.PathEscape(id)),
 	}
 

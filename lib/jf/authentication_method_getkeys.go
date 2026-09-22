@@ -21,7 +21,7 @@ func (c Client) GetKeys(ctx context.Context) (result GetKeysOperationResponse, e
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Auth/Keys",
 	}
 

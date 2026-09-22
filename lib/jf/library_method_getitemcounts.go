@@ -49,7 +49,7 @@ func (c Client) GetItemCounts(ctx context.Context, options GetItemCountsOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items/Counts",
 	}

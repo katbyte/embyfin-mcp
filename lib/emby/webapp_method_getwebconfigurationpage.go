@@ -23,7 +23,7 @@ func (c Client) GetWebConfigurationPage(ctx context.Context) (result GetWebConfi
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           "/web/ConfigurationPage",
 		StreamResponse: true,
 	}

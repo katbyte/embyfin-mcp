@@ -92,7 +92,7 @@ func (c Client) GetUpcomingEpisodes(ctx context.Context, options GetUpcomingEpis
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Shows/Upcoming",
 	}

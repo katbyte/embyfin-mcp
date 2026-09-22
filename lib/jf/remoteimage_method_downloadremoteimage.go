@@ -49,7 +49,7 @@ func (c Client) DownloadRemoteImage(ctx context.Context, itemId string, options 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/RemoteImages/Download", url.PathEscape(itemId)),
 	}

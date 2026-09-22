@@ -22,7 +22,7 @@ func (c Client) GetPlugins(ctx context.Context) (result GetPluginsOperationRespo
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Plugins",
 	}
 

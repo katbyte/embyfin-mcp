@@ -68,7 +68,7 @@ func (c Client) RefreshItem(ctx context.Context, itemId string, options RefreshI
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Refresh", url.PathEscape(itemId)),
 	}

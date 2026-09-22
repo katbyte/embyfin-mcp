@@ -21,7 +21,7 @@ func (c Client) SetRepositories(ctx context.Context, input []RepositoryInfo) (re
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Repositories",
 	}
 

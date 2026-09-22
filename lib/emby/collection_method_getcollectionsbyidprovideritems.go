@@ -635,7 +635,7 @@ func (c Client) GetCollectionsByIdProviderItems(ctx context.Context, id string, 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Collections/%s/ProviderItems", url.PathEscape(id)),
 	}

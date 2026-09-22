@@ -358,7 +358,7 @@ func registerShowTools(r *registry) {
 	}
 
 	type seasonsIn struct {
-		SeriesID string `json:"series_id" jsonschema:"the series item id (find it with library_search types=Series)"`
+		SeriesID string `json:"series_id" jsonschema:"the series item id (find it with library_items types=Series)"`
 	}
 	type seasonRow struct {
 		ID     string `json:"id"`

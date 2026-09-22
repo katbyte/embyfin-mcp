@@ -43,7 +43,7 @@ func (c Client) RemoveFromCollection(ctx context.Context, collectionId string, o
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Collections/%s/Items", url.PathEscape(collectionId)),
 	}

@@ -125,7 +125,7 @@ func (c Client) GetStudiosByNameImagesByType(ctx context.Context, name string, t
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Studios/%s/Images/%s", url.PathEscape(name), url.PathEscape(string(typeParam))),
 		StreamResponse: true,

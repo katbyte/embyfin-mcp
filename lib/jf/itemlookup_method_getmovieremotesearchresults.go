@@ -22,7 +22,7 @@ func (c Client) GetMovieRemoteSearchResults(ctx context.Context, input MovieInfo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Movie",
 	}
 

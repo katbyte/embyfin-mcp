@@ -55,7 +55,7 @@ func (c Client) DisplayContent(ctx context.Context, sessionId string, options Di
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Sessions/%s/Viewing", url.PathEscape(sessionId)),
 	}

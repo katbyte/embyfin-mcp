@@ -21,7 +21,7 @@ func (c Client) PostLibraryRefresh(ctx context.Context) (result PostLibraryRefre
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/Refresh",
 	}
 

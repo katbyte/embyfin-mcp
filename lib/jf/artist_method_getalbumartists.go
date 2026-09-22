@@ -232,7 +232,7 @@ func (c Client) GetAlbumArtists(ctx context.Context, options GetAlbumArtistsOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Artists/AlbumArtists",
 	}

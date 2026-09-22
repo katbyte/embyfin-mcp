@@ -44,7 +44,7 @@ func (c Client) GetLocalTrailers(ctx context.Context, itemId string, options Get
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/LocalTrailers", url.PathEscape(itemId)),
 	}

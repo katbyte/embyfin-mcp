@@ -60,7 +60,7 @@ func (c Client) GetLineups(ctx context.Context, options GetLineupsOperationOptio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/ListingProviders/Lineups",
 	}

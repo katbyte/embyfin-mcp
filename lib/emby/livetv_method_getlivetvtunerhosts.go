@@ -22,7 +22,7 @@ func (c Client) GetLiveTvTunerHosts(ctx context.Context) (result GetLiveTvTunerH
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/TunerHosts",
 	}
 

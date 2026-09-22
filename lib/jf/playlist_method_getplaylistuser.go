@@ -23,7 +23,7 @@ func (c Client) GetPlaylistUser(ctx context.Context, playlistId string, userId s
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Playlists/%s/Users/%s", url.PathEscape(playlistId), url.PathEscape(userId)),
 	}
 

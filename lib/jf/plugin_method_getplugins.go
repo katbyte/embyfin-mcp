@@ -21,7 +21,7 @@ func (c Client) GetPlugins(ctx context.Context) (result GetPluginsOperationRespo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Plugins",
 	}
 

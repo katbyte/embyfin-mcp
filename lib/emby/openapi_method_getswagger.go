@@ -23,7 +23,7 @@ func (c Client) GetSwagger(ctx context.Context) (result GetSwaggerOperationRespo
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/swagger",
 	}
 

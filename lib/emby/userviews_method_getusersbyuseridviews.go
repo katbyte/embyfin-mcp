@@ -46,7 +46,7 @@ func (c Client) GetUsersByUserIdViews(ctx context.Context, userId string, option
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Users/%s/Views", url.PathEscape(userId)),
 	}

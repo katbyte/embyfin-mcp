@@ -146,7 +146,7 @@ func (c Client) GetGenres(ctx context.Context, options GetGenresOperationOptions
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Genres",
 	}

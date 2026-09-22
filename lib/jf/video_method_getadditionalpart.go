@@ -44,7 +44,7 @@ func (c Client) GetAdditionalPart(ctx context.Context, itemId string, options Ge
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Videos/%s/AdditionalParts", url.PathEscape(itemId)),
 	}

@@ -88,7 +88,7 @@ func TestToolsCommand(t *testing.T) {
 	}
 
 	// the default is core, so those are listed and nothing else is
-	for _, want := range []string{"core", "server_info", "library_search", coreTool} {
+	for _, want := range []string{"core", "server_info", "library_items", coreTool} {
 		if !strings.Contains(out, want) {
 			t.Errorf("%q missing from `tools`:\n%s", want, out)
 		}

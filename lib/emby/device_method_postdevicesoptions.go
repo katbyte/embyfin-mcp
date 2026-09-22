@@ -43,7 +43,7 @@ func (c Client) PostDevicesOptions(ctx context.Context, input DevicesDeviceOptio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Devices/Options",
 	}

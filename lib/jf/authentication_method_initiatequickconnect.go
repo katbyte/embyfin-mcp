@@ -21,7 +21,7 @@ func (c Client) InitiateQuickConnect(ctx context.Context) (result InitiateQuickC
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/QuickConnect/Initiate",
 	}
 

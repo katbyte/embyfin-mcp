@@ -50,7 +50,7 @@ func (c Client) GetSplashscreen(ctx context.Context, options GetSplashscreenOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           "/Branding/Splashscreen",
 		StreamResponse: true,

@@ -23,7 +23,7 @@ func (c Client) PostUsersNew(ctx context.Context, input CreateUserByName) (resul
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Users/New",
 	}
 

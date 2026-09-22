@@ -22,7 +22,7 @@ func (c Client) AuthenticationCreateSessionFromLogin(ctx context.Context, input 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/3/authentication/token/validate_with_login",
 	}
 

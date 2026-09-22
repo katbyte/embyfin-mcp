@@ -21,7 +21,7 @@ func (c Client) SyncPlayReady(ctx context.Context, input ReadyRequestDto) (resul
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Ready",
 	}
 

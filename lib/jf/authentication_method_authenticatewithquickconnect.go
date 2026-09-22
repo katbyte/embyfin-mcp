@@ -22,7 +22,7 @@ func (c Client) AuthenticateWithQuickConnect(ctx context.Context, input QuickCon
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Users/AuthenticateWithQuickConnect",
 	}
 

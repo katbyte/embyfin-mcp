@@ -95,7 +95,7 @@ func (c Client) GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeigh
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Items/%s/Images/%s/%d/%s/%s/%d/%d/%d/%d", url.PathEscape(id), url.PathEscape(string(typeParam)), index, url.PathEscape(tag), url.PathEscape(format), maxWidth, maxHeight, percentPlayed, unPlayedCount),
 		StreamResponse: true,

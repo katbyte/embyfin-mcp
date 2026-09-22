@@ -42,7 +42,7 @@ func (c Client) TvSeriesAggregateCredits(ctx context.Context, seriesId int, opti
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/tv/%d/aggregate_credits", seriesId),
 	}

@@ -58,8 +58,15 @@ func TestServerActivity(t *testing.T) {
 	if len(entries) == 0 {
 		t.Fatal("no activity at all after a scan and two logins")
 	}
-	if num(t, out["total_in_timeframe"], "total_in_timeframe") < len(entries) {
-		t.Errorf("total_in_timeframe %v < %d entries", out["total_in_timeframe"], len(entries))
+	if num(t, out["total"], "total") < len(entries) || num(t, out["offset"], "offset") != 0 {
+		t.Errorf("total %v offset %v for %d entries", out["total"], out["offset"], len(entries))
+	}
+	// paged by offset: the second entry heads a page that skips the first
+	if len(entries) > 1 {
+		page := call(t, "server_activity", map[string]any{"days": 1, "limit": 1, "offset": 1})
+		if got := rows(t, page["entries"], "entries"); num(t, page["offset"], "offset") != 1 || len(got) != 1 || str(got[0]["date"]) != str(entries[1]["date"]) {
+			t.Errorf("page at offset 1 = %v, want %v", page, entries[1])
+		}
 	}
 	for _, e := range entries {
 		if str(e["date"]) == "" || str(e["type"]) == "" || str(e["summary"]) == "" {

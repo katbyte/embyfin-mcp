@@ -41,7 +41,7 @@ func (c Client) DeleteItems(ctx context.Context, options DeleteItemsOperationOpt
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          "/Items",
 	}

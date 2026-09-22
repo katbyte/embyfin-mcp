@@ -21,7 +21,7 @@ func (c Client) GetFallbackFontList(ctx context.Context) (result GetFallbackFont
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/FallbackFont/Fonts",
 	}
 

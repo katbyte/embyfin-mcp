@@ -21,7 +21,7 @@ func (c Client) AuthenticationCreateRequestToken(ctx context.Context) (result Au
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/authentication/token/new",
 	}
 

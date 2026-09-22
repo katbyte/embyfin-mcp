@@ -93,7 +93,7 @@ func (c Client) GetSeasons(ctx context.Context, seriesId string, options GetSeas
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Shows/%s/Seasons", url.PathEscape(seriesId)),
 	}

@@ -21,7 +21,7 @@ func (c Client) PostSessionsLogout(ctx context.Context) (result PostSessionsLogo
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Sessions/Logout",
 	}
 

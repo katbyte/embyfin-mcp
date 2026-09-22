@@ -173,7 +173,7 @@ func (c Client) GetAudioByIdStreamByContainer(ctx context.Context, id string, co
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Audio/%s/stream.%s", url.PathEscape(id), url.PathEscape(container)),
 		StreamResponse: true,

@@ -22,7 +22,7 @@ func (c Client) DeleteSubtitle(ctx context.Context, itemId string, index int) (r
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Videos/%s/Subtitles/%d", url.PathEscape(itemId), index),
 	}
 

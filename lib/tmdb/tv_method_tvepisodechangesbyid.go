@@ -22,7 +22,7 @@ func (c Client) TvEpisodeChangesById(ctx context.Context, episodeId int) (result
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/tv/episode/%d/changes", episodeId),
 	}
 

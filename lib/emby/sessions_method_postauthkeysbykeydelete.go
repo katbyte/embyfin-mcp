@@ -23,7 +23,7 @@ func (c Client) PostAuthKeysByKeyDelete(ctx context.Context, key string) (result
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Auth/Keys/%s/Delete", url.PathEscape(key)),
 	}
 

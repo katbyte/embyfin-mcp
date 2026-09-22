@@ -41,7 +41,7 @@ func (c Client) DeleteListingProvider(ctx context.Context, options DeleteListing
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          "/LiveTv/ListingProviders",
 	}

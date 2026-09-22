@@ -47,7 +47,7 @@ func (c Client) MovieAddRating(ctx context.Context, movieId int, input MovieAddR
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/movie/%d/rating", movieId),
 	}

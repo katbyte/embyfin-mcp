@@ -42,7 +42,7 @@ func (c Client) PostFullCapabilities(ctx context.Context, input ClientCapabiliti
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Sessions/Capabilities/Full",
 	}

@@ -21,7 +21,7 @@ func (c Client) CreateTimer(ctx context.Context, input TimerInfoDto) (result Cre
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveTv/Timers",
 	}
 

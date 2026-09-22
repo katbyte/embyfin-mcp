@@ -22,7 +22,7 @@ func (c Client) StopTask(ctx context.Context, taskId string) (result StopTaskOpe
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/ScheduledTasks/Running/%s", url.PathEscape(taskId)),
 	}
 

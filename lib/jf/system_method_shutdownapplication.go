@@ -20,7 +20,7 @@ func (c Client) ShutdownApplication(ctx context.Context) (result ShutdownApplica
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/System/Shutdown",
 	}
 

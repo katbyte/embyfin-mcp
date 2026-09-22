@@ -24,7 +24,7 @@ func (c Client) GetItemsByIdImages(ctx context.Context, id string) (result GetIt
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Items/%s/Images", url.PathEscape(id)),
 	}
 

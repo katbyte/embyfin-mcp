@@ -43,7 +43,7 @@ func (c Client) GetLiveTvListingProviders(ctx context.Context, options GetLiveTv
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/ListingProviders",
 	}

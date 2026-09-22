@@ -22,7 +22,7 @@ func (c Client) AuthenticationDeleteSession(ctx context.Context, input Authentic
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       "/3/authentication/session",
 	}
 

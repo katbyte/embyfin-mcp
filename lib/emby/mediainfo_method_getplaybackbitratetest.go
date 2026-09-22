@@ -45,7 +45,7 @@ func (c Client) GetPlaybackBitrateTest(ctx context.Context, options GetPlaybackB
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           "/Playback/BitrateTest",
 		StreamResponse: true,

@@ -119,7 +119,7 @@ func (c Client) GetGameGenresByNameImagesByTypeByIndex(ctx context.Context, name
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/GameGenres/%s/Images/%s/%d", url.PathEscape(name), url.PathEscape(string(typeParam)), index),
 		StreamResponse: true,

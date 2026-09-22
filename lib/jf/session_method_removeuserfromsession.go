@@ -22,7 +22,7 @@ func (c Client) RemoveUserFromSession(ctx context.Context, sessionId string, use
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Sessions/%s/User/%s", url.PathEscape(sessionId), url.PathEscape(userId)),
 	}
 

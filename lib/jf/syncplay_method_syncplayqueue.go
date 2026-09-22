@@ -21,7 +21,7 @@ func (c Client) SyncPlayQueue(ctx context.Context, input QueueRequestDto) (resul
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Queue",
 	}
 

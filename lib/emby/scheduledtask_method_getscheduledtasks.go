@@ -50,7 +50,7 @@ func (c Client) GetScheduledTasks(ctx context.Context, options GetScheduledTasks
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/ScheduledTasks",
 	}

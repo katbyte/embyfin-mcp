@@ -42,7 +42,7 @@ func (c Client) PostAuthKeys(ctx context.Context, options PostAuthKeysOperationO
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Auth/Keys",
 	}

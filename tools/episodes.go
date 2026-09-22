@@ -3,8 +3,6 @@ package tools
 import (
 	"cmp"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -421,37 +419,6 @@ const (
 	episodePageMax = 1000
 )
 
-// episodeCursor is where the next page starts, handed back opaque so paging
-// stays the server's business rather than arithmetic the caller repeats.
-type episodeCursor struct {
-	Offset int `json:"o"`
-}
-
-func encodeCursor(offset int) string {
-	b, err := json.Marshal(episodeCursor{Offset: offset})
-	if err != nil { // a struct of one int cannot fail to marshal
-		return ""
-	}
-
-	return base64.RawURLEncoding.EncodeToString(b)
-}
-
-func decodeCursor(s string) (int, error) {
-	b, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(s, "="))
-	if err != nil {
-		return 0, fmt.Errorf("cursor %q is not one this tool handed out: %w", s, err)
-	}
-	var c episodeCursor
-	if err := json.Unmarshal(b, &c); err != nil {
-		return 0, fmt.Errorf("cursor %q is not one this tool handed out: %w", s, err)
-	}
-	if c.Offset < 0 {
-		return 0, fmt.Errorf("cursor %q points before the first episode", s)
-	}
-
-	return c.Offset, nil
-}
-
 // episodeSweepSort is the order a bulk read answers in: by series, then by
 // season and episode within it. It has to be total and stable, or a page
 // boundary would drop or repeat rows between calls.
@@ -660,18 +627,16 @@ func registerEpisodeTools(r *registry) {
 		WithFile   *bool    `json:"with_file,omitempty"   jsonschema:"only episodes with a file; default true"`
 		Limit      int      `json:"limit,omitempty"       jsonschema:"page size, default 500, max 1000"`
 		SavedSince string   `json:"saved_since,omitempty" jsonschema:"only items the server last SAVED at or after this time (RFC3339). The closest either server offers to 'what changed': a file written over an existing path is re-read and saved, but so is an item somebody edited, so it is a net rather than a measurement. Neither server can sort by it"`
-		Cursor     string   `json:"cursor,omitempty"      jsonschema:"from the previous page"`
-		Offset     int      `json:"offset,omitempty"      jsonschema:"start here, in place of a cursor"`
+		Offset     int      `json:"offset,omitempty"      jsonschema:"skip this many episodes, to page: the next page starts at offset + limit"`
 	}
 	type exportOut struct {
-		Total    int          `json:"total"            jsonschema:"episodes matching across every page"`
-		Offset   int          `json:"offset"           jsonschema:"where this page starts"`
-		Cursor   string       `json:"cursor,omitempty" jsonschema:"pass back as cursor to read the next page; absent when this was the last one"`
-		Episodes []episodeRow `json:"episodes"         jsonschema:"ordered by series, then season, then episode, so pages line up across calls"`
+		Total    int          `json:"total"    jsonschema:"episodes matching across every page"`
+		Offset   int          `json:"offset"   jsonschema:"where this page starts"`
+		Episodes []episodeRow `json:"episodes" jsonschema:"ordered by series, then season, then episode, so pages line up across calls"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "library_episodes",
-		Description: "Every episode in a library or one series, paged by cursor, with each file's quality facts: resolution, codec, frame rate, HDR, bitrate, size, runtime and audio tracks. The bulk read for comparing a folder against the library.",
+		Description: "Every episode in a library or one series, paged by offset (the page walks the query, so a page whose rows were all filtered out still has pages after it), with each file's quality facts: resolution, codec, frame rate, HDR, bitrate, size, runtime and audio tracks. The bulk read for comparing a folder against the library.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in exportIn) (*mcp.CallToolResult, exportOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
@@ -680,13 +645,6 @@ func registerEpisodeTools(r *registry) {
 		limit = min(limit, episodePageMax)
 
 		offset := max(in.Offset, 0)
-		if in.Cursor != "" {
-			at, err := decodeCursor(in.Cursor)
-			if err != nil {
-				return nil, exportOut{}, err
-			}
-			offset = at
-		}
 		quality := in.Quality == nil || *in.Quality
 		withFile := in.WithFile == nil || *in.WithFile
 		keep, err := keptFacts(in.Fields)
@@ -753,12 +711,6 @@ func registerEpisodeTools(r *registry) {
 		if scoped {
 			withRuntimeMultiples(out.Episodes, keep)
 		}
-		// the cursor walks the query, not the rows kept: a page whose rows
-		// were all filtered out still has pages after it
-		if next := offset + len(items); len(items) > 0 && next < total {
-			out.Cursor = encodeCursor(next)
-		}
-
 		return nil, out, nil
 	})
 

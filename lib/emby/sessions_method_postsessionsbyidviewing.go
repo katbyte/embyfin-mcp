@@ -56,7 +56,7 @@ func (c Client) PostSessionsByIdViewing(ctx context.Context, id string, options 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Sessions/%s/Viewing", url.PathEscape(id)),
 	}

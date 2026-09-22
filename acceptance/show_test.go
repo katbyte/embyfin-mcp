@@ -129,15 +129,14 @@ func TestLibraryEpisodes(t *testing.T) {
 		assertQualityFacts(t, row)
 	}
 
-	// paged two at a time, the whole library comes back once each
+	// paged two at a time by offset, the whole library comes back once each;
+	// the next page starts at offset + limit
 	seen := map[string]bool{}
-	cursor := ""
-	for page := 0; page < 20; page++ {
-		args := map[string]any{"library": "Shows", "limit": 2}
-		if cursor != "" {
-			args["cursor"] = cursor
+	for offset := 0; offset < total; offset += 2 {
+		page := call(t, "library_episodes", map[string]any{"library": "Shows", "limit": 2, "offset": offset})
+		if num(t, page["offset"], "offset") != offset || num(t, page["total"], "total") != total {
+			t.Errorf("page at %d says offset %v of %v", offset, page["offset"], page["total"])
 		}
-		page := call(t, "library_episodes", args)
 		for _, row := range rows(t, page["episodes"], "episodes") {
 			key := fmt.Sprintf("%s S%02dE%02d", str(row["series"]), num(t, row["season"], "season"), num(t, row["episode"], "episode"))
 			if seen[key] {
@@ -145,12 +144,13 @@ func TestLibraryEpisodes(t *testing.T) {
 			}
 			seen[key] = true
 		}
-		if cursor = str(page["cursor"]); cursor == "" {
-			break
-		}
 	}
 	if len(seen) != 9 {
 		t.Errorf("paging returned %d episodes, want the library's 9: %v", len(seen), seen)
+	}
+	// past the end is an empty page, not an error
+	if past := call(t, "library_episodes", map[string]any{"library": "Shows", "offset": total}); len(rows(t, past["episodes"], "episodes")) != 0 || num(t, past["offset"], "offset") != total {
+		t.Errorf("past the end = %v", past)
 	}
 
 	// one series on its own, and the refusals
@@ -170,9 +170,6 @@ func TestLibraryEpisodes(t *testing.T) {
 	}
 	if msg := callErr(t, "library_episodes", map[string]any{"library": "Shows", "series_id": sev}); !strings.Contains(msg, "not both") {
 		t.Errorf("a library and a series together: %s", msg)
-	}
-	if msg := callErr(t, "library_episodes", map[string]any{"cursor": "nonsense"}); !strings.Contains(msg, "cursor") {
-		t.Errorf("a bad cursor: %s", msg)
 	}
 }
 

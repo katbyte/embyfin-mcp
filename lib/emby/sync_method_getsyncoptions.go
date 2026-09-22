@@ -67,7 +67,7 @@ func (c Client) GetSyncOptions(ctx context.Context, options GetSyncOptionsOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Sync/Options",
 	}

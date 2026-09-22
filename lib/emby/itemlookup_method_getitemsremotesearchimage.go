@@ -48,7 +48,7 @@ func (c Client) GetItemsRemoteSearchImage(ctx context.Context, options GetItemsR
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           "/Items/RemoteSearch/Image",
 		StreamResponse: true,

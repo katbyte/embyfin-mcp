@@ -23,7 +23,7 @@ func (c Client) PostSyncJobItemsByIdUnmarkForRemoval(ctx context.Context, id str
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Sync/JobItems/%s/UnmarkForRemoval", url.PathEscape(id)),
 	}
 

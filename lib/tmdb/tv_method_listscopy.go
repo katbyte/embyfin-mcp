@@ -47,7 +47,7 @@ func (c Client) ListsCopy(ctx context.Context, seriesId int, options ListsCopyOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/tv/%d/lists", seriesId),
 	}

@@ -46,7 +46,7 @@ func (c Client) GetSyncJobItemsByIdAdditionalFiles(ctx context.Context, id strin
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Sync/JobItems/%s/AdditionalFiles", url.PathEscape(id)),
 		StreamResponse: true,

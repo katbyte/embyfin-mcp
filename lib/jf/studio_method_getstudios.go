@@ -140,7 +140,7 @@ func (c Client) GetStudios(ctx context.Context, options GetStudiosOperationOptio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Studios",
 	}

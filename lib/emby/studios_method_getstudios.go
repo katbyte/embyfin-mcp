@@ -633,7 +633,7 @@ func (c Client) GetStudios(ctx context.Context, options GetStudiosOperationOptio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Studios",
 	}

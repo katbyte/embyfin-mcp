@@ -45,7 +45,7 @@ func (c Client) GetLiveTvRecordingsById(ctx context.Context, id string, options 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/LiveTv/Recordings/%s", url.PathEscape(id)),
 	}

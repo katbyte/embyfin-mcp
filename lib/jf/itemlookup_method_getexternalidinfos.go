@@ -23,7 +23,7 @@ func (c Client) GetExternalIdInfos(ctx context.Context, itemId string) (result G
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Items/%s/ExternalIdInfos", url.PathEscape(itemId)),
 	}
 

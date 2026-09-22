@@ -23,7 +23,7 @@ func (c Client) GetTask(ctx context.Context, taskId string) (result GetTaskOpera
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/ScheduledTasks/%s", url.PathEscape(taskId)),
 	}
 

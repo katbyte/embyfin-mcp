@@ -633,7 +633,7 @@ func (c Client) GetOfficialRatings(ctx context.Context, options GetOfficialRatin
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/OfficialRatings",
 	}

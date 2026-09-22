@@ -657,7 +657,7 @@ func (c Client) GetLiveTvRecordings(ctx context.Context, options GetLiveTvRecord
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Recordings",
 	}

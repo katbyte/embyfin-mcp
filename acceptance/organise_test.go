@@ -65,7 +65,7 @@ func TestCollections(t *testing.T) {
 
 	// rename it, with a sort name and a description
 	edit := call(t, "collection_edit", map[string]any{"collection": "alien saga", "name": "Zzyzx Anthology", "sort_name": "Alien 0", "overview": "The Alien films."})
-	if str(edit["name"]) != "Zzyzx Anthology" || !slices.Equal(strs(t, edit["updated_fields"], "updated_fields"), []string{"Name", "SortName", "Overview"}) {
+	if str(edit["name"]) != "Zzyzx Anthology" || !slices.Equal(strs(t, edit["changed"], "changed"), []string{"Name", "SortName", "Overview"}) {
 		t.Errorf("collection_edit = %v", edit)
 	}
 	if stillListed(t, "collection_list", "collections", "Alien Saga") {

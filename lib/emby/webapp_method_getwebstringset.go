@@ -22,7 +22,7 @@ func (c Client) GetWebStringset(ctx context.Context) (result GetWebStringsetOper
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/web/stringset",
 	}
 

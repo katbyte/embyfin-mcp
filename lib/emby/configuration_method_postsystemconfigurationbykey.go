@@ -27,7 +27,7 @@ func (c Client) PostSystemConfigurationByKey(ctx context.Context, key string, in
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/System/Configuration/%s", url.PathEscape(key)),
 	}
 

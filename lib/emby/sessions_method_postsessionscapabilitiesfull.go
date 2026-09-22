@@ -43,7 +43,7 @@ func (c Client) PostSessionsCapabilitiesFull(ctx context.Context, input ClientCa
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Sessions/Capabilities/Full",
 	}

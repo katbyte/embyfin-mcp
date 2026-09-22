@@ -27,7 +27,7 @@ func (c Client) PostPluginsByIdConfiguration(ctx context.Context, id string, inp
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Plugins/%s/Configuration", url.PathEscape(id)),
 	}
 

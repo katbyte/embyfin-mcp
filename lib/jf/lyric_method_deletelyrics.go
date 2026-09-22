@@ -22,7 +22,7 @@ func (c Client) DeleteLyrics(ctx context.Context, itemId string) (result DeleteL
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Audio/%s/Lyrics", url.PathEscape(itemId)),
 	}
 

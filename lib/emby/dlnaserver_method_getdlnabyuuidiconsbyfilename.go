@@ -25,7 +25,7 @@ func (c Client) GetDlnaByUuIdIconsByFilename(ctx context.Context, uuId string, f
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Dlna/%s/icons/%s", url.PathEscape(uuId), url.PathEscape(filename)),
 		StreamResponse: true,
 	}

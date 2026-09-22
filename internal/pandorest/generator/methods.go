@@ -263,7 +263,7 @@ func (g *gen) writeMethod(b *strings.Builder, o *definitions.Operation, response
 		fmt.Fprintf(b, "\t\t\t%s,\n", name)
 	}
 	b.WriteString("\t\t},\n")
-	fmt.Fprintf(b, "\t\tHttpMethod: %s,\n", httpMethods[o.Method])
+	fmt.Fprintf(b, "\t\tHTTPMethod: %s,\n", httpMethods[o.Method])
 	if len(o.Options) > 0 {
 		b.WriteString("\t\tOptionsObject: options,\n")
 	}

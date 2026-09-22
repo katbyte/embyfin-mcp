@@ -90,8 +90,9 @@ func registerServerTools(r *registry) {
 	})
 
 	type activityIn struct {
-		Days  int `json:"days,omitempty"  jsonschema:"how many days back to include, default 60"`
-		Limit int `json:"limit,omitempty" jsonschema:"maximum entries to return, default 50"`
+		Days   int `json:"days,omitempty"   jsonschema:"how many days back to include, default 60"`
+		Limit  int `json:"limit,omitempty"  jsonschema:"page size, default 50"`
+		Offset int `json:"offset,omitempty" jsonschema:"skip this many entries, to page"`
 	}
 	type activityEntry struct {
 		Date     string `json:"date"`
@@ -100,8 +101,9 @@ func registerServerTools(r *registry) {
 		Summary  string `json:"summary"`
 	}
 	type activityOut struct {
-		TotalInTimeframe int             `json:"total_in_timeframe"`
-		Entries          []activityEntry `json:"entries"`
+		Total   int             `json:"total"   jsonschema:"entries in the timeframe, across every page"`
+		Offset  int             `json:"offset"`
+		Entries []activityEntry `json:"entries"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "server_activity",
@@ -112,12 +114,13 @@ func registerServerTools(r *registry) {
 			limit = 50
 		}
 
-		entries, total, err := client.ActivityLog(ctx, daysCutoff(in.Days), limit)
+		offset := max(in.Offset, 0)
+		entries, total, err := client.ActivityLog(ctx, daysCutoff(in.Days), limit, offset)
 		if err != nil {
 			return nil, activityOut{}, err
 		}
 
-		out := activityOut{TotalInTimeframe: total}
+		out := activityOut{Total: total, Offset: offset, Entries: []activityEntry{}}
 		for _, e := range entries {
 			summary := e.Name
 			if e.ShortOverview != "" {

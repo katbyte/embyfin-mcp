@@ -42,7 +42,7 @@ func (c Client) ListDelete(ctx context.Context, listId int, options ListDeleteOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/list/%d", listId),
 	}

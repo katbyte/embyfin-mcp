@@ -23,7 +23,7 @@ func (c Client) PostUsersByIdTrackSelectionsByTrackTypeDelete(ctx context.Contex
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s/TrackSelections/%s/Delete", url.PathEscape(id), url.PathEscape(trackType)),
 	}
 

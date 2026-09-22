@@ -42,7 +42,7 @@ func (c Client) AccountDetails(ctx context.Context, accountId int, options Accou
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/account/%d", accountId),
 	}

@@ -25,7 +25,7 @@ func (c Client) GetProvidersSubtitlesSubtitlesById(ctx context.Context, id strin
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Providers/Subtitles/Subtitles/%s", url.PathEscape(id)),
 		StreamResponse: true,
 	}

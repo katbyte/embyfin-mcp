@@ -42,7 +42,7 @@ func (c Client) UpdateUserConfiguration(ctx context.Context, input UserConfigura
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Users/Configuration",
 	}

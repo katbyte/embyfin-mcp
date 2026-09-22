@@ -22,7 +22,7 @@ func (c Client) MovieReleaseDates(ctx context.Context, movieId int) (result Movi
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/movie/%d/release_dates", movieId),
 	}
 

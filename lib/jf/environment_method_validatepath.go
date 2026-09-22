@@ -21,7 +21,7 @@ func (c Client) ValidatePath(ctx context.Context, input ValidatePathDto) (result
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Environment/ValidatePath",
 	}
 

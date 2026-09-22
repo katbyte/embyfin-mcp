@@ -22,7 +22,7 @@ func (c Client) GetPartiesInfo(ctx context.Context) (result GetPartiesInfoOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Parties/Info",
 	}
 

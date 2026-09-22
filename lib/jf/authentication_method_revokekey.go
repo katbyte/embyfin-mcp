@@ -22,7 +22,7 @@ func (c Client) RevokeKey(ctx context.Context, key string) (result RevokeKeyOper
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Auth/Keys/%s", url.PathEscape(key)),
 	}
 

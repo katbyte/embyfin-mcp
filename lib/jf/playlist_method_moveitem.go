@@ -22,7 +22,7 @@ func (c Client) MoveItem(ctx context.Context, playlistId string, itemId string, 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Playlists/%s/Items/%s/Move/%d", url.PathEscape(playlistId), url.PathEscape(itemId), newIndex),
 	}
 

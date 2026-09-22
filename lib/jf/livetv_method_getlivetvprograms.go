@@ -200,7 +200,7 @@ func (c Client) GetLiveTvPrograms(ctx context.Context, options GetLiveTvPrograms
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Programs",
 	}

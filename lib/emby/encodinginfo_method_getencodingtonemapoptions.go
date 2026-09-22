@@ -22,7 +22,7 @@ func (c Client) GetEncodingToneMapOptions(ctx context.Context) (result GetEncodi
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Encoding/ToneMapOptions",
 	}
 

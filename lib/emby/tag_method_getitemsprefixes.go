@@ -632,7 +632,7 @@ func (c Client) GetItemsPrefixes(ctx context.Context, options GetItemsPrefixesOp
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items/Prefixes",
 	}

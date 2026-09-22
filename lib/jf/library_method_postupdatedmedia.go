@@ -21,7 +21,7 @@ func (c Client) PostUpdatedMedia(ctx context.Context, input MediaUpdateInfoDto) 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/Media/Updated",
 	}
 

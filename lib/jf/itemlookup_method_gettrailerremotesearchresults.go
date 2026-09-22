@@ -22,7 +22,7 @@ func (c Client) GetTrailerRemoteSearchResults(ctx context.Context, input Trailer
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Trailer",
 	}
 

@@ -23,7 +23,7 @@ func (c Client) PostSyncJobs(ctx context.Context, input SyncJobRequest) (result 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Sync/Jobs",
 	}
 

@@ -122,7 +122,7 @@ func (c Client) GetNextUp(ctx context.Context, options GetNextUpOperationOptions
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Shows/NextUp",
 	}

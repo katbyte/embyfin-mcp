@@ -45,7 +45,7 @@ func (c Client) GetStudiosByName(ctx context.Context, name string, options GetSt
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Studios/%s", url.PathEscape(name)),
 	}

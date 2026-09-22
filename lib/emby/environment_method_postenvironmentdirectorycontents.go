@@ -56,7 +56,7 @@ func (c Client) PostEnvironmentDirectoryContents(ctx context.Context, input GetD
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Environment/DirectoryContents",
 	}

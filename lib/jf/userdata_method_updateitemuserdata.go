@@ -45,7 +45,7 @@ func (c Client) UpdateItemUserData(ctx context.Context, itemId string, input Upd
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/UserItems/%s/UserData", url.PathEscape(itemId)),
 	}

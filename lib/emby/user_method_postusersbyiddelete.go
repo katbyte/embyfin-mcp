@@ -23,7 +23,7 @@ func (c Client) PostUsersByIdDelete(ctx context.Context, id string) (result Post
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s/Delete", url.PathEscape(id)),
 	}
 

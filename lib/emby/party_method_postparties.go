@@ -22,7 +22,7 @@ func (c Client) PostParties(ctx context.Context) (result PostPartiesOperationRes
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Parties",
 	}
 

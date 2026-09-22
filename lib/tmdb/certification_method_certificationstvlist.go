@@ -21,7 +21,7 @@ func (c Client) CertificationsTvList(ctx context.Context) (result Certifications
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/certification/tv/list",
 	}
 

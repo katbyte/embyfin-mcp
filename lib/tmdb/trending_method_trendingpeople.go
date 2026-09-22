@@ -44,7 +44,7 @@ func (c Client) TrendingPeople(ctx context.Context, timeWindow string, options T
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/trending/person/%s", url.PathEscape(timeWindow)),
 	}

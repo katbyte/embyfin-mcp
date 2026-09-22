@@ -47,7 +47,7 @@ func (c Client) ListCheckItemStatus(ctx context.Context, listId int, options Lis
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/list/%d/item_status", listId),
 	}

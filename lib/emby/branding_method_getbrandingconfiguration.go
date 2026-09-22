@@ -22,7 +22,7 @@ func (c Client) GetBrandingConfiguration(ctx context.Context) (result GetBrandin
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Branding/Configuration",
 	}
 

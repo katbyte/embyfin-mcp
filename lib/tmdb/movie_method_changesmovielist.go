@@ -50,7 +50,7 @@ func (c Client) ChangesMovieList(ctx context.Context, options ChangesMovieListOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/movie/changes",
 	}

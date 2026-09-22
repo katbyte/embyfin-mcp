@@ -55,7 +55,7 @@ func (c Client) InstallPackage(ctx context.Context, name string, options Install
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Packages/Installed/%s", url.PathEscape(name)),
 	}

@@ -41,7 +41,7 @@ func (c Client) DeleteDevice(ctx context.Context, options DeleteDeviceOperationO
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          "/Devices",
 	}

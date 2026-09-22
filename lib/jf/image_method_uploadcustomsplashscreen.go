@@ -25,7 +25,7 @@ func (c Client) UploadCustomSplashscreen(ctx context.Context, input io.Reader, c
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Branding/Splashscreen",
 	}
 

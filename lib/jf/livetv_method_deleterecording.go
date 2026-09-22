@@ -22,7 +22,7 @@ func (c Client) DeleteRecording(ctx context.Context, recordingId string) (result
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/LiveTv/Recordings/%s", url.PathEscape(recordingId)),
 	}
 

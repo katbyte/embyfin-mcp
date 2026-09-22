@@ -24,7 +24,7 @@ func (c Client) PostSyncByItemIdStatus(ctx context.Context, itemId string, input
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Sync/%s/Status", url.PathEscape(itemId)),
 	}
 

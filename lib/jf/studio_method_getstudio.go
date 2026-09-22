@@ -44,7 +44,7 @@ func (c Client) GetStudio(ctx context.Context, name string, options GetStudioOpe
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Studios/%s", url.PathEscape(name)),
 	}

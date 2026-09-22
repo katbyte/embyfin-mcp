@@ -22,7 +22,7 @@ func (c Client) UninstallPluginByVersion(ctx context.Context, pluginId string, v
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Plugins/%s/%s", url.PathEscape(pluginId), url.PathEscape(version)),
 	}
 

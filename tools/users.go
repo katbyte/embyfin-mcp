@@ -42,9 +42,10 @@ func registerUserTools(r *registry) {
 	})
 
 	type historyIn struct {
-		User  string `json:"user,omitempty"  jsonschema:"user name or id; defaults to the first administrator"`
-		Days  int    `json:"days,omitempty"  jsonschema:"how many days back, default 60"`
-		Limit int    `json:"limit,omitempty" jsonschema:"maximum items, default 25"`
+		User   string `json:"user,omitempty"   jsonschema:"user name or id; defaults to the first administrator"`
+		Days   int    `json:"days,omitempty"   jsonschema:"how many days back, default 60"`
+		Limit  int    `json:"limit,omitempty"  jsonschema:"page size, default 25"`
+		Offset int    `json:"offset,omitempty" jsonschema:"skip this many, to page"`
 	}
 	type historyRow struct {
 		itemSummary
@@ -52,8 +53,10 @@ func registerUserTools(r *registry) {
 		Event      string `json:"event"       jsonschema:"stop = finished or stopped playing, start = began playing (may still be in progress)"`
 	}
 	type historyOut struct {
-		User    string       `json:"user"`
-		Watched []historyRow `json:"watched" jsonschema:"most recently played first"`
+		User   string       `json:"user"`
+		Total  int          `json:"total"  jsonschema:"items played in the period, across every page, as far as the activity log was read"`
+		Offset int          `json:"offset"`
+		Items  []historyRow `json:"items"  jsonschema:"most recent first"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_history",
@@ -73,7 +76,7 @@ func registerUserTools(r *registry) {
 		// endpoint has it), so recent history comes from the activity log's playback
 		// events. Entries carry Emby's internal numeric user id, which /Users does not
 		// expose, so match on the "<user> has finished playing ..." text instead.
-		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), activityScanLimit)
+		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), activityScanLimit, 0)
 		if err != nil {
 			return nil, historyOut{}, err
 		}
@@ -90,15 +93,14 @@ func registerUserTools(r *registry) {
 			}
 			lastEvent[e.ItemID] = e
 			ids = append(ids, e.ItemID)
-			if len(ids) >= limit {
-				break
-			}
 		}
 
-		out := historyOut{User: user.Name, Watched: []historyRow{}}
-		if len(ids) == 0 {
+		offset := max(in.Offset, 0)
+		out := historyOut{User: user.Name, Total: len(ids), Offset: offset, Items: []historyRow{}}
+		if offset >= len(ids) {
 			return nil, out, nil
 		}
+		ids = ids[offset:min(offset+limit, len(ids))]
 
 		items, _, err := client.Search(ctx, embyfin.SearchOptions{IDs: strings.Join(ids, ","), Limit: len(ids)})
 		if err != nil {
@@ -115,7 +117,7 @@ func registerUserTools(r *registry) {
 			}
 			e := lastEvent[id]
 			event, _ := playbackEvent(e.Type)
-			out.Watched = append(out.Watched, historyRow{
+			out.Items = append(out.Items, historyRow{
 				itemSummary: summarise(it),
 				LastPlayed:  e.Date,
 				Event:       event,
@@ -163,41 +165,6 @@ func registerUserTools(r *registry) {
 			NextUp: summariseAll(nextUp),
 			Resume: summariseAll(resume),
 		}, nil
-	})
-
-	type favouritesIn struct {
-		User  string `json:"user,omitempty"  jsonschema:"user name or id; defaults to the first administrator"`
-		Limit int    `json:"limit,omitempty" jsonschema:"maximum items, default 50"`
-	}
-	type favouritesOut struct {
-		User       string        `json:"user"`
-		Favourites []itemSummary `json:"favourites"`
-	}
-	add(r, readTool, &mcp.Tool{
-		Name:        "user_favourites",
-		Description: "A user's favourite items.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in favouritesIn) (*mcp.CallToolResult, favouritesOut, error) {
-		user, err := client.ResolveUser(ctx, in.User)
-		if err != nil {
-			return nil, favouritesOut{}, err
-		}
-
-		limit := in.Limit
-		if limit <= 0 {
-			limit = 50
-		}
-
-		items, _, err := client.Search(ctx, embyfin.SearchOptions{
-			Filters:        "IsFavorite",
-			UserID:         user.ID,
-			EnableUserData: true,
-			Limit:          limit,
-		})
-		if err != nil {
-			return nil, favouritesOut{}, err
-		}
-
-		return nil, favouritesOut{User: user.Name, Favourites: summariseAll(items)}, nil
 	})
 }
 

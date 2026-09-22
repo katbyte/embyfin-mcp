@@ -75,7 +75,7 @@ func (c Client) GetUsersQuery(ctx context.Context, options GetUsersQueryOperatio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Users/Query",
 	}

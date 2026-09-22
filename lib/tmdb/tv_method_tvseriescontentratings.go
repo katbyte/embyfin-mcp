@@ -22,7 +22,7 @@ func (c Client) TvSeriesContentRatings(ctx context.Context, seriesId int) (resul
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/tv/%d/content_ratings", seriesId),
 	}
 

@@ -22,7 +22,7 @@ func (c Client) CompanyDetails(ctx context.Context, companyId int) (result Compa
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/company/%d", companyId),
 	}
 

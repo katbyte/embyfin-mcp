@@ -23,7 +23,7 @@ func (c Client) SyncPlayGetGroup(ctx context.Context, id string) (result SyncPla
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/SyncPlay/%s", url.PathEscape(id)),
 	}
 

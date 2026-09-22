@@ -52,7 +52,7 @@ func (c Client) MovieNowPlayingList(ctx context.Context, options MovieNowPlaying
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/movie/now_playing",
 	}

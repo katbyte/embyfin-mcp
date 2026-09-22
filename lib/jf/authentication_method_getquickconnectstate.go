@@ -42,7 +42,7 @@ func (c Client) GetQuickConnectState(ctx context.Context, options GetQuickConnec
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/QuickConnect/Connect",
 	}

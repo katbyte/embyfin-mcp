@@ -21,7 +21,7 @@ func (c Client) GetPasswordResetProviders(ctx context.Context) (result GetPasswo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Auth/PasswordResetProviders",
 	}
 

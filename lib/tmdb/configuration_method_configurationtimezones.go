@@ -21,7 +21,7 @@ func (c Client) ConfigurationTimezones(ctx context.Context) (result Configuratio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/configuration/timezones",
 	}
 

@@ -22,7 +22,7 @@ func (c Client) MovieExternalIds(ctx context.Context, movieId int) (result Movie
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/movie/%d/external_ids", movieId),
 	}
 

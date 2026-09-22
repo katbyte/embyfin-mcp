@@ -63,7 +63,7 @@ func (c Client) GetSimilarMovies(ctx context.Context, itemId string, options Get
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Movies/%s/Similar", url.PathEscape(itemId)),
 	}

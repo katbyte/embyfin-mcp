@@ -633,7 +633,7 @@ func (c Client) GetSubtitleCodecs(ctx context.Context, options GetSubtitleCodecs
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/SubtitleCodecs",
 	}

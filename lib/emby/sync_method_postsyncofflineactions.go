@@ -22,7 +22,7 @@ func (c Client) PostSyncOfflineActions(ctx context.Context, input []UserAction) 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Sync/OfflineActions",
 	}
 

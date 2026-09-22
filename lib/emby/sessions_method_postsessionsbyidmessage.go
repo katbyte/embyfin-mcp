@@ -57,7 +57,7 @@ func (c Client) PostSessionsByIdMessage(ctx context.Context, id string, options 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Sessions/%s/Message", url.PathEscape(id)),
 	}

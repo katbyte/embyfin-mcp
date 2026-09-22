@@ -132,7 +132,7 @@ func TestAuthorizers(t *testing.T) {
 				got = r.Header.Clone()
 				w.WriteHeader(http.StatusOK)
 			})
-			if _, err := execute(t, c, RequestOptions{HttpMethod: http.MethodGet, Path: "/System/Info", ExpectedStatusCodes: []int{http.StatusOK}}, nil); err != nil {
+			if _, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodGet, Path: "/System/Info", ExpectedStatusCodes: []int{http.StatusOK}}, nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -167,7 +167,7 @@ func TestOptionsObject(t *testing.T) {
 		query:  map[string][]string{"fields": {"Path", "Genres"}, "Limit": {"5"}},
 		header: map[string]string{"X-Emby-Authorization": "override"},
 	}
-	if _, err := execute(t, c, RequestOptions{HttpMethod: http.MethodGet, Path: "/Items", ExpectedStatusCodes: []int{http.StatusOK}, OptionsObject: opts}, nil); err != nil {
+	if _, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodGet, Path: "/Items", ExpectedStatusCodes: []int{http.StatusOK}, OptionsObject: opts}, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -208,7 +208,7 @@ func TestStatusError(t *testing.T) {
 				w.WriteHeader(tt.status)
 				_, _ = io.WriteString(w, tt.body)
 			})
-			resp, err := execute(t, c, RequestOptions{HttpMethod: http.MethodGet, Path: "/System/Info", ExpectedStatusCodes: []int{http.StatusOK}}, nil)
+			resp, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodGet, Path: "/System/Info", ExpectedStatusCodes: []int{http.StatusOK}}, nil)
 
 			se, ok := errors.AsType[*StatusError](err)
 			if !ok {
@@ -252,7 +252,7 @@ func TestBodies(t *testing.T) {
 			}
 			_, _ = io.WriteString(w, `{"AccessToken":"abc"}`)
 		})
-		resp, err := execute(t, c, RequestOptions{ContentType: "application/json", HttpMethod: http.MethodPost, Path: "/Users/AuthenticateByName", ExpectedStatusCodes: []int{http.StatusOK}},
+		resp, err := execute(t, c, RequestOptions{ContentType: "application/json", HTTPMethod: http.MethodPost, Path: "/Users/AuthenticateByName", ExpectedStatusCodes: []int{http.StatusOK}},
 			struct{ Username string }{"kt"})
 		if err != nil {
 			t.Fatal(err)
@@ -270,7 +270,7 @@ func TestBodies(t *testing.T) {
 		t.Parallel()
 
 		c := serve(t, EmbyToken(testToken), func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
-		resp, err := execute(t, c, RequestOptions{HttpMethod: http.MethodPost, Path: "/x", ExpectedStatusCodes: []int{http.StatusOK, http.StatusNoContent}}, nil)
+		resp, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodPost, Path: "/x", ExpectedStatusCodes: []int{http.StatusOK, http.StatusNoContent}}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -284,7 +284,7 @@ func TestBodies(t *testing.T) {
 		t.Parallel()
 
 		c := serve(t, EmbyToken(testToken), func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "<html>") })
-		resp, err := execute(t, c, RequestOptions{HttpMethod: http.MethodGet, Path: "/System/Info", ExpectedStatusCodes: []int{http.StatusOK}}, nil)
+		resp, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodGet, Path: "/System/Info", ExpectedStatusCodes: []int{http.StatusOK}}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -302,7 +302,7 @@ func TestBodies(t *testing.T) {
 			gotType = r.Header.Get("Content-Type")
 			w.WriteHeader(http.StatusNoContent)
 		})
-		req, err := c.NewRequest(t.Context(), RequestOptions{ContentType: "image/*", HttpMethod: http.MethodPost, Path: "/Items/1/Images/Primary", ExpectedStatusCodes: []int{http.StatusNoContent}})
+		req, err := c.NewRequest(t.Context(), RequestOptions{ContentType: "image/*", HTTPMethod: http.MethodPost, Path: "/Items/1/Images/Primary", ExpectedStatusCodes: []int{http.StatusNoContent}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -324,7 +324,7 @@ func TestBodies(t *testing.T) {
 		t.Parallel()
 
 		c := serve(t, EmbyToken(testToken), func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "log line") })
-		resp, err := execute(t, c, RequestOptions{HttpMethod: http.MethodGet, Path: "/System/Logs/Log", ExpectedStatusCodes: []int{http.StatusOK}, StreamResponse: true}, nil)
+		resp, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodGet, Path: "/System/Logs/Log", ExpectedStatusCodes: []int{http.StatusOK}, StreamResponse: true}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -365,7 +365,7 @@ func TestTMDBToken(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 		opts := RequestOptions{
-			HttpMethod: http.MethodGet, Path: "/3/search/movie", ExpectedStatusCodes: []int{http.StatusOK},
+			HTTPMethod: http.MethodGet, Path: "/3/search/movie", ExpectedStatusCodes: []int{http.StatusOK},
 			OptionsObject: options{query: map[string][]string{"query": {"alien"}}},
 		}
 		if _, err := execute(t, c, opts, nil); err != nil {

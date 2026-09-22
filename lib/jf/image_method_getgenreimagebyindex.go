@@ -125,7 +125,7 @@ func (c Client) GetGenreImageByIndex(ctx context.Context, name string, imageType
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Genres/%s/Images/%s/%d", url.PathEscape(name), url.PathEscape(string(imageType)), imageIndex),
 		StreamResponse: true,

@@ -42,7 +42,7 @@ func (c Client) GetDeviceOptions(ctx context.Context, options GetDeviceOptionsOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Devices/Options",
 	}

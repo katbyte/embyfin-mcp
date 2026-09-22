@@ -45,7 +45,7 @@ func (c Client) GetMusicGenresByName(ctx context.Context, name string, options G
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/MusicGenres/%s", url.PathEscape(name)),
 	}

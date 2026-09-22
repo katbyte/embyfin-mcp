@@ -55,7 +55,7 @@ func (c Client) AccountWatchlistMovies(ctx context.Context, accountId int, optio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/account/%d/watchlist/movies", accountId),
 	}

@@ -74,7 +74,7 @@ func (c Client) GetSuggestions(ctx context.Context, options GetSuggestionsOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items/Suggestions",
 	}

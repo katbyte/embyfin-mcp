@@ -22,7 +22,7 @@ func (c Client) AddTunerHost(ctx context.Context, input TunerHostInfo) (result A
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveTv/TunerHosts",
 	}
 

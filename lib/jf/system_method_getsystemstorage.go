@@ -21,7 +21,7 @@ func (c Client) GetSystemStorage(ctx context.Context) (result GetSystemStorageOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Info/Storage",
 	}
 

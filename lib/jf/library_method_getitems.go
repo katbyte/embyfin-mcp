@@ -566,7 +566,7 @@ func (c Client) GetItems(ctx context.Context, options GetItemsOperationOptions) 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items",
 	}

@@ -44,7 +44,7 @@ func (c Client) GetPerson(ctx context.Context, name string, options GetPersonOpe
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Persons/%s", url.PathEscape(name)),
 	}

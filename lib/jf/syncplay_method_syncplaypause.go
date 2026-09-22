@@ -20,7 +20,7 @@ func (c Client) SyncPlayPause(ctx context.Context) (result SyncPlayPauseOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Pause",
 	}
 

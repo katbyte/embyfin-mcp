@@ -24,7 +24,7 @@ func (c Client) PostUserSettingsByUserId(ctx context.Context, userId string, inp
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/UserSettings/%s", url.PathEscape(userId)),
 	}
 

@@ -633,7 +633,7 @@ func (c Client) GetGameGenres(ctx context.Context, options GetGameGenresOperatio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/GameGenres",
 	}

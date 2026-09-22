@@ -20,7 +20,7 @@ func (c Client) CompleteWizard(ctx context.Context) (result CompleteWizardOperat
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Startup/Complete",
 	}
 

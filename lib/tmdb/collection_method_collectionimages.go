@@ -47,7 +47,7 @@ func (c Client) CollectionImages(ctx context.Context, collectionId int, options 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/collection/%d/images", collectionId),
 	}

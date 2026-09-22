@@ -21,7 +21,7 @@ func (c Client) PostLibraryMoviesAdded(ctx context.Context) (result PostLibraryM
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/Movies/Added",
 	}
 

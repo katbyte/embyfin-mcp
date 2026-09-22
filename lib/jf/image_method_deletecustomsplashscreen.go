@@ -20,7 +20,7 @@ func (c Client) DeleteCustomSplashscreen(ctx context.Context) (result DeleteCust
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       "/Branding/Splashscreen",
 	}
 

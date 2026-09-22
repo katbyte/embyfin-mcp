@@ -21,7 +21,7 @@ func (c Client) UpdateStartupUser(ctx context.Context, input StartupUserDto) (re
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Startup/User",
 	}
 

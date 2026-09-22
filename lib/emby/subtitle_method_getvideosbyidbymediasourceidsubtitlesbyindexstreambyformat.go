@@ -59,7 +59,7 @@ func (c Client) GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormat(ctx c
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/%s/Subtitles/%d/Stream.%s", url.PathEscape(id), url.PathEscape(mediaSourceId), index, url.PathEscape(format)),
 		StreamResponse: true,

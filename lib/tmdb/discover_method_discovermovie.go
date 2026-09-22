@@ -217,7 +217,7 @@ func (c Client) DiscoverMovie(ctx context.Context, options DiscoverMovieOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/discover/movie",
 	}

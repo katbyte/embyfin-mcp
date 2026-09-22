@@ -22,7 +22,7 @@ func (c Client) PostLibraryMediaUpdated(ctx context.Context, input LibraryPostUp
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/Media/Updated",
 	}
 

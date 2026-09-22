@@ -25,7 +25,7 @@ func (c Client) GetLiveStreamFile(ctx context.Context, streamId string, containe
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/LiveTv/LiveStreamFiles/%s/stream.%s", url.PathEscape(streamId), url.PathEscape(container)),
 		StreamResponse: true,
 	}

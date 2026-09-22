@@ -52,7 +52,7 @@ func (c Client) MovieTopRatedList(ctx context.Context, options MovieTopRatedList
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/movie/top_rated",
 	}

@@ -22,7 +22,7 @@ func (c Client) GetUsersPublic(ctx context.Context) (result GetUsersPublicOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Users/Public",
 	}
 

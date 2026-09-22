@@ -25,7 +25,7 @@ func (c Client) GetFallbackFont(ctx context.Context, name string) (result GetFal
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/FallbackFont/Fonts/%s", url.PathEscape(name)),
 		StreamResponse: true,
 	}

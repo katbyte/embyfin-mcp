@@ -22,7 +22,7 @@ func (c Client) GetBackupRestoreBackupInfo(ctx context.Context) (result GetBacku
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/BackupRestore/BackupInfo",
 	}
 

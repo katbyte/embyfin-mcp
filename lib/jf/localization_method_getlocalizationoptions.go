@@ -21,7 +21,7 @@ func (c Client) GetLocalizationOptions(ctx context.Context) (result GetLocalizat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Localization/Options",
 	}
 

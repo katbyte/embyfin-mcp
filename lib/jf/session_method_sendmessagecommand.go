@@ -23,7 +23,7 @@ func (c Client) SendMessageCommand(ctx context.Context, sessionId string, input 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Sessions/%s/Message", url.PathEscape(sessionId)),
 	}
 

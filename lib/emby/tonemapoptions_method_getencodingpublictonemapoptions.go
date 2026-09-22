@@ -22,7 +22,7 @@ func (c Client) GetEncodingPublicToneMapOptions(ctx context.Context) (result Get
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Encoding/PublicToneMapOptions",
 	}
 

@@ -22,7 +22,7 @@ func (c Client) PersonExternalIds(ctx context.Context, personId int) (result Per
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/person/%d/external_ids", personId),
 	}
 

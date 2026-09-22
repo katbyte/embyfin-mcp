@@ -74,7 +74,7 @@ func (c Client) GetLatestChannelItems(ctx context.Context, options GetLatestChan
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Channels/Items/Latest",
 	}

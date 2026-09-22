@@ -61,7 +61,7 @@ func (c Client) CreateCollection(ctx context.Context, options CreateCollectionOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Collections",
 	}

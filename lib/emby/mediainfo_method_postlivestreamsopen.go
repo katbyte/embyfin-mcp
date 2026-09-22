@@ -23,7 +23,7 @@ func (c Client) PostLiveStreamsOpen(ctx context.Context, input LiveStreamRequest
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveStreams/Open",
 	}
 

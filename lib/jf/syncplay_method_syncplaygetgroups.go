@@ -21,7 +21,7 @@ func (c Client) SyncPlayGetGroups(ctx context.Context) (result SyncPlayGetGroups
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/SyncPlay/List",
 	}
 

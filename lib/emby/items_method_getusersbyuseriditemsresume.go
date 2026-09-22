@@ -628,7 +628,7 @@ func (c Client) GetUsersByUserIdItemsResume(ctx context.Context, userId string, 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Users/%s/Items/Resume", url.PathEscape(userId)),
 	}

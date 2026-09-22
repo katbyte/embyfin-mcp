@@ -52,7 +52,7 @@ func (c Client) PostEncodingCodecParameters(ctx context.Context, input io.Reader
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Encoding/CodecParameters",
 	}

@@ -20,7 +20,7 @@ func (c Client) SyncPlayUnpause(ctx context.Context) (result SyncPlayUnpauseOper
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Unpause",
 	}
 

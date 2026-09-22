@@ -22,7 +22,7 @@ func (c Client) DisablePlugin(ctx context.Context, pluginId string, version stri
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Plugins/%s/%s/Disable", url.PathEscape(pluginId), url.PathEscape(version)),
 	}
 

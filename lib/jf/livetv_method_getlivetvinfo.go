@@ -21,7 +21,7 @@ func (c Client) GetLiveTvInfo(ctx context.Context) (result GetLiveTvInfoOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/Info",
 	}
 

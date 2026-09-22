@@ -21,7 +21,7 @@ func (c Client) GetCountries(ctx context.Context) (result GetCountriesOperationR
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Localization/Countries",
 	}
 

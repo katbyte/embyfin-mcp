@@ -56,7 +56,7 @@ func (c Client) GetUserImage(ctx context.Context, options GetUserImageOperationO
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           "/UserImage",
 		StreamResponse: true,

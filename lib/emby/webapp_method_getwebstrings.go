@@ -23,7 +23,7 @@ func (c Client) GetWebStrings(ctx context.Context) (result GetWebStringsOperatio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/web/strings",
 	}
 

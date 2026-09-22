@@ -52,7 +52,7 @@ func (c Client) MovieUpcomingList(ctx context.Context, options MovieUpcomingList
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/movie/upcoming",
 	}

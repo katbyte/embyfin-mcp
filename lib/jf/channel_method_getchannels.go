@@ -74,7 +74,7 @@ func (c Client) GetChannels(ctx context.Context, options GetChannelsOperationOpt
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Channels",
 	}

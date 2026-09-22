@@ -22,7 +22,7 @@ func (c Client) GetSchedulesDirectCountries(ctx context.Context) (result GetSche
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/ListingProviders/SchedulesDirect/Countries",
 	}
 

@@ -22,7 +22,7 @@ func (c Client) AlternativeNamesCopy(ctx context.Context, networkId int) (result
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/network/%d/images", networkId),
 	}
 

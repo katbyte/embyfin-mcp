@@ -23,7 +23,7 @@ func (c Client) GetChannelFeatures(ctx context.Context, channelId string) (resul
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Channels/%s/Features", url.PathEscape(channelId)),
 	}
 

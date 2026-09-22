@@ -22,7 +22,7 @@ func (c Client) GetPrograms(ctx context.Context, input GetProgramsDto) (result G
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveTv/Programs",
 	}
 

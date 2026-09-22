@@ -43,7 +43,7 @@ func (c Client) GetBackup(ctx context.Context, options GetBackupOperationOptions
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Backup/Manifest",
 	}

@@ -779,7 +779,7 @@ func str(v any) string {
 func findItem(t *testing.T, library, types, title string) string {
 	t.Helper()
 
-	out := call(t, "library_search", map[string]any{"library": library, "types": types, "query": title, "limit": 50})
+	out := call(t, "library_items", map[string]any{"library": library, "types": types, "query": title, "limit": 50})
 	var ids []string
 	for _, row := range rows(t, out["items"], "items") {
 		// an unmatched film keeps its "(2001)" on Jellyfin and loses it on Emby

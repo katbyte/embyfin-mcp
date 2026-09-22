@@ -51,7 +51,7 @@ func (c Client) PersonChanges(ctx context.Context, personId int, options PersonC
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/person/%d/changes", personId),
 	}

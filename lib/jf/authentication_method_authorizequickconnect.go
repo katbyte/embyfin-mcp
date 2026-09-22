@@ -48,7 +48,7 @@ func (c Client) AuthorizeQuickConnect(ctx context.Context, options AuthorizeQuic
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/QuickConnect/Authorize",
 	}

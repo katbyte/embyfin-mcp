@@ -74,7 +74,7 @@ func TestLibraryGet(t *testing.T) {
 
 func TestLibrarySearch(t *testing.T) {
 	// a title, across every library: the clean Alien and the two messy ones
-	out := call(t, "library_search", map[string]any{"query": "Alien", "types": "Movie", "limit": 20})
+	out := call(t, "library_items", map[string]any{"query": "Alien", "types": "Movie", "limit": 20})
 	items := rows(t, out["items"], "items")
 	var alien, aliens int
 	for _, it := range items {
@@ -91,12 +91,12 @@ func TestLibrarySearch(t *testing.T) {
 	if alien != 3 || aliens != 1 {
 		t.Errorf("Alien x%d Aliens x%d, want 3 and 1: %v", alien, aliens, items)
 	}
-	if num(t, out["total_matches"], "total_matches") < 4 {
-		t.Errorf("total_matches = %v", out["total_matches"])
+	if num(t, out["total"], "total") < 4 {
+		t.Errorf("total = %v", out["total"])
 	}
 
 	// restricted to one library, the type defaults to the library's kind
-	out = call(t, "library_search", map[string]any{"query": "Alien", "library": "Movies"})
+	out = call(t, "library_items", map[string]any{"query": "Alien", "library": "Movies"})
 	items = rows(t, out["items"], "items")
 	if len(items) != 2 {
 		t.Fatalf("Movies has %d Alien matches, want Alien and Aliens: %v", len(items), items)
@@ -116,7 +116,7 @@ func TestLibrarySearch(t *testing.T) {
 	}
 
 	// a TV library defaults to series
-	out = call(t, "library_search", map[string]any{"library": "Shows"})
+	out = call(t, "library_items", map[string]any{"library": "Shows"})
 	for _, it := range rows(t, out["items"], "items") {
 		if str(it["type"]) != "Series" {
 			t.Errorf("Shows search returned a %v", it["type"])
@@ -127,18 +127,18 @@ func TestLibrarySearch(t *testing.T) {
 	}
 
 	// episodes carry their series and numbering
-	out = call(t, "library_search", map[string]any{"library": "Shows", "types": "Episode", "query": "Half Loop"})
+	out = call(t, "library_items", map[string]any{"library": "Shows", "types": "Episode", "query": "Half Loop"})
 	eps := rows(t, out["items"], "items")
 	if len(eps) != 1 || str(eps[0]["series"]) != "Severance" || num(t, eps[0]["season"], "season") != 1 || num(t, eps[0]["episode"], "episode") != 2 {
 		t.Errorf("episode summary = %v", eps)
 	}
 
 	// filters: year, genre and a sort
-	out = call(t, "library_search", map[string]any{"library": "Movies", "year": "1982,1999"})
+	out = call(t, "library_items", map[string]any{"library": "Movies", "years": []any{1982, 1999}})
 	if got := rows(t, out["items"], "items"); len(got) != 2 {
 		t.Errorf("1982 and 1999 have %d films, want Blade Runner and The Thirteenth Floor: %v", len(got), got)
 	}
-	out = call(t, "library_search", map[string]any{"library": "Movies", "genre": "Science Fiction", "sort_by": "SortName"})
+	out = call(t, "library_items", map[string]any{"library": "Movies", "genres": []any{"Science Fiction"}, "sort": "name"})
 	names := []string{}
 	for _, it := range rows(t, out["items"], "items") {
 		names = append(names, str(it["name"]))
@@ -147,13 +147,13 @@ func TestLibrarySearch(t *testing.T) {
 		t.Errorf("Science Fiction sorted = %v", names)
 	}
 	// a limit pages, and the total says what was left out
-	out = call(t, "library_search", map[string]any{"library": "Movies", "limit": 3})
-	if len(rows(t, out["items"], "items")) != 3 || num(t, out["total_matches"], "total_matches") != 8 {
-		t.Errorf("limit 3 = %d items of %v", len(rows(t, out["items"], "items")), out["total_matches"])
+	out = call(t, "library_items", map[string]any{"library": "Movies", "limit": 3})
+	if len(rows(t, out["items"], "items")) != 3 || num(t, out["total"], "total") != 8 || num(t, out["offset"], "offset") != 0 {
+		t.Errorf("limit 3 = %d items of %v from %v", len(rows(t, out["items"], "items")), out["total"], out["offset"])
 	}
 
-	// a person, resolved by name through library_people
-	out = call(t, "library_search", map[string]any{"library": "Movies", "person": "Ridley Scott"})
+	// a person, resolved by exact name the way person_get does
+	out = call(t, "library_items", map[string]any{"library": "Movies", "person": "Ridley Scott"})
 	names = names[:0]
 	for _, it := range rows(t, out["items"], "items") {
 		names = append(names, str(it["name"]))
@@ -162,10 +162,14 @@ func TestLibrarySearch(t *testing.T) {
 	if !slices.Equal(names, []string{"Alien", "Blade Runner"}) {
 		t.Errorf("Ridley Scott directed %v, want Alien and Blade Runner", names)
 	}
-	if msg := callErr(t, "library_search", map[string]any{"person": "Nobody Atall"}); !strings.Contains(msg, "Nobody Atall") {
+	if msg := callErr(t, "library_items", map[string]any{"person": "Nobody Atall"}); !strings.Contains(msg, "Nobody Atall") {
 		t.Errorf("an unknown person: %s", msg)
 	}
-	if msg := callErr(t, "library_search", map[string]any{"library": "Nope"}); !strings.Contains(msg, "Nope") {
+	// a part of a name is not resolved for a filter: the error points at person_get
+	if msg := callErr(t, "library_items", map[string]any{"person": "Scott"}); !strings.Contains(msg, "person_get") {
+		t.Errorf("a partial person name: %s", msg)
+	}
+	if msg := callErr(t, "library_items", map[string]any{"library": "Nope"}); !strings.Contains(msg, "Nope") {
 		t.Errorf("an unknown library: %s", msg)
 	}
 }
@@ -226,19 +230,28 @@ func TestLibraryGenres(t *testing.T) {
 	}
 }
 
-func TestLibraryPeople(t *testing.T) {
-	out := call(t, "library_people", map[string]any{"name": "Villeneuve"})
-	people := rows(t, out["people"], "people")
+// A part of a name that matches nobody exactly answers with the people it
+// could mean, and nothing else; a name nobody has is an error.
+func TestPersonGetCandidates(t *testing.T) {
+	out := call(t, "person_get", map[string]any{"person": "Villeneuve"})
+	people := rows(t, out["candidates"], "candidates")
 	if len(people) != 1 || str(people[0]["name"]) != "Denis Villeneuve" || str(people[0]["id"]) == "" {
-		t.Errorf("people = %v", people)
+		t.Errorf("candidates = %v", people)
 	}
-	out = call(t, "library_people", map[string]any{"name": "Scott", "limit": 1})
-	if len(rows(t, out["people"], "people")) != 1 {
-		t.Errorf("limit 1 returned %v", out["people"])
+	if out["name"] != nil || out["id"] != nil || len(rows(t, out["credits"], "credits")) != 0 {
+		t.Errorf("a partial name answered with more than candidates: %v", out)
 	}
-	out = call(t, "library_people", map[string]any{"name": "Nobody Atall"})
-	if len(rows(t, out["people"], "people")) != 0 {
-		t.Errorf("an unknown person matched %v", out["people"])
+	// a word matches on it (Emby lists Adam Scott too), Ridley among them
+	out = call(t, "person_get", map[string]any{"person": "Scott"})
+	var ridley bool
+	for _, p := range rows(t, out["candidates"], "candidates") {
+		ridley = ridley || str(p["name"]) == "Ridley Scott"
+	}
+	if !ridley {
+		t.Errorf("Scott's candidates = %v, want Ridley Scott among them", out["candidates"])
+	}
+	if msg := callErr(t, "person_get", map[string]any{"person": "Nobody Atall"}); !strings.Contains(msg, "Nobody Atall") {
+		t.Errorf("an unknown person: %s", msg)
 	}
 }
 
@@ -488,7 +501,7 @@ func TestLibraryNfoSaving(t *testing.T) {
 		}
 		return false
 	}
-	call(t, "item_edit", map[string]any{"id": id, "overview": "Zzyzx: saved to the nfo."})
+	call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": "Zzyzx: saved to the nfo."})
 	if !eventually(func() bool { return saved("Zzyzx: saved to the nfo.") }) {
 		t.Errorf("with save_nfo on, the edit is in no nfo in %s", dir)
 	}
@@ -507,7 +520,7 @@ func TestLibraryNfoSaving(t *testing.T) {
 	if boolOf(call(t, "library_get", map[string]any{"library": name})["saves_nfo"]) {
 		t.Error("library_get says the library still saves nfos")
 	}
-	call(t, "item_edit", map[string]any{"id": id, "overview": "Zzyzx: kept out of the nfo."})
+	call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": "Zzyzx: kept out of the nfo."})
 	if !holds(func() bool { return !saved("Zzyzx: kept out of the nfo.") }) {
 		t.Error("with save_nfo off, the edit was written to an nfo")
 	}

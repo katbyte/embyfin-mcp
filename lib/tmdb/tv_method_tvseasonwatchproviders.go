@@ -42,7 +42,7 @@ func (c Client) TvSeasonWatchProviders(ctx context.Context, seriesId int, season
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/tv/%d/season/%d/watch/providers", seriesId, seasonNumber),
 	}

@@ -21,7 +21,7 @@ func (c Client) GetVirtualFolders(ctx context.Context) (result GetVirtualFolders
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Library/VirtualFolders",
 	}
 

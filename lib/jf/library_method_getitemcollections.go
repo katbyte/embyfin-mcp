@@ -63,7 +63,7 @@ func (c Client) GetItemCollections(ctx context.Context, itemId string, options G
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Collections", url.PathEscape(itemId)),
 	}

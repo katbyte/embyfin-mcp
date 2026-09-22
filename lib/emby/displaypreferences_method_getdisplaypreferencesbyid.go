@@ -51,7 +51,7 @@ func (c Client) GetDisplayPreferencesById(ctx context.Context, id string, option
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/DisplayPreferences/%s", url.PathEscape(id)),
 	}

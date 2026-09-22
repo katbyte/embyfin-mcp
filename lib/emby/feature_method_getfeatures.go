@@ -22,7 +22,7 @@ func (c Client) GetFeatures(ctx context.Context) (result GetFeaturesOperationRes
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Features",
 	}
 

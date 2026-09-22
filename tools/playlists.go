@@ -164,11 +164,21 @@ func registerPlaylistTools(r *registry) {
 			return nil, addOut{}, err
 		}
 
+		// counted by what the playlist holds before and after, not by what
+		// was asked: the server may fold or drop an entry
+		before, _, err := client.PlaylistItems(ctx, pl.ID, user.ID)
+		if err != nil {
+			return nil, addOut{}, err
+		}
 		if err := client.AddToPlaylist(ctx, pl.ID, in.ItemIDs, user.ID); err != nil {
 			return nil, addOut{}, err
 		}
+		after, _, err := client.PlaylistItems(ctx, pl.ID, user.ID)
+		if err != nil {
+			return nil, addOut{}, err
+		}
 
-		return nil, addOut{Added: len(in.ItemIDs), To: pl.Name}, nil
+		return nil, addOut{Added: max(len(after)-len(before), 0), To: pl.Name}, nil
 	})
 
 	type removeIn struct {

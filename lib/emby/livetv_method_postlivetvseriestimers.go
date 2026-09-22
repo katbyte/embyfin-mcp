@@ -23,7 +23,7 @@ func (c Client) PostLiveTvSeriesTimers(ctx context.Context, input LiveTvSeriesTi
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveTv/SeriesTimers",
 	}
 

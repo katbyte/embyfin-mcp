@@ -22,7 +22,7 @@ func (c Client) GetSyncJobs(ctx context.Context) (result GetSyncJobsOperationRes
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Sync/Jobs",
 	}
 

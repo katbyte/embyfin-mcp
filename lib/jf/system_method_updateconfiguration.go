@@ -21,7 +21,7 @@ func (c Client) UpdateConfiguration(ctx context.Context, input ServerConfigurati
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/System/Configuration",
 	}
 

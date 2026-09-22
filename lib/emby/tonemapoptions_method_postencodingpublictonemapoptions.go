@@ -25,7 +25,7 @@ func (c Client) PostEncodingPublicToneMapOptions(ctx context.Context, input io.R
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Encoding/PublicToneMapOptions",
 	}
 

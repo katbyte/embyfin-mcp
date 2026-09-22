@@ -43,7 +43,7 @@ func (c Client) DiscvoverTuners(ctx context.Context, options DiscvoverTunersOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Tuners/Discvover",
 	}

@@ -46,7 +46,7 @@ func (c Client) SearchKeyword(ctx context.Context, options SearchKeywordOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/search/keyword",
 	}

@@ -128,7 +128,7 @@ func (c Client) GetYears(ctx context.Context, options GetYearsOperationOptions) 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Years",
 	}

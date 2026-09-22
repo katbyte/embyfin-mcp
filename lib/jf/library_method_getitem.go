@@ -44,7 +44,7 @@ func (c Client) GetItem(ctx context.Context, itemId string, options GetItemOpera
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s", url.PathEscape(itemId)),
 	}

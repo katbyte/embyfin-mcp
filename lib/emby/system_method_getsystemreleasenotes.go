@@ -22,7 +22,7 @@ func (c Client) GetSystemReleaseNotes(ctx context.Context) (result GetSystemRele
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/ReleaseNotes",
 	}
 

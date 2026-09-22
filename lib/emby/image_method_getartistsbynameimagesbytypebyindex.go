@@ -119,7 +119,7 @@ func (c Client) GetArtistsByNameImagesByTypeByIndex(ctx context.Context, name st
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Artists/%s/Images/%s/%d", url.PathEscape(name), url.PathEscape(string(typeParam)), index),
 		StreamResponse: true,

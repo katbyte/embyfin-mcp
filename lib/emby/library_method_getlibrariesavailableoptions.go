@@ -50,7 +50,7 @@ func (c Client) GetLibrariesAvailableOptions(ctx context.Context, options GetLib
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Libraries/AvailableOptions",
 	}

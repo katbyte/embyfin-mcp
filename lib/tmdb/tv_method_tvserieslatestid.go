@@ -21,7 +21,7 @@ func (c Client) TvSeriesLatestId(ctx context.Context) (result TvSeriesLatestIdOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/tv/latest",
 	}
 

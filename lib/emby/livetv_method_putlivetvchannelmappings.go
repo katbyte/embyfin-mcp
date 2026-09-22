@@ -43,7 +43,7 @@ func (c Client) PutLiveTvChannelMappings(ctx context.Context, input ApiSetChanne
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPut,
+		HTTPMethod:    http.MethodPut,
 		OptionsObject: options,
 		Path:          "/LiveTv/ChannelMappings",
 	}

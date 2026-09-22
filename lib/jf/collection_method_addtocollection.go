@@ -43,7 +43,7 @@ func (c Client) AddToCollection(ctx context.Context, collectionId string, option
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Collections/%s/Items", url.PathEscape(collectionId)),
 	}

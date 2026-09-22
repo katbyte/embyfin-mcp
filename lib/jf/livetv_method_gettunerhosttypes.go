@@ -21,7 +21,7 @@ func (c Client) GetTunerHostTypes(ctx context.Context) (result GetTunerHostTypes
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/TunerHosts/Types",
 	}
 

@@ -43,7 +43,7 @@ func (c Client) MovieAlternativeTitles(ctx context.Context, movieId int, options
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/movie/%d/alternative_titles", movieId),
 	}

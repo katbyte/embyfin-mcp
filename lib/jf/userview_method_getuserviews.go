@@ -61,7 +61,7 @@ func (c Client) GetUserViews(ctx context.Context, options GetUserViewsOperationO
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/UserViews",
 	}

@@ -44,7 +44,7 @@ func (c Client) GetProgram(ctx context.Context, programId string, options GetPro
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/LiveTv/Programs/%s", url.PathEscape(programId)),
 	}

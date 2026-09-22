@@ -27,7 +27,7 @@ func (c Client) PostUsersByIdConfigurationPartial(ctx context.Context, id string
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s/Configuration/Partial", url.PathEscape(id)),
 	}
 

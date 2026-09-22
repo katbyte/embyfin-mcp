@@ -22,7 +22,7 @@ func (c Client) GetDevicesCameraUploads(ctx context.Context) (result GetDevicesC
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Devices/CameraUploads",
 	}
 

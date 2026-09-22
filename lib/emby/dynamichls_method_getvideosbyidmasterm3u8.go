@@ -179,7 +179,7 @@ func (c Client) GetVideosByIdMasterM3u8(ctx context.Context, id string, options 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/master.m3u8", url.PathEscape(id)),
 		StreamResponse: true,

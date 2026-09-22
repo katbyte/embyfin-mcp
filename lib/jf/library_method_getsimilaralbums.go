@@ -63,7 +63,7 @@ func (c Client) GetSimilarAlbums(ctx context.Context, itemId string, options Get
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Albums/%s/Similar", url.PathEscape(itemId)),
 	}

@@ -47,7 +47,7 @@ func (c Client) TvEpisodeAddRating(ctx context.Context, seriesId int, seasonNumb
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/tv/%d/season/%d/episode/%d/rating", seriesId, seasonNumber, episodeNumber),
 	}

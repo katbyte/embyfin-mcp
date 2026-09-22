@@ -21,7 +21,7 @@ func (c Client) ReportPlaybackStopped(ctx context.Context, input PlaybackStopInf
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Sessions/Playing/Stopped",
 	}
 

@@ -131,7 +131,7 @@ func (c Client) GetGenreImage(ctx context.Context, name string, imageType ImageT
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Genres/%s/Images/%s", url.PathEscape(name), url.PathEscape(string(imageType))),
 		StreamResponse: true,

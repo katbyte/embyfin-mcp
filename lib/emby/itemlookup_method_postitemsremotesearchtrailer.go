@@ -23,7 +23,7 @@ func (c Client) PostItemsRemoteSearchTrailer(ctx context.Context, input RemoteSe
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Trailer",
 	}
 

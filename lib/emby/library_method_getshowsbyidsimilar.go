@@ -634,7 +634,7 @@ func (c Client) GetShowsByIdSimilar(ctx context.Context, id string, options GetS
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Shows/%s/Similar", url.PathEscape(id)),
 	}

@@ -23,7 +23,7 @@ func (c Client) PostItemsRemoteSearchBook(ctx context.Context, input RemoteSearc
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Book",
 	}
 

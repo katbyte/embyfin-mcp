@@ -44,7 +44,7 @@ func (c Client) GetPlaybackInfo(ctx context.Context, itemId string, options GetP
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/PlaybackInfo", url.PathEscape(itemId)),
 	}

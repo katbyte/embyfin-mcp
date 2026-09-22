@@ -25,7 +25,7 @@ func (c Client) GetLiveTvLiveRecordingsByIdHlsMasterM3u8(ctx context.Context, id
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/LiveTv/LiveRecordings/%s/hls/master.m3u8", url.PathEscape(id)),
 		StreamResponse: true,
 	}

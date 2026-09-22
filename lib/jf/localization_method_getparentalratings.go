@@ -21,7 +21,7 @@ func (c Client) GetParentalRatings(ctx context.Context) (result GetParentalRatin
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Localization/ParentalRatings",
 	}
 

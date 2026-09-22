@@ -53,7 +53,7 @@ func (c Client) GetVideosByIdSubtitlesM3u8(ctx context.Context, id string, optio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/subtitles.m3u8", url.PathEscape(id)),
 		StreamResponse: true,

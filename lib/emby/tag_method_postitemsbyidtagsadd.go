@@ -24,7 +24,7 @@ func (c Client) PostItemsByIdTagsAdd(ctx context.Context, id string, input UserL
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Items/%s/Tags/Add", url.PathEscape(id)),
 	}
 

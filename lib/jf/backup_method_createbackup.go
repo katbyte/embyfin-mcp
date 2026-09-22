@@ -22,7 +22,7 @@ func (c Client) CreateBackup(ctx context.Context, input BackupOptionsDto) (resul
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Backup/Create",
 	}
 

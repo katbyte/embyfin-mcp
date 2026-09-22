@@ -41,7 +41,7 @@ func (c Client) ConfigurationCountries(ctx context.Context, options Configuratio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/configuration/countries",
 	}

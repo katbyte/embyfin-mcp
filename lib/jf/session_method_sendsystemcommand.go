@@ -22,7 +22,7 @@ func (c Client) SendSystemCommand(ctx context.Context, sessionId string, command
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Sessions/%s/System/%s", url.PathEscape(sessionId), url.PathEscape(string(command))),
 	}
 

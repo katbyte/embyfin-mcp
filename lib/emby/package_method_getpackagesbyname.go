@@ -45,7 +45,7 @@ func (c Client) GetPackagesByName(ctx context.Context, name string, options GetP
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Packages/%s", url.PathEscape(name)),
 	}

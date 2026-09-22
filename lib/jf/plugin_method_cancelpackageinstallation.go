@@ -22,7 +22,7 @@ func (c Client) CancelPackageInstallation(ctx context.Context, packageId string)
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Packages/Installing/%s", url.PathEscape(packageId)),
 	}
 

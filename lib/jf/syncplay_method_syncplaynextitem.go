@@ -21,7 +21,7 @@ func (c Client) SyncPlayNextItem(ctx context.Context, input NextItemRequestDto) 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/NextItem",
 	}
 

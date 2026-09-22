@@ -21,7 +21,7 @@ func (c Client) GetRepositories(ctx context.Context) (result GetRepositoriesOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Repositories",
 	}
 

@@ -22,7 +22,7 @@ func (c Client) UpdatePluginConfiguration(ctx context.Context, pluginId string) 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Plugins/%s/Configuration", url.PathEscape(pluginId)),
 	}
 

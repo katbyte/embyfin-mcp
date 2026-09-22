@@ -634,7 +634,7 @@ func (c Client) GetTrailersByIdSimilar(ctx context.Context, id string, options G
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Trailers/%s/Similar", url.PathEscape(id)),
 	}

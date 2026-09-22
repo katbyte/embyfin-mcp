@@ -21,7 +21,7 @@ func (c Client) GetCultures(ctx context.Context) (result GetCulturesOperationRes
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Localization/Cultures",
 	}
 

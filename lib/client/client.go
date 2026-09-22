@@ -11,7 +11,7 @@
 //	opts := client.RequestOptions{
 //		ContentType:         "application/json",
 //		ExpectedStatusCodes: []int{http.StatusOK},
-//		HttpMethod:          http.MethodGet,
+//		HTTPMethod:          http.MethodGet,
 //		OptionsObject:       options,
 //		Path:                "/Items",
 //	}
@@ -180,7 +180,7 @@ type RequestOptions struct {
 	// ExpectedStatusCodes are the statuses the operation documents; any
 	// other is a *StatusError.
 	ExpectedStatusCodes []int
-	HttpMethod          string //nolint:revive,staticcheck // go-azure-sdk's spelling, which the generated code mirrors
+	HTTPMethod          string
 	// OptionsObject supplies query parameters and headers; nil for none.
 	OptionsObject Options
 	// Path is the escaped path below BaseURL.
@@ -215,7 +215,7 @@ func (c *Client) NewRequest(ctx context.Context, input RequestOptions) (*Request
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, input.HttpMethod, u, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, input.HTTPMethod, u, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

@@ -48,7 +48,7 @@ func (c Client) PostVideosActiveEncodingsDelete(ctx context.Context, options Pos
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Videos/ActiveEncodings/Delete",
 	}

@@ -22,7 +22,7 @@ func (c Client) GetItemsIntros(ctx context.Context) (result GetItemsIntrosOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Items/Intros",
 	}
 

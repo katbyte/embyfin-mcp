@@ -633,7 +633,7 @@ func (c Client) GetTags(ctx context.Context, options GetTagsOperationOptions) (r
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Tags",
 	}

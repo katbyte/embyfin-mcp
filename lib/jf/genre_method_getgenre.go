@@ -44,7 +44,7 @@ func (c Client) GetGenre(ctx context.Context, genreName string, options GetGenre
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Genres/%s", url.PathEscape(genreName)),
 	}

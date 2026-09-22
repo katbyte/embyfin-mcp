@@ -47,7 +47,7 @@ func (c Client) PostUpdatedMovies(ctx context.Context, options PostUpdatedMovies
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Library/Movies/Updated",
 	}

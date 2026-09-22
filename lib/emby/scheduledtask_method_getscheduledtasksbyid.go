@@ -24,7 +24,7 @@ func (c Client) GetScheduledTasksById(ctx context.Context, id string) (result Ge
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/ScheduledTasks/%s", url.PathEscape(id)),
 	}
 

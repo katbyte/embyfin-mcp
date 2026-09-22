@@ -22,7 +22,7 @@ func (c Client) GetMusicArtistRemoteSearchResults(ctx context.Context, input Art
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/MusicArtist",
 	}
 

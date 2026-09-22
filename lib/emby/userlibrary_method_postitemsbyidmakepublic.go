@@ -23,7 +23,7 @@ func (c Client) PostItemsByIdMakePublic(ctx context.Context, id string) (result 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Items/%s/MakePublic", url.PathEscape(id)),
 	}
 

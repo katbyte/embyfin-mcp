@@ -21,7 +21,7 @@ func (c Client) GetDrives(ctx context.Context) (result GetDrivesOperationRespons
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Environment/Drives",
 	}
 

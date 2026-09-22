@@ -173,7 +173,7 @@ func (c Client) GetVideosByIdStreamByContainer(ctx context.Context, id string, c
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/stream.%s", url.PathEscape(id), url.PathEscape(container)),
 		StreamResponse: true,

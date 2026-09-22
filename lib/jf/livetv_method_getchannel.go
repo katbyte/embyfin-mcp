@@ -44,7 +44,7 @@ func (c Client) GetChannel(ctx context.Context, channelId string, options GetCha
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/LiveTv/Channels/%s", url.PathEscape(channelId)),
 	}

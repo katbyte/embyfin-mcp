@@ -22,7 +22,7 @@ func (c Client) TvSeriesScreenedTheatrically(ctx context.Context, seriesId int) 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/tv/%d/screened_theatrically", seriesId),
 	}
 

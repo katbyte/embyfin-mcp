@@ -24,7 +24,7 @@ func (c Client) GetItemsByItemIdMetadataEditor(ctx context.Context, itemId strin
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Items/%s/MetadataEditor", url.PathEscape(itemId)),
 	}
 

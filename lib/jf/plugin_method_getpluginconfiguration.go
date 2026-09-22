@@ -23,7 +23,7 @@ func (c Client) GetPluginConfiguration(ctx context.Context, pluginId string) (re
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Plugins/%s/Configuration", url.PathEscape(pluginId)),
 	}
 

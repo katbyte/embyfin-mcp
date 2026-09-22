@@ -50,7 +50,7 @@ func (c Client) MarkPlayedItem(ctx context.Context, itemId string, options MarkP
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/UserPlayedItems/%s", url.PathEscape(itemId)),
 	}

@@ -47,7 +47,7 @@ func (c Client) AccountLists(ctx context.Context, accountId int, options Account
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/account/%d/lists", accountId),
 	}

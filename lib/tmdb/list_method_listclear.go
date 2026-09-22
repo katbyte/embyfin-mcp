@@ -47,7 +47,7 @@ func (c Client) ListClear(ctx context.Context, listId int, options ListClearOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/list/%d/clear", listId),
 	}

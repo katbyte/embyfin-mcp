@@ -23,7 +23,7 @@ func (c Client) UpdateItem(ctx context.Context, itemId string, input BaseItemDto
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Items/%s", url.PathEscape(itemId)),
 	}
 

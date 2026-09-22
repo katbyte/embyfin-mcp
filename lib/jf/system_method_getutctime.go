@@ -21,7 +21,7 @@ func (c Client) GetUtcTime(ctx context.Context) (result GetUtcTimeOperationRespo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/GetUtcTime",
 	}
 

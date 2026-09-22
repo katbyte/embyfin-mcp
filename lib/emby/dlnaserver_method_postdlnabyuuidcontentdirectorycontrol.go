@@ -27,7 +27,7 @@ func (c Client) PostDlnaByUuIdContentdirectoryControl(ctx context.Context, uuId 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Dlna/%s/contentdirectory/control", url.PathEscape(uuId)),
 	}
 

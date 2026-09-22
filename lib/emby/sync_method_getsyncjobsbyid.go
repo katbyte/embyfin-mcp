@@ -24,7 +24,7 @@ func (c Client) GetSyncJobsById(ctx context.Context, id string) (result GetSyncJ
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Sync/Jobs/%s", url.PathEscape(id)),
 	}
 

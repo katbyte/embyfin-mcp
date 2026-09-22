@@ -23,7 +23,7 @@ func (c Client) GetBrandingCssCss(ctx context.Context) (result GetBrandingCssCss
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           "/Branding/Css.css",
 		StreamResponse: true,
 	}

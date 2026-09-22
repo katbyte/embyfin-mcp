@@ -22,7 +22,7 @@ func (c Client) CompanyImages(ctx context.Context, companyId int) (result Compan
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/company/%d/images", companyId),
 	}
 

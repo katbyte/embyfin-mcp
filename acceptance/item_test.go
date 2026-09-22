@@ -138,9 +138,9 @@ func TestItemSimilar(t *testing.T) {
 func TestItemEdit(t *testing.T) {
 	id := findItem(t, "Messy Movies", "Movie", "Interstellar")
 	out := call(t, "item_edit", map[string]any{
-		"id": id, "overview": "Edited by the acceptance suite.", "genres": []any{"Science Fiction", "Adventure"}, "tags": []any{"acceptance"},
+		"ids": []any{id}, "overview": "Edited by the acceptance suite.", "genres": []any{"Science Fiction", "Adventure"}, "tags": []any{"acceptance"},
 	})
-	updated := strs(t, out["updated_fields"], "updated_fields")
+	updated := strs(t, out["changed"], "changed")
 	slices.Sort(updated)
 	if !slices.Equal(updated, []string{"Genres", "Overview", "Tags"}) {
 		t.Errorf("updated = %v", updated)
@@ -157,8 +157,8 @@ func TestItemEdit(t *testing.T) {
 	}
 
 	// a title and year
-	out = call(t, "item_edit", map[string]any{"id": id, "name": "Interstellar (edited)", "year": 2015, "sort_name": "interstellar edited"})
-	updated = strs(t, out["updated_fields"], "updated_fields")
+	out = call(t, "item_edit", map[string]any{"ids": []any{id}, "name": "Interstellar (edited)", "year": 2015, "sort_name": "interstellar edited"})
+	updated = strs(t, out["changed"], "changed")
 	if !slices.Contains(updated, "Name") || !slices.Contains(updated, "ProductionYear") || !slices.Contains(updated, "SortName") {
 		t.Errorf("updated = %v", updated)
 	}
@@ -167,9 +167,9 @@ func TestItemEdit(t *testing.T) {
 		t.Errorf("after the title edit = %v", got)
 	}
 	// and back, so the audits still find what they expect
-	call(t, "item_edit", map[string]any{"id": id, "name": "Interstellar", "year": 2014, "sort_name": "Interstellar"})
+	call(t, "item_edit", map[string]any{"ids": []any{id}, "name": "Interstellar", "year": 2014, "sort_name": "Interstellar"})
 
-	if msg := callErr(t, "item_edit", map[string]any{"id": id}); !strings.Contains(msg, "no fields") {
+	if msg := callErr(t, "item_edit", map[string]any{"ids": []any{id}}); !strings.Contains(msg, "nothing to change") {
 		t.Errorf("an empty edit: %s", msg)
 	}
 }
@@ -215,10 +215,9 @@ func TestItemFamilyIsComplete(t *testing.T) {
 		}
 	}
 	want := []string{
-		"item_artwork", "item_artwork_set", "item_batch_edit", "item_delete", "item_edit", "item_find_by_metadata_id", "item_get",
+		"item_artwork", "item_artwork_set", "item_delete", "item_edit", "item_find_by_metadata_id", "item_get",
 		"item_identify", "item_identify_apply", "item_instant_mix", "item_last_watched", "item_orphans_delete", "item_refresh",
-		"item_set_favourite", "item_set_progress", "item_set_watched", "item_similar", "item_subtitle_download", "item_subtitle_search",
-		"item_watch_history",
+		"item_set_state", "item_similar", "item_subtitle_download", "item_subtitle_search", "item_watch_history",
 	}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {

@@ -23,7 +23,7 @@ func (c Client) TvEpisodeGroupDetails(ctx context.Context, tvEpisodeGroupId stri
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/tv/episode_group/%s", url.PathEscape(tvEpisodeGroupId)),
 	}
 

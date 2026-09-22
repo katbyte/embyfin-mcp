@@ -22,7 +22,7 @@ func (c Client) ForgotPassword(ctx context.Context, input ForgotPasswordDto) (re
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Users/ForgotPassword",
 	}
 

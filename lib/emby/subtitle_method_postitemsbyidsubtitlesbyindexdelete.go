@@ -44,7 +44,7 @@ func (c Client) PostItemsByIdSubtitlesByIndexDelete(ctx context.Context, id stri
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Subtitles/%d/Delete", url.PathEscape(id), index),
 	}

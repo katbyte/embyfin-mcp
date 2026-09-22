@@ -21,7 +21,7 @@ func (c Client) GetPhysicalPaths(ctx context.Context) (result GetPhysicalPathsOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Library/PhysicalPaths",
 	}
 

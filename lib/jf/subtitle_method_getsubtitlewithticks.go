@@ -99,7 +99,7 @@ func (c Client) GetSubtitleWithTicks(ctx context.Context, routeItemId string, ro
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/%s/Subtitles/%d/%d/Stream.%s", url.PathEscape(routeItemId), url.PathEscape(routeMediaSourceId), routeIndex, routeStartPositionTicks, url.PathEscape(routeFormat)),
 		StreamResponse: true,

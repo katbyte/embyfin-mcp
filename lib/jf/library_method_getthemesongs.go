@@ -63,7 +63,7 @@ func (c Client) GetThemeSongs(ctx context.Context, itemId string, options GetThe
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/ThemeSongs", url.PathEscape(itemId)),
 	}

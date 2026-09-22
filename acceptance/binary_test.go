@@ -222,17 +222,17 @@ func TestTheBinary(t *testing.T) {
 			t.Cleanup(func() { _ = cs.Close() })
 			arrival := findItem(t, "Movies", "Movie", "Arrival")
 			favourite := func(on bool) bool {
-				callOn(t, cs, "item_set_favourite", map[string]any{"id": arrival, "favourite": on})
-				for _, it := range rows(t, callOn(t, cs, "user_favourites", nil)["favourites"], "favourites") {
+				callOn(t, cs, "item_set_state", map[string]any{"id": arrival, "favourite": on})
+				for _, it := range rows(t, callOn(t, cs, "library_items", map[string]any{"watched": "favourite"})["items"], "items") {
 					if str(it["id"]) == arrival {
 						return true
 					}
 				}
 				return false
 			}
-			t.Cleanup(func() { _, _ = invoke("item_set_favourite", map[string]any{"id": arrival, "favourite": false}) })
+			t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": arrival, "favourite": false}) })
 			if !favourite(true) || favourite(false) {
-				t.Error("item_set_favourite through the binary did not change root's favourites")
+				t.Error("item_set_state through the binary did not change root's favourites")
 			}
 		})
 	})

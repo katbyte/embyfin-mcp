@@ -21,7 +21,7 @@ func (c Client) GetPingSystem(ctx context.Context) (result GetPingSystemOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Ping",
 	}
 

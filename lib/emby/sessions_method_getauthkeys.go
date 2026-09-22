@@ -51,7 +51,7 @@ func (c Client) GetAuthKeys(ctx context.Context, options GetAuthKeysOperationOpt
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Auth/Keys",
 	}

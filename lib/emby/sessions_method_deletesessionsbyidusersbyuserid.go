@@ -23,7 +23,7 @@ func (c Client) DeleteSessionsByIdUsersByUserId(ctx context.Context, id string, 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Sessions/%s/Users/%s", url.PathEscape(id), url.PathEscape(userId)),
 	}
 

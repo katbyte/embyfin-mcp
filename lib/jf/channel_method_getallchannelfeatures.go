@@ -21,7 +21,7 @@ func (c Client) GetAllChannelFeatures(ctx context.Context) (result GetAllChannel
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Channels/Features",
 	}
 

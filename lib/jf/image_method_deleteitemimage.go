@@ -44,7 +44,7 @@ func (c Client) DeleteItemImage(ctx context.Context, itemId string, imageType Im
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Images/%s", url.PathEscape(itemId), url.PathEscape(string(imageType))),
 	}

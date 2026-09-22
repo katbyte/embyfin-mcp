@@ -125,7 +125,7 @@ func (c Client) GetGenresByNameImagesByType(ctx context.Context, name string, ty
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Genres/%s/Images/%s", url.PathEscape(name), url.PathEscape(string(typeParam))),
 		StreamResponse: true,

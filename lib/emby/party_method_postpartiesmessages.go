@@ -22,7 +22,7 @@ func (c Client) PostPartiesMessages(ctx context.Context, input SessionPartyMessa
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Parties/Messages",
 	}
 

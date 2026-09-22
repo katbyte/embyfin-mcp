@@ -103,7 +103,7 @@ func (c Client) GetLatestMedia(ctx context.Context, options GetLatestMediaOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items/Latest",
 	}

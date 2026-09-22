@@ -628,7 +628,7 @@ func (c Client) GetUsersByUserIdItems(ctx context.Context, userId string, option
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Users/%s/Items", url.PathEscape(userId)),
 	}

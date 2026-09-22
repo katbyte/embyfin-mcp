@@ -25,7 +25,7 @@ func (c Client) LogFile(ctx context.Context, input io.Reader, contentType string
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/ClientLog/Document",
 	}
 

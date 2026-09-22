@@ -22,7 +22,7 @@ func (c Client) GetEncodingSubtitleOptions(ctx context.Context) (result GetEncod
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Encoding/SubtitleOptions",
 	}
 

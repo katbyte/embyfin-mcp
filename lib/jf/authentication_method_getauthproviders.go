@@ -21,7 +21,7 @@ func (c Client) GetAuthProviders(ctx context.Context) (result GetAuthProvidersOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Auth/Providers",
 	}
 

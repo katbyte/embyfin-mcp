@@ -25,7 +25,7 @@ func (c Client) GetAttachment(ctx context.Context, videoId string, mediaSourceId
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Videos/%s/%s/Attachments/%d", url.PathEscape(videoId), url.PathEscape(mediaSourceId), index),
 		StreamResponse: true,
 	}

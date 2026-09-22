@@ -21,7 +21,7 @@ func (c Client) PostLibrarySeriesAdded(ctx context.Context) (result PostLibraryS
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/Series/Added",
 	}
 

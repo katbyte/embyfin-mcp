@@ -22,7 +22,7 @@ func (c Client) NetworkDetails(ctx context.Context, networkId int) (result Netwo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/network/%d", networkId),
 	}
 

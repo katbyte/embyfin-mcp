@@ -22,7 +22,7 @@ func (c Client) GetUsersCopyDataOptions(ctx context.Context) (result GetUsersCop
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Users/CopyDataOptions",
 	}
 

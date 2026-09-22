@@ -640,7 +640,7 @@ func (c Client) GetItemsByIdThemeMedia(ctx context.Context, id string, options G
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/ThemeMedia", url.PathEscape(id)),
 	}

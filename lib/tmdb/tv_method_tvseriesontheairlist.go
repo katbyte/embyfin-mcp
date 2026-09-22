@@ -50,7 +50,7 @@ func (c Client) TvSeriesOnTheAirList(ctx context.Context, options TvSeriesOnTheA
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/tv/on_the_air",
 	}

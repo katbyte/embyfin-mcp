@@ -43,7 +43,7 @@ func (c Client) GetMediaFolders(ctx context.Context, options GetMediaFoldersOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Library/MediaFolders",
 	}

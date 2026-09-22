@@ -47,7 +47,7 @@ func (c Client) TvEpisodeImages(ctx context.Context, seriesId int, seasonNumber 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/tv/%d/season/%d/episode/%d/images", seriesId, seasonNumber, episodeNumber),
 	}

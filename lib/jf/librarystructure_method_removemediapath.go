@@ -54,7 +54,7 @@ func (c Client) RemoveMediaPath(ctx context.Context, options RemoveMediaPathOper
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          "/Library/VirtualFolders/Paths",
 	}

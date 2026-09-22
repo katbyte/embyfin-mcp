@@ -21,7 +21,7 @@ func (c Client) CertificationMovieList(ctx context.Context) (result Certificatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/certification/movie/list",
 	}
 

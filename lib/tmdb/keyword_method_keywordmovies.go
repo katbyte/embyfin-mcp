@@ -51,7 +51,7 @@ func (c Client) KeywordMovies(ctx context.Context, keywordId int, options Keywor
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/keyword/%d/movies", keywordId),
 	}

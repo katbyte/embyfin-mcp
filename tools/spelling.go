@@ -358,8 +358,8 @@ func registerSpellingTools(r *registry) {
 	}
 	type renameOut struct {
 		Field        string   `json:"field"`
-		ItemsUpdated int      `json:"items_updated"`
-		Items        []string `json:"items"         jsonschema:"the titles changed, capped at 50"`
+		ItemsUpdated int      `json:"updated"`
+		Items        []string `json:"items"   jsonschema:"the titles changed, capped at 50"`
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name: "metadata_rename",

@@ -46,7 +46,7 @@ func (c Client) PostUsersByUserIdItemsByIdRating(ctx context.Context, userId str
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Users/%s/Items/%s/Rating", url.PathEscape(userId), url.PathEscape(id)),
 	}

@@ -87,7 +87,7 @@ func (c Client) GetPlaylistItems(ctx context.Context, playlistId string, options
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Playlists/%s/Items", url.PathEscape(playlistId)),
 	}

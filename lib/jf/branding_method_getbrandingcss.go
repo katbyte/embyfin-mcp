@@ -24,7 +24,7 @@ func (c Client) GetBrandingCss(ctx context.Context) (result GetBrandingCssOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           "/Branding/Css",
 		StreamResponse: true,
 	}

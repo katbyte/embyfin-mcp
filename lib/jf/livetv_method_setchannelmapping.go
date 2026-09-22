@@ -22,7 +22,7 @@ func (c Client) SetChannelMapping(ctx context.Context, input SetChannelMappingDt
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveTv/ChannelMappings",
 	}
 

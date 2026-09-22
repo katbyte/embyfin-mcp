@@ -22,7 +22,7 @@ func (c Client) GetNotificationsTypes(ctx context.Context) (result GetNotificati
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Notifications/Types",
 	}
 

@@ -42,7 +42,7 @@ func (c Client) GetChannelMappingOptions(ctx context.Context, options GetChannel
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/ChannelMappingOptions",
 	}

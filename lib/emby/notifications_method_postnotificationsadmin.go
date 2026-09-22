@@ -67,7 +67,7 @@ func (c Client) PostNotificationsAdmin(ctx context.Context, input ApiAddAdminNot
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Notifications/Admin",
 	}

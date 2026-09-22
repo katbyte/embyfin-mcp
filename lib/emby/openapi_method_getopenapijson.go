@@ -23,7 +23,7 @@ func (c Client) GetOpenapiJson(ctx context.Context) (result GetOpenapiJsonOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/openapi.json",
 	}
 

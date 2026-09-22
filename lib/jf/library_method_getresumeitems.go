@@ -128,7 +128,7 @@ func (c Client) GetResumeItems(ctx context.Context, options GetResumeItemsOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/UserItems/Resume",
 	}

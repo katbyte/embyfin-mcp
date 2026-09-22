@@ -42,7 +42,7 @@ func (c Client) PostSyncItemsCancel(ctx context.Context, options PostSyncItemsCa
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Sync/Items/Cancel",
 	}

@@ -25,7 +25,7 @@ func (c Client) GetDlnaByUuIdDescription(ctx context.Context, uuId string) (resu
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Dlna/%s/description", url.PathEscape(uuId)),
 		StreamResponse: true,
 	}

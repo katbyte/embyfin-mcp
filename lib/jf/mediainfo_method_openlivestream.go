@@ -110,7 +110,7 @@ func (c Client) OpenLiveStream(ctx context.Context, input OpenLiveStreamDto, opt
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/LiveStreams/Open",
 	}

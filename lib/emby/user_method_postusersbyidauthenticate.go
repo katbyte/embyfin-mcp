@@ -25,7 +25,7 @@ func (c Client) PostUsersByIdAuthenticate(ctx context.Context, id string, input 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s/Authenticate", url.PathEscape(id)),
 	}
 

@@ -21,7 +21,7 @@ func (c Client) PostPartiesLeave(ctx context.Context) (result PostPartiesLeaveOp
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Parties/Leave",
 	}
 

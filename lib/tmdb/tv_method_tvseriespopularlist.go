@@ -46,7 +46,7 @@ func (c Client) TvSeriesPopularList(ctx context.Context, options TvSeriesPopular
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/tv/popular",
 	}

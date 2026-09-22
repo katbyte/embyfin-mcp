@@ -21,7 +21,7 @@ func (c Client) SyncPlaySetShuffleMode(ctx context.Context, input SetShuffleMode
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/SetShuffleMode",
 	}
 

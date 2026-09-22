@@ -633,7 +633,7 @@ func (c Client) GetArtists(ctx context.Context, options GetArtistsOperationOptio
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Artists",
 	}

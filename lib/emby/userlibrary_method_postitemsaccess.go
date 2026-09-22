@@ -22,7 +22,7 @@ func (c Client) PostItemsAccess(ctx context.Context, input UserLibraryUpdateUser
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/Access",
 	}
 

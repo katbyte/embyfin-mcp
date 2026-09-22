@@ -42,7 +42,7 @@ func (c Client) UpdateUserPassword(ctx context.Context, input UpdateUserPassword
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Users/Password",
 	}

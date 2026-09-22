@@ -21,7 +21,7 @@ func (c Client) AuthenticationCreateGuestSession(ctx context.Context) (result Au
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/authentication/guest_session/new",
 	}
 

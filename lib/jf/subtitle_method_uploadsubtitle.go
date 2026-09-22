@@ -23,7 +23,7 @@ func (c Client) UploadSubtitle(ctx context.Context, itemId string, input UploadS
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Videos/%s/Subtitles", url.PathEscape(itemId)),
 	}
 

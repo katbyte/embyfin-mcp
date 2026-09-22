@@ -125,7 +125,7 @@ func (c Client) GetItemImageByIndex(ctx context.Context, itemId string, imageTyp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Items/%s/Images/%s/%d", url.PathEscape(itemId), url.PathEscape(string(imageType)), imageIndex),
 		StreamResponse: true,

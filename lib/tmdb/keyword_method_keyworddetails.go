@@ -22,7 +22,7 @@ func (c Client) KeywordDetails(ctx context.Context, keywordId int) (result Keywo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/keyword/%d", keywordId),
 	}
 

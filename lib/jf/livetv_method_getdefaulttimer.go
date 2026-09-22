@@ -42,7 +42,7 @@ func (c Client) GetDefaultTimer(ctx context.Context, options GetDefaultTimerOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Timers/Defaults",
 	}

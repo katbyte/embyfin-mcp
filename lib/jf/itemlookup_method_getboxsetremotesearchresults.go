@@ -22,7 +22,7 @@ func (c Client) GetBoxSetRemoteSearchResults(ctx context.Context, input BoxSetIn
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/BoxSet",
 	}
 

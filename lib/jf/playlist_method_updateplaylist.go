@@ -23,7 +23,7 @@ func (c Client) UpdatePlaylist(ctx context.Context, playlistId string, input Upd
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Playlists/%s", url.PathEscape(playlistId)),
 	}
 

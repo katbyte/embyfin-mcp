@@ -66,7 +66,7 @@ func (c Client) SearchTv(ctx context.Context, options SearchTvOperationOptions) 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/search/tv",
 	}

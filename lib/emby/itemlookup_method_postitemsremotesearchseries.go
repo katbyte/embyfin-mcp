@@ -23,7 +23,7 @@ func (c Client) PostItemsRemoteSearchSeries(ctx context.Context, input RemoteSea
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Series",
 	}
 

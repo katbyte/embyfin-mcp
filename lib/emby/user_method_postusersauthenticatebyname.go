@@ -47,7 +47,7 @@ func (c Client) PostUsersAuthenticateByName(ctx context.Context, input Authentic
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Users/AuthenticateByName",
 	}

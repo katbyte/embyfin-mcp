@@ -22,7 +22,7 @@ func (c Client) GetPersonRemoteSearchResults(ctx context.Context, input PersonLo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Person",
 	}
 

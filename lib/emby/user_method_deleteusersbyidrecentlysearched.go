@@ -23,7 +23,7 @@ func (c Client) DeleteUsersByIdRecentlySearched(ctx context.Context, id string) 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Users/%s/RecentlySearched", url.PathEscape(id)),
 	}
 

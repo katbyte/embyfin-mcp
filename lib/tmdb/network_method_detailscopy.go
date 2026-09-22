@@ -22,7 +22,7 @@ func (c Client) DetailsCopy(ctx context.Context, networkId int) (result DetailsC
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/network/%d/alternative_names", networkId),
 	}
 

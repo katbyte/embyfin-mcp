@@ -633,7 +633,7 @@ func (c Client) GetShowsUpcoming(ctx context.Context, options GetShowsUpcomingOp
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Shows/Upcoming",
 	}

@@ -55,7 +55,7 @@ func (c Client) GetDirectoryContents(ctx context.Context, options GetDirectoryCo
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Environment/DirectoryContents",
 	}

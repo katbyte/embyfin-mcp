@@ -22,7 +22,7 @@ func (c Client) GetBookRemoteSearchResults(ctx context.Context, input BookInfoRe
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Book",
 	}
 

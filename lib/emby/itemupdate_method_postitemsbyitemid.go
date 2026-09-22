@@ -24,7 +24,7 @@ func (c Client) PostItemsByItemId(ctx context.Context, itemId string, input Base
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Items/%s", url.PathEscape(itemId)),
 	}
 

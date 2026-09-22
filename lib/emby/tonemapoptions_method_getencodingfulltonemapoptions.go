@@ -22,7 +22,7 @@ func (c Client) GetEncodingFullToneMapOptions(ctx context.Context) (result GetEn
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Encoding/FullToneMapOptions",
 	}
 

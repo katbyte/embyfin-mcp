@@ -21,7 +21,7 @@ func (c Client) GetPublicUsers(ctx context.Context) (result GetPublicUsersOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Users/Public",
 	}
 

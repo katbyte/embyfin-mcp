@@ -22,7 +22,7 @@ func (c Client) GetPartiesMessages(ctx context.Context) (result GetPartiesMessag
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Parties/Messages",
 	}
 

@@ -22,7 +22,7 @@ func (c Client) GetSystemEndpoint(ctx context.Context) (result GetSystemEndpoint
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Endpoint",
 	}
 

@@ -25,7 +25,7 @@ func (c Client) GetDlnaByUuIdContentdirectoryContentdirectoryXml(ctx context.Con
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Dlna/%s/contentdirectory/contentdirectory.xml", url.PathEscape(uuId)),
 		StreamResponse: true,
 	}

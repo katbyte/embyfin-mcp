@@ -23,7 +23,7 @@ func (c Client) PostLiveTvListingProviders(ctx context.Context, input LiveTvList
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/LiveTv/ListingProviders",
 	}
 

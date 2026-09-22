@@ -49,7 +49,7 @@ func (c Client) GetLiveTvTimers(ctx context.Context, options GetLiveTvTimersOper
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Timers",
 	}

@@ -44,7 +44,7 @@ func (c Client) GetSpecialFeatures(ctx context.Context, itemId string, options G
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/SpecialFeatures", url.PathEscape(itemId)),
 	}

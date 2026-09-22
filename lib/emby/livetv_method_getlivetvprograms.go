@@ -639,7 +639,7 @@ func (c Client) GetLiveTvPrograms(ctx context.Context, options GetLiveTvPrograms
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Programs",
 	}

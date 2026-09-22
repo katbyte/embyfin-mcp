@@ -45,7 +45,7 @@ func (c Client) WatchProviderTvList(ctx context.Context, options WatchProviderTv
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/watch/providers/tv",
 	}

@@ -44,7 +44,7 @@ func (c Client) PostCollectionsByIdItems(ctx context.Context, id string, options
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Collections/%s/Items", url.PathEscape(id)),
 	}

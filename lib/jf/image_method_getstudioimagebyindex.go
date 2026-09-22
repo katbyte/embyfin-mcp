@@ -125,7 +125,7 @@ func (c Client) GetStudioImageByIndex(ctx context.Context, name string, imageTyp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Studios/%s/Images/%s/%d", url.PathEscape(name), url.PathEscape(string(imageType)), imageIndex),
 		StreamResponse: true,

@@ -25,7 +25,7 @@ func (c Client) GetUsersByUserIdTypedSettingsByKey(ctx context.Context, userId s
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Users/%s/TypedSettings/%s", url.PathEscape(userId), url.PathEscape(key)),
 	}
 

@@ -21,7 +21,7 @@ func (c Client) SyncPlaySetRepeatMode(ctx context.Context, input SetRepeatModeRe
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/SetRepeatMode",
 	}
 

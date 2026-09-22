@@ -152,7 +152,7 @@ func (c Client) GetPostedPlaybackInfo(ctx context.Context, itemId string, input 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/PlaybackInfo", url.PathEscape(itemId)),
 	}

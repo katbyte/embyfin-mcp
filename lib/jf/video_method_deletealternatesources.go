@@ -22,7 +22,7 @@ func (c Client) DeleteAlternateSources(ctx context.Context, itemId string) (resu
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Videos/%s/AlternateSources", url.PathEscape(itemId)),
 	}
 

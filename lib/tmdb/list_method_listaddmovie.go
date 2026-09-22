@@ -43,7 +43,7 @@ func (c Client) ListAddMovie(ctx context.Context, listId int, input ListAddMovie
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/list/%d/add_item", listId),
 	}

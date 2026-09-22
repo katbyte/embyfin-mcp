@@ -22,7 +22,7 @@ func (c Client) AuthenticateUserByName(ctx context.Context, input AuthenticateUs
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Users/AuthenticateByName",
 	}
 

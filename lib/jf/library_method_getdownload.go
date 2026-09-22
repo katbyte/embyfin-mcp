@@ -25,7 +25,7 @@ func (c Client) GetDownload(ctx context.Context, itemId string) (result GetDownl
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Items/%s/Download", url.PathEscape(itemId)),
 		StreamResponse: true,
 	}

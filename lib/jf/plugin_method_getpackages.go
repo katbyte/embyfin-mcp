@@ -21,7 +21,7 @@ func (c Client) GetPackages(ctx context.Context) (result GetPackagesOperationRes
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Packages",
 	}
 

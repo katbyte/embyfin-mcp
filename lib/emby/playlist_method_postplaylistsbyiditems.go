@@ -51,7 +51,7 @@ func (c Client) PostPlaylistsByIdItems(ctx context.Context, id string, options P
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Playlists/%s/Items", url.PathEscape(id)),
 	}

@@ -51,7 +51,7 @@ func (c Client) GetLibraryVirtualFoldersQuery(ctx context.Context, options GetLi
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Library/VirtualFolders/Query",
 	}

@@ -43,7 +43,7 @@ func (c Client) GetLiveTvTimersDefaults(ctx context.Context, options GetLiveTvTi
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Timers/Defaults",
 	}

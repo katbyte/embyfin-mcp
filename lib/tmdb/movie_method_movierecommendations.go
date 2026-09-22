@@ -48,7 +48,7 @@ func (c Client) MovieRecommendations(ctx context.Context, movieId int, options M
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/movie/%d/recommendations", movieId),
 	}

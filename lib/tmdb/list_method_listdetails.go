@@ -47,7 +47,7 @@ func (c Client) ListDetails(ctx context.Context, listId int, options ListDetails
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/list/%d", listId),
 	}

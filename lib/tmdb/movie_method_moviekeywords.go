@@ -22,7 +22,7 @@ func (c Client) MovieKeywords(ctx context.Context, movieId int) (result MovieKey
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/movie/%d/keywords", movieId),
 	}
 

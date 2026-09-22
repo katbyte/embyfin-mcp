@@ -21,7 +21,7 @@ func (c Client) UpdateMediaPath(ctx context.Context, input UpdateMediaPathReques
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/VirtualFolders/Paths/Update",
 	}
 

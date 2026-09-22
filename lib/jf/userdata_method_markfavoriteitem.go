@@ -44,7 +44,7 @@ func (c Client) MarkFavoriteItem(ctx context.Context, itemId string, options Mar
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/UserFavoriteItems/%s", url.PathEscape(itemId)),
 	}

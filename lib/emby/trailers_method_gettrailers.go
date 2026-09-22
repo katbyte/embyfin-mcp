@@ -633,7 +633,7 @@ func (c Client) GetTrailers(ctx context.Context, options GetTrailersOperationOpt
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Trailers",
 	}

@@ -633,7 +633,7 @@ func (c Client) GetItems(ctx context.Context, options GetItemsOperationOptions) 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items",
 	}

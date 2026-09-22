@@ -25,7 +25,7 @@ func (c Client) GetSyncJobItemsByIdFile(ctx context.Context, id string) (result 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		Path:           fmt.Sprintf("/Sync/JobItems/%s/File", url.PathEscape(id)),
 		StreamResponse: true,
 	}

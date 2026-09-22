@@ -22,7 +22,7 @@ func (c Client) GetLiveTvFolder(ctx context.Context) (result GetLiveTvFolderOper
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/LiveTv/Folder",
 	}
 

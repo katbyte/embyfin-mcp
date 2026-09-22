@@ -42,7 +42,7 @@ func (c Client) PostItemsDelete(ctx context.Context, options PostItemsDeleteOper
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Items/Delete",
 	}

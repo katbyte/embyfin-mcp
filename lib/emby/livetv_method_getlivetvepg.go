@@ -669,7 +669,7 @@ func (c Client) GetLiveTvEPG(ctx context.Context, options GetLiveTvEPGOperationO
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/EPG",
 	}

@@ -46,7 +46,7 @@ func (c Client) PostUserImage(ctx context.Context, input io.Reader, contentType 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/UserImage",
 	}

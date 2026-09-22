@@ -146,7 +146,7 @@ func (c Client) GetPersons(ctx context.Context, options GetPersonsOperationOptio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Persons",
 	}

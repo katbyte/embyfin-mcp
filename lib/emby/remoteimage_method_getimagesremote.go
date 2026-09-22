@@ -44,7 +44,7 @@ func (c Client) GetImagesRemote(ctx context.Context, options GetImagesRemoteOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           "/Images/Remote",
 		StreamResponse: true,

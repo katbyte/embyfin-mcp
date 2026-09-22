@@ -632,7 +632,7 @@ func (c Client) GetLiveTvChannelTagsPrefixes(ctx context.Context, options GetLiv
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/ChannelTags/Prefixes",
 	}

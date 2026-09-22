@@ -21,7 +21,7 @@ func (c Client) GetConfiguration(ctx context.Context) (result GetConfigurationOp
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Configuration",
 	}
 

@@ -22,7 +22,7 @@ func (c Client) PostLibraryVirtualFoldersDelete(ctx context.Context, input Libra
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/VirtualFolders/Delete",
 	}
 

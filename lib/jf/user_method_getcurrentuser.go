@@ -21,7 +21,7 @@ func (c Client) GetCurrentUser(ctx context.Context) (result GetCurrentUserOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Users/Me",
 	}
 

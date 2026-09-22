@@ -42,7 +42,7 @@ func (c Client) DeleteLiveTvTunerHosts(ctx context.Context, options DeleteLiveTv
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          "/LiveTv/TunerHosts",
 	}

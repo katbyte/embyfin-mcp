@@ -42,7 +42,7 @@ func (c Client) MovieCredits(ctx context.Context, movieId int, options MovieCred
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/movie/%d/credits", movieId),
 	}

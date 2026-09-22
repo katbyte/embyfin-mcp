@@ -66,7 +66,7 @@ func (c Client) PostCapabilities(ctx context.Context, options PostCapabilitiesOp
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Sessions/Capabilities",
 	}

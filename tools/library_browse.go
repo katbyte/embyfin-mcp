@@ -172,6 +172,8 @@ func registerLibraryBrowseTools(r *registry) {
 	client := r.client
 
 	type itemsIn struct {
+		Query           string   `json:"query,omitempty"            jsonschema:"title or partial title to search for; with no sort the best matches come first"`
+		Person          string   `json:"person,omitempty"           jsonschema:"only items featuring this actor, director or writer, by name"`
 		Library         string   `json:"library,omitempty"          jsonschema:"library name or id; default every library"`
 		Types           string   `json:"types,omitempty"            jsonschema:"comma-separated item types; defaults to the library's kind: Series in a TV library, Movie in a movie library, Movie,Series otherwise"`
 		Genres          []string `json:"genres,omitempty"           jsonschema:"items with any of these genres"`
@@ -182,7 +184,7 @@ func registerLibraryBrowseTools(r *registry) {
 		Watched         string   `json:"watched,omitempty"          jsonschema:"watched, unwatched, in_progress or favourite, in user's view"`
 		User            string   `json:"user,omitempty"             jsonschema:"whose watch state watched and sort=played read, by name or id; defaults to the first administrator"`
 		SavedSince      string   `json:"saved_since,omitempty"      jsonschema:"only items the server last SAVED at or after this time (RFC3339): the closest either server offers to 'what changed'. A file written over an existing path is re-read and saved, but so is an item somebody edited, and neither server can sort by it"`
-		Sort            string   `json:"sort,omitempty"             jsonschema:"name (default), added, premiered, year, runtime, rating, played (needs a user) or random"`
+		Sort            string   `json:"sort,omitempty"             jsonschema:"name (default; relevance when there is a query), added, premiered, year, runtime, rating, played (needs a user) or random"`
 		Desc            bool     `json:"desc,omitempty"             jsonschema:"sort descending"`
 		Limit           int      `json:"limit,omitempty"            jsonschema:"page size, default 25"`
 		Offset          int      `json:"offset,omitempty"           jsonschema:"skip this many items, to page"`
@@ -194,7 +196,7 @@ func registerLibraryBrowseTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "library_items",
-		Description: "Browse a library by structured filter, sorted and paged: 'every unwatched horror film, newest first', 'what is rated TV-MA', 'what came from A24'. Filters combine (an item must pass each one given); within one, any value matches. Takes no text query: library_search finds things by title.",
+		Description: "Find and browse library items: a title search, a structured filter, or both, sorted and paged: 'alien', 'every unwatched horror film, newest first', 'what is rated TV-MA', 'what came from A24', 'what has Sigourney Weaver in it'. Filters combine (an item must pass each one given); within one, any value matches. Returns trimmed summaries with metadata provider ids, runtime and stream quality facts.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in itemsIn) (*mcp.CallToolResult, itemsOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
@@ -203,14 +205,21 @@ func registerLibraryBrowseTools(r *registry) {
 		offset := max(in.Offset, 0)
 
 		sort := strings.ToLower(strings.TrimSpace(in.Sort))
-		if sort == "" {
-			sort = "name"
-		}
-		sortBy, ok := itemSorts[sort]
-		if !ok {
-			return nil, itemsOut{}, fmt.Errorf("unknown sort %q; choose one of: name, added, premiered, year, runtime, rating, played, random", in.Sort)
+		var sortBy string
+		switch {
+		case sort == "" && strings.TrimSpace(in.Query) != "":
+			// the server's own relevance order for a search, which it only
+			// gives when asked for no order at all
+		case sort == "":
+			sortBy = itemSorts["name"]
+		default:
+			var ok bool
+			if sortBy, ok = itemSorts[sort]; !ok {
+				return nil, itemsOut{}, fmt.Errorf("unknown sort %q; choose one of: name, added, premiered, year, runtime, rating, played, random", in.Sort)
+			}
 		}
 		opts := embyfin.SearchOptions{
+			SearchTerm:       strings.TrimSpace(in.Query),
 			IncludeItemTypes: in.Types,
 			Genres:           in.Genres,
 			Tags:             in.Tags,
@@ -218,12 +227,14 @@ func registerLibraryBrowseTools(r *registry) {
 			OfficialRatings:  in.OfficialRatings,
 			SortBy:           sortBy,
 			SavedSince:       in.SavedSince,
-			SortOrder:        "Ascending",
 			Limit:            limit,
 			StartIndex:       offset,
 		}
-		if in.Desc {
-			opts.SortOrder = sortDescending
+		if sortBy != "" {
+			opts.SortOrder = "Ascending"
+			if in.Desc {
+				opts.SortOrder = sortDescending
+			}
 		}
 		years := make([]string, 0, len(in.Years))
 		for _, y := range in.Years {
@@ -255,6 +266,16 @@ func registerLibraryBrowseTools(r *registry) {
 		}
 		if opts.IncludeItemTypes == "" {
 			opts.IncludeItemTypes = defaultSearchTypes(folder)
+		}
+		if strings.TrimSpace(in.Person) != "" {
+			found, _, perr := resolvePerson(ctx, client, in.Person)
+			if perr != nil {
+				return nil, itemsOut{}, perr
+			}
+			if found == nil {
+				return nil, itemsOut{}, fmt.Errorf("no person named %q in the library (person_get lists the near names)", in.Person)
+			}
+			opts.PersonIDs = found.ID
 		}
 
 		items, total, err := client.Search(ctx, opts)

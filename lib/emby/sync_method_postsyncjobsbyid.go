@@ -23,7 +23,7 @@ func (c Client) PostSyncJobsById(ctx context.Context, id int64, input SyncJob) (
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Sync/Jobs/%d", id),
 	}
 

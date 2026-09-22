@@ -23,7 +23,7 @@ func (c Client) PostSessionsByIdCommandByCommand(ctx context.Context, id string,
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Sessions/%s/Command/%s", url.PathEscape(id), url.PathEscape(command)),
 	}
 

@@ -638,7 +638,7 @@ func (c Client) PostLiveTvPrograms(ctx context.Context, input ApiBaseItemsReques
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/LiveTv/Programs",
 	}

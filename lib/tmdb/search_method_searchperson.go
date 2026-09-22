@@ -54,7 +54,7 @@ func (c Client) SearchPerson(ctx context.Context, options SearchPersonOperationO
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/search/person",
 	}

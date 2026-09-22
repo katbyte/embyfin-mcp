@@ -25,7 +25,7 @@ func (c Client) GetPluginsByIdConfiguration(ctx context.Context, id string) (res
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Plugins/%s/Configuration", url.PathEscape(id)),
 	}
 

@@ -21,7 +21,7 @@ func (c Client) UpdateBrandingConfiguration(ctx context.Context, input BrandingO
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/System/Configuration/Branding",
 	}
 

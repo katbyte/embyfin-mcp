@@ -122,7 +122,7 @@ func (c Client) GetLogEntries(ctx context.Context, options GetLogEntriesOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/System/ActivityLog/Entries",
 	}

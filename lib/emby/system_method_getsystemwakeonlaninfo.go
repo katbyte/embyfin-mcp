@@ -22,7 +22,7 @@ func (c Client) GetSystemWakeOnLanInfo(ctx context.Context) (result GetSystemWak
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/WakeOnLanInfo",
 	}
 

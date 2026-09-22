@@ -23,7 +23,7 @@ func (c Client) PostItemsRemoteSearchMovie(ctx context.Context, input RemoteSear
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Movie",
 	}
 

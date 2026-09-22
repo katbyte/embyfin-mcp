@@ -22,7 +22,7 @@ func (c Client) ForgotPasswordPin(ctx context.Context, input ForgotPasswordPinDt
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Users/ForgotPassword/Pin",
 	}
 

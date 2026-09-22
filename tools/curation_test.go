@@ -280,9 +280,10 @@ func TestProgressAndDates(t *testing.T) {
 	}
 }
 
-// item_batch_edit and metadata_rename against a canned Emby: the full item is
-// read in the administrator's view and posted back with both spellings of
-// each list, and a rename touches only the exact spelling.
+// item_edit over several ids and metadata_rename against a canned Emby: the
+// full item is read in the administrator's view and posted back with both
+// spellings of each list, a field that is one item's own is refused for
+// several ids, and a rename touches only the exact spelling.
 func TestVocabularyEditsAgainstAFake(t *testing.T) {
 	t.Parallel()
 
@@ -311,9 +312,22 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	out, msg := callTool(t, cs, "item_batch_edit", map[string]any{"ids": []any{"1", "2"}, "add_tags": []any{"Classic", "SPACE"}, "remove_genres": []any{"horror"}, "official_rating": "R"})
-	if msg != "" || number(t, out["items_updated"], "items_updated") != 2 {
-		t.Fatalf("item_batch_edit = %v %s", out, msg)
+	out, msg := callTool(t, cs, "item_edit", map[string]any{"ids": []any{"1", "2"}, "add_tags": []any{"Classic", "SPACE"}, "remove_genres": []any{"horror"}, "official_rating": "R"})
+	if msg != "" || number(t, out["updated"], "updated") != 2 {
+		t.Fatalf("item_edit = %v %s", out, msg)
+	}
+	// the fields changed; case and order aside for now (the handler spells
+	// the lists in lower case, which puts them after the capitalised fields)
+	changed := texts(out["changed"])
+	for i := range changed {
+		changed[i] = strings.ToLower(changed[i])
+	}
+	slices.Sort(changed)
+	if got := strings.Join(changed, ","); got != "genres,officialrating,tags" {
+		t.Errorf("changed = %s, want genres, official rating and tags", got)
+	}
+	if got, _ := json.Marshal(out["items"]); string(got) != `["Alien","Aliens"]` {
+		t.Errorf("items = %s, want the titles in the order given", got)
 	}
 	for _, want := range []string{`"TagItems":[{"Name":"space"},{"Name":"Classic"}]`, `"Tags":["space","Classic"]`, `"Genres":["Sci-Fi"]`, `"GenreItems":[{"Name":"Sci-Fi"}]`, `"OfficialRating":"R"`} {
 		if !strings.Contains(posted["1"], want) {
@@ -324,9 +338,27 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 		t.Errorf("a list the edit did not name was changed: %s", posted["2"])
 	}
 
+	// one item's own fields go with one id
+	clear(posted)
+	out, msg = callTool(t, cs, "item_edit", map[string]any{"ids": []any{"1"}, "name": "Alien (1979)", "sort_name": "Alien 1", "year": 1979})
+	if msg != "" || number(t, out["updated"], "updated") != 1 {
+		t.Fatalf("item_edit of one = %v %s", out, msg)
+	}
+	if got, _ := json.Marshal(out["changed"]); string(got) != `["Name","ProductionYear","SortName"]` {
+		t.Errorf("changed = %s", got)
+	}
+	for _, want := range []string{`"Name":"Alien (1979)"`, `"SortName":"Alien 1"`, `"ForcedSortName":"Alien 1"`, `"ProductionYear":1979`} {
+		if !strings.Contains(posted["1"], want) {
+			t.Errorf("Alien's update lacks %s: %s", want, posted["1"])
+		}
+	}
+	if _, touched := posted["2"]; touched {
+		t.Errorf("an item not named was posted: %s", posted["2"])
+	}
+
 	clear(posted)
 	out, msg = callTool(t, cs, "metadata_rename", map[string]any{"field": "genre", "from": "sci-fi", "to": "Science Fiction"})
-	if msg != "" || number(t, out["items_updated"], "items_updated") != 1 {
+	if msg != "" || number(t, out["updated"], "updated") != 1 {
 		t.Fatalf("metadata_rename = %v %s", out, msg)
 	}
 	if _, touched := posted["1"]; touched || !strings.Contains(posted["2"], `"Genres":["Science Fiction"]`) {
@@ -336,17 +368,26 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 		t.Errorf("the rename's lookup = %s", q)
 	}
 
+	clear(posted)
 	for args, want := range map[string]string{
-		`{"ids":["1"]}`: "nothing to change",
+		`{"ids":["1"]}`:                                  "nothing to change",
+		`{"ids":[],"name":"x"}`:                          "item",
 		`{"ids":["1"],"genres":["a"],"add_genres":[]}`:   "",
 		`{"ids":["1"],"tags":["a"],"remove_tags":["b"]}`: "one or the other",
+		`{"ids":["1","2"],"name":"x"}`:                   "name is one item's own: pass one id to set it",
+		`{"ids":["1","2"],"sort_name":"x"}`:              "sort_name is one item's own",
+		`{"ids":["1","2"],"overview":"x"}`:               "overview is one item's own",
+		`{"ids":["1","2"],"year":1979,"add_tags":["a"]}`: "year is one item's own",
 	} {
 		var a map[string]any
 		_ = json.Unmarshal([]byte(args), &a)
-		_, msg := callTool(t, cs, "item_batch_edit", a)
+		_, msg := callTool(t, cs, "item_edit", a)
 		if want == "" && msg != "" || want != "" && !strings.Contains(msg, want) {
-			t.Errorf("item_batch_edit %s = %q, want %q", args, msg, want)
+			t.Errorf("item_edit %s = %q, want %q", args, msg, want)
 		}
+	}
+	if _, touched := posted["2"]; touched {
+		t.Errorf("a refused edit posted: %s", posted["2"])
 	}
 }
 

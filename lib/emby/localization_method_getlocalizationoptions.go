@@ -22,7 +22,7 @@ func (c Client) GetLocalizationOptions(ctx context.Context) (result GetLocalizat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Localization/Options",
 	}
 

@@ -23,7 +23,7 @@ func (c Client) PostScheduledTasksRunningById(ctx context.Context, id string) (r
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/ScheduledTasks/Running/%s", url.PathEscape(id)),
 	}
 

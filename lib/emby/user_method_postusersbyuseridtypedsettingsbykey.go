@@ -27,7 +27,7 @@ func (c Client) PostUsersByUserIdTypedSettingsByKey(ctx context.Context, userId 
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Users/%s/TypedSettings/%s", url.PathEscape(userId), url.PathEscape(key)),
 	}
 

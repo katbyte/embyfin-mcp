@@ -42,7 +42,7 @@ func (c Client) GetGroupingOptions(ctx context.Context, options GetGroupingOptio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/UserViews/GroupingOptions",
 	}

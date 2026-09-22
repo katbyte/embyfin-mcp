@@ -44,7 +44,7 @@ func (c Client) GetDashboardConfigurationPage(ctx context.Context, options GetDa
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           "/web/ConfigurationPage",
 		StreamResponse: true,

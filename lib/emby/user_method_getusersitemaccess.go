@@ -75,7 +75,7 @@ func (c Client) GetUsersItemAccess(ctx context.Context, options GetUsersItemAcce
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Users/ItemAccess",
 	}

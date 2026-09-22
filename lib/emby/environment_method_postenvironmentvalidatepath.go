@@ -42,7 +42,7 @@ func (c Client) PostEnvironmentValidatePath(ctx context.Context, input ValidateP
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Environment/ValidatePath",
 	}

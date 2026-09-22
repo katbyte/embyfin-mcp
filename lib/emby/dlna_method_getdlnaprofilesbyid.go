@@ -24,7 +24,7 @@ func (c Client) GetDlnaProfilesById(ctx context.Context, id string) (result GetD
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Dlna/Profiles/%s", url.PathEscape(id)),
 	}
 

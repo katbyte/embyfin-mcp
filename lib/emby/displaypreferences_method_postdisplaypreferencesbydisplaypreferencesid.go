@@ -45,7 +45,7 @@ func (c Client) PostDisplayPreferencesByDisplayPreferencesId(ctx context.Context
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/DisplayPreferences/%s", url.PathEscape(displayPreferencesId)),
 	}

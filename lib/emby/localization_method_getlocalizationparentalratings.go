@@ -22,7 +22,7 @@ func (c Client) GetLocalizationParentalRatings(ctx context.Context) (result GetL
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Localization/ParentalRatings",
 	}
 

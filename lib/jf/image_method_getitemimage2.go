@@ -89,7 +89,7 @@ func (c Client) GetItemImage2(ctx context.Context, itemId string, imageType Imag
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Items/%s/Images/%s/%d/%s/%s/%d/%d/%s/%d", url.PathEscape(itemId), url.PathEscape(string(imageType)), imageIndex, url.PathEscape(tag), url.PathEscape(string(format)), maxWidth, maxHeight, strconv.FormatFloat(percentPlayed, 'f', -1, 64), unplayedCount),
 		StreamResponse: true,

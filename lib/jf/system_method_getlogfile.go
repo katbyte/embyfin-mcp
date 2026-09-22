@@ -44,7 +44,7 @@ func (c Client) GetLogFile(ctx context.Context, options GetLogFileOperationOptio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           "/System/Logs/Log",
 		StreamResponse: true,

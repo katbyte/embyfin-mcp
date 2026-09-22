@@ -44,7 +44,7 @@ func (c Client) GetPackageInfo(ctx context.Context, name string, options GetPack
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Packages/%s", url.PathEscape(name)),
 	}

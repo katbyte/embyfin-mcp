@@ -53,24 +53,6 @@ func (t titles) add(it *embyfin.Item) bool {
 	return !counted
 }
 
-// titleCount is how many titles of a type a user's view holds under a filter
-// (IsPlayed, IsFavorite...).
-func titleCount(ctx context.Context, client *embyfin.Client, userID, types, filter string) (int, error) {
-	seen, n := titles{}, 0
-	err := client.SearchAll(ctx, embyfin.SearchOptions{
-		IncludeItemTypes: types, Filters: filter, UserID: userID, EnableUserData: true, Fields: "Path,ProviderIds",
-	}, func(items []embyfin.Item) bool {
-		for i := range items {
-			if seen.add(&items[i]) {
-				n++
-			}
-		}
-		return true
-	})
-
-	return n, err
-}
-
 func registerUserDetailTools(r *registry) {
 	client := r.client
 
@@ -88,10 +70,6 @@ func registerUserDetailTools(r *registry) {
 		MaxParentalRating int      `json:"max_parental_rating,omitempty" jsonschema:"the server's rating value above which items are hidden; absent when nothing is"`
 		LastLogin         string   `json:"last_login,omitempty"`
 		LastActivity      string   `json:"last_activity,omitempty"`
-		MoviesWatched     int      `json:"movies_watched"                jsonschema:"films watched, each once however many copies the server holds"`
-		EpisodesWatched   int      `json:"episodes_watched"`
-		InProgress        int      `json:"in_progress"`
-		Favourites        int      `json:"favourites"`
 		// how the account wants playback, which decides whether a file whose
 		// first audio track is in another language plays right for it
 		AudioLanguage         string `json:"audio_language,omitempty"    jsonschema:"preferred audio language (ISO 639-2, e.g. eng); absent means the server's default"`
@@ -101,7 +79,7 @@ func registerUserDetailTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_get",
-		Description: "One account in depth: whether it is an administrator, disabled or hidden, what it may do, which libraries it sees, when it last logged in, its playback preferences (audio and subtitle language, subtitle mode), and how much it has watched, has in progress and has favourited (a film with copies in several places counted once).",
+		Description: "One account in depth: whether it is an administrator, disabled or hidden, what it may do, which libraries it sees, when it last logged in, and its playback preferences (audio and subtitle language, subtitle mode). What it has watched is user_stats.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in userRef) (*mcp.CallToolResult, getOut, error) {
 		u, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
@@ -127,20 +105,6 @@ func registerUserDetailTools(r *registry) {
 			}
 		}
 
-		for _, c := range []struct {
-			dst           *int
-			types, filter string
-		}{
-			{&out.MoviesWatched, typeMovie, "IsPlayed"},
-			{&out.EpisodesWatched, "Episode", "IsPlayed"},
-			{&out.InProgress, "Movie,Episode", "IsResumable"},
-			{&out.Favourites, "", "IsFavorite"},
-		} {
-			if *c.dst, err = titleCount(ctx, client, u.ID, c.types, c.filter); err != nil {
-				return nil, getOut{}, err
-			}
-		}
-
 		return nil, out, nil
 	})
 
@@ -160,7 +124,7 @@ func registerUserDetailTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_in_progress",
-		Description: "What a user is part way through (the continue watching row): each film and episode with where it resumes and how far through it is. item_set_progress moves a resume point; item_set_watched finishes or clears one.",
+		Description: "What a user is part way through (the continue watching row): each film and episode with where it resumes and how far through it is. item_set_state moves a resume point, or finishes or clears one.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in inProgressIn) (*mcp.CallToolResult, inProgressOut, error) {
 		u, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
@@ -204,8 +168,10 @@ func registerUserDetailTools(r *registry) {
 	}
 	type statsOut struct {
 		User            string       `json:"user"`
-		MoviesWatched   int          `json:"movies_watched"`
+		MoviesWatched   int          `json:"movies_watched"   jsonschema:"films watched, each once however many copies the server holds"`
 		EpisodesWatched int          `json:"episodes_watched"`
+		InProgress      int          `json:"in_progress"      jsonschema:"films and episodes part way through"`
+		Favourites      int          `json:"favourites"       jsonschema:"films and episodes favourited"`
 		HoursWatched    float64      `json:"hours_watched"    jsonschema:"the runtime of everything watched, once each"`
 		SeriesStarted   int          `json:"series_started"`
 		SeriesFinished  int          `json:"series_finished"`
@@ -215,7 +181,7 @@ func registerUserDetailTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_stats",
-		Description: "A user's watching in numbers, from their watch state across the library: films and episodes watched, hours, series started and finished, their top genres and series, and what they have played most. A film with copies in several places counts once.",
+		Description: "A user's watching in numbers, from their watch state across the library in one pass: films and episodes watched, in progress and favourited, hours, series started and finished, their top genres and series, and what they have played most. A film with copies in several places counts once.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in statsIn) (*mcp.CallToolResult, statsOut, error) {
 		folder, err := resolveLibrary(ctx, client, in.Library)
 		if err != nil {
@@ -229,19 +195,33 @@ func registerUserDetailTools(r *registry) {
 		if err != nil {
 			return nil, statsOut{}, err
 		}
-		opts.Filters, opts.UserID, opts.EnableUserData = "IsPlayed", u.ID, true
+		// one walk in the user's view, sorting each item by its watch state,
+		// rather than a filtered walk per number
+		opts.UserID, opts.EnableUserData = u.ID, true
 
 		out := statsOut{User: u.Name}
 		var ticks int64
 		genres := map[string]int{}
 		episodes := map[string]int{} // series id -> episodes watched
 		var plays []playsRow
-		seen := titles{}
+		// a title counts once per state, whichever of its copies carries it:
+		// Jellyfin marks the one copy watched, and the others come first in
+		// the sweep as often as not
+		played, favourited, inProgress := titles{}, titles{}, titles{}
 		if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
 			for i := range items {
 				it := &items[i]
-				if !seen.add(it) {
-					continue // another copy of a title already counted
+				if it.UserData == nil {
+					continue
+				}
+				if it.UserData.IsFavourite && favourited.add(it) {
+					out.Favourites++
+				}
+				if it.UserData.PlaybackPositionTicks > 0 && inProgress.add(it) {
+					out.InProgress++
+				}
+				if !it.UserData.Played || !played.add(it) {
+					continue // not watched, or another copy of a watched title already counted
 				}
 				ticks += it.RunTimeTicks
 				if it.Type == typeMovie {
@@ -255,7 +235,7 @@ func registerUserDetailTools(r *registry) {
 						episodes[it.SeriesID]++
 					}
 				}
-				if it.UserData != nil && it.UserData.PlayCount > 0 {
+				if it.UserData.PlayCount > 0 {
 					name := it.Name
 					if it.SeriesName != "" {
 						name = it.SeriesName + ": " + it.Name

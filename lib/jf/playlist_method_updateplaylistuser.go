@@ -23,7 +23,7 @@ func (c Client) UpdatePlaylistUser(ctx context.Context, playlistId string, userI
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       fmt.Sprintf("/Playlists/%s/Users/%s", url.PathEscape(playlistId), url.PathEscape(userId)),
 	}
 

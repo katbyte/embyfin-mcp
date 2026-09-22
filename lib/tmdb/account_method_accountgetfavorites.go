@@ -55,7 +55,7 @@ func (c Client) AccountGetFavorites(ctx context.Context, accountId int, options 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/account/%d/favorite/movies", accountId),
 	}

@@ -634,7 +634,7 @@ func (c Client) GetAlbumsByIdSimilar(ctx context.Context, id string, options Get
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Albums/%s/Similar", url.PathEscape(id)),
 	}

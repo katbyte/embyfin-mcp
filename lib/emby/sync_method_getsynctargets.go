@@ -43,7 +43,7 @@ func (c Client) GetSyncTargets(ctx context.Context, options GetSyncTargetsOperat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Sync/Targets",
 	}

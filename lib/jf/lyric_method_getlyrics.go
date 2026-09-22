@@ -23,7 +23,7 @@ func (c Client) GetLyrics(ctx context.Context, itemId string) (result GetLyricsO
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/Audio/%s/Lyrics", url.PathEscape(itemId)),
 	}
 

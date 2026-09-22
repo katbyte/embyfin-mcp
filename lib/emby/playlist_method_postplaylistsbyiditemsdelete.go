@@ -43,7 +43,7 @@ func (c Client) PostPlaylistsByIdItemsDelete(ctx context.Context, id string, opt
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Playlists/%s/Items/Delete", url.PathEscape(id)),
 	}

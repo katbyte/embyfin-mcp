@@ -50,7 +50,7 @@ func (c Client) SendPlaystateCommand(ctx context.Context, sessionId string, comm
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Sessions/%s/Playing/%s", url.PathEscape(sessionId), url.PathEscape(string(command))),
 	}

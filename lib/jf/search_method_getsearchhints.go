@@ -145,7 +145,7 @@ func (c Client) GetSearchHints(ctx context.Context, options GetSearchHintsOperat
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Search/Hints",
 	}

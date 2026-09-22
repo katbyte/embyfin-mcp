@@ -44,7 +44,7 @@ func (c Client) DeleteUserItemRating(ctx context.Context, itemId string, options
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/UserItems/%s/Rating", url.PathEscape(itemId)),
 	}

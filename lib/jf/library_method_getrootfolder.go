@@ -42,7 +42,7 @@ func (c Client) GetRootFolder(ctx context.Context, options GetRootFolderOperatio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Items/Root",
 	}

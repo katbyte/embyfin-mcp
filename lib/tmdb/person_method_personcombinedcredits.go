@@ -42,7 +42,7 @@ func (c Client) PersonCombinedCredits(ctx context.Context, personId int, options
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/person/%d/combined_credits", personId),
 	}

@@ -55,7 +55,7 @@ func TestRegisterAllKinds(t *testing.T) {
 		}
 	}
 	for _, name := range ro {
-		for _, suffix := range []string{"_set", "_delete", "_scan", "_edit", "_apply", "_run", "_create", "_add", "_remove", "_download", "_play", "_command", "_message", "_refresh", "_set_watched", "_set_favourite", "_set_progress", "_rename"} {
+		for _, suffix := range []string{"_set", "_delete", "_scan", "_edit", "_apply", "_run", "_create", "_add", "_remove", "_download", "_play", "_command", "_message", "_refresh", "_set_state", "_rename"} {
 			if strings.HasSuffix(name, suffix) {
 				t.Errorf("%s registered under --read-only", name)
 			}
@@ -68,6 +68,39 @@ func TestRegisterAllKinds(t *testing.T) {
 	}
 	if !slices.IsSorted(dflt) {
 		t.Error("registered names not sorted")
+	}
+}
+
+// The surface is 91 tools, 64 of them reads, and the essential preset is
+// enough to find things, read them and keep watch state in sync. A tool
+// added, merged or removed changes these on purpose, and this is where that
+// is said.
+func TestSurfaceSize(t *testing.T) {
+	t.Parallel()
+
+	list, err := Describe(Options{Toolsets: []string{"all"}, EnableDelete: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[string]int{}
+	for _, ti := range list {
+		kinds[ti.Kind]++
+	}
+	if len(list) != 91 || kinds["read"] != 64 || kinds["write"] != 24 || kinds["delete"] != 3 {
+		t.Errorf("surface = %d tools: %v, want 91 with 64 read, 24 write, 3 delete", len(list), kinds)
+	}
+	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people"} {
+		if slices.ContainsFunc(list, func(ti ToolInfo) bool { return ti.Name == gone }) {
+			t.Errorf("%s is still registered; its work moved elsewhere", gone)
+		}
+	}
+	for _, want := range []string{"library_list", "library_items", "item_get", "user_next_up", "item_set_state"} {
+		if !slices.Contains(EssentialTools, want) {
+			t.Errorf("essential lacks %s: %v", want, EssentialTools)
+		}
+	}
+	if len(EssentialTools) != 5 {
+		t.Errorf("essential = %v, want five tools", EssentialTools)
 	}
 }
 

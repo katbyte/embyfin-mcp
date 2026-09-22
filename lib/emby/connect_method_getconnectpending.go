@@ -23,7 +23,7 @@ func (c Client) GetConnectPending(ctx context.Context) (result GetConnectPending
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Connect/Pending",
 	}
 

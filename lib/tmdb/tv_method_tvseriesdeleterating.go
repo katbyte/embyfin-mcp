@@ -46,7 +46,7 @@ func (c Client) TvSeriesDeleteRating(ctx context.Context, seriesId int, options 
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/tv/%d/rating", seriesId),
 	}

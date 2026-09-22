@@ -23,7 +23,7 @@ func (c Client) PostUICommand(ctx context.Context, input RunUICommand) (result P
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/UI/Command",
 	}
 

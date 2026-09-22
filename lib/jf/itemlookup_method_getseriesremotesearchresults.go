@@ -22,7 +22,7 @@ func (c Client) GetSeriesRemoteSearchResults(ctx context.Context, input SeriesIn
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Items/RemoteSearch/Series",
 	}
 

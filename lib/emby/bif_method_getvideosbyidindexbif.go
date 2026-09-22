@@ -46,7 +46,7 @@ func (c Client) GetVideosByIdIndexBif(ctx context.Context, id string, options Ge
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/index.bif", url.PathEscape(id)),
 		StreamResponse: true,

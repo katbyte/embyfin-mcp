@@ -20,7 +20,7 @@ func (c Client) SyncPlayLeaveGroup(ctx context.Context) (result SyncPlayLeaveGro
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Leave",
 	}
 

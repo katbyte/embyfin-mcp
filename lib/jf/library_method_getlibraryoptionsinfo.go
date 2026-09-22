@@ -49,7 +49,7 @@ func (c Client) GetLibraryOptionsInfo(ctx context.Context, options GetLibraryOpt
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Libraries/AvailableOptions",
 	}

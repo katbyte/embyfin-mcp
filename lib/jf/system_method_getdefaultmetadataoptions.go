@@ -21,7 +21,7 @@ func (c Client) GetDefaultMetadataOptions(ctx context.Context) (result GetDefaul
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Configuration/MetadataOptions/Default",
 	}
 

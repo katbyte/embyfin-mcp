@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Fewer tools that do the same thing.** `library_search` is gone: `library_items` takes `query` and `person` as well as its filters. `user_favourites` is `library_items` with `watched: favourite`. `item_set_watched`, `item_set_favourite` and `item_set_progress` are one `item_set_state`. `item_batch_edit` is folded into `item_edit`, which takes `ids` (one or many). `library_people` is gone: `person_get` given part of a name answers the people it could mean. 91 tools, from 97.
+- **Paging is one rule.** A list that can run past its page takes `limit` and `offset` and answers `total` and `offset` (`library_items`, `library_episodes`, `user_history`, `server_activity`); a bounded top-N takes `limit` only. `library_episodes` no longer hands out a cursor.
+- **Outputs named alike.** `changed` on every edit (was `updated_fields` on two), `updated` on `metadata_rename` (was `items_updated`), `total` on `server_activity` (was `total_in_timeframe`), `items` on `user_history` (was `watched`).
+- **Counts say what happened.** `playlist_add.added` and `collection_remove.removed` are read back from the playlist or collection, not taken from the request.
+- `user_get` no longer sweeps the library four times for four counts: `user_stats` has them all, plus `in_progress` and `favourites`, from one pass.
+- The base client's request field is `HTTPMethod` (was `HttpMethod`).
+
 - **`aspect_ratio` and `display_width` on every quality row** (`item_get`, `library_episodes`, `show_episodes_exist`, `quality_compare`): the shape the file says the picture is shown at, which the stored frame does not: a DVD rip is 720x480 whether it is 4:3 or an anamorphic 16:9. `quality_compare` compares the stated shape when there is one and says which it used.
 - **`library_export`**: a whole library to a file on the machine embyfin-mcp runs on, one JSON object per line, nothing through the conversation.
 - **`audit_media_facts`**: files the server has never probed, and on Emby files written over since the server first saw them.

@@ -23,7 +23,7 @@ func (c Client) GetFirstUser(ctx context.Context) (result GetFirstUserOperationR
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Startup/User",
 	}
 

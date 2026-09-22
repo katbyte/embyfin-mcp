@@ -42,7 +42,7 @@ func (c Client) PostLiveTvChannelMappingOptions(ctx context.Context, options Pos
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/LiveTv/ChannelMappingOptions",
 	}

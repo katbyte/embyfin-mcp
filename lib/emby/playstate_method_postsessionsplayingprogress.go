@@ -22,7 +22,7 @@ func (c Client) PostSessionsPlayingProgress(ctx context.Context, input PlaybackP
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Sessions/Playing/Progress",
 	}
 

@@ -24,7 +24,7 @@ func (c Client) DeleteUsersByUserIdFavoriteItemsById(ctx context.Context, userId
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodDelete,
+		HTTPMethod: http.MethodDelete,
 		Path:       fmt.Sprintf("/Users/%s/FavoriteItems/%s", url.PathEscape(userId), url.PathEscape(id)),
 	}
 

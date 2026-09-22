@@ -21,7 +21,7 @@ func (c Client) SyncPlaySetIgnoreWait(ctx context.Context, input IgnoreWaitReque
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/SetIgnoreWait",
 	}
 

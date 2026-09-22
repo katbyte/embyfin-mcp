@@ -21,7 +21,7 @@ func (c Client) SyncPlayPing(ctx context.Context, input PingRequestDto) (result 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Ping",
 	}
 

@@ -140,7 +140,7 @@ func (c Client) GetRecommendedPrograms(ctx context.Context, options GetRecommend
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/Programs/Recommended",
 	}

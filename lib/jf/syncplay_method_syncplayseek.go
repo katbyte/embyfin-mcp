@@ -21,7 +21,7 @@ func (c Client) SyncPlaySeek(ctx context.Context, input SeekRequestDto) (result 
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/SyncPlay/Seek",
 	}
 

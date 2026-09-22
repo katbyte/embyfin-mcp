@@ -44,14 +44,15 @@ func TestWatchState(t *testing.T) {
 		t.Fatalf("episodes = %v", byNumber)
 	}
 
-	out := call(t, "item_set_watched", map[string]any{"id": e1, "user": "alice", "watched": true})
-	if str(out["user"]) != "alice" || str(out["item"]) != e1 {
-		t.Errorf("item_set_watched = %v", out)
+	out := call(t, "item_set_state", map[string]any{"id": e1, "user": "alice", "watched": true})
+	if str(out["user"]) != "alice" || str(out["item"]) != "Pilot" {
+		t.Errorf("item_set_state = %v", out)
 	}
-	if w, _ := out["watched"].(bool); !w {
-		t.Errorf("item_set_watched = %v", out)
+	// only what was set is answered
+	if w, _ := out["watched"].(bool); !w || out["favourite"] != nil || out["position_s"] != nil {
+		t.Errorf("item_set_state = %v", out)
 	}
-	t.Cleanup(func() { _, _ = invoke("item_set_watched", map[string]any{"id": e1, "user": "alice", "watched": false}) })
+	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": e1, "user": "alice", "watched": false}) })
 
 	// per-user state on the item
 	last := call(t, "item_last_watched", map[string]any{"id": e1})
@@ -97,7 +98,7 @@ func TestWatchState(t *testing.T) {
 	}
 
 	// unmark
-	out = call(t, "item_set_watched", map[string]any{"id": e1, "user": "alice", "watched": false})
+	out = call(t, "item_set_state", map[string]any{"id": e1, "user": "alice", "watched": false})
 	if w, _ := out["watched"].(bool); w {
 		t.Errorf("unmark = %v", out)
 	}
@@ -108,29 +109,35 @@ func TestWatchState(t *testing.T) {
 		}
 	}
 
-	if msg := callErr(t, "item_set_watched", map[string]any{"id": e1, "user": "nobody", "watched": true}); !strings.Contains(msg, "nobody") {
+	if msg := callErr(t, "item_set_state", map[string]any{"id": e1, "user": "nobody", "watched": true}); !strings.Contains(msg, "nobody") {
 		t.Errorf("an unknown user: %s", msg)
+	}
+	for want, args := range map[string]map[string]any{
+		"nothing to set": {"id": e1, "user": "alice"},
+		"contradict":     {"id": e1, "user": "alice", "watched": true, "position_s": 1},
+	} {
+		if msg := callErr(t, "item_set_state", args); !strings.Contains(msg, want) {
+			t.Errorf("item_set_state %v: %s", args, msg)
+		}
 	}
 }
 
 func TestFavourites(t *testing.T) {
 	id := findItem(t, "Movies", "Movie", "Arrival")
-	out := call(t, "item_set_favourite", map[string]any{"id": id, "user": "alice", "favourite": true})
-	if f, _ := out["favourite"].(bool); !f || str(out["user"]) != "alice" {
-		t.Errorf("item_set_favourite = %v", out)
+	out := call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "favourite": true})
+	if f, _ := out["favourite"].(bool); !f || str(out["user"]) != "alice" || str(out["item"]) != "Arrival" || out["watched"] != nil {
+		t.Errorf("item_set_state = %v", out)
 	}
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_favourite", map[string]any{"id": id, "user": "alice", "favourite": false})
+		_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false})
 	})
 
-	favs := call(t, "user_favourites", map[string]any{"user": "alice"})
-	if str(favs["user"]) != "alice" {
-		t.Errorf("user_favourites user = %v", favs["user"])
-	}
+	// the favourites are library_items in the user's view
+	favs := call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite"})
 	// Emby keys watch state by provider id, so favouriting the clean
 	// Arrival favourites the messy copy with it; Jellyfin keys it by item
 	names := []string{}
-	for _, it := range rows(t, favs["favourites"], "favourites") {
+	for _, it := range rows(t, favs["items"], "items") {
 		names = append(names, str(it["name"]))
 	}
 	if len(names) == 0 || slices.ContainsFunc(names, func(n string) bool { return n != "Arrival" }) {
@@ -139,18 +146,21 @@ func TestFavourites(t *testing.T) {
 	if isJellyfin() && len(names) != 1 {
 		t.Errorf("alice's favourites = %v, want [Arrival]", names)
 	}
+	if num(t, favs["total"], "total") != len(names) {
+		t.Errorf("total %v for %d favourites", favs["total"], len(names))
+	}
 	// root has none
-	favs = call(t, "user_favourites", nil)
-	if n := len(rows(t, favs["favourites"], "favourites")); n != 0 {
+	favs = call(t, "library_items", map[string]any{"watched": "favourite"})
+	if n := len(rows(t, favs["items"], "items")); n != 0 {
 		t.Errorf("root has %d favourites", n)
 	}
 
-	out = call(t, "item_set_favourite", map[string]any{"id": id, "user": "alice", "favourite": false})
+	out = call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false})
 	if f, _ := out["favourite"].(bool); f {
 		t.Errorf("unfavourite = %v", out)
 	}
-	favs = call(t, "user_favourites", map[string]any{"user": "alice"})
-	if n := len(rows(t, favs["favourites"], "favourites")); n != 0 {
+	favs = call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite"})
+	if n := len(rows(t, favs["items"], "items")); n != 0 {
 		t.Errorf("alice still has %d favourites", n)
 	}
 }
@@ -163,8 +173,16 @@ func TestHistory(t *testing.T) {
 	if str(out["user"]) != "alice" {
 		t.Errorf("user_history user = %v", out["user"])
 	}
-	if _, ok := out["watched"].([]any); !ok {
-		t.Errorf("watched = %v", out["watched"])
+	if _, ok := out["items"].([]any); !ok {
+		t.Errorf("items = %v", out["items"])
+	}
+	if num(t, out["total"], "total") < len(rows(t, out["items"], "items")) || num(t, out["offset"], "offset") != 0 {
+		t.Errorf("total %v offset %v for %d items", out["total"], out["offset"], len(rows(t, out["items"], "items")))
+	}
+	// a page past the end is empty, and says where it starts
+	out = call(t, "user_history", map[string]any{"user": "alice", "days": 7, "offset": 1000})
+	if n := len(rows(t, out["items"], "items")); n != 0 || num(t, out["offset"], "offset") != 1000 {
+		t.Errorf("past the end = %d items at offset %v", n, out["offset"])
 	}
 	out = call(t, "user_history", nil)
 	if str(out["user"]) != "root" {
@@ -197,18 +215,11 @@ func TestUserGet(t *testing.T) {
 	if str(alice["name"]) != "alice" || boolOf(alice["admin"]) || str(alice["id"]) == "" {
 		t.Errorf("user_get alice = %v", alice)
 	}
-	movies, favourites := num(t, alice["movies_watched"], "movies_watched"), num(t, alice["favourites"], "favourites")
-
-	mononoke := findItem(t, "Movies", "Movie", "Princess Mononoke")
-	call(t, "item_set_watched", map[string]any{"id": mononoke, "user": "alice", "watched": true})
-	call(t, "item_set_favourite", map[string]any{"id": mononoke, "user": "alice", "favourite": true})
-	t.Cleanup(func() {
-		_, _ = invoke("item_set_watched", map[string]any{"id": mononoke, "user": "alice", "watched": false})
-		_, _ = invoke("item_set_favourite", map[string]any{"id": mononoke, "user": "alice", "favourite": false})
-	})
-	alice = call(t, "user_get", map[string]any{"user": "alice"})
-	if num(t, alice["movies_watched"], "movies_watched") != movies+1 || num(t, alice["favourites"], "favourites") != favourites+1 {
-		t.Errorf("after watching and favouriting Princess Mononoke = %v", alice)
+	// what she has watched is user_stats, not the account
+	for _, field := range []string{"movies_watched", "episodes_watched", "favourites", "in_progress"} {
+		if _, ok := alice[field]; ok {
+			t.Errorf("user_get carries %s: %v", field, alice)
+		}
 	}
 
 	if msg := callErr(t, "user_get", map[string]any{"user": "nobody"}); !strings.Contains(msg, "nobody") {
@@ -222,17 +233,22 @@ func boolOf(v any) bool {
 	return b
 }
 
-// item_set_progress puts an item in progress; user_in_progress lists it
-// with its position; marking it unwatched clears it.
+// item_set_state with a position puts an item in progress; user_in_progress
+// lists it with its position, user_stats counts it; marking it unwatched
+// clears it.
 func TestProgress(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
-	out := call(t, "item_set_progress", map[string]any{"id": arrival, "user": "alice", "position_s": 2550})
-	if str(out["item"]) != "Arrival" || str(out["user"]) != "alice" || num(t, out["position_s"], "position_s") != 2550 {
-		t.Errorf("item_set_progress = %v", out)
+	before := call(t, "user_stats", map[string]any{"user": "alice"})
+	out := call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "position_s": 2550})
+	if str(out["item"]) != "Arrival" || str(out["user"]) != "alice" || num(t, out["position_s"], "position_s") != 2550 || out["watched"] != nil {
+		t.Errorf("item_set_state = %v", out)
 	}
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_watched", map[string]any{"id": arrival, "user": "alice", "watched": false})
+		_, _ = invoke("item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
 	})
+	if after := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, after["in_progress"], "in_progress") != num(t, before["in_progress"], "in_progress")+1 {
+		t.Errorf("user_stats in_progress went from %v to %v, want one more", before["in_progress"], after["in_progress"])
+	}
 
 	var row map[string]any
 	for range 10 {
@@ -269,15 +285,18 @@ func TestProgress(t *testing.T) {
 	}
 
 	// marking it unwatched clears the resume point
-	call(t, "item_set_watched", map[string]any{"id": arrival, "user": "alice", "watched": false})
+	call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
 	for _, it := range rows(t, call(t, "user_in_progress", map[string]any{"user": "alice"})["items"], "items") {
 		if str(it["id"]) == arrival {
 			t.Errorf("Arrival is still in progress after marking it unwatched: %v", it)
 		}
 	}
 
-	if msg := callErr(t, "item_set_progress", map[string]any{"id": arrival, "position_s": 0}); !strings.Contains(msg, "above zero") {
+	if msg := callErr(t, "item_set_state", map[string]any{"id": arrival, "position_s": 0}); !strings.Contains(msg, "above zero") {
 		t.Errorf("a zero position: %s", msg)
+	}
+	if n := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["in_progress"], "in_progress"); n != num(t, before["in_progress"], "in_progress") {
+		t.Errorf("alice has %d in progress after clearing, was %v", n, before["in_progress"])
 	}
 }
 
@@ -287,17 +306,28 @@ func TestUserStats(t *testing.T) {
 	eps := rows(t, call(t, "show_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
 	watch := []string{mononoke, str(eps[0]["id"]), str(eps[1]["id"])}
 	for _, id := range watch {
-		call(t, "item_set_watched", map[string]any{"id": id, "user": "alice", "watched": true})
+		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true})
 	}
+	// and one favourited, and one part way through, in the same sweep
+	call(t, "item_set_state", map[string]any{"id": mononoke, "user": "alice", "favourite": true})
+	third := str(eps[2]["id"])
+	call(t, "item_set_state", map[string]any{"id": third, "user": "alice", "position_s": 1})
 	t.Cleanup(func() {
-		for _, id := range watch {
-			_, _ = invoke("item_set_watched", map[string]any{"id": id, "user": "alice", "watched": false})
+		for _, id := range append(watch, third) {
+			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
 		}
+		_, _ = invoke("item_set_state", map[string]any{"id": mononoke, "user": "alice", "favourite": false})
 	})
 
 	out := call(t, "user_stats", map[string]any{"user": "alice", "library": "Movies"})
 	if str(out["user"]) != "alice" || num(t, out["movies_watched"], "movies_watched") != 1 || num(t, out["episodes_watched"], "episodes_watched") != 0 {
 		t.Errorf("alice in Movies = %v", out)
+	}
+	if num(t, out["favourites"], "favourites") != 1 || num(t, out["in_progress"], "in_progress") != 0 {
+		t.Errorf("alice in Movies = %v, want 1 favourite and nothing in progress", out)
+	}
+	if out = call(t, "user_stats", map[string]any{"user": "alice", "library": "Shows"}); num(t, out["in_progress"], "in_progress") != 1 || num(t, out["favourites"], "favourites") != 0 {
+		t.Errorf("alice in Shows = %v, want 1 in progress and no favourite", out)
 	}
 
 	out = call(t, "user_stats", map[string]any{"user": "alice"})
@@ -324,6 +354,9 @@ func TestUserStats(t *testing.T) {
 	if num(t, root["movies_watched"], "movies_watched") != 0 || num(t, root["series_started"], "series_started") != 0 || len(rows(t, root["top_series"], "top_series")) != 0 {
 		t.Errorf("root's stats = %v", root)
 	}
+	if num(t, root["favourites"], "favourites") != 0 || num(t, root["in_progress"], "in_progress") != 0 {
+		t.Errorf("root's stats = %v", root)
+	}
 }
 
 func TestUserFamilyIsComplete(t *testing.T) {
@@ -333,7 +366,7 @@ func TestUserFamilyIsComplete(t *testing.T) {
 			got = append(got, name)
 		}
 	}
-	want := []string{"user_favourites", "user_get", "user_history", "user_in_progress", "user_list", "user_next_up", "user_stats"}
+	want := []string{"user_get", "user_history", "user_in_progress", "user_list", "user_next_up", "user_stats"}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {
 		t.Errorf("user tools = %v, want %v", got, want)

@@ -43,7 +43,7 @@ func (c Client) GetPackagesUpdates(ctx context.Context, options GetPackagesUpdat
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Packages/Updates",
 	}

@@ -49,7 +49,7 @@ func (c Client) GetSessionsPlayQueue(ctx context.Context, options GetSessionsPla
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/Sessions/PlayQueue",
 	}

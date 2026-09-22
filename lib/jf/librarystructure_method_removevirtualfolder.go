@@ -48,7 +48,7 @@ func (c Client) RemoveVirtualFolder(ctx context.Context, options RemoveVirtualFo
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodDelete,
+		HTTPMethod:    http.MethodDelete,
 		OptionsObject: options,
 		Path:          "/Library/VirtualFolders",
 	}

@@ -633,7 +633,7 @@ func (c Client) GetAudioLayouts(ctx context.Context, options GetAudioLayoutsOper
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/AudioLayouts",
 	}

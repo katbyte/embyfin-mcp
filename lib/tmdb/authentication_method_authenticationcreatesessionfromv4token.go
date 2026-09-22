@@ -22,7 +22,7 @@ func (c Client) AuthenticationCreateSessionFromV4Token(ctx context.Context, inpu
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/3/authentication/session/convert/4",
 	}
 

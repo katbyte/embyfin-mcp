@@ -47,7 +47,7 @@ func (c Client) FindById(ctx context.Context, externalId string, options FindByI
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/find/%s", url.PathEscape(externalId)),
 	}

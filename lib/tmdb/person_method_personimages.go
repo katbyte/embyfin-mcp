@@ -22,7 +22,7 @@ func (c Client) PersonImages(ctx context.Context, personId int) (result PersonIm
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       fmt.Sprintf("/3/person/%d/images", personId),
 	}
 

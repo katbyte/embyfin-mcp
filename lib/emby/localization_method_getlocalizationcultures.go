@@ -22,7 +22,7 @@ func (c Client) GetLocalizationCultures(ctx context.Context) (result GetLocaliza
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/Localization/Cultures",
 	}
 

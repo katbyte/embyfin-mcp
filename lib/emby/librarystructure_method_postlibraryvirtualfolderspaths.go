@@ -22,7 +22,7 @@ func (c Client) PostLibraryVirtualFoldersPaths(ctx context.Context, input Librar
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 		Path:       "/Library/VirtualFolders/Paths",
 	}
 

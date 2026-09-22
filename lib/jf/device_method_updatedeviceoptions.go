@@ -42,7 +42,7 @@ func (c Client) UpdateDeviceOptions(ctx context.Context, input DeviceOptionsDto,
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Devices/Options",
 	}

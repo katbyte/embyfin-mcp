@@ -48,7 +48,7 @@ func (c Client) GetSeriesTimers(ctx context.Context, options GetSeriesTimersOper
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/LiveTv/SeriesTimers",
 	}

@@ -21,7 +21,7 @@ func (c Client) AuthenticationValidateKey(ctx context.Context) (result Authentic
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/3/authentication",
 	}
 

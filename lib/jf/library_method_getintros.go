@@ -44,7 +44,7 @@ func (c Client) GetIntros(ctx context.Context, itemId string, options GetIntrosO
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Intros", url.PathEscape(itemId)),
 	}

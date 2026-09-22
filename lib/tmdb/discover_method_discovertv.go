@@ -186,7 +186,7 @@ func (c Client) DiscoverTv(ctx context.Context, options DiscoverTvOperationOptio
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          "/3/discover/tv",
 	}

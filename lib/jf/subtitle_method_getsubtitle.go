@@ -97,7 +97,7 @@ func (c Client) GetSubtitle(ctx context.Context, routeItemId string, routeMediaS
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Videos/%s/%s/Subtitles/%d/Stream.%s", url.PathEscape(routeItemId), url.PathEscape(routeMediaSourceId), routeIndex, url.PathEscape(routeFormat)),
 		StreamResponse: true,

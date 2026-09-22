@@ -43,7 +43,7 @@ func (c Client) ListRemoveMovie(ctx context.Context, listId int, input ListRemov
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/3/list/%d/remove_item", listId),
 	}

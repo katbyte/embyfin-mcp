@@ -81,7 +81,7 @@ func (c Client) GetInstantMixFromSong(ctx context.Context, itemId string, option
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Songs/%s/InstantMix", url.PathEscape(itemId)),
 	}

@@ -21,7 +21,7 @@ func (c Client) GetPublicSystemInfo(ctx context.Context) (result GetPublicSystem
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod: http.MethodGet,
+		HTTPMethod: http.MethodGet,
 		Path:       "/System/Info/Public",
 	}
 

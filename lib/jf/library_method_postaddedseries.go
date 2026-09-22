@@ -41,7 +41,7 @@ func (c Client) PostAddedSeries(ctx context.Context, options PostAddedSeriesOper
 		ExpectedStatusCodes: []int{
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodPost,
+		HTTPMethod:    http.MethodPost,
 		OptionsObject: options,
 		Path:          "/Library/Series/Added",
 	}

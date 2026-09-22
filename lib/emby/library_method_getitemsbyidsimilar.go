@@ -634,7 +634,7 @@ func (c Client) GetItemsByIdSimilar(ctx context.Context, id string, options GetI
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HttpMethod:    http.MethodGet,
+		HTTPMethod:    http.MethodGet,
 		OptionsObject: options,
 		Path:          fmt.Sprintf("/Items/%s/Similar", url.PathEscape(id)),
 	}

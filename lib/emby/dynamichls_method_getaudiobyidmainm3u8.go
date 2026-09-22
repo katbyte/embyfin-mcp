@@ -179,7 +179,7 @@ func (c Client) GetAudioByIdMainM3u8(ctx context.Context, id string, options Get
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HttpMethod:     http.MethodGet,
+		HTTPMethod:     http.MethodGet,
 		OptionsObject:  options,
 		Path:           fmt.Sprintf("/Audio/%s/main.m3u8", url.PathEscape(id)),
 		StreamResponse: true,
