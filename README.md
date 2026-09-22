@@ -25,6 +25,12 @@ tool that fixes it.
 The same tools drive either server: `EMBYFIN_BACKEND` picks Emby or Jellyfin, the
 differences between them live in one package, and every tool is tested against both.
 
+### What else is in the box
+
+- **97 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
+- **Three Go SDKs.** `lib/emby`, `lib/jf` and `lib/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents, standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
+- **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
+
 ### The audits
 
 | audit | what it catches |
@@ -55,12 +61,6 @@ The design principle: **detection is code, correction is judgment.** The server 
 deterministic checks over the whole library and produces worklists; the AI reasons only about
 the anomalies. Every response is a trimmed projection of what a decision needs, never the raw
 API object (`BaseItemDto` runs to 150 fields; `item_get` returns about 15).
-
-### What else is in the box
-
-- **97 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
-- **Three Go SDKs.** `lib/emby`, `lib/jf` and `lib/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents, standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
-- **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
 ## Installation
 
