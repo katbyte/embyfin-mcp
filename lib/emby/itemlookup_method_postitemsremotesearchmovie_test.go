@@ -19,7 +19,6 @@ func TestOperationPostItemsRemoteSearchMovie(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Items/RemoteSearch/Movie")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {
 		t.Errorf("Content-Type = %q, want %q", got, "application/json")

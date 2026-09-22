@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -75,8 +76,14 @@ func registerCollectionTools(r *registry) {
 		// a collection is a folder named after it on both servers, so a
 		// second one under a name answers with the first, and Jellyfin
 		// replaces what it holds with the new items
-		if existing, err := resolveByType(ctx, client, "BoxSet", in.Name); err == nil {
+		// the name is taken by one collection, or by several already, which
+		// resolveByType reports as an ambiguity rather than a hit
+		existing, err := resolveByType(ctx, client, "BoxSet", in.Name)
+		switch {
+		case err == nil:
 			return nil, createOut{}, fmt.Errorf("a collection named %q exists (id %s): add to it with collection_add", existing.Name, existing.ID)
+		case strings.Contains(err.Error(), "are named"):
+			return nil, createOut{}, fmt.Errorf("the name is taken: %w", err)
 		}
 		id, err := client.CreateCollection(ctx, in.Name, in.ItemIDs)
 		if err != nil {

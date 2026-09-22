@@ -19,7 +19,6 @@ func TestOperationLogFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/ClientLog/Document")
 	if got := r.Header.Get("Content-Type"); got != "text/plain" {
 		t.Errorf("Content-Type = %q, want %q", got, "text/plain")

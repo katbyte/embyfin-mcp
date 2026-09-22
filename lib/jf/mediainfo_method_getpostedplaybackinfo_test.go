@@ -16,11 +16,11 @@ func TestOperationGetPostedPlaybackInfo(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GetPostedPlaybackInfo(t.Context(), "p/itemId", PlaybackInfoDto{}, GetPostedPlaybackInfoOperationOptions{
 		UserId:               "v-UserId",
-		MaxStreamingBitrate:  7,
-		StartTimeTicks:       7,
-		AudioStreamIndex:     7,
-		SubtitleStreamIndex:  7,
-		MaxAudioChannels:     7,
+		MaxStreamingBitrate:  new(7),
+		StartTimeTicks:       new(int64(7)),
+		AudioStreamIndex:     new(7),
+		SubtitleStreamIndex:  new(7),
+		MaxAudioChannels:     new(7),
 		MediaSourceId:        "v-MediaSourceId",
 		LiveStreamId:         "v-LiveStreamId",
 		AutoOpenLiveStream:   new(true),
@@ -34,7 +34,6 @@ func TestOperationGetPostedPlaybackInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Items/p%2FitemId/PlaybackInfo")
 	expectQuery(t, r, "userId", "v-UserId")
 	expectQuery(t, r, "maxStreamingBitrate", "7")
@@ -67,11 +66,11 @@ func TestOperationGetPostedPlaybackInfo(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetPostedPlaybackInfo(t.Context(), "p/itemId", PlaybackInfoDto{}, GetPostedPlaybackInfoOperationOptions{
 		UserId:               "v-UserId",
-		MaxStreamingBitrate:  7,
-		StartTimeTicks:       7,
-		AudioStreamIndex:     7,
-		SubtitleStreamIndex:  7,
-		MaxAudioChannels:     7,
+		MaxStreamingBitrate:  new(7),
+		StartTimeTicks:       new(int64(7)),
+		AudioStreamIndex:     new(7),
+		SubtitleStreamIndex:  new(7),
+		MaxAudioChannels:     new(7),
 		MediaSourceId:        "v-MediaSourceId",
 		LiveStreamId:         "v-LiveStreamId",
 		AutoOpenLiveStream:   new(true),
@@ -89,11 +88,11 @@ func TestOperationGetPostedPlaybackInfo(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetPostedPlaybackInfo(t.Context(), "p/itemId", PlaybackInfoDto{}, GetPostedPlaybackInfoOperationOptions{
 		UserId:               "v-UserId",
-		MaxStreamingBitrate:  7,
-		StartTimeTicks:       7,
-		AudioStreamIndex:     7,
-		SubtitleStreamIndex:  7,
-		MaxAudioChannels:     7,
+		MaxStreamingBitrate:  new(7),
+		StartTimeTicks:       new(int64(7)),
+		AudioStreamIndex:     new(7),
+		SubtitleStreamIndex:  new(7),
+		MaxAudioChannels:     new(7),
 		MediaSourceId:        "v-MediaSourceId",
 		LiveStreamId:         "v-LiveStreamId",
 		AutoOpenLiveStream:   new(true),

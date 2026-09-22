@@ -26,19 +26,19 @@ type PlayOperationOptions struct {
 	ItemIds []string
 
 	// The starting position of the first item.
-	StartPositionTicks int64
+	StartPositionTicks *int64
 
 	// Optional. The media source id.
 	MediaSourceId string
 
 	// Optional. The index of the audio stream to play.
-	AudioStreamIndex int
+	AudioStreamIndex *int
 
 	// Optional. The index of the subtitle stream to play.
-	SubtitleStreamIndex int
+	SubtitleStreamIndex *int
 
 	// Optional. The start index.
-	StartIndex int
+	StartIndex *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -56,20 +56,20 @@ func (o PlayOperationOptions) ToQuery() *client.QueryParams {
 	for _, v := range o.ItemIds {
 		out.Append("itemIds", v)
 	}
-	if o.StartPositionTicks != 0 {
-		out.Append("startPositionTicks", strconv.FormatInt(o.StartPositionTicks, 10))
+	if o.StartPositionTicks != nil {
+		out.Append("startPositionTicks", strconv.FormatInt(*o.StartPositionTicks, 10))
 	}
 	if o.MediaSourceId != "" {
 		out.Append("mediaSourceId", o.MediaSourceId)
 	}
-	if o.AudioStreamIndex != 0 {
-		out.Append("audioStreamIndex", strconv.Itoa(o.AudioStreamIndex))
+	if o.AudioStreamIndex != nil {
+		out.Append("audioStreamIndex", strconv.Itoa(*o.AudioStreamIndex))
 	}
-	if o.SubtitleStreamIndex != 0 {
-		out.Append("subtitleStreamIndex", strconv.Itoa(o.SubtitleStreamIndex))
+	if o.SubtitleStreamIndex != nil {
+		out.Append("subtitleStreamIndex", strconv.Itoa(*o.SubtitleStreamIndex))
 	}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
 	return &out
 }

@@ -16,7 +16,7 @@ func TestOperationDeleteUsersByUserIdPlayingItemsById(t *testing.T) {
 	result, err := c.DeleteUsersByUserIdPlayingItemsById(t.Context(), "p/userId", "p/id", DeleteUsersByUserIdPlayingItemsByIdOperationOptions{
 		MediaSourceId: "v-MediaSourceId",
 		NextMediaType: "v-NextMediaType",
-		PositionTicks: 7,
+		PositionTicks: new(int64(7)),
 		LiveStreamId:  "v-LiveStreamId",
 		PlaySessionId: "v-PlaySessionId",
 	})
@@ -40,7 +40,7 @@ func TestOperationDeleteUsersByUserIdPlayingItemsById(t *testing.T) {
 	result, err = c.DeleteUsersByUserIdPlayingItemsById(t.Context(), "p/userId", "p/id", DeleteUsersByUserIdPlayingItemsByIdOperationOptions{
 		MediaSourceId: "v-MediaSourceId",
 		NextMediaType: "v-NextMediaType",
-		PositionTicks: 7,
+		PositionTicks: new(int64(7)),
 		LiveStreamId:  "v-LiveStreamId",
 		PlaySessionId: "v-PlaySessionId",
 	})

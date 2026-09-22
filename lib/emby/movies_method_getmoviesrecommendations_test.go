@@ -14,13 +14,13 @@ func TestOperationGetMoviesRecommendations(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "application/json", "[{}]")
 	result, err := c.GetMoviesRecommendations(t.Context(), GetMoviesRecommendationsOperationOptions{
-		CategoryLimit:    7,
-		ItemLimit:        7,
+		CategoryLimit:    new(7),
+		ItemLimit:        new(7),
 		UserId:           "v-UserId",
 		ParentId:         "v-ParentId",
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 	})
 	if err != nil {
@@ -47,13 +47,13 @@ func TestOperationGetMoviesRecommendations(t *testing.T) {
 	// a 204 is a null result, with no model
 	c, _ = newOperationServer(t, http.StatusNoContent, "", "")
 	result, err = c.GetMoviesRecommendations(t.Context(), GetMoviesRecommendationsOperationOptions{
-		CategoryLimit:    7,
-		ItemLimit:        7,
+		CategoryLimit:    new(7),
+		ItemLimit:        new(7),
 		UserId:           "v-UserId",
 		ParentId:         "v-ParentId",
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 	})
 	if err != nil || result.Model != nil {
@@ -63,13 +63,13 @@ func TestOperationGetMoviesRecommendations(t *testing.T) {
 	// an answer that does not decode is an error, with the response
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetMoviesRecommendations(t.Context(), GetMoviesRecommendationsOperationOptions{
-		CategoryLimit:    7,
-		ItemLimit:        7,
+		CategoryLimit:    new(7),
+		ItemLimit:        new(7),
 		UserId:           "v-UserId",
 		ParentId:         "v-ParentId",
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -79,13 +79,13 @@ func TestOperationGetMoviesRecommendations(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetMoviesRecommendations(t.Context(), GetMoviesRecommendationsOperationOptions{
-		CategoryLimit:    7,
-		ItemLimit:        7,
+		CategoryLimit:    new(7),
+		ItemLimit:        new(7),
 		UserId:           "v-UserId",
 		ParentId:         "v-ParentId",
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

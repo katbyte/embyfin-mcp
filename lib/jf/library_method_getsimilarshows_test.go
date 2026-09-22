@@ -16,7 +16,7 @@ func TestOperationGetSimilarShows(t *testing.T) {
 	result, err := c.GetSimilarShows(t.Context(), "p/itemId", GetSimilarShowsOperationOptions{
 		ExcludeArtistIds: []string{"a", "b"},
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func TestOperationGetSimilarShows(t *testing.T) {
 	result, err = c.GetSimilarShows(t.Context(), "p/itemId", GetSimilarShowsOperationOptions{
 		ExcludeArtistIds: []string{"a", "b"},
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -53,7 +53,7 @@ func TestOperationGetSimilarShows(t *testing.T) {
 	result, err = c.GetSimilarShows(t.Context(), "p/itemId", GetSimilarShowsOperationOptions{
 		ExcludeArtistIds: []string{"a", "b"},
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

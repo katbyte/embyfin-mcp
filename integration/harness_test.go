@@ -272,7 +272,9 @@ func startProxy() error {
 		// server's own account; replay never needs one
 		RedactBodyFields: []string{"token"},
 		// the media server reaching itself is not provider traffic
-		IgnoreHosts: containerAddresses(),
+		// Emby asks ipify, then its own service, for its public address on
+		// startup, which is nobody's business and not part of any recording
+		IgnoreHosts: append(containerAddresses(), "api.ipify.org", "api64.ipify.org", "connect.emby.media"),
 	}
 	if ca := os.Getenv("EMBYFIN_TEST_PROXY_CA"); ca != "" {
 		opts.CACert, opts.CAKey = filepath.Join(ca, "ca.pem"), filepath.Join(ca, "ca.key")
@@ -304,7 +306,7 @@ func stopProxy() {
 // under the others.
 func removeLibraries() {
 	ctx := context.Background()
-	for _, l := range []libraryFixture{sdkMovies, sdkShows, sdkScratch} {
+	for _, l := range []libraryFixture{sdkMovies, sdkShows, sdkScratch, sdkMusic} {
 		var err error
 		switch backend {
 		case "emby":

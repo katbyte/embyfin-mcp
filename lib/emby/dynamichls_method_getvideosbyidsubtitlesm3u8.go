@@ -23,7 +23,7 @@ type GetVideosByIdSubtitlesM3u8OperationResponse struct {
 // GetVideosByIdSubtitlesM3u8OperationOptions holds the query and header parameters of GetVideosByIdSubtitlesM3u8.
 type GetVideosByIdSubtitlesM3u8OperationOptions struct {
 	// The subtitle segment length
-	SubtitleSegmentLength int
+	SubtitleSegmentLength *int
 
 	// The subtitle segment format
 	ManifestSubtitles string
@@ -38,8 +38,8 @@ func (o GetVideosByIdSubtitlesM3u8OperationOptions) ToHeaders() *client.Headers 
 // ToQuery returns the query parameters the options set.
 func (o GetVideosByIdSubtitlesM3u8OperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.SubtitleSegmentLength != 0 {
-		out.Append("SubtitleSegmentLength", strconv.Itoa(o.SubtitleSegmentLength))
+	if o.SubtitleSegmentLength != nil {
+		out.Append("SubtitleSegmentLength", strconv.Itoa(*o.SubtitleSegmentLength))
 	}
 	if o.ManifestSubtitles != "" {
 		out.Append("ManifestSubtitles", o.ManifestSubtitles)

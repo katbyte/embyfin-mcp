@@ -19,10 +19,10 @@ type GetMoviesRecommendationsOperationResponse struct {
 // GetMoviesRecommendationsOperationOptions holds the query and header parameters of GetMoviesRecommendations.
 type GetMoviesRecommendationsOperationOptions struct {
 	// The max number of categories to return
-	CategoryLimit int
+	CategoryLimit *int
 
 	// The max number of items to return per category
-	ItemLimit int
+	ItemLimit *int
 
 	// Optional. Filter by user id, and attach user data
 	UserId string
@@ -37,7 +37,7 @@ type GetMoviesRecommendationsOperationOptions struct {
 	EnableUserData *bool
 
 	// Optional, the max number of images to return, per image type
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes string
@@ -52,11 +52,11 @@ func (o GetMoviesRecommendationsOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetMoviesRecommendationsOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.CategoryLimit != 0 {
-		out.Append("CategoryLimit", strconv.Itoa(o.CategoryLimit))
+	if o.CategoryLimit != nil {
+		out.Append("CategoryLimit", strconv.Itoa(*o.CategoryLimit))
 	}
-	if o.ItemLimit != 0 {
-		out.Append("ItemLimit", strconv.Itoa(o.ItemLimit))
+	if o.ItemLimit != nil {
+		out.Append("ItemLimit", strconv.Itoa(*o.ItemLimit))
 	}
 	if o.UserId != "" {
 		out.Append("UserId", o.UserId)
@@ -70,8 +70,8 @@ func (o GetMoviesRecommendationsOperationOptions) ToQuery() *client.QueryParams 
 	if o.EnableUserData != nil {
 		out.Append("EnableUserData", strconv.FormatBool(*o.EnableUserData))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("ImageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("ImageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	if o.EnableImageTypes != "" {
 		out.Append("EnableImageTypes", o.EnableImageTypes)

@@ -40,6 +40,9 @@ func (tmdbTags) Apply(spec *openapi.Spec) error {
 				return errors.New(m.Method + " " + path + " is tagged")
 			}
 			segment, _, _ := strings.Cut(strings.TrimPrefix(path, "/3/"), "/")
+			if segment == "" {
+				return errors.New(m.Method + " " + path + " has no first segment to name a tag after")
+			}
 			group := tmdbGroups[segment]
 			if group == "" {
 				group = strings.ToUpper(segment[:1]) + segment[1:]
@@ -311,8 +314,9 @@ func (tmdbNullFields) Apply(spec *openapi.Spec) error {
 	return nil
 }
 
-// eachField calls fn for every property of every answer and request body,
-// in document order.
+// eachField calls fn for every property of every answer, in document order
+// (request bodies are one placeholder string each until tmdb-raw-bodies
+// replaces them, and carry nothing to type).
 func eachField(spec *openapi.Spec, fn func(name string, s *openapi.Schema)) {
 	var walk func(s *openapi.Schema)
 	walk = func(s *openapi.Schema) {
@@ -439,8 +443,11 @@ func (tmdbListIDs) Apply(spec *openapi.Spec) error {
 		if err != nil {
 			return err
 		}
-		media := op.Responses["200"].Content["application/json"]
-		if media == nil || media.Schema == nil || media.Schema.Properties["id"] == nil {
+		media, err := jsonResponse(op, "GET "+fix.path)
+		if err != nil {
+			return err
+		}
+		if media.Schema == nil || media.Schema.Properties["id"] == nil {
 			return errors.New("GET " + fix.path + " no longer answers an id")
 		}
 		id := media.Schema.Properties["id"]

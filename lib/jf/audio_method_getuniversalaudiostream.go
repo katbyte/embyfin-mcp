@@ -38,19 +38,19 @@ type GetUniversalAudioStreamOperationOptions struct {
 	AudioCodec string
 
 	// Optional. The maximum number of audio channels.
-	MaxAudioChannels int
+	MaxAudioChannels *int
 
 	// Optional. The number of how many audio channels to transcode to.
-	TranscodingAudioChannels int
+	TranscodingAudioChannels *int
 
 	// Optional. The maximum streaming bitrate.
-	MaxStreamingBitrate int
+	MaxStreamingBitrate *int
 
 	// Optional. Specify an audio bitrate to encode to, e.g. 128000. If omitted this will be left to encoder defaults.
-	AudioBitRate int
+	AudioBitRate *int
 
 	// Optional. Specify a starting offset, in ticks. 1 tick = 10000 ms.
-	StartTimeTicks int64
+	StartTimeTicks *int64
 
 	// Optional. The container to transcode to.
 	TranscodingContainer string
@@ -59,10 +59,10 @@ type GetUniversalAudioStreamOperationOptions struct {
 	TranscodingProtocol MediaStreamProtocol
 
 	// Optional. The maximum audio sample rate.
-	MaxAudioSampleRate int
+	MaxAudioSampleRate *int
 
 	// Optional. The maximum audio bit depth.
-	MaxAudioBitDepth int
+	MaxAudioBitDepth *int
 
 	// Optional. Whether to enable remote media.
 	EnableRemoteMedia *bool
@@ -98,20 +98,20 @@ func (o GetUniversalAudioStreamOperationOptions) ToQuery() *client.QueryParams {
 	if o.AudioCodec != "" {
 		out.Append("audioCodec", o.AudioCodec)
 	}
-	if o.MaxAudioChannels != 0 {
-		out.Append("maxAudioChannels", strconv.Itoa(o.MaxAudioChannels))
+	if o.MaxAudioChannels != nil {
+		out.Append("maxAudioChannels", strconv.Itoa(*o.MaxAudioChannels))
 	}
-	if o.TranscodingAudioChannels != 0 {
-		out.Append("transcodingAudioChannels", strconv.Itoa(o.TranscodingAudioChannels))
+	if o.TranscodingAudioChannels != nil {
+		out.Append("transcodingAudioChannels", strconv.Itoa(*o.TranscodingAudioChannels))
 	}
-	if o.MaxStreamingBitrate != 0 {
-		out.Append("maxStreamingBitrate", strconv.Itoa(o.MaxStreamingBitrate))
+	if o.MaxStreamingBitrate != nil {
+		out.Append("maxStreamingBitrate", strconv.Itoa(*o.MaxStreamingBitrate))
 	}
-	if o.AudioBitRate != 0 {
-		out.Append("audioBitRate", strconv.Itoa(o.AudioBitRate))
+	if o.AudioBitRate != nil {
+		out.Append("audioBitRate", strconv.Itoa(*o.AudioBitRate))
 	}
-	if o.StartTimeTicks != 0 {
-		out.Append("startTimeTicks", strconv.FormatInt(o.StartTimeTicks, 10))
+	if o.StartTimeTicks != nil {
+		out.Append("startTimeTicks", strconv.FormatInt(*o.StartTimeTicks, 10))
 	}
 	if o.TranscodingContainer != "" {
 		out.Append("transcodingContainer", o.TranscodingContainer)
@@ -119,11 +119,11 @@ func (o GetUniversalAudioStreamOperationOptions) ToQuery() *client.QueryParams {
 	if o.TranscodingProtocol != "" {
 		out.Append("transcodingProtocol", string(o.TranscodingProtocol))
 	}
-	if o.MaxAudioSampleRate != 0 {
-		out.Append("maxAudioSampleRate", strconv.Itoa(o.MaxAudioSampleRate))
+	if o.MaxAudioSampleRate != nil {
+		out.Append("maxAudioSampleRate", strconv.Itoa(*o.MaxAudioSampleRate))
 	}
-	if o.MaxAudioBitDepth != 0 {
-		out.Append("maxAudioBitDepth", strconv.Itoa(o.MaxAudioBitDepth))
+	if o.MaxAudioBitDepth != nil {
+		out.Append("maxAudioBitDepth", strconv.Itoa(*o.MaxAudioBitDepth))
 	}
 	if o.EnableRemoteMedia != nil {
 		out.Append("enableRemoteMedia", strconv.FormatBool(*o.EnableRemoteMedia))

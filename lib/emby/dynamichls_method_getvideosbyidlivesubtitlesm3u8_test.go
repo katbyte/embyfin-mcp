@@ -15,7 +15,7 @@ func TestOperationGetVideosByIdLiveSubtitlesM3u8(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "application/x-mpegURL", "file bytes")
 	result, err := c.GetVideosByIdLiveSubtitlesM3u8(t.Context(), "p/id", GetVideosByIdLiveSubtitlesM3u8OperationOptions{
-		SubtitleSegmentLength: 7,
+		SubtitleSegmentLength: new(7),
 		ManifestSubtitles:     "v-ManifestSubtitles",
 	})
 	if err != nil {
@@ -38,7 +38,7 @@ func TestOperationGetVideosByIdLiveSubtitlesM3u8(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetVideosByIdLiveSubtitlesM3u8(t.Context(), "p/id", GetVideosByIdLiveSubtitlesM3u8OperationOptions{
-		SubtitleSegmentLength: 7,
+		SubtitleSegmentLength: new(7),
 		ManifestSubtitles:     "v-ManifestSubtitles",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

@@ -23,7 +23,6 @@ func TestOperationPostItemsByIdRemoteImagesDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Items/p%2Fid/RemoteImages/Download")
 	expectQuery(t, r, "Type", "Primary")
 	expectQuery(t, r, "ProviderName", "v-ProviderName")

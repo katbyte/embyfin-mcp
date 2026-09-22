@@ -22,7 +22,6 @@ func TestOperationPostEncodingCodecParameters(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Encoding/CodecParameters")
 	expectQuery(t, r, "CodecId", "v-CodecId")
 	expectQuery(t, r, "ParameterContext", "Playback")

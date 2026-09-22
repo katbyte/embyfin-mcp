@@ -17,8 +17,8 @@ const (
 	kindObject schemaKind = iota
 	kindEnum
 	kindUnion
-	// kindAlias is a named scalar or array; references to it are replaced
-	// by the type it names. Neither vendored document has one.
+	// kindAlias is a named scalar, array or map; references to it are
+	// replaced by the type it names (Emby's ProviderIdDictionary is a map).
 	kindAlias
 )
 
@@ -137,10 +137,16 @@ func (im *importer) claimName(name, origin string) {
 }
 
 func (im *importer) addInlineModel(name string, s *openapi.Schema) {
-	if _, ok := im.models[name]; ok {
+	origin := "inline object " + name
+	if prev, ok := im.typeNames[name]; ok && prev == origin {
+		return // the object references itself, and is already being built
+	}
+	// a component schema of the same name is a clash to fail on, not a model
+	// to silently hand the operation instead of its own
+	im.claimName(name, origin)
+	if im.models[name] != nil {
 		return
 	}
-	im.claimName(name, "an inline object")
 	m := &definitions.Model{Name: name, Description: cleanText(s.Description)}
 	im.models[name] = m // reserve first: the object may reference itself
 	*m = im.objectModel(name, "", s)

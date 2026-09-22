@@ -21,7 +21,7 @@ type GetUsersByUserIdItemsLatestOperationResponse struct {
 // GetUsersByUserIdItemsLatestOperationOptions holds the query and header parameters of GetUsersByUserIdItemsLatest.
 type GetUsersByUserIdItemsLatestOperationOptions struct {
 	// Limit
-	Limit int
+	Limit *int
 
 	// Specify this to localize the search to a specific item or folder. Omit to use the root
 	ParentId string
@@ -48,7 +48,7 @@ type GetUsersByUserIdItemsLatestOperationOptions struct {
 	EnableImages *bool
 
 	// Optional, the max number of images to return, per image type
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes string
@@ -66,8 +66,8 @@ func (o GetUsersByUserIdItemsLatestOperationOptions) ToHeaders() *client.Headers
 // ToQuery returns the query parameters the options set.
 func (o GetUsersByUserIdItemsLatestOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Limit != 0 {
-		out.Append("Limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("Limit", strconv.Itoa(*o.Limit))
 	}
 	if o.ParentId != "" {
 		out.Append("ParentId", o.ParentId)
@@ -93,8 +93,8 @@ func (o GetUsersByUserIdItemsLatestOperationOptions) ToQuery() *client.QueryPara
 	if o.EnableImages != nil {
 		out.Append("EnableImages", strconv.FormatBool(*o.EnableImages))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("ImageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("ImageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	if o.EnableImageTypes != "" {
 		out.Append("EnableImageTypes", o.EnableImageTypes)

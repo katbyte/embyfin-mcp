@@ -20,7 +20,7 @@ type AccountRatedMoviesOperationResponse struct {
 // AccountRatedMoviesOperationOptions holds the query and header parameters of AccountRatedMovies.
 type AccountRatedMoviesOperationOptions struct {
 	Language  string
-	Page      int
+	Page      *int
 	SessionId string
 	SortBy    string
 }
@@ -37,8 +37,8 @@ func (o AccountRatedMoviesOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.SessionId != "" {
 		out.Append("session_id", o.SessionId)

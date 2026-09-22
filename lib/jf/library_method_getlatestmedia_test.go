@@ -20,10 +20,10 @@ func TestOperationGetLatestMedia(t *testing.T) {
 		IncludeItemTypes: []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IsPlayed:         new(true),
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 		EnableUserData:   new(true),
-		Limit:            7,
+		Limit:            new(7),
 		GroupItems:       new(true),
 	})
 	if err != nil {
@@ -59,10 +59,10 @@ func TestOperationGetLatestMedia(t *testing.T) {
 		IncludeItemTypes: []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IsPlayed:         new(true),
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 		EnableUserData:   new(true),
-		Limit:            7,
+		Limit:            new(7),
 		GroupItems:       new(true),
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -78,10 +78,10 @@ func TestOperationGetLatestMedia(t *testing.T) {
 		IncludeItemTypes: []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IsPlayed:         new(true),
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 		EnableUserData:   new(true),
-		Limit:            7,
+		Limit:            new(7),
 		GroupItems:       new(true),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

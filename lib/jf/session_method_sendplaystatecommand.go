@@ -20,7 +20,7 @@ type SendPlaystateCommandOperationResponse struct {
 // SendPlaystateCommandOperationOptions holds the query and header parameters of SendPlaystateCommand.
 type SendPlaystateCommandOperationOptions struct {
 	// The optional position ticks.
-	SeekPositionTicks int64
+	SeekPositionTicks *int64
 
 	// The optional controlling user id.
 	ControllingUserId string
@@ -35,8 +35,8 @@ func (o SendPlaystateCommandOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o SendPlaystateCommandOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.SeekPositionTicks != 0 {
-		out.Append("seekPositionTicks", strconv.FormatInt(o.SeekPositionTicks, 10))
+	if o.SeekPositionTicks != nil {
+		out.Append("seekPositionTicks", strconv.FormatInt(*o.SeekPositionTicks, 10))
 	}
 	if o.ControllingUserId != "" {
 		out.Append("controllingUserId", o.ControllingUserId)

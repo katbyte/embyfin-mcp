@@ -394,7 +394,7 @@ func registerShowTools(r *registry) {
 	type episodesIn struct {
 		SeriesID string `json:"series_id"           jsonschema:"the series item id"`
 		SeasonID string `json:"season_id,omitempty" jsonschema:"restrict to one season (id from show_seasons)"`
-		Season   int    `json:"season,omitempty"    jsonschema:"restrict to one season by number, when its id is not to hand"`
+		Season   *int   `json:"season,omitempty"    jsonschema:"restrict to one season by number, 0 for the specials, when its id is not to hand"`
 	}
 	type episodesOut struct {
 		Series   string       `json:"series"`
@@ -414,9 +414,9 @@ func registerShowTools(r *registry) {
 		if err != nil {
 			return nil, episodesOut{}, err
 		}
-		if in.Season > 0 {
+		if in.Season != nil {
 			// Emby answers the whole series for a season it cannot place
-			episodes = slices.DeleteFunc(episodes, func(e embyfin.Item) bool { return e.ParentIndexNumber != in.Season })
+			episodes = slices.DeleteFunc(episodes, func(e embyfin.Item) bool { return e.ParentIndexNumber != *in.Season })
 		}
 
 		return nil, episodesOut{Series: series.Name, SeriesID: series.ID, Episodes: episodeRows(episodes, true, nil)}, nil

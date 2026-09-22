@@ -1,7 +1,7 @@
 name: Workflow YAML Lint
 
 # Lints the repo's YAML (workflows, configs) with yamllint; rules live in .yamllint.yml.
-# yamllint is preinstalled on ubuntu-latest and auto-detects GitHub Actions, emitting
+# make installs yamllint into a venv; it auto-detects GitHub Actions, emitting
 # ::error annotations that show up inline on the PR diff.
 
 permissions:

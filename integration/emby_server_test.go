@@ -57,7 +57,7 @@ func TestEmbyLogsAndActivity(t *testing.T) {
 		t.Errorf("GetSystemLogsByName(%s) read %d bytes, err %v", logs[0].Name, n, err)
 	}
 
-	entries := must(embyc.GetSystemActivityLogEntries(ctx, emby.GetSystemActivityLogEntriesOperationOptions{Limit: 5})).Model
+	entries := must(embyc.GetSystemActivityLogEntries(ctx, emby.GetSystemActivityLogEntriesOperationOptions{Limit: new(5)})).Model
 	if entries.TotalRecordCount == 0 || len(entries.Items) == 0 {
 		t.Fatalf("GetSystemActivityLogEntries = %+v", entries)
 	}

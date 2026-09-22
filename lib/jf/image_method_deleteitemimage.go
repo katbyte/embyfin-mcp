@@ -20,7 +20,7 @@ type DeleteItemImageOperationResponse struct {
 // DeleteItemImageOperationOptions holds the query and header parameters of DeleteItemImage.
 type DeleteItemImageOperationOptions struct {
 	// The image index.
-	ImageIndex int
+	ImageIndex *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -32,8 +32,8 @@ func (o DeleteItemImageOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o DeleteItemImageOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.ImageIndex != 0 {
-		out.Append("imageIndex", strconv.Itoa(o.ImageIndex))
+	if o.ImageIndex != nil {
+		out.Append("imageIndex", strconv.Itoa(*o.ImageIndex))
 	}
 	return &out
 }

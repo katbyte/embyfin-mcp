@@ -21,7 +21,7 @@ type GuestSessionRatedMoviesOperationResponse struct {
 // GuestSessionRatedMoviesOperationOptions holds the query and header parameters of GuestSessionRatedMovies.
 type GuestSessionRatedMoviesOperationOptions struct {
 	Language string
-	Page     int
+	Page     *int
 	SortBy   string
 }
 
@@ -37,8 +37,8 @@ func (o GuestSessionRatedMoviesOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.SortBy != "" {
 		out.Append("sort_by", o.SortBy)

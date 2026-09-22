@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +14,11 @@ import (
 // resolveSession finds a live session by id, device name, or client name
 // (case-insensitive substring).
 func resolveSession(ctx context.Context, client *embyfin.Client, target string) (*embyfin.Session, error) {
+	// an empty name is a substring of every device's, which would drive
+	// whichever device the server lists first
+	if strings.TrimSpace(target) == "" {
+		return nil, errors.New("session is required: a session id, or part of the device or client name (session_list has them)")
+	}
 	sessions, err := client.Sessions(ctx)
 	if err != nil {
 		return nil, err

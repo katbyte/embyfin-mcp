@@ -26,7 +26,7 @@ func TestJFRemoteImages(t *testing.T) {
 		t.Fatalf("GetRemoteImageProviders = %+v, want TheMovieDb with Primary", providers)
 	}
 
-	res := must(jfc.GetRemoteImages(ctx, id, jf.GetRemoteImagesOperationOptions{Type: jf.ImageTypePrimary, Limit: 3, IncludeAllLanguages: new(false)})).Model
+	res := must(jfc.GetRemoteImages(ctx, id, jf.GetRemoteImagesOperationOptions{Type: jf.ImageTypePrimary, Limit: new(3), IncludeAllLanguages: new(false)})).Model
 	if res.TotalRecordCount == 0 || len(res.Images) == 0 {
 		t.Fatalf("GetRemoteImages(Primary) for %s = %+v", alien, res)
 	}

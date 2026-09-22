@@ -20,7 +20,7 @@ type ListCheckItemStatusOperationResponse struct {
 // ListCheckItemStatusOperationOptions holds the query and header parameters of ListCheckItemStatus.
 type ListCheckItemStatusOperationOptions struct {
 	Language string
-	MovieId  int
+	MovieId  *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -35,8 +35,8 @@ func (o ListCheckItemStatusOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.MovieId != 0 {
-		out.Append("movie_id", strconv.Itoa(o.MovieId))
+	if o.MovieId != nil {
+		out.Append("movie_id", strconv.Itoa(*o.MovieId))
 	}
 	return &out
 }

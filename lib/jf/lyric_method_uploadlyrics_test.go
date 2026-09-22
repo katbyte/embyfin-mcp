@@ -21,7 +21,6 @@ func TestOperationUploadLyrics(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Audio/p%2FitemId/Lyrics")
 	expectQuery(t, r, "fileName", "v-FileName")
 	if got := r.Header.Get("Content-Type"); got != "text/plain" {

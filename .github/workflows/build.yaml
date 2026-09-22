@@ -35,5 +35,7 @@ jobs:
         with:
           persist-credentials: false
       - run: docker build --build-arg VERSION=ci --build-arg COMMIT="${GITHUB_SHA::7}" -t embyfin-mcp .
+      # the version the image reports is the one the build was given: a
+      # build that reports dev has lost its -X flags
       - name: smoke test the image
-        run: docker run --rm embyfin-mcp version
+        run: docker run --rm embyfin-mcp version | grep -F 'embyfin-mcp ci'

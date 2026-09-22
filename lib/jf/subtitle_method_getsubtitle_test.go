@@ -17,12 +17,12 @@ func TestOperationGetSubtitle(t *testing.T) {
 	result, err := c.GetSubtitle(t.Context(), "p/routeItemId", "p/routeMediaSourceId", 7, "p/routeFormat", GetSubtitleOperationOptions{
 		ItemId:             "v-ItemId",
 		MediaSourceId:      "v-MediaSourceId",
-		Index:              7,
+		Index:              new(7),
 		Format:             "v-Format",
-		EndPositionTicks:   7,
+		EndPositionTicks:   new(int64(7)),
 		CopyTimestamps:     new(true),
 		AddVttTimeMap:      new(true),
-		StartPositionTicks: 7,
+		StartPositionTicks: new(int64(7)),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -52,12 +52,12 @@ func TestOperationGetSubtitle(t *testing.T) {
 	result, err = c.GetSubtitle(t.Context(), "p/routeItemId", "p/routeMediaSourceId", 7, "p/routeFormat", GetSubtitleOperationOptions{
 		ItemId:             "v-ItemId",
 		MediaSourceId:      "v-MediaSourceId",
-		Index:              7,
+		Index:              new(7),
 		Format:             "v-Format",
-		EndPositionTicks:   7,
+		EndPositionTicks:   new(int64(7)),
 		CopyTimestamps:     new(true),
 		AddVttTimeMap:      new(true),
-		StartPositionTicks: 7,
+		StartPositionTicks: new(int64(7)),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

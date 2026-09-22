@@ -1,6 +1,7 @@
 package providerproxy
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -23,8 +24,11 @@ const maxBodyBytes = 4 << 20
 
 // elideTypes are the content types stored as a placeholder however small they
 // are: committing a provider's artwork or video to the repository is never
-// right, and neither is what these tests assert on.
-var elideTypes = []string{"audio/", "video/", "image/"}
+// right, and neither is what these tests assert on. A binary blob under
+// application/octet-stream (a plugin's dll, an installer) is elided the same
+// way, told by the NUL bytes text never holds; the text a server fetches
+// under that type (a list of studio names, in whatever encoding) is kept.
+var elideTypes = []string{"audio/", "video/", "image/", "application/x-msdownload"}
 
 // volatileHeaders change on every response and would make a re-record a large
 // meaningless diff. Dropping them is not sanitizing: these are public APIs and
@@ -121,7 +125,7 @@ func (i *interaction) setBody(b []byte, contentType string) {
 			return
 		}
 	}
-	if len(b) > maxBodyBytes {
+	if len(b) > maxBodyBytes || (strings.HasPrefix(ct, "application/octet-stream") && bytes.IndexByte(b, 0) >= 0) {
 		i.Elided, i.ElidedType, i.ElidedSize = true, ct, len(b)
 		return
 	}
@@ -130,6 +134,21 @@ func (i *interaction) setBody(b []byte, contentType string) {
 		return
 	}
 	i.BodyBase64 = base64.StdEncoding.EncodeToString(b)
+}
+
+// redact replaces the value of each named JSON field in the body, and the
+// same value wherever a header carries it: TMDB answers a new request token
+// in the body and again in a link in Authentication-Callback.
+func (i *interaction) redact(fields []string) {
+	var secrets []string
+	i.Body, secrets = redactJSONFields(i.Body, fields)
+	for name, v := range i.Headers {
+		for _, secret := range secrets {
+			if strings.Contains(v, secret) {
+				i.Headers[name] = strings.ReplaceAll(v, secret, redactedValue)
+			}
+		}
+	}
 }
 
 // cassette is every interaction recorded for one provider host.
@@ -294,14 +313,19 @@ const redactedValue = "redacted by the provider proxy"
 // and the key order the provider sent is kept. A value carrying an escaped
 // quote is matched too. Nothing is parsed: a body that is not JSON has no
 // field to match and comes back unchanged.
-func redactJSONFields(body string, fields []string) string {
+func redactJSONFields(body string, fields []string) (redacted string, secrets []string) {
 	if body == "" || len(fields) == 0 {
-		return body
+		return body, nil
 	}
 	for _, f := range fields {
-		re := regexp.MustCompile(`("` + regexp.QuoteMeta(f) + `"\s*:\s*)"(?:[^"\\]|\\.)*"`)
+		re := regexp.MustCompile(`("` + regexp.QuoteMeta(f) + `"\s*:\s*)"((?:[^"\\]|\\.)*)"`)
+		for _, m := range re.FindAllStringSubmatch(body, -1) {
+			if m[2] != "" && m[2] != redactedValue {
+				secrets = append(secrets, m[2])
+			}
+		}
 		body = re.ReplaceAllString(body, `${1}"`+redactedValue+`"`)
 	}
 
-	return body
+	return body, secrets
 }

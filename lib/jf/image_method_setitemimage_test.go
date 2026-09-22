@@ -19,7 +19,6 @@ func TestOperationSetItemImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Items/p%2FitemId/Images/Primary")
 	if got := r.Header.Get("Content-Type"); got != "image/png" {
 		t.Errorf("Content-Type = %q, want %q", got, "image/png")

@@ -16,8 +16,8 @@ func TestOperationGetRecommendedPrograms(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GetRecommendedPrograms(t.Context(), GetRecommendedProgramsOperationOptions{
 		UserId:                 "v-UserId",
-		StartIndex:             7,
-		Limit:                  7,
+		StartIndex:             new(7),
+		Limit:                  new(7),
 		IsAiring:               new(true),
 		HasAired:               new(true),
 		IsSeries:               new(true),
@@ -26,7 +26,7 @@ func TestOperationGetRecommendedPrograms(t *testing.T) {
 		IsKids:                 new(true),
 		IsSports:               new(true),
 		EnableImages:           new(true),
-		ImageTypeLimit:         7,
+		ImageTypeLimit:         new(7),
 		EnableImageTypes:       []ImageType{ImageTypePrimary, ImageTypeProfile},
 		GenreIds:               []string{"a", "b"},
 		Fields:                 []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
@@ -67,8 +67,8 @@ func TestOperationGetRecommendedPrograms(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetRecommendedPrograms(t.Context(), GetRecommendedProgramsOperationOptions{
 		UserId:                 "v-UserId",
-		StartIndex:             7,
-		Limit:                  7,
+		StartIndex:             new(7),
+		Limit:                  new(7),
 		IsAiring:               new(true),
 		HasAired:               new(true),
 		IsSeries:               new(true),
@@ -77,7 +77,7 @@ func TestOperationGetRecommendedPrograms(t *testing.T) {
 		IsKids:                 new(true),
 		IsSports:               new(true),
 		EnableImages:           new(true),
-		ImageTypeLimit:         7,
+		ImageTypeLimit:         new(7),
 		EnableImageTypes:       []ImageType{ImageTypePrimary, ImageTypeProfile},
 		GenreIds:               []string{"a", "b"},
 		Fields:                 []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
@@ -92,8 +92,8 @@ func TestOperationGetRecommendedPrograms(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetRecommendedPrograms(t.Context(), GetRecommendedProgramsOperationOptions{
 		UserId:                 "v-UserId",
-		StartIndex:             7,
-		Limit:                  7,
+		StartIndex:             new(7),
+		Limit:                  new(7),
 		IsAiring:               new(true),
 		HasAired:               new(true),
 		IsSeries:               new(true),
@@ -102,7 +102,7 @@ func TestOperationGetRecommendedPrograms(t *testing.T) {
 		IsKids:                 new(true),
 		IsSports:               new(true),
 		EnableImages:           new(true),
-		ImageTypeLimit:         7,
+		ImageTypeLimit:         new(7),
 		EnableImageTypes:       []ImageType{ImageTypePrimary, ImageTypeProfile},
 		GenreIds:               []string{"a", "b"},
 		Fields:                 []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
@@ -117,13 +117,30 @@ func TestOperationGetRecommendedPrograms(t *testing.T) {
 func TestOperationGetRecommendedProgramsComplete(t *testing.T) {
 	t.Parallel()
 
-	c, starts := pagedServer(t, "startIndex", "{}", 2)
-	result, err := c.GetRecommendedProgramsComplete(t.Context(), GetRecommendedProgramsOperationOptions{Limit: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// a page of one from the start, then from the first item, then the total is reached
-	if len(result.Items) != 2 || !slices.Equal(*starts, []string{"", "1"}) || result.LatestHttpResponse == nil {
-		t.Errorf("Complete = %d items over pages starting %q", len(result.Items), *starts)
+	// the three ways a walk ends: the total is reached, an empty page when the
+	// server reports no total, and a page shorter than the limit
+	for _, tc := range []struct {
+		name         string
+		total, pages int
+		options      GetRecommendedProgramsOperationOptions
+		items        int
+		starts       []string
+	}{
+		{"total reached", 2, 9, GetRecommendedProgramsOperationOptions{Limit: new(1)}, 2, []string{"", "1"}},
+		{"empty page", 0, 2, GetRecommendedProgramsOperationOptions{Limit: new(1)}, 2, []string{"", "1", "2"}},
+		{"short page", 0, 9, GetRecommendedProgramsOperationOptions{Limit: new(2)}, 1, []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, starts := pagedServer(t, "startIndex", "{}", tc.total, tc.pages)
+			result, err := c.GetRecommendedProgramsComplete(t.Context(), tc.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Items) != tc.items || !slices.Equal(*starts, tc.starts) || result.LatestHttpResponse == nil {
+				t.Errorf("Complete = %d items over pages starting %q, want %d over %q", len(result.Items), *starts, tc.items, tc.starts)
+			}
+		})
 	}
 }

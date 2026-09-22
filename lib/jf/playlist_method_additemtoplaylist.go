@@ -23,7 +23,7 @@ type AddItemToPlaylistOperationOptions struct {
 	Ids []string
 
 	// Optional. 0-based index where to place the items or at the end if `null`.
-	Position int
+	Position *int
 
 	// The userId.
 	UserId string
@@ -41,8 +41,8 @@ func (o AddItemToPlaylistOperationOptions) ToQuery() *client.QueryParams {
 	for _, v := range o.Ids {
 		out.Append("ids", v)
 	}
-	if o.Position != 0 {
-		out.Append("position", strconv.Itoa(o.Position))
+	if o.Position != nil {
+		out.Append("position", strconv.Itoa(*o.Position))
 	}
 	if o.UserId != "" {
 		out.Append("userId", o.UserId)

@@ -26,7 +26,7 @@ type GetAudioByIdUniversalOperationOptions struct {
 	DeviceId string
 
 	// Optional. Specify a starting offset, in ticks. 1ms = 10000 ticks.
-	StartTimeTicks int64
+	StartTimeTicks *int64
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -41,8 +41,8 @@ func (o GetAudioByIdUniversalOperationOptions) ToQuery() *client.QueryParams {
 	if o.DeviceId != "" {
 		out.Append("DeviceId", o.DeviceId)
 	}
-	if o.StartTimeTicks != 0 {
-		out.Append("StartTimeTicks", strconv.FormatInt(o.StartTimeTicks, 10))
+	if o.StartTimeTicks != nil {
+		out.Append("StartTimeTicks", strconv.FormatInt(*o.StartTimeTicks, 10))
 	}
 	return &out
 }

@@ -20,7 +20,7 @@ func TestOperationGetSeasons(t *testing.T) {
 		IsMissing:        new(true),
 		AdjacentTo:       "v-AdjacentTo",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 		EnableUserData:   new(true),
 	})
@@ -55,7 +55,7 @@ func TestOperationGetSeasons(t *testing.T) {
 		IsMissing:        new(true),
 		AdjacentTo:       "v-AdjacentTo",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 		EnableUserData:   new(true),
 	})
@@ -72,7 +72,7 @@ func TestOperationGetSeasons(t *testing.T) {
 		IsMissing:        new(true),
 		AdjacentTo:       "v-AdjacentTo",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 		EnableUserData:   new(true),
 	})

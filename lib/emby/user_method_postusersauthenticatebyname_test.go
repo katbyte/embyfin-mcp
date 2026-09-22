@@ -21,7 +21,6 @@ func TestOperationPostUsersAuthenticateByName(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Users/AuthenticateByName")
 	if got := r.Header.Get("X-Emby-Authorization"); got != "v-XEmbyAuthorization" {
 		t.Errorf("header X-Emby-Authorization = %q, want %q", got, "v-XEmbyAuthorization")

@@ -29,20 +29,20 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		IsSpecialSeason:                new(true),
 		AdjacentTo:                     "v-AdjacentTo",
 		StartItemId:                    "v-StartItemId",
-		MinIndexNumber:                 7,
+		MinIndexNumber:                 new(7),
 		MinStartDate:                   "v-MinStartDate",
 		MaxStartDate:                   "v-MaxStartDate",
 		MinEndDate:                     "v-MinEndDate",
 		MaxEndDate:                     "v-MaxEndDate",
-		MinPlayers:                     7,
-		MaxPlayers:                     7,
-		ParentIndexNumber:              7,
+		MinPlayers:                     new(7),
+		MaxPlayers:                     new(7),
+		ParentIndexNumber:              new(7),
 		HasParentalRating:              new(true),
 		IsHD:                           new(true),
 		IsUnaired:                      new(true),
-		MinCommunityRating:             1.5,
-		MinCriticRating:                1.5,
-		AiredDuringSeason:              7,
+		MinCommunityRating:             new(1.5),
+		MinCriticRating:                new(1.5),
+		AiredDuringSeason:              new(7),
 		MinPremiereDate:                "v-MinPremiereDate",
 		MinDateLastSaved:               "v-MinDateLastSaved",
 		MinDateLastSavedForUser:        "v-MinDateLastSavedForUser",
@@ -52,8 +52,8 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		HasTmdbId:                      new(true),
 		HasTvdbId:                      new(true),
 		ExcludeItemIds:                 "v-ExcludeItemIds",
-		StartIndex:                     7,
-		Limit:                          7,
+		StartIndex:                     new(7),
+		Limit:                          new(7),
 		Recursive:                      new(true),
 		SearchTerm:                     "v-SearchTerm",
 		SortOrder:                      "v-SortOrder",
@@ -86,7 +86,7 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		Years:                          "v-Years",
 		EnableImages:                   new(true),
 		EnableUserData:                 new(true),
-		ImageTypeLimit:                 7,
+		ImageTypeLimit:                 new(7),
 		EnableImageTypes:               "v-EnableImageTypes",
 		Person:                         "v-Person",
 		PersonIds:                      "v-PersonIds",
@@ -252,20 +252,20 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		IsSpecialSeason:                new(true),
 		AdjacentTo:                     "v-AdjacentTo",
 		StartItemId:                    "v-StartItemId",
-		MinIndexNumber:                 7,
+		MinIndexNumber:                 new(7),
 		MinStartDate:                   "v-MinStartDate",
 		MaxStartDate:                   "v-MaxStartDate",
 		MinEndDate:                     "v-MinEndDate",
 		MaxEndDate:                     "v-MaxEndDate",
-		MinPlayers:                     7,
-		MaxPlayers:                     7,
-		ParentIndexNumber:              7,
+		MinPlayers:                     new(7),
+		MaxPlayers:                     new(7),
+		ParentIndexNumber:              new(7),
 		HasParentalRating:              new(true),
 		IsHD:                           new(true),
 		IsUnaired:                      new(true),
-		MinCommunityRating:             1.5,
-		MinCriticRating:                1.5,
-		AiredDuringSeason:              7,
+		MinCommunityRating:             new(1.5),
+		MinCriticRating:                new(1.5),
+		AiredDuringSeason:              new(7),
 		MinPremiereDate:                "v-MinPremiereDate",
 		MinDateLastSaved:               "v-MinDateLastSaved",
 		MinDateLastSavedForUser:        "v-MinDateLastSavedForUser",
@@ -275,8 +275,8 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		HasTmdbId:                      new(true),
 		HasTvdbId:                      new(true),
 		ExcludeItemIds:                 "v-ExcludeItemIds",
-		StartIndex:                     7,
-		Limit:                          7,
+		StartIndex:                     new(7),
+		Limit:                          new(7),
 		Recursive:                      new(true),
 		SearchTerm:                     "v-SearchTerm",
 		SortOrder:                      "v-SortOrder",
@@ -309,7 +309,7 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		Years:                          "v-Years",
 		EnableImages:                   new(true),
 		EnableUserData:                 new(true),
-		ImageTypeLimit:                 7,
+		ImageTypeLimit:                 new(7),
 		EnableImageTypes:               "v-EnableImageTypes",
 		Person:                         "v-Person",
 		PersonIds:                      "v-PersonIds",
@@ -363,20 +363,20 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		IsSpecialSeason:                new(true),
 		AdjacentTo:                     "v-AdjacentTo",
 		StartItemId:                    "v-StartItemId",
-		MinIndexNumber:                 7,
+		MinIndexNumber:                 new(7),
 		MinStartDate:                   "v-MinStartDate",
 		MaxStartDate:                   "v-MaxStartDate",
 		MinEndDate:                     "v-MinEndDate",
 		MaxEndDate:                     "v-MaxEndDate",
-		MinPlayers:                     7,
-		MaxPlayers:                     7,
-		ParentIndexNumber:              7,
+		MinPlayers:                     new(7),
+		MaxPlayers:                     new(7),
+		ParentIndexNumber:              new(7),
 		HasParentalRating:              new(true),
 		IsHD:                           new(true),
 		IsUnaired:                      new(true),
-		MinCommunityRating:             1.5,
-		MinCriticRating:                1.5,
-		AiredDuringSeason:              7,
+		MinCommunityRating:             new(1.5),
+		MinCriticRating:                new(1.5),
+		AiredDuringSeason:              new(7),
 		MinPremiereDate:                "v-MinPremiereDate",
 		MinDateLastSaved:               "v-MinDateLastSaved",
 		MinDateLastSavedForUser:        "v-MinDateLastSavedForUser",
@@ -386,8 +386,8 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		HasTmdbId:                      new(true),
 		HasTvdbId:                      new(true),
 		ExcludeItemIds:                 "v-ExcludeItemIds",
-		StartIndex:                     7,
-		Limit:                          7,
+		StartIndex:                     new(7),
+		Limit:                          new(7),
 		Recursive:                      new(true),
 		SearchTerm:                     "v-SearchTerm",
 		SortOrder:                      "v-SortOrder",
@@ -420,7 +420,7 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		Years:                          "v-Years",
 		EnableImages:                   new(true),
 		EnableUserData:                 new(true),
-		ImageTypeLimit:                 7,
+		ImageTypeLimit:                 new(7),
 		EnableImageTypes:               "v-EnableImageTypes",
 		Person:                         "v-Person",
 		PersonIds:                      "v-PersonIds",
@@ -474,20 +474,20 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		IsSpecialSeason:                new(true),
 		AdjacentTo:                     "v-AdjacentTo",
 		StartItemId:                    "v-StartItemId",
-		MinIndexNumber:                 7,
+		MinIndexNumber:                 new(7),
 		MinStartDate:                   "v-MinStartDate",
 		MaxStartDate:                   "v-MaxStartDate",
 		MinEndDate:                     "v-MinEndDate",
 		MaxEndDate:                     "v-MaxEndDate",
-		MinPlayers:                     7,
-		MaxPlayers:                     7,
-		ParentIndexNumber:              7,
+		MinPlayers:                     new(7),
+		MaxPlayers:                     new(7),
+		ParentIndexNumber:              new(7),
 		HasParentalRating:              new(true),
 		IsHD:                           new(true),
 		IsUnaired:                      new(true),
-		MinCommunityRating:             1.5,
-		MinCriticRating:                1.5,
-		AiredDuringSeason:              7,
+		MinCommunityRating:             new(1.5),
+		MinCriticRating:                new(1.5),
+		AiredDuringSeason:              new(7),
 		MinPremiereDate:                "v-MinPremiereDate",
 		MinDateLastSaved:               "v-MinDateLastSaved",
 		MinDateLastSavedForUser:        "v-MinDateLastSavedForUser",
@@ -497,8 +497,8 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		HasTmdbId:                      new(true),
 		HasTvdbId:                      new(true),
 		ExcludeItemIds:                 "v-ExcludeItemIds",
-		StartIndex:                     7,
-		Limit:                          7,
+		StartIndex:                     new(7),
+		Limit:                          new(7),
 		Recursive:                      new(true),
 		SearchTerm:                     "v-SearchTerm",
 		SortOrder:                      "v-SortOrder",
@@ -531,7 +531,7 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 		Years:                          "v-Years",
 		EnableImages:                   new(true),
 		EnableUserData:                 new(true),
-		ImageTypeLimit:                 7,
+		ImageTypeLimit:                 new(7),
 		EnableImageTypes:               "v-EnableImageTypes",
 		Person:                         "v-Person",
 		PersonIds:                      "v-PersonIds",
@@ -572,13 +572,30 @@ func TestOperationGetLiveTvRecordings(t *testing.T) {
 func TestOperationGetLiveTvRecordingsComplete(t *testing.T) {
 	t.Parallel()
 
-	c, starts := pagedServer(t, "StartIndex", "{}", 2)
-	result, err := c.GetLiveTvRecordingsComplete(t.Context(), GetLiveTvRecordingsOperationOptions{Limit: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// a page of one from the start, then from the first item, then the total is reached
-	if len(result.Items) != 2 || !slices.Equal(*starts, []string{"", "1"}) || result.LatestHttpResponse == nil {
-		t.Errorf("Complete = %d items over pages starting %q", len(result.Items), *starts)
+	// the three ways a walk ends: the total is reached, an empty page when the
+	// server reports no total, and a page shorter than the limit
+	for _, tc := range []struct {
+		name         string
+		total, pages int
+		options      GetLiveTvRecordingsOperationOptions
+		items        int
+		starts       []string
+	}{
+		{"total reached", 2, 9, GetLiveTvRecordingsOperationOptions{Limit: new(1)}, 2, []string{"", "1"}},
+		{"empty page", 0, 2, GetLiveTvRecordingsOperationOptions{Limit: new(1)}, 2, []string{"", "1", "2"}},
+		{"short page", 0, 9, GetLiveTvRecordingsOperationOptions{Limit: new(2)}, 1, []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, starts := pagedServer(t, "StartIndex", "{}", tc.total, tc.pages)
+			result, err := c.GetLiveTvRecordingsComplete(t.Context(), tc.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Items) != tc.items || !slices.Equal(*starts, tc.starts) || result.LatestHttpResponse == nil {
+				t.Errorf("Complete = %d items over pages starting %q, want %d over %q", len(result.Items), *starts, tc.items, tc.starts)
+			}
+		})
 	}
 }

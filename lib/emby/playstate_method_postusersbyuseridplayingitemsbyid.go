@@ -24,8 +24,8 @@ type PostUsersByUserIdPlayingItemsByIdOperationOptions struct {
 
 	// Indicates if the client can seek
 	CanSeek             *bool
-	AudioStreamIndex    int
-	SubtitleStreamIndex int
+	AudioStreamIndex    *int
+	SubtitleStreamIndex *int
 	PlayMethod          PlayMethod
 	LiveStreamId        string
 	PlaySessionId       string
@@ -46,11 +46,11 @@ func (o PostUsersByUserIdPlayingItemsByIdOperationOptions) ToQuery() *client.Que
 	if o.CanSeek != nil {
 		out.Append("CanSeek", strconv.FormatBool(*o.CanSeek))
 	}
-	if o.AudioStreamIndex != 0 {
-		out.Append("AudioStreamIndex", strconv.Itoa(o.AudioStreamIndex))
+	if o.AudioStreamIndex != nil {
+		out.Append("AudioStreamIndex", strconv.Itoa(*o.AudioStreamIndex))
 	}
-	if o.SubtitleStreamIndex != 0 {
-		out.Append("SubtitleStreamIndex", strconv.Itoa(o.SubtitleStreamIndex))
+	if o.SubtitleStreamIndex != nil {
+		out.Append("SubtitleStreamIndex", strconv.Itoa(*o.SubtitleStreamIndex))
 	}
 	if o.PlayMethod != "" {
 		out.Append("PlayMethod", string(o.PlayMethod))

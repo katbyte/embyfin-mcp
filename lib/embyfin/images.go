@@ -59,7 +59,7 @@ type RemoteImage struct {
 // Primary (poster), Backdrop, Logo, Thumb.
 func (c *Client) RemoteImages(ctx context.Context, itemID, imageType string, limit int) ([]RemoteImage, int, error) {
 	if c.isEmby() {
-		res, err := c.emby.GetItemsByIdRemoteImages(ctx, itemID, emby.GetItemsByIdRemoteImagesOperationOptions{Type: emby.ImageType(imageType), Limit: limit})
+		res, err := c.emby.GetItemsByIdRemoteImages(ctx, itemID, emby.GetItemsByIdRemoteImagesOperationOptions{Type: emby.ImageType(imageType), Limit: nz(limit)})
 		if err != nil {
 			return nil, 0, err
 		}
@@ -71,7 +71,7 @@ func (c *Client) RemoteImages(ctx context.Context, itemID, imageType string, lim
 		return images, res.Model.TotalRecordCount, nil
 	}
 
-	res, err := c.jf.GetRemoteImages(ctx, itemID, jf.GetRemoteImagesOperationOptions{Type: jf.ImageType(imageType), Limit: limit})
+	res, err := c.jf.GetRemoteImages(ctx, itemID, jf.GetRemoteImagesOperationOptions{Type: jf.ImageType(imageType), Limit: nz(limit)})
 	if err != nil {
 		return nil, 0, err
 	}

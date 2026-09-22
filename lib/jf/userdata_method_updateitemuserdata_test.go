@@ -21,7 +21,6 @@ func TestOperationUpdateItemUserData(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/UserItems/p%2FitemId/UserData")
 	expectQuery(t, r, "userId", "v-UserId")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {

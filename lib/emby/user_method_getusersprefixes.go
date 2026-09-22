@@ -25,10 +25,10 @@ type GetUsersPrefixesOperationOptions struct {
 	IsDisabled *bool
 
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return
-	Limit int
+	Limit *int
 
 	// Optional filter by items whose name is sorted equally or greater than a given input string.
 	NameStartsWithOrGreater string
@@ -52,11 +52,11 @@ func (o GetUsersPrefixesOperationOptions) ToQuery() *client.QueryParams {
 	if o.IsDisabled != nil {
 		out.Append("IsDisabled", strconv.FormatBool(*o.IsDisabled))
 	}
-	if o.StartIndex != 0 {
-		out.Append("StartIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("StartIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("Limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("Limit", strconv.Itoa(*o.Limit))
 	}
 	if o.NameStartsWithOrGreater != "" {
 		out.Append("NameStartsWithOrGreater", o.NameStartsWithOrGreater)

@@ -54,7 +54,7 @@ type GetItemsByIdThemeVideosOperationOptions struct {
 	StartItemId string
 
 	// Optional filter by minimum index number.
-	MinIndexNumber int
+	MinIndexNumber *int
 
 	// Optional. The minimum premiere date. Format = ISO
 	MinStartDate string
@@ -69,13 +69,13 @@ type GetItemsByIdThemeVideosOperationOptions struct {
 	MaxEndDate string
 
 	// Optional filter by minimum number of game players.
-	MinPlayers int
+	MinPlayers *int
 
 	// Optional filter by maximum number of game players.
-	MaxPlayers int
+	MaxPlayers *int
 
 	// Optional filter by parent index number.
-	ParentIndexNumber int
+	ParentIndexNumber *int
 
 	// Optional filter by items that have or do not have a parental rating
 	HasParentalRating *bool
@@ -87,13 +87,13 @@ type GetItemsByIdThemeVideosOperationOptions struct {
 	IsUnaired *bool
 
 	// Optional filter by minimum community rating.
-	MinCommunityRating float64
+	MinCommunityRating *float64
 
 	// Optional filter by minimum critic rating.
-	MinCriticRating float64
+	MinCriticRating *float64
 
 	// Gets all episodes that aired during a season, including specials.
-	AiredDuringSeason int
+	AiredDuringSeason *int
 
 	// Optional. The minimum premiere date. Format = ISO
 	MinPremiereDate string
@@ -123,10 +123,10 @@ type GetItemsByIdThemeVideosOperationOptions struct {
 	ExcludeItemIds string
 
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return
-	Limit int
+	Limit *int
 
 	// When searching within folders, this determines whether or not the search will be recursive. true/false
 	Recursive *bool
@@ -225,7 +225,7 @@ type GetItemsByIdThemeVideosOperationOptions struct {
 	EnableUserData *bool
 
 	// Optional, the max number of images to return, per image type
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes string
@@ -363,8 +363,8 @@ func (o GetItemsByIdThemeVideosOperationOptions) ToQuery() *client.QueryParams {
 	if o.StartItemId != "" {
 		out.Append("StartItemId", o.StartItemId)
 	}
-	if o.MinIndexNumber != 0 {
-		out.Append("MinIndexNumber", strconv.Itoa(o.MinIndexNumber))
+	if o.MinIndexNumber != nil {
+		out.Append("MinIndexNumber", strconv.Itoa(*o.MinIndexNumber))
 	}
 	if o.MinStartDate != "" {
 		out.Append("MinStartDate", o.MinStartDate)
@@ -378,14 +378,14 @@ func (o GetItemsByIdThemeVideosOperationOptions) ToQuery() *client.QueryParams {
 	if o.MaxEndDate != "" {
 		out.Append("MaxEndDate", o.MaxEndDate)
 	}
-	if o.MinPlayers != 0 {
-		out.Append("MinPlayers", strconv.Itoa(o.MinPlayers))
+	if o.MinPlayers != nil {
+		out.Append("MinPlayers", strconv.Itoa(*o.MinPlayers))
 	}
-	if o.MaxPlayers != 0 {
-		out.Append("MaxPlayers", strconv.Itoa(o.MaxPlayers))
+	if o.MaxPlayers != nil {
+		out.Append("MaxPlayers", strconv.Itoa(*o.MaxPlayers))
 	}
-	if o.ParentIndexNumber != 0 {
-		out.Append("ParentIndexNumber", strconv.Itoa(o.ParentIndexNumber))
+	if o.ParentIndexNumber != nil {
+		out.Append("ParentIndexNumber", strconv.Itoa(*o.ParentIndexNumber))
 	}
 	if o.HasParentalRating != nil {
 		out.Append("HasParentalRating", strconv.FormatBool(*o.HasParentalRating))
@@ -396,14 +396,14 @@ func (o GetItemsByIdThemeVideosOperationOptions) ToQuery() *client.QueryParams {
 	if o.IsUnaired != nil {
 		out.Append("IsUnaired", strconv.FormatBool(*o.IsUnaired))
 	}
-	if o.MinCommunityRating != 0 {
-		out.Append("MinCommunityRating", strconv.FormatFloat(o.MinCommunityRating, 'f', -1, 64))
+	if o.MinCommunityRating != nil {
+		out.Append("MinCommunityRating", strconv.FormatFloat(*o.MinCommunityRating, 'f', -1, 64))
 	}
-	if o.MinCriticRating != 0 {
-		out.Append("MinCriticRating", strconv.FormatFloat(o.MinCriticRating, 'f', -1, 64))
+	if o.MinCriticRating != nil {
+		out.Append("MinCriticRating", strconv.FormatFloat(*o.MinCriticRating, 'f', -1, 64))
 	}
-	if o.AiredDuringSeason != 0 {
-		out.Append("AiredDuringSeason", strconv.Itoa(o.AiredDuringSeason))
+	if o.AiredDuringSeason != nil {
+		out.Append("AiredDuringSeason", strconv.Itoa(*o.AiredDuringSeason))
 	}
 	if o.MinPremiereDate != "" {
 		out.Append("MinPremiereDate", o.MinPremiereDate)
@@ -432,11 +432,11 @@ func (o GetItemsByIdThemeVideosOperationOptions) ToQuery() *client.QueryParams {
 	if o.ExcludeItemIds != "" {
 		out.Append("ExcludeItemIds", o.ExcludeItemIds)
 	}
-	if o.StartIndex != 0 {
-		out.Append("StartIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("StartIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("Limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("Limit", strconv.Itoa(*o.Limit))
 	}
 	if o.Recursive != nil {
 		out.Append("Recursive", strconv.FormatBool(*o.Recursive))
@@ -534,8 +534,8 @@ func (o GetItemsByIdThemeVideosOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableUserData != nil {
 		out.Append("EnableUserData", strconv.FormatBool(*o.EnableUserData))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("ImageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("ImageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	if o.EnableImageTypes != "" {
 		out.Append("EnableImageTypes", o.EnableImageTypes)
@@ -682,8 +682,14 @@ type GetItemsByIdThemeVideosCompleteResult struct {
 // result is loaded. options.Limit is the page size, client.DefaultPageSize when
 // unset.
 func (c Client) GetItemsByIdThemeVideosComplete(ctx context.Context, id string, options GetItemsByIdThemeVideosOperationOptions) (result GetItemsByIdThemeVideosCompleteResult, err error) {
-	if options.Limit <= 0 {
-		options.Limit = client.DefaultPageSize
+	limit := client.DefaultPageSize
+	if options.Limit != nil && *options.Limit > 0 {
+		limit = *options.Limit
+	}
+	options.Limit = &limit
+	start := 0
+	if options.StartIndex != nil {
+		start = *options.StartIndex
 	}
 	for {
 		var page GetItemsByIdThemeVideosOperationResponse
@@ -697,10 +703,11 @@ func (c Client) GetItemsByIdThemeVideosComplete(ctx context.Context, id string, 
 			return
 		}
 		result.Items = append(result.Items, page.Model.Items...)
-		options.StartIndex += len(page.Model.Items)
+		start += len(page.Model.Items)
+		options.StartIndex = &start
 		// a short page is the last; so is reaching the total, when the server
 		// reports one (some Emby lists report 0 whatever they hold)
-		if len(page.Model.Items) < options.Limit || page.Model.TotalRecordCount > 0 && options.StartIndex >= page.Model.TotalRecordCount {
+		if len(page.Model.Items) < limit || page.Model.TotalRecordCount > 0 && start >= page.Model.TotalRecordCount {
 			return
 		}
 	}

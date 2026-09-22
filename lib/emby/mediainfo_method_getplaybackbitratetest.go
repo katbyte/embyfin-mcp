@@ -21,7 +21,7 @@ type GetPlaybackBitrateTestOperationResponse struct {
 // GetPlaybackBitrateTestOperationOptions holds the query and header parameters of GetPlaybackBitrateTest.
 type GetPlaybackBitrateTestOperationOptions struct {
 	// Size
-	Size int64
+	Size *int64
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -33,8 +33,8 @@ func (o GetPlaybackBitrateTestOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetPlaybackBitrateTestOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Size != 0 {
-		out.Append("Size", strconv.FormatInt(o.Size, 10))
+	if o.Size != nil {
+		out.Append("Size", strconv.FormatInt(*o.Size, 10))
 	}
 	return &out
 }

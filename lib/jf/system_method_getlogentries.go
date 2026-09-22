@@ -20,10 +20,10 @@ type GetLogEntriesOperationResponse struct {
 // GetLogEntriesOperationOptions holds the query and header parameters of GetLogEntries.
 type GetLogEntriesOperationOptions struct {
 	// The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// The minimum date.
 	MinDate string
@@ -71,11 +71,11 @@ func (o GetLogEntriesOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetLogEntriesOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	if o.MinDate != "" {
 		out.Append("minDate", o.MinDate)
@@ -160,8 +160,14 @@ type GetLogEntriesCompleteResult struct {
 // result is loaded. options.Limit is the page size, client.DefaultPageSize when
 // unset.
 func (c Client) GetLogEntriesComplete(ctx context.Context, options GetLogEntriesOperationOptions) (result GetLogEntriesCompleteResult, err error) {
-	if options.Limit <= 0 {
-		options.Limit = client.DefaultPageSize
+	limit := client.DefaultPageSize
+	if options.Limit != nil && *options.Limit > 0 {
+		limit = *options.Limit
+	}
+	options.Limit = &limit
+	start := 0
+	if options.StartIndex != nil {
+		start = *options.StartIndex
 	}
 	for {
 		var page GetLogEntriesOperationResponse
@@ -175,10 +181,11 @@ func (c Client) GetLogEntriesComplete(ctx context.Context, options GetLogEntries
 			return
 		}
 		result.Items = append(result.Items, page.Model.Items...)
-		options.StartIndex += len(page.Model.Items)
+		start += len(page.Model.Items)
+		options.StartIndex = &start
 		// a short page is the last; so is reaching the total, when the server
 		// reports one (some Emby lists report 0 whatever they hold)
-		if len(page.Model.Items) < options.Limit || page.Model.TotalRecordCount > 0 && options.StartIndex >= page.Model.TotalRecordCount {
+		if len(page.Model.Items) < limit || page.Model.TotalRecordCount > 0 && start >= page.Model.TotalRecordCount {
 			return
 		}
 	}

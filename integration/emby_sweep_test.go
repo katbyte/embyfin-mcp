@@ -163,7 +163,7 @@ const (
 	embyNoTranscode = "HLS segments and live streams need a transcoding session to address; the sweep reads files, not streams"
 	embyNoGames     = "games are gone from Emby 4.10"
 	embyNoImage     = "the fixture has no image of that type, which the server answers with an error"
-	embyRemoteImage = "fetches an arbitrary image URL through the server; the provider tests cover remote images"
+	embyRemoteImage = "fetches an arbitrary image URL through the server, which the cassettes hold no image for; the provider tests cover the remote image search (GetItemsByIdRemoteImages)"
 	embyNoConnect   = "Emby Connect is not linked"
 	embyNoSubtitle  = "needs a subtitle id from a provider search, and no subtitle provider is configured"
 	embyNoUserOfKey = "an API key acts as no user, and the server needs one for this (a user token would answer)"
@@ -248,7 +248,7 @@ var embySweepCases = map[string]sweepCase{
 	"GetItemsByIdDeleteInfo":              {Status: 400, Why: embyNoUserOfKey},
 	"GetUIView":                           {Status: 400, Options: map[string]any{"PageId": "home", "ClientLocale": "en-US"}, Why: embyNoUserOfKey + ", and a page id the web client knows"},
 	"GetWebConfigurationPage":             {Status: 404, Why: "no plugin configuration page is named; the route answers 404 without one"},
-	"GetPackagesByName":                   {Skip: "the package catalogue comes from Emby's servers through the provider proxy; GetPackages covers it"},
+	"GetPackagesByName":                   {Skip: "needs a package name from the catalogue, which GetPackages fetches from mb3admin.com only on the runs the server does not give up on"},
 	"GetPackages":                         {Status: 500, Sometimes: true, Why: "the catalogue is fetched from mb3admin.com through the provider proxy, and the server gives up on a slow fetch with a 500"},
 	"GetPackagesUpdates":                  {Status: 500, Sometimes: true, Why: "the updates are read from the same catalogue, and a fetch the server gave up on fails them too"},
 	"GetSystemReleaseNotes":               {Status: 500, Sometimes: true, Why: "the release notes come from GitHub through the provider proxy, whose cassette elides the oversized answer"},

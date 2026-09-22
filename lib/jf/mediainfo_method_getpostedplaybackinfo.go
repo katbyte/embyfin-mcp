@@ -28,27 +28,27 @@ type GetPostedPlaybackInfoOperationOptions struct {
 	// The maximum streaming bitrate.
 	//
 	// Deprecated: the document marks this parameter deprecated.
-	MaxStreamingBitrate int
+	MaxStreamingBitrate *int
 
 	// The start time in ticks.
 	//
 	// Deprecated: the document marks this parameter deprecated.
-	StartTimeTicks int64
+	StartTimeTicks *int64
 
 	// The audio stream index.
 	//
 	// Deprecated: the document marks this parameter deprecated.
-	AudioStreamIndex int
+	AudioStreamIndex *int
 
 	// The subtitle stream index.
 	//
 	// Deprecated: the document marks this parameter deprecated.
-	SubtitleStreamIndex int
+	SubtitleStreamIndex *int
 
 	// The maximum number of audio channels.
 	//
 	// Deprecated: the document marks this parameter deprecated.
-	MaxAudioChannels int
+	MaxAudioChannels *int
 
 	// The media source id.
 	//
@@ -103,20 +103,20 @@ func (o GetPostedPlaybackInfoOperationOptions) ToQuery() *client.QueryParams {
 	if o.UserId != "" {
 		out.Append("userId", o.UserId)
 	}
-	if o.MaxStreamingBitrate != 0 {
-		out.Append("maxStreamingBitrate", strconv.Itoa(o.MaxStreamingBitrate))
+	if o.MaxStreamingBitrate != nil {
+		out.Append("maxStreamingBitrate", strconv.Itoa(*o.MaxStreamingBitrate))
 	}
-	if o.StartTimeTicks != 0 {
-		out.Append("startTimeTicks", strconv.FormatInt(o.StartTimeTicks, 10))
+	if o.StartTimeTicks != nil {
+		out.Append("startTimeTicks", strconv.FormatInt(*o.StartTimeTicks, 10))
 	}
-	if o.AudioStreamIndex != 0 {
-		out.Append("audioStreamIndex", strconv.Itoa(o.AudioStreamIndex))
+	if o.AudioStreamIndex != nil {
+		out.Append("audioStreamIndex", strconv.Itoa(*o.AudioStreamIndex))
 	}
-	if o.SubtitleStreamIndex != 0 {
-		out.Append("subtitleStreamIndex", strconv.Itoa(o.SubtitleStreamIndex))
+	if o.SubtitleStreamIndex != nil {
+		out.Append("subtitleStreamIndex", strconv.Itoa(*o.SubtitleStreamIndex))
 	}
-	if o.MaxAudioChannels != 0 {
-		out.Append("maxAudioChannels", strconv.Itoa(o.MaxAudioChannels))
+	if o.MaxAudioChannels != nil {
+		out.Append("maxAudioChannels", strconv.Itoa(*o.MaxAudioChannels))
 	}
 	if o.MediaSourceId != "" {
 		out.Append("mediaSourceId", o.MediaSourceId)

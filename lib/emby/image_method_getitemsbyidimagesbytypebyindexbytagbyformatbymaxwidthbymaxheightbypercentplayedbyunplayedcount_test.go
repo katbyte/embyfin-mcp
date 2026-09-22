@@ -15,9 +15,9 @@ func TestOperationGetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHei
 
 	c, s := newOperationServer(t, 200, "image/png", "file bytes")
 	result, err := c.GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCount(t.Context(), "p/id", ImageTypePrimary, 7, "p/tag", "p/format", 7, 7, 7, 7, GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCountOperationOptions{
-		Width:                7,
-		Height:               7,
-		Quality:              7,
+		Width:                new(7),
+		Height:               new(7),
+		Quality:              new(7),
 		CropWhitespace:       new(true),
 		EnableImageEnhancers: new(true),
 		BackgroundColor:      "v-BackgroundColor",
@@ -52,9 +52,9 @@ func TestOperationGetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHei
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCount(t.Context(), "p/id", ImageTypePrimary, 7, "p/tag", "p/format", 7, 7, 7, 7, GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCountOperationOptions{
-		Width:                7,
-		Height:               7,
-		Quality:              7,
+		Width:                new(7),
+		Height:               new(7),
+		Quality:              new(7),
 		CropWhitespace:       new(true),
 		EnableImageEnhancers: new(true),
 		BackgroundColor:      "v-BackgroundColor",

@@ -84,7 +84,7 @@ func (c *Client) ActivityLog(ctx context.Context, minDate time.Time, limit int) 
 	}
 
 	if c.isEmby() {
-		res, err := c.emby.GetSystemActivityLogEntries(ctx, emby.GetSystemActivityLogEntriesOperationOptions{MinDate: since, Limit: limit})
+		res, err := c.emby.GetSystemActivityLogEntries(ctx, emby.GetSystemActivityLogEntriesOperationOptions{MinDate: since, Limit: nz(limit)})
 		if err != nil {
 			return nil, 0, err
 		}
@@ -96,7 +96,7 @@ func (c *Client) ActivityLog(ctx context.Context, minDate time.Time, limit int) 
 		return entries, res.Model.TotalRecordCount, nil
 	}
 
-	res, err := c.jf.GetLogEntries(ctx, jf.GetLogEntriesOperationOptions{MinDate: since, Limit: limit})
+	res, err := c.jf.GetLogEntries(ctx, jf.GetLogEntriesOperationOptions{MinDate: since, Limit: nz(limit)})
 	if err != nil {
 		return nil, 0, err
 	}

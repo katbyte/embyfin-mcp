@@ -20,7 +20,7 @@ type PostUsersByIdImagesByTypeDeleteOperationResponse struct {
 // PostUsersByIdImagesByTypeDeleteOperationOptions holds the query and header parameters of PostUsersByIdImagesByTypeDelete.
 type PostUsersByIdImagesByTypeDeleteOperationOptions struct {
 	// Image Index
-	Index int
+	Index *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -32,8 +32,8 @@ func (o PostUsersByIdImagesByTypeDeleteOperationOptions) ToHeaders() *client.Hea
 // ToQuery returns the query parameters the options set.
 func (o PostUsersByIdImagesByTypeDeleteOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Index != 0 {
-		out.Append("Index", strconv.Itoa(o.Index))
+	if o.Index != nil {
+		out.Append("Index", strconv.Itoa(*o.Index))
 	}
 	return &out
 }

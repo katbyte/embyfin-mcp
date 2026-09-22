@@ -75,7 +75,10 @@ func TestTMDBSweep(t *testing.T) {
 		CassetteDir: filepath.Join("testdata", "cassettes", "tmdb"),
 		Addr:        "127.0.0.1:0",
 		RedactQuery: []string{"api_key"},
-		Logger:      log.New(io.Discard, "", 0),
+		// a new request token is a credential for a moment, and the cassette
+		// should not hold even that
+		RedactBodyFields: []string{"request_token"},
+		Logger:           log.New(io.Discard, "", 0),
 	})
 	if err != nil {
 		t.Fatal(err)

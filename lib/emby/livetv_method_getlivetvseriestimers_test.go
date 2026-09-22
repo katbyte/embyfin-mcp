@@ -17,8 +17,8 @@ func TestOperationGetLiveTvSeriesTimers(t *testing.T) {
 	result, err := c.GetLiveTvSeriesTimers(t.Context(), GetLiveTvSeriesTimersOperationOptions{
 		SortBy:     "v-SortBy",
 		SortOrder:  SortOrderAscending,
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -42,8 +42,8 @@ func TestOperationGetLiveTvSeriesTimers(t *testing.T) {
 	result, err = c.GetLiveTvSeriesTimers(t.Context(), GetLiveTvSeriesTimersOperationOptions{
 		SortBy:     "v-SortBy",
 		SortOrder:  SortOrderAscending,
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if err != nil || result.Model != nil {
 		t.Errorf("a 204 = %v, model %v", err, result.Model)
@@ -54,8 +54,8 @@ func TestOperationGetLiveTvSeriesTimers(t *testing.T) {
 	result, err = c.GetLiveTvSeriesTimers(t.Context(), GetLiveTvSeriesTimersOperationOptions{
 		SortBy:     "v-SortBy",
 		SortOrder:  SortOrderAscending,
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -66,8 +66,8 @@ func TestOperationGetLiveTvSeriesTimers(t *testing.T) {
 	result, err = c.GetLiveTvSeriesTimers(t.Context(), GetLiveTvSeriesTimersOperationOptions{
 		SortBy:     "v-SortBy",
 		SortOrder:  SortOrderAscending,
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)
@@ -77,13 +77,30 @@ func TestOperationGetLiveTvSeriesTimers(t *testing.T) {
 func TestOperationGetLiveTvSeriesTimersComplete(t *testing.T) {
 	t.Parallel()
 
-	c, starts := pagedServer(t, "StartIndex", "{}", 2)
-	result, err := c.GetLiveTvSeriesTimersComplete(t.Context(), GetLiveTvSeriesTimersOperationOptions{Limit: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// a page of one from the start, then from the first item, then the total is reached
-	if len(result.Items) != 2 || !slices.Equal(*starts, []string{"", "1"}) || result.LatestHttpResponse == nil {
-		t.Errorf("Complete = %d items over pages starting %q", len(result.Items), *starts)
+	// the three ways a walk ends: the total is reached, an empty page when the
+	// server reports no total, and a page shorter than the limit
+	for _, tc := range []struct {
+		name         string
+		total, pages int
+		options      GetLiveTvSeriesTimersOperationOptions
+		items        int
+		starts       []string
+	}{
+		{"total reached", 2, 9, GetLiveTvSeriesTimersOperationOptions{Limit: new(1)}, 2, []string{"", "1"}},
+		{"empty page", 0, 2, GetLiveTvSeriesTimersOperationOptions{Limit: new(1)}, 2, []string{"", "1", "2"}},
+		{"short page", 0, 9, GetLiveTvSeriesTimersOperationOptions{Limit: new(2)}, 1, []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, starts := pagedServer(t, "StartIndex", "{}", tc.total, tc.pages)
+			result, err := c.GetLiveTvSeriesTimersComplete(t.Context(), tc.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Items) != tc.items || !slices.Equal(*starts, tc.starts) || result.LatestHttpResponse == nil {
+				t.Errorf("Complete = %d items over pages starting %q, want %d over %q", len(result.Items), *starts, tc.items, tc.starts)
+			}
+		})
 	}
 }

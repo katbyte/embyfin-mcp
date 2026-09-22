@@ -17,6 +17,14 @@ var (
 	readers  = map[net.Conn]*bufio.Reader{}
 )
 
+// dropReader forgets a connection's reader once the tunnel is closed, or
+// the map would hold a reader and its connection for the proxy's life.
+func dropReader(c net.Conn) {
+	readerMu.Lock()
+	defer readerMu.Unlock()
+	delete(readers, c)
+}
+
 func newReader(c net.Conn) *bufio.Reader {
 	readerMu.Lock()
 	defer readerMu.Unlock()

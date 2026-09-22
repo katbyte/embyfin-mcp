@@ -23,7 +23,6 @@ func TestOperationPostEnvironmentDirectoryContents(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Environment/DirectoryContents")
 	expectQuery(t, r, "Path", "v-Path")
 	expectQuery(t, r, "IncludeFiles", "true")

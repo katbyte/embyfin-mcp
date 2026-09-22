@@ -20,10 +20,10 @@ type GetAuthKeysOperationResponse struct {
 // GetAuthKeysOperationOptions holds the query and header parameters of GetAuthKeys.
 type GetAuthKeysOperationOptions struct {
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return
-	Limit int
+	Limit *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -35,11 +35,11 @@ func (o GetAuthKeysOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetAuthKeysOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.StartIndex != 0 {
-		out.Append("StartIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("StartIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("Limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("Limit", strconv.Itoa(*o.Limit))
 	}
 	return &out
 }

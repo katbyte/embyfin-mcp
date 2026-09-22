@@ -558,7 +558,8 @@
             "NestedItem": {
               "Type": "String"
             }
-          }
+          },
+          "DeepObject": true
         },
         {
           "Name": "enableAudioVbrEncoding",
@@ -1038,7 +1039,8 @@
             "NestedItem": {
               "Type": "String"
             }
-          }
+          },
+          "DeepObject": true
         },
         {
           "Name": "enableAudioVbrEncoding",

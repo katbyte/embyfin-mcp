@@ -23,10 +23,10 @@ type GetResumeItemsOperationOptions struct {
 	UserId string
 
 	// The start index.
-	StartIndex int
+	StartIndex *int
 
 	// The item limit.
-	Limit int
+	Limit *int
 
 	// The search term.
 	SearchTerm string
@@ -44,7 +44,7 @@ type GetResumeItemsOperationOptions struct {
 	EnableUserData *bool
 
 	// Optional. The max number of images to return, per image type.
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes []ImageType
@@ -77,11 +77,11 @@ func (o GetResumeItemsOperationOptions) ToQuery() *client.QueryParams {
 	if o.UserId != "" {
 		out.Append("userId", o.UserId)
 	}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	if o.SearchTerm != "" {
 		out.Append("searchTerm", o.SearchTerm)
@@ -98,8 +98,8 @@ func (o GetResumeItemsOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableUserData != nil {
 		out.Append("enableUserData", strconv.FormatBool(*o.EnableUserData))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("imageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("imageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	for _, v := range o.EnableImageTypes {
 		out.Append("enableImageTypes", string(v))
@@ -166,8 +166,14 @@ type GetResumeItemsCompleteResult struct {
 // result is loaded. options.Limit is the page size, client.DefaultPageSize when
 // unset.
 func (c Client) GetResumeItemsComplete(ctx context.Context, options GetResumeItemsOperationOptions) (result GetResumeItemsCompleteResult, err error) {
-	if options.Limit <= 0 {
-		options.Limit = client.DefaultPageSize
+	limit := client.DefaultPageSize
+	if options.Limit != nil && *options.Limit > 0 {
+		limit = *options.Limit
+	}
+	options.Limit = &limit
+	start := 0
+	if options.StartIndex != nil {
+		start = *options.StartIndex
 	}
 	for {
 		var page GetResumeItemsOperationResponse
@@ -181,10 +187,11 @@ func (c Client) GetResumeItemsComplete(ctx context.Context, options GetResumeIte
 			return
 		}
 		result.Items = append(result.Items, page.Model.Items...)
-		options.StartIndex += len(page.Model.Items)
+		start += len(page.Model.Items)
+		options.StartIndex = &start
 		// a short page is the last; so is reaching the total, when the server
 		// reports one (some Emby lists report 0 whatever they hold)
-		if len(page.Model.Items) < options.Limit || page.Model.TotalRecordCount > 0 && options.StartIndex >= page.Model.TotalRecordCount {
+		if len(page.Model.Items) < limit || page.Model.TotalRecordCount > 0 && start >= page.Model.TotalRecordCount {
 			return
 		}
 	}

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Season 0 can be asked for.** Every number in a generated SDK option is now a pointer, so `show_episodes` and `library_episodes` take `season: 0` for the specials and an image index of 0 means the first image; before, a 0 was "not asked" and the whole series came back.
+- `library_items` and `library_episodes` with `saved_since` on Emby no longer drop the filter when a user, `watched` or `sort=played` is also given.
+- `audit_quality` judges a widescreen encode by its width (1280x536 is 720p), `audit_duplicates` keeps every copy of a film matched on two ids in one group, `audit_year_mismatch` reads the film's own year rather than a collection folder's, and `audit_missing_episodes` counts both halves of a double-episode file.
+- A `TMDB_KEY`/`--tmdb-key` set on the command line or in the environment now beats a `TMDB_TOKEN` in the config file, as documented.
+- Moving a Jellyfin playlist entry takes out and puts back only the entries from the lower of the two positions on, checks they landed, and sends them again if a scan's re-read of the playlist file undid it.
+- A Jellyfin library made, deleted or given a folder asks for its library scan on its own (`POST /Library/Refresh`), which is never dropped, rather than with the change, which Jellyfin drops silently when a scan is already running.
+- The provider proxy stores gzipped answers decoded, scrubs a redacted value from headers as well as the body, elides plugin binaries, and no longer records the server's own public address.
+
 Comparing a download folder against a big TV library: reading every episode at once, asking whether one exists, and getting a straight answer about what a series is missing.
 
 - **`show_missing` works on Emby 4.10 again.** It used to answer `{"missing": []}` for every series, which reads as "nothing is missing". It now reads the run from TMDB when the server has no record of it (set `EMBYFIN_TMDB_TOKEN`), and when it still cannot tell, it says so: `supported` is false and `missing` is `null`, never an empty list.

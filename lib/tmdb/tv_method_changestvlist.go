@@ -19,7 +19,7 @@ type ChangesTvListOperationResponse struct {
 // ChangesTvListOperationOptions holds the query and header parameters of ChangesTvList.
 type ChangesTvListOperationOptions struct {
 	EndDate   string
-	Page      int
+	Page      *int
 	StartDate string
 }
 
@@ -35,8 +35,8 @@ func (o ChangesTvListOperationOptions) ToQuery() *client.QueryParams {
 	if o.EndDate != "" {
 		out.Append("end_date", o.EndDate)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.StartDate != "" {
 		out.Append("start_date", o.StartDate)

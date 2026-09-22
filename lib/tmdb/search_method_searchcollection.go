@@ -21,7 +21,7 @@ type SearchCollectionOperationOptions struct {
 	Query        string
 	IncludeAdult *bool
 	Language     string
-	Page         int
+	Page         *int
 	Region       string
 }
 
@@ -43,8 +43,8 @@ func (o SearchCollectionOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.Region != "" {
 		out.Append("region", o.Region)

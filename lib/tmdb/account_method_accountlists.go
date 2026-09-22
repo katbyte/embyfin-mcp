@@ -19,7 +19,7 @@ type AccountListsOperationResponse struct {
 
 // AccountListsOperationOptions holds the query and header parameters of AccountLists.
 type AccountListsOperationOptions struct {
-	Page      int
+	Page      *int
 	SessionId string
 }
 
@@ -32,8 +32,8 @@ func (o AccountListsOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o AccountListsOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.SessionId != "" {
 		out.Append("session_id", o.SessionId)

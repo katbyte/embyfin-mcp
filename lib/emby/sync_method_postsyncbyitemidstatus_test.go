@@ -19,7 +19,6 @@ func TestOperationPostSyncByItemIdStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Sync/p%2FitemId/Status")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {
 		t.Errorf("Content-Type = %q, want %q", got, "application/json")

@@ -29,7 +29,7 @@ func TestEmbyRemoteImages(t *testing.T) {
 		t.Fatalf("remote image providers = %+v, want one offering Primary", providers)
 	}
 
-	res := must(embyc.GetItemsByIdRemoteImages(ctx, id, emby.GetItemsByIdRemoteImagesOperationOptions{Type: "Primary", Limit: 3, IncludeAllLanguages: new(false)})).Model
+	res := must(embyc.GetItemsByIdRemoteImages(ctx, id, emby.GetItemsByIdRemoteImagesOperationOptions{Type: "Primary", Limit: new(3), IncludeAllLanguages: new(false)})).Model
 	if res.TotalRecordCount == 0 || len(res.Images) == 0 {
 		t.Fatalf("remote Primary images for %s = %+v", alien, res)
 	}

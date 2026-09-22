@@ -109,7 +109,7 @@ func (c *Client) VirtualFolders(ctx context.Context) ([]VirtualFolder, error) {
 // Persons searches people (actors, directors, ...) known to the library.
 func (c *Client) Persons(ctx context.Context, searchTerm string, limit int) ([]Item, error) {
 	if c.isEmby() {
-		res, err := c.emby.GetPersons(ctx, emby.GetPersonsOperationOptions{SearchTerm: searchTerm, Limit: limit})
+		res, err := c.emby.GetPersons(ctx, emby.GetPersonsOperationOptions{SearchTerm: searchTerm, Limit: nz(limit)})
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +117,7 @@ func (c *Client) Persons(ctx context.Context, searchTerm string, limit int) ([]I
 		return itemsFromEmby(res.Model.Items), nil
 	}
 
-	res, err := c.jf.GetPersons(ctx, jf.GetPersonsOperationOptions{SearchTerm: searchTerm, Limit: limit})
+	res, err := c.jf.GetPersons(ctx, jf.GetPersonsOperationOptions{SearchTerm: searchTerm, Limit: nz(limit)})
 	if err != nil {
 		return nil, err
 	}
@@ -222,12 +222,29 @@ func (c *Client) CreateLibrary(ctx context.Context, spec LibrarySpec) error {
 	query := jf.AddVirtualFolderOperationOptions{
 		Name:           spec.Name,
 		Paths:          spec.Paths,
-		RefreshLibrary: new(spec.Refresh),
+		RefreshLibrary: new(false),
 	}
 	if spec.CollectionType != "mixed" {
 		query.CollectionType = jf.CollectionTypeOptions(spec.CollectionType)
 	}
-	_, err := c.jf.AddVirtualFolder(ctx, jf.AddVirtualFolderDto{LibraryOptions: options}, query)
+	if _, err := c.jf.AddVirtualFolder(ctx, jf.AddVirtualFolderDto{LibraryOptions: options}, query); err != nil {
+		return err
+	}
+	if !spec.Refresh {
+		return nil
+	}
+
+	return c.jfLibraryScan(ctx)
+}
+
+// jfLibraryScan asks Jellyfin for its library scan the way that is never
+// lost. A library change that asks for one with refreshLibrary=true is
+// dropped without a word when a scan is already running (StartScanInBackground
+// returns when IsScanRunning), which a suite creating and deleting libraries
+// back to back hits; POST /Library/Refresh cancels the running scan and
+// queues one instead, so the change is always seen.
+func (c *Client) jfLibraryScan(ctx context.Context) error {
+	_, err := c.jf.RefreshLibrary(ctx)
 
 	return err
 }
@@ -277,9 +294,11 @@ func (c *Client) DeleteLibrary(ctx context.Context, folder *VirtualFolder) error
 		return err
 	}
 
-	_, err := c.jf.RemoveVirtualFolder(ctx, jf.RemoveVirtualFolderOperationOptions{Name: folder.Name, RefreshLibrary: new(true)})
+	if _, err := c.jf.RemoveVirtualFolder(ctx, jf.RemoveVirtualFolderOperationOptions{Name: folder.Name, RefreshLibrary: new(false)}); err != nil {
+		return err
+	}
 
-	return err
+	return c.jfLibraryScan(ctx)
 }
 
 // SetLibraryNfo turns a library's nfo saver on or off. The options are posted
@@ -341,7 +360,7 @@ func (c *Client) RenameLibrary(ctx context.Context, folder *VirtualFolder, newNa
 // AddLibraryPath adds a folder on the server to a library. Emby picks the
 // folder up on the library's next scan. Jellyfin's scan of one library does
 // not see a changed folder (only its library scan revalidates the folders),
-// so there the change asks for that scan.
+// so there the change asks for that scan (see jfLibraryScan).
 func (c *Client) AddLibraryPath(ctx context.Context, folder *VirtualFolder, path string) error {
 	if c.isEmby() {
 		_, err := c.emby.PostLibraryVirtualFoldersPaths(ctx, emby.LibraryAddMediaPath{
@@ -351,9 +370,11 @@ func (c *Client) AddLibraryPath(ctx context.Context, folder *VirtualFolder, path
 		return err
 	}
 
-	_, err := c.jf.AddMediaPath(ctx, jf.MediaPathDto{Name: folder.Name, PathInfo: &jf.MediaPathInfo{Path: path}}, jf.AddMediaPathOperationOptions{RefreshLibrary: new(true)})
+	if _, err := c.jf.AddMediaPath(ctx, jf.MediaPathDto{Name: folder.Name, PathInfo: &jf.MediaPathInfo{Path: path}}, jf.AddMediaPathOperationOptions{RefreshLibrary: new(false)}); err != nil {
+		return err
+	}
 
-	return err
+	return c.jfLibraryScan(ctx)
 }
 
 // RemoveLibraryPath takes a folder out of a library; the files stay on disk.
@@ -364,9 +385,11 @@ func (c *Client) RemoveLibraryPath(ctx context.Context, folder *VirtualFolder, p
 		return err
 	}
 
-	_, err := c.jf.RemoveMediaPath(ctx, jf.RemoveMediaPathOperationOptions{Name: folder.Name, Path: path, RefreshLibrary: new(true)})
+	if _, err := c.jf.RemoveMediaPath(ctx, jf.RemoveMediaPathOperationOptions{Name: folder.Name, Path: path, RefreshLibrary: new(false)}); err != nil {
+		return err
+	}
 
-	return err
+	return c.jfLibraryScan(ctx)
 }
 
 // PathExists says whether the server can see a file or folder at path, as

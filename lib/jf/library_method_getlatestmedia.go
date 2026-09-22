@@ -37,7 +37,7 @@ type GetLatestMediaOperationOptions struct {
 	EnableImages *bool
 
 	// Optional. the max number of images to return, per image type.
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes []ImageType
@@ -46,7 +46,7 @@ type GetLatestMediaOperationOptions struct {
 	EnableUserData *bool
 
 	// Return item limit.
-	Limit int
+	Limit *int
 
 	// Whether or not to group items into a parent container.
 	GroupItems *bool
@@ -79,8 +79,8 @@ func (o GetLatestMediaOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableImages != nil {
 		out.Append("enableImages", strconv.FormatBool(*o.EnableImages))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("imageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("imageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	for _, v := range o.EnableImageTypes {
 		out.Append("enableImageTypes", string(v))
@@ -88,8 +88,8 @@ func (o GetLatestMediaOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableUserData != nil {
 		out.Append("enableUserData", strconv.FormatBool(*o.EnableUserData))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	if o.GroupItems != nil {
 		out.Append("groupItems", strconv.FormatBool(*o.GroupItems))

@@ -255,10 +255,7 @@ func (g *gen) clientFile() string {
 	if g.svc.Auth == "TMDB" {
 		return g.fileHeader(tmdbClient)
 	}
-	server := "Emby"
-	if g.svc.Auth == "Jellyfin" {
-		server = "Jellyfin"
-	}
+	server := g.svc.Auth
 	body := fmt.Sprintf(`// Client is a client for the %[1]s API; each of its operations is a method.
 // Requests go through Client.Client, the shared base client.
 type Client struct {
@@ -304,8 +301,9 @@ func (g *gen) docFile() string {
 // A method takes a context, then the path parameters in path order, then the
 // request body (input: the model for a JSON body, or an io.Reader and its
 // content type for raw bytes), then, when the operation has query or header
-// parameters, a <Name>OperationOptions. Unset options are not sent: zero
-// values are skipped, a *bool is sent when set, and lists are sent
+// parameters, a <Name>OperationOptions. Unset options are not sent: a
+// boolean or a number is a pointer, sent when set (so 0 and false can be
+// asked for), an empty string or list is skipped, and lists are sent
 // comma-joined.
 //
 // It returns a <Name>OperationResponse holding HttpResponse and, when the

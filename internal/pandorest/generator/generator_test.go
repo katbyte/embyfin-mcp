@@ -177,7 +177,7 @@ func TestGenerate(t *testing.T) {
 			"Model        *string\n", "Model        *Kind\n", "Model        Union\n",
 			// options on the wire
 			`out.Append("isFavorite", strconv.FormatBool(*o.IsFavorite))`,
-			`out.Append("ticks", strconv.FormatInt(o.Ticks, 10))`,
+			`out.Append("ticks", strconv.FormatInt(*o.Ticks, 10))`,
 			`out.Append("kind", string(o.Kind))`,
 			"for _, v := range o.Kinds {\n\t\tout.Append(\"kinds\", string(v))",
 			"for _, v := range o.Years {\n\t\tout.Append(\"years\", strconv.Itoa(v))",
@@ -196,7 +196,7 @@ func TestGenerate(t *testing.T) {
 				t.Errorf("the package lacks %q", want)
 			}
 		}
-		for _, re := range []string{"`json:\"IsFolder,omitempty\"`", "`json:\"Children,omitzero\"`", "`json:\"Parent,omitempty\"`", `Parent +\*Item`, `Blur +\*ItemBlur`, `Rating +float32`} {
+		for _, re := range []string{"`json:\"IsFolder,omitempty\"`", "`json:\"Children,omitzero\"`", "`json:\"Parent,omitempty\"`", `Parent +\*Item`, `Blur +\*ItemBlur`, `Rating +float32`, `Ticks +\*int64`} {
 			if !regexp.MustCompile(re).MatchString(all) {
 				t.Errorf("the package lacks %s", re)
 			}

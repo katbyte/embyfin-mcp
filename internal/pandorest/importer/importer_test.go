@@ -319,6 +319,17 @@ func TestImportFailures(t *testing.T) {
 			patch: func(s *openapi.Spec) { s.Components.Schemas["ItemBlur"] = &openapi.Schema{Type: "object"} },
 			want:  "type ItemBlur is declared by both",
 		},
+		{
+			// the component is declared first (schemas come before
+			// operations), so the operation's own inline response must not
+			// quietly become the component's shape
+			name: "component named like an operation's inline response",
+			patch: func(s *openapi.Spec) {
+				s.Components.Schemas["GetItemResponse"] = &openapi.Schema{Type: "object", Properties: map[string]*openapi.Schema{"Other": {Type: "string"}}}
+				s.Operation("GET", "/Items/{itemId}").Responses["200"].Content["application/json"].Schema = &openapi.Schema{Type: "object", Properties: map[string]*openapi.Schema{"Id": {Type: "string"}}}
+			},
+			want: "type GetItemResponse is declared by both",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -388,5 +399,190 @@ func TestInlineShapes(t *testing.T) {
 	}
 	if value := models["MovieAddRatingRequest"]; value == nil || len(value.Fields) != 1 || value.Fields[0].Type.Type != definitions.Double {
 		t.Errorf("the rating body = %+v", value)
+	}
+}
+
+// importMiniWarnings imports the patched mini document and returns the
+// warnings the importer logged.
+func importMiniWarnings(t *testing.T, patch func(*openapi.Spec)) (svc *definitions.Service, warnings []string) {
+	t.Helper()
+
+	spec, err := openapi.Parse([]byte(miniSpec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	patch(spec)
+	svc, err = FromSpec(miniConfig, spec, nil, func(msg string) {
+		if strings.Contains(msg, "warning:") {
+			warnings = append(warnings, msg)
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return svc, warnings
+}
+
+// How an option travels: a list comma-separated or one key per value, an
+// object as one JSON string or, in deepObject style, one key per field.
+func TestOptionWire(t *testing.T) {
+	t.Parallel()
+
+	no := false
+	svc, err := importMini(t, func(s *openapi.Spec) {
+		op := s.Operation("GET", "/Items")
+		op.Parameters = append(op.Parameters,
+			&openapi.Parameter{Name: "deep", In: openapi.InQuery, Style: "deepObject", Schema: &openapi.Schema{Type: openapi.TypeObject, AdditionalProperties: []byte(`{"type": "string"}`)}},
+			&openapi.Parameter{Name: "years", In: openapi.InQuery, Schema: &openapi.Schema{Type: openapi.TypeArray, Items: &openapi.Schema{Type: openapi.TypeInteger, Format: "int64"}}},
+			&openapi.Parameter{Name: "counts", In: openapi.InQuery, Schema: &openapi.Schema{Type: openapi.TypeArray, Items: &openapi.Schema{Type: openapi.TypeInteger}}},
+			&openapi.Parameter{Name: "X-Tags", In: openapi.InHeader, Schema: &openapi.Schema{Type: openapi.TypeArray, Items: &openapi.Schema{Type: openapi.TypeString}}},
+			&openapi.Parameter{Name: "X-Each", In: openapi.InHeader, Explode: new(true), Schema: &openapi.Schema{Type: openapi.TypeArray, Items: &openapi.Schema{Type: openapi.TypeString}}},
+			&openapi.Parameter{Name: "X-Comma", In: openapi.InHeader, Explode: &no, Schema: &openapi.Schema{Type: openapi.TypeArray, Items: &openapi.Schema{Type: openapi.TypeString}}},
+		)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := *find(svc.Operations(), func(o *definitions.Operation) bool { return o.Name == "GetItems" })
+	opt := func(name string) definitions.Option {
+		t.Helper()
+		o := find(get.Options, func(o definitions.Option) bool { return o.Name == name })
+		if o == nil {
+			t.Fatalf("no option %s", name)
+		}
+		return *o
+	}
+
+	if o := opt("deep"); o.Type.String() != "Dictionary[String]" || !o.DeepObject {
+		t.Errorf("deepObject option = %+v", o)
+	}
+	if o := opt("streamOptions"); o.Type.String() != "Dictionary[String]" || o.DeepObject {
+		t.Errorf("JSON-string object option = %+v", o)
+	}
+	if o := opt("years"); o.Type.String() != "List[Integer64]" || o.CommaSeparated {
+		t.Errorf("int64 list option = %+v", o)
+	}
+	if o := opt("counts"); o.Type.String() != "List[Integer]" {
+		t.Errorf("int list option = %+v", o)
+	}
+	if o := opt("X-Tags"); o.In != definitions.InHeader || o.Type.String() != "List[String]" || !o.CommaSeparated {
+		t.Errorf("header list without explode = %+v, want comma-separated", o)
+	}
+	if o := opt("X-Each"); o.In != definitions.InHeader || o.CommaSeparated {
+		t.Errorf("header list with explode true = %+v, want one key per value", o)
+	}
+	if o := opt("X-Comma"); !o.CommaSeparated {
+		t.Errorf("header list with explode false = %+v, want comma-separated", o)
+	}
+	for _, name := range []string{"deep", "years", "X-Tags"} {
+		if o := opt(name); o.DeepObject && o.Type.Type != definitions.Dictionary || o.CommaSeparated && o.Type.Type != definitions.List {
+			t.Errorf("%s: wire flags on the wrong type: %+v", name, o)
+		}
+	}
+}
+
+// What the importer warns about and skips rather than failing on.
+func TestImportWarnings(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		patch func(*openapi.Spec)
+		want  string
+		check func(t *testing.T, svc *definitions.Service)
+	}{
+		{
+			name: "two properties folding to one field",
+			patch: func(s *openapi.Spec) {
+				s.Components.Schemas["Item"].Properties["id"] = &openapi.Schema{Type: openapi.TypeInteger}
+			},
+			want: `mini: warning: Item: properties "Id" and "id" are both field Id; "id" skipped`,
+			check: func(t *testing.T, svc *definitions.Service) {
+				t.Helper()
+				item := svc.Models()["Item"]
+				n := 0
+				for _, f := range item.Fields {
+					if f.Name == "Id" {
+						n++
+						if f.JSONName != "Id" || f.Type.Type != definitions.String {
+							t.Errorf("Id = %+v, want the first property kept", f)
+						}
+					}
+				}
+				if n != 1 {
+					t.Errorf("Item has %d Id fields", n)
+				}
+			},
+		},
+		{
+			name: "two parameters folding to one field",
+			patch: func(s *openapi.Spec) {
+				op := s.Operation("GET", "/Items")
+				op.Parameters = append(op.Parameters, &openapi.Parameter{Name: "user_id", In: openapi.InQuery, Schema: &openapi.Schema{Type: openapi.TypeInteger}})
+			},
+			want: `mini: warning: GET /Items: parameters "userId" and "user_id" are both field UserId; "user_id" skipped`,
+			check: func(t *testing.T, svc *definitions.Service) {
+				t.Helper()
+				get := *find(svc.Operations(), func(o *definitions.Operation) bool { return o.Name == "GetItems" })
+				if o := find(get.Options, func(o definitions.Option) bool { return o.Name == "user_id" }); o != nil {
+					t.Errorf("user_id became an option: %+v", o)
+				}
+				if o := find(get.Options, func(o definitions.Option) bool { return o.Field == "UserId" }); o == nil || o.Name != "userId" {
+					t.Errorf("UserId = %+v, want the first parameter kept", o)
+				}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			svc, warnings := importMiniWarnings(t, tt.patch)
+			if !slices.Contains(warnings, tt.want) {
+				t.Errorf("warnings = %q, want %q", warnings, tt.want)
+			}
+			tt.check(t, svc)
+		})
+	}
+}
+
+// An XML-only request body cannot be sent by the generated client, so the
+// import fails rather than guessing at a content type.
+func TestXMLOnlyRequestBody(t *testing.T) {
+	t.Parallel()
+
+	_, err := importMini(t, func(s *openapi.Spec) {
+		s.Operation("POST", "/Items/{itemId}").RequestBody.Content = map[string]*openapi.MediaType{
+			"application/xml": {Schema: &openapi.Schema{Ref: openapi.SchemaRefPrefix + "Item"}},
+			"text/xml":        {Schema: &openapi.Schema{Ref: openapi.SchemaRefPrefix + "Item"}},
+		}
+	})
+	if err == nil || !strings.Contains(err.Error(), "POST /Items/{itemId}: request body is XML only") || !strings.Contains(err.Error(), "fix each with a workaround") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+// An option whose $ref names no schema is sent as a string: the servers bind
+// query parameters from text whatever the document says.
+func TestOptionUndefinedRef(t *testing.T) {
+	t.Parallel()
+
+	svc, err := importMini(t, func(s *openapi.Spec) {
+		op := s.Operation("GET", "/Items")
+		op.Parameters = append(op.Parameters,
+			&openapi.Parameter{Name: "ghost", In: openapi.InQuery, Schema: &openapi.Schema{Ref: openapi.SchemaRefPrefix + "Ghost"}},
+			&openapi.Parameter{Name: "ghosts", In: openapi.InQuery, Schema: &openapi.Schema{Type: openapi.TypeArray, Items: &openapi.Schema{Ref: openapi.SchemaRefPrefix + "Ghost"}}},
+		)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := *find(svc.Operations(), func(o *definitions.Operation) bool { return o.Name == "GetItems" })
+	if o := find(get.Options, func(o definitions.Option) bool { return o.Name == "ghost" }); o == nil || o.Type.String() != "String" {
+		t.Errorf("undefined $ref option = %+v, want String", o)
+	}
+	if o := find(get.Options, func(o definitions.Option) bool { return o.Name == "ghosts" }); o == nil || o.Type.String() != "List[String]" {
+		t.Errorf("undefined $ref list option = %+v, want List[String]", o)
 	}
 }

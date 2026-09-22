@@ -22,7 +22,6 @@ func TestOperationMovieAddRating(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/3/movie/7/rating")
 	expectQuery(t, r, "guest_session_id", "v-GuestSessionId")
 	expectQuery(t, r, "session_id", "v-SessionId")

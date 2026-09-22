@@ -17,10 +17,10 @@ func TestOperationGetSubtitleWithTicks(t *testing.T) {
 	result, err := c.GetSubtitleWithTicks(t.Context(), "p/routeItemId", "p/routeMediaSourceId", 7, 7, "p/routeFormat", GetSubtitleWithTicksOperationOptions{
 		ItemId:             "v-ItemId",
 		MediaSourceId:      "v-MediaSourceId",
-		Index:              7,
-		StartPositionTicks: 7,
+		Index:              new(7),
+		StartPositionTicks: new(int64(7)),
 		Format:             "v-Format",
-		EndPositionTicks:   7,
+		EndPositionTicks:   new(int64(7)),
 		CopyTimestamps:     new(true),
 		AddVttTimeMap:      new(true),
 	})
@@ -52,10 +52,10 @@ func TestOperationGetSubtitleWithTicks(t *testing.T) {
 	result, err = c.GetSubtitleWithTicks(t.Context(), "p/routeItemId", "p/routeMediaSourceId", 7, 7, "p/routeFormat", GetSubtitleWithTicksOperationOptions{
 		ItemId:             "v-ItemId",
 		MediaSourceId:      "v-MediaSourceId",
-		Index:              7,
-		StartPositionTicks: 7,
+		Index:              new(7),
+		StartPositionTicks: new(int64(7)),
 		Format:             "v-Format",
-		EndPositionTicks:   7,
+		EndPositionTicks:   new(int64(7)),
 		CopyTimestamps:     new(true),
 		AddVttTimeMap:      new(true),
 	})

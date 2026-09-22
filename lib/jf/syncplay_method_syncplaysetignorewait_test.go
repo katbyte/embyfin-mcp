@@ -19,7 +19,6 @@ func TestOperationSyncPlaySetIgnoreWait(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/SyncPlay/SetIgnoreWait")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {
 		t.Errorf("Content-Type = %q, want %q", got, "application/json")

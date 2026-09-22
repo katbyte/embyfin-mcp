@@ -103,7 +103,7 @@ func TestEmbyItemsQuery(t *testing.T) {
 	t.Run("Paging", func(t *testing.T) {
 		res := must(embyc.GetItems(ctx, emby.GetItemsOperationOptions{
 			ParentId: moviesID, Recursive: new(true), IncludeItemTypes: "Movie",
-			SortBy: "ProductionYear", SortOrder: "Descending", StartIndex: 2, Limit: 3, Fields: "ProductionYear",
+			SortBy: "ProductionYear", SortOrder: "Descending", StartIndex: new(2), Limit: new(3), Fields: "ProductionYear",
 		})).Model
 		if len(res.Items) != 3 || res.TotalRecordCount != len(movies) {
 			t.Errorf("StartIndex=2 Limit=3: %d items of %d", len(res.Items), res.TotalRecordCount)
@@ -240,7 +240,7 @@ func TestEmbyItem(t *testing.T) {
 	t.Run("Similar", func(t *testing.T) {
 		// the server finds nothing similar among the fixtures (it needs
 		// more than shared genres and people); the shape is what is asserted
-		res := must(embyc.GetItemsByIdSimilar(ctx, id, emby.GetItemsByIdSimilarOperationOptions{UserId: adminID, Limit: 3})).Model
+		res := must(embyc.GetItemsByIdSimilar(ctx, id, emby.GetItemsByIdSimilarOperationOptions{UserId: adminID, Limit: new(3)})).Model
 		t.Logf("%d similar items", len(res.Items))
 		for _, it := range res.Items {
 			if it.Id == "" || it.Name == "" || it.Id == id {
@@ -249,7 +249,7 @@ func TestEmbyItem(t *testing.T) {
 		}
 	})
 	t.Run("InstantMix", func(t *testing.T) {
-		res := must(embyc.GetItemsByIdInstantMix(ctx, id, emby.GetItemsByIdInstantMixOperationOptions{UserId: adminID, Limit: 5})).Model
+		res := must(embyc.GetItemsByIdInstantMix(ctx, id, emby.GetItemsByIdInstantMixOperationOptions{UserId: adminID, Limit: new(5)})).Model
 		for _, it := range res.Items {
 			if it.Id == "" || it.Name == "" {
 				t.Errorf("instant mix item = %+v", it)
@@ -333,7 +333,7 @@ func TestEmbyCatalogue(t *testing.T) {
 	if !slices.ContainsFunc(prefixes, func(p emby.NameValuePair) bool { return p.Name == "A" }) {
 		t.Errorf("GetItemsPrefixes = %+v, want A for Alien", prefixes)
 	}
-	latest := must(embyc.GetUsersByUserIdItemsLatest(ctx, adminID, emby.GetUsersByUserIdItemsLatestOperationOptions{ParentId: moviesID, Limit: 3})).Model
+	latest := must(embyc.GetUsersByUserIdItemsLatest(ctx, adminID, emby.GetUsersByUserIdItemsLatestOperationOptions{ParentId: moviesID, Limit: new(3)})).Model
 	if len(latest) != 3 || latest[0].Id == "" {
 		t.Errorf("latest = %d items", len(latest))
 	}

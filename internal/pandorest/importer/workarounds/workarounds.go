@@ -93,6 +93,22 @@ func operation(spec *openapi.Spec, method, path string) (*openapi.Operation, err
 	return op, nil
 }
 
+// jsonResponse is an operation's 200 application/json media type, or the
+// error a workaround returns when the document no longer declares one,
+// rather than a nil pointer where the README promises a message.
+func jsonResponse(op *openapi.Operation, what string) (*openapi.MediaType, error) {
+	ok := op.Responses["200"]
+	if ok == nil {
+		return nil, fmt.Errorf("%s has no 200 response", what)
+	}
+	media := ok.Content["application/json"]
+	if media == nil {
+		return nil, fmt.Errorf("%s no longer answers JSON", what)
+	}
+
+	return media, nil
+}
+
 // param is a parameter a workaround adds.
 type param struct {
 	name, in, typ, description string

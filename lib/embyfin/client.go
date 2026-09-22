@@ -143,3 +143,13 @@ func (c *Client) pause(ctx context.Context) error {
 		return nil
 	}
 }
+
+// nz is n as the pointer a generated option takes, nil for 0: the options
+// here keep 0 for "not asked", and only a season or an image index means 0.
+func nz[N int | int64](n N) *N {
+	if n == 0 {
+		return nil
+	}
+
+	return &n
+}

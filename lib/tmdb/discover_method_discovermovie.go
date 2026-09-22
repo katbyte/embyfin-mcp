@@ -32,18 +32,18 @@ type DiscoverMovieOperationOptions struct {
 	IncludeAdult          *bool
 	IncludeVideo          *bool
 	Language              string
-	Page                  int
-	PrimaryReleaseYear    int
+	Page                  *int
+	PrimaryReleaseYear    *int
 	PrimaryReleaseDateGte string
 	PrimaryReleaseDateLte string
 	Region                string
 	ReleaseDateGte        string
 	ReleaseDateLte        string
 	SortBy                string
-	VoteAverageGte        float64
-	VoteAverageLte        float64
-	VoteCountGte          float64
-	VoteCountLte          float64
+	VoteAverageGte        *float64
+	VoteAverageLte        *float64
+	VoteCountGte          *float64
+	VoteCountLte          *float64
 
 	// use in conjunction with `with_watch_monetization_types ` or `with_watch_providers `
 	WatchRegion string
@@ -69,9 +69,9 @@ type DiscoverMovieOperationOptions struct {
 	WithPeople string
 
 	// possible values are: [1, 2, 3, 4, 5, 6] can be a comma (`AND`) or pipe (`OR`) separated query, can be used in conjunction with `region`
-	WithReleaseType int
-	WithRuntimeGte  int
-	WithRuntimeLte  int
+	WithReleaseType *int
+	WithRuntimeGte  *int
+	WithRuntimeLte  *int
 
 	// possible values are: [flatrate, free, ads, rent, buy] use in conjunction with `watch_region`, can be a comma (`AND`) or pipe (`OR`) separated query
 	WithWatchMonetizationTypes string
@@ -82,7 +82,7 @@ type DiscoverMovieOperationOptions struct {
 	WithoutGenres         string
 	WithoutKeywords       string
 	WithoutWatchProviders string
-	Year                  int
+	Year                  *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -115,11 +115,11 @@ func (o DiscoverMovieOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
-	if o.PrimaryReleaseYear != 0 {
-		out.Append("primary_release_year", strconv.Itoa(o.PrimaryReleaseYear))
+	if o.PrimaryReleaseYear != nil {
+		out.Append("primary_release_year", strconv.Itoa(*o.PrimaryReleaseYear))
 	}
 	if o.PrimaryReleaseDateGte != "" {
 		out.Append("primary_release_date.gte", o.PrimaryReleaseDateGte)
@@ -139,17 +139,17 @@ func (o DiscoverMovieOperationOptions) ToQuery() *client.QueryParams {
 	if o.SortBy != "" {
 		out.Append("sort_by", o.SortBy)
 	}
-	if o.VoteAverageGte != 0 {
-		out.Append("vote_average.gte", strconv.FormatFloat(o.VoteAverageGte, 'f', -1, 64))
+	if o.VoteAverageGte != nil {
+		out.Append("vote_average.gte", strconv.FormatFloat(*o.VoteAverageGte, 'f', -1, 64))
 	}
-	if o.VoteAverageLte != 0 {
-		out.Append("vote_average.lte", strconv.FormatFloat(o.VoteAverageLte, 'f', -1, 64))
+	if o.VoteAverageLte != nil {
+		out.Append("vote_average.lte", strconv.FormatFloat(*o.VoteAverageLte, 'f', -1, 64))
 	}
-	if o.VoteCountGte != 0 {
-		out.Append("vote_count.gte", strconv.FormatFloat(o.VoteCountGte, 'f', -1, 64))
+	if o.VoteCountGte != nil {
+		out.Append("vote_count.gte", strconv.FormatFloat(*o.VoteCountGte, 'f', -1, 64))
 	}
-	if o.VoteCountLte != 0 {
-		out.Append("vote_count.lte", strconv.FormatFloat(o.VoteCountLte, 'f', -1, 64))
+	if o.VoteCountLte != nil {
+		out.Append("vote_count.lte", strconv.FormatFloat(*o.VoteCountLte, 'f', -1, 64))
 	}
 	if o.WatchRegion != "" {
 		out.Append("watch_region", o.WatchRegion)
@@ -178,14 +178,14 @@ func (o DiscoverMovieOperationOptions) ToQuery() *client.QueryParams {
 	if o.WithPeople != "" {
 		out.Append("with_people", o.WithPeople)
 	}
-	if o.WithReleaseType != 0 {
-		out.Append("with_release_type", strconv.Itoa(o.WithReleaseType))
+	if o.WithReleaseType != nil {
+		out.Append("with_release_type", strconv.Itoa(*o.WithReleaseType))
 	}
-	if o.WithRuntimeGte != 0 {
-		out.Append("with_runtime.gte", strconv.Itoa(o.WithRuntimeGte))
+	if o.WithRuntimeGte != nil {
+		out.Append("with_runtime.gte", strconv.Itoa(*o.WithRuntimeGte))
 	}
-	if o.WithRuntimeLte != 0 {
-		out.Append("with_runtime.lte", strconv.Itoa(o.WithRuntimeLte))
+	if o.WithRuntimeLte != nil {
+		out.Append("with_runtime.lte", strconv.Itoa(*o.WithRuntimeLte))
 	}
 	if o.WithWatchMonetizationTypes != "" {
 		out.Append("with_watch_monetization_types", o.WithWatchMonetizationTypes)
@@ -205,8 +205,8 @@ func (o DiscoverMovieOperationOptions) ToQuery() *client.QueryParams {
 	if o.WithoutWatchProviders != "" {
 		out.Append("without_watch_providers", o.WithoutWatchProviders)
 	}
-	if o.Year != 0 {
-		out.Append("year", strconv.Itoa(o.Year))
+	if o.Year != nil {
+		out.Append("year", strconv.Itoa(*o.Year))
 	}
 	return &out
 }

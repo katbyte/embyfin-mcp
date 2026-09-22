@@ -16,8 +16,8 @@ func TestOperationGetUsersPrefixes(t *testing.T) {
 	result, err := c.GetUsersPrefixes(t.Context(), GetUsersPrefixesOperationOptions{
 		IsHidden:                new(true),
 		IsDisabled:              new(true),
-		StartIndex:              7,
-		Limit:                   7,
+		StartIndex:              new(7),
+		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
 	})
@@ -45,8 +45,8 @@ func TestOperationGetUsersPrefixes(t *testing.T) {
 	result, err = c.GetUsersPrefixes(t.Context(), GetUsersPrefixesOperationOptions{
 		IsHidden:                new(true),
 		IsDisabled:              new(true),
-		StartIndex:              7,
-		Limit:                   7,
+		StartIndex:              new(7),
+		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
 	})
@@ -59,8 +59,8 @@ func TestOperationGetUsersPrefixes(t *testing.T) {
 	result, err = c.GetUsersPrefixes(t.Context(), GetUsersPrefixesOperationOptions{
 		IsHidden:                new(true),
 		IsDisabled:              new(true),
-		StartIndex:              7,
-		Limit:                   7,
+		StartIndex:              new(7),
+		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
 	})
@@ -73,8 +73,8 @@ func TestOperationGetUsersPrefixes(t *testing.T) {
 	result, err = c.GetUsersPrefixes(t.Context(), GetUsersPrefixesOperationOptions{
 		IsHidden:                new(true),
 		IsDisabled:              new(true),
-		StartIndex:              7,
-		Limit:                   7,
+		StartIndex:              new(7),
+		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
 	})

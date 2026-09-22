@@ -14,8 +14,8 @@ func TestOperationGetSearchHints(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GetSearchHints(t.Context(), GetSearchHintsOperationOptions{
-		StartIndex:       7,
-		Limit:            7,
+		StartIndex:       new(7),
+		Limit:            new(7),
 		UserId:           "v-UserId",
 		SearchTerm:       "v-SearchTerm",
 		IncludeItemTypes: []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
@@ -67,8 +67,8 @@ func TestOperationGetSearchHints(t *testing.T) {
 	// an answer that does not decode is an error, with the response
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetSearchHints(t.Context(), GetSearchHintsOperationOptions{
-		StartIndex:       7,
-		Limit:            7,
+		StartIndex:       new(7),
+		Limit:            new(7),
 		UserId:           "v-UserId",
 		SearchTerm:       "v-SearchTerm",
 		IncludeItemTypes: []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
@@ -93,8 +93,8 @@ func TestOperationGetSearchHints(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetSearchHints(t.Context(), GetSearchHintsOperationOptions{
-		StartIndex:       7,
-		Limit:            7,
+		StartIndex:       new(7),
+		Limit:            new(7),
 		UserId:           "v-UserId",
 		SearchTerm:       "v-SearchTerm",
 		IncludeItemTypes: []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},

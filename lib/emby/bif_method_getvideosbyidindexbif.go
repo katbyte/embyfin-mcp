@@ -22,7 +22,7 @@ type GetVideosByIdIndexBifOperationResponse struct {
 
 // GetVideosByIdIndexBifOperationOptions holds the query and header parameters of GetVideosByIdIndexBif.
 type GetVideosByIdIndexBifOperationOptions struct {
-	Width int
+	Width *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -34,8 +34,8 @@ func (o GetVideosByIdIndexBifOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetVideosByIdIndexBifOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Width != 0 {
-		out.Append("Width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("Width", strconv.Itoa(*o.Width))
 	}
 	return &out
 }

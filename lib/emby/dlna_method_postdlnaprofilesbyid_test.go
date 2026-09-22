@@ -19,7 +19,6 @@ func TestOperationPostDlnaProfilesById(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Dlna/Profiles/p%2Fid")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {
 		t.Errorf("Content-Type = %q, want %q", got, "application/json")

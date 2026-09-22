@@ -2,14 +2,17 @@ package providerproxy
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -225,10 +228,18 @@ func TestBodyStorage(t *testing.T) {
 		t.Errorf("large feed was not kept intact: elided=%v len=%d", rss.Elided, len(rss.Body))
 	}
 
+	// bytes that are not text are kept as base64 (a server needs them back
+	// intact): a Latin-1 list under octet-stream too. A blob under that type
+	// holding NUL bytes is a plugin or an installer, elided like media
 	var binary interaction
-	binary.setBody([]byte{0xff, 0xfe, 0x00}, "application/octet-stream")
-	if binary.BodyBase64 == "" || binary.Body != "" {
+	binary.setBody([]byte("Studio Caf\xe9\n"), "application/octet-stream")
+	if binary.BodyBase64 == "" || binary.Body != "" || binary.Elided {
 		t.Errorf("binary body not base64: %+v", binary)
+	}
+	var blob interaction
+	blob.setBody([]byte{0x4d, 0x5a, 0x90, 0x00}, "application/octet-stream")
+	if !blob.Elided || blob.BodyBase64 != "" {
+		t.Errorf("an octet-stream blob was kept: %+v", blob)
 	}
 
 	var text interaction
@@ -238,16 +249,120 @@ func TestBodyStorage(t *testing.T) {
 	}
 }
 
+// Record mode against a local upstream, so the recording path is checked on
+// every run: a gzipped JSON answer is stored decoded and readable, a plugin
+// binary is elided, and what was written replays.
+func TestRecordDecodesGzipAndElidesBinaries(t *testing.T) {
+	t.Parallel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/3/authentication/token/new":
+			w.Header().Set("Content-Type", "application/json;charset=utf-8")
+			w.Header().Set("Content-Encoding", "gzip")
+			w.Header().Set("Authentication-Callback", "https://www.themoviedb.org/authenticate/tok-1")
+			zw := gzip.NewWriter(w)
+			_, _ = zw.Write([]byte(`{"success":true,"request_token":"tok-1"}`))
+			_ = zw.Close()
+		case "/packageFiles/Plugin.dll":
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write([]byte{0x4d, 0x5a, 0x90, 0x00, 0xff, 0xfe})
+		default:
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write([]byte("Studio One\nStudio Two\n"))
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	dir := t.TempDir()
+	p, err := New(Options{Mode: Record, CassetteDir: dir, Logger: log.New(io.Discard, "", 0), RedactBodyFields: []string{"request_token"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := clientThrough(t, p)
+	get := func(path string) string {
+		t.Helper()
+		req, reqErr := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL+path, http.NoBody)
+		if reqErr != nil {
+			t.Fatal(reqErr)
+		}
+		req.Header.Set("Accept-Encoding", "gzip") // as a server asking for gzip would
+		resp, doErr := client.Do(req)
+		if doErr != nil {
+			t.Fatal(doErr)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		return string(body)
+	}
+	if got := get("/3/authentication/token/new"); strings.Contains(got, "tok-1") {
+		t.Errorf("the recorded answer still carries the token: %s", got)
+	}
+	get("/packageFiles/Plugin.dll")
+	get("/studios.txt")
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	host := strings.TrimPrefix(upstream.URL, "http://")
+	raw, err := os.ReadFile(filepath.Join(dir, hostFile(host))) //nolint:gosec // a path this test just wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c cassette
+	if err := json.Unmarshal(raw, &c); err != nil {
+		t.Fatal(err)
+	}
+	byPath := map[string]*interaction{}
+	for _, i := range c.Interactions {
+		byPath[i.Path] = i
+	}
+	token := byPath["/3/authentication/token/new"]
+	if token == nil || token.BodyBase64 != "" || token.Body != `{"success":true,"request_token":"`+redactedValue+`"}` || token.Headers["Content-Encoding"] != "" {
+		t.Errorf("gzipped JSON = %+v, want it decoded, redacted and stored as text", token)
+	}
+	if cb := token.Headers["Authentication-Callback"]; strings.Contains(cb, "tok-1") {
+		t.Errorf("the header still carries the token: %s", cb)
+	}
+	if dll := byPath["/packageFiles/Plugin.dll"]; dll == nil || !dll.Elided || dll.ElidedSize != 6 {
+		t.Errorf("a binary = %+v, want it elided", dll)
+	}
+	if txt := byPath["/studios.txt"]; txt == nil || txt.Elided || txt.Body != "Studio One\nStudio Two\n" {
+		t.Errorf("a text list under octet-stream = %+v, want it kept", txt)
+	}
+
+	// and it replays, decoded, without the upstream
+	upstream.Close()
+	replay, err := New(Options{CassetteDir: dir, Logger: log.New(io.Discard, "", 0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = replay.Close() }()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+host+"/3/authentication/token/new", http.NoBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := clientThrough(t, replay).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if !strings.Contains(string(body), `"success":true`) || len(replay.Misses()) != 0 {
+		t.Errorf("replayed = %s, misses %v", body, replay.Misses())
+	}
+}
+
 // Record mode against a real provider. Off by default so `go test ./...` stays
 // hermetic; this is the check that the recording path still works when a
 // cassette needs refreshing.
 //
-//	ABS_TEST_PROVIDERS_LIVE=1 go test ./lib/providerproxy/ -run Record -v
+//	EMBYFIN_TEST_PROVIDERS_LIVE=1 go test ./lib/providerproxy/ -run Record -v
 func TestRecordAgainstRealProvider(t *testing.T) {
 	t.Parallel()
 
-	if os.Getenv("ABS_TEST_PROVIDERS_LIVE") == "" {
-		t.Skip("set ABS_TEST_PROVIDERS_LIVE=1 to record against the real providers")
+	if os.Getenv("EMBYFIN_TEST_PROVIDERS_LIVE") == "" {
+		t.Skip("set EMBYFIN_TEST_PROVIDERS_LIVE=1 to record against the real providers")
 	}
 
 	dir := t.TempDir()
@@ -351,12 +466,23 @@ func TestRedactJSONFields(t *testing.T) {
 	t.Parallel()
 
 	const login = `{"status":"success","data":{"token":"eyJhbGciOiJSUzI1NiJ9.payload.sig"}}`
-	got := redactJSONFields(login, []string{"token"})
+	got, secrets := redactJSONFields(login, []string{"token"})
 	if strings.Contains(got, "eyJ") {
 		t.Errorf("the token survived: %s", got)
 	}
 	if want := `{"status":"success","data":{"token":"` + redactedValue + `"}}`; got != want {
 		t.Errorf("redacted = %s, want %s", got, want)
+	}
+	if !slices.Equal(secrets, []string{"eyJhbGciOiJSUzI1NiJ9.payload.sig"}) {
+		t.Errorf("secrets = %v, want the token, so a header carrying it can be scrubbed too", secrets)
+	}
+
+	// the same value in a header goes too: TMDB's new request token comes
+	// back in the body and in an Authentication-Callback link
+	i := &interaction{Body: `{"request_token":"abc123"}`, Headers: map[string]string{"Authentication-Callback": "https://www.themoviedb.org/authenticate/abc123", "Server": "openresty"}}
+	i.redact([]string{"request_token"})
+	if strings.Contains(i.Body, "abc123") || strings.Contains(i.Headers["Authentication-Callback"], "abc123") || i.Headers["Server"] != "openresty" {
+		t.Errorf("redact = %+v", i)
 	}
 
 	// a value carrying an escaped quote, a field that is not named, a body
@@ -371,7 +497,7 @@ func TestRedactJSONFields(t *testing.T) {
 		{"not json", `plain text with token: abc`, `plain text with token: abc`, []string{"token"}},
 		{"no fields named", `{"token":"abc"}`, `{"token":"abc"}`, nil},
 	} {
-		if got := redactJSONFields(tc.body, tc.fields); got != tc.want {
+		if got, _ := redactJSONFields(tc.body, tc.fields); got != tc.want {
 			t.Errorf("%s: redacted = %s, want %s", tc.name, got, tc.want)
 		}
 	}

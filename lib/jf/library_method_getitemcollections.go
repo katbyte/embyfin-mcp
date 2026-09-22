@@ -24,10 +24,10 @@ type GetItemCollectionsOperationOptions struct {
 	UserId string
 
 	// Optional. The index of the first record in the output.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// Optional. Specify additional fields of information to return in the output.
 	Fields []ItemFields
@@ -45,11 +45,11 @@ func (o GetItemCollectionsOperationOptions) ToQuery() *client.QueryParams {
 	if o.UserId != "" {
 		out.Append("userId", o.UserId)
 	}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	for _, v := range o.Fields {
 		out.Append("fields", string(v))
@@ -101,8 +101,14 @@ type GetItemCollectionsCompleteResult struct {
 // result is loaded. options.Limit is the page size, client.DefaultPageSize when
 // unset.
 func (c Client) GetItemCollectionsComplete(ctx context.Context, itemId string, options GetItemCollectionsOperationOptions) (result GetItemCollectionsCompleteResult, err error) {
-	if options.Limit <= 0 {
-		options.Limit = client.DefaultPageSize
+	limit := client.DefaultPageSize
+	if options.Limit != nil && *options.Limit > 0 {
+		limit = *options.Limit
+	}
+	options.Limit = &limit
+	start := 0
+	if options.StartIndex != nil {
+		start = *options.StartIndex
 	}
 	for {
 		var page GetItemCollectionsOperationResponse
@@ -116,10 +122,11 @@ func (c Client) GetItemCollectionsComplete(ctx context.Context, itemId string, o
 			return
 		}
 		result.Items = append(result.Items, page.Model.Items...)
-		options.StartIndex += len(page.Model.Items)
+		start += len(page.Model.Items)
+		options.StartIndex = &start
 		// a short page is the last; so is reaching the total, when the server
 		// reports one (some Emby lists report 0 whatever they hold)
-		if len(page.Model.Items) < options.Limit || page.Model.TotalRecordCount > 0 && options.StartIndex >= page.Model.TotalRecordCount {
+		if len(page.Model.Items) < limit || page.Model.TotalRecordCount > 0 && start >= page.Model.TotalRecordCount {
 			return
 		}
 	}

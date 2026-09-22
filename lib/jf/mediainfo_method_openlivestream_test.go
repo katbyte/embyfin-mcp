@@ -18,11 +18,11 @@ func TestOperationOpenLiveStream(t *testing.T) {
 		OpenToken:                           "v-OpenToken",
 		UserId:                              "v-UserId",
 		PlaySessionId:                       "v-PlaySessionId",
-		MaxStreamingBitrate:                 7,
-		StartTimeTicks:                      7,
-		AudioStreamIndex:                    7,
-		SubtitleStreamIndex:                 7,
-		MaxAudioChannels:                    7,
+		MaxStreamingBitrate:                 new(7),
+		StartTimeTicks:                      new(int64(7)),
+		AudioStreamIndex:                    new(7),
+		SubtitleStreamIndex:                 new(7),
+		MaxAudioChannels:                    new(7),
 		ItemId:                              "v-ItemId",
 		EnableDirectPlay:                    new(true),
 		EnableDirectStream:                  new(true),
@@ -32,7 +32,6 @@ func TestOperationOpenLiveStream(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/LiveStreams/Open")
 	expectQuery(t, r, "openToken", "v-OpenToken")
 	expectQuery(t, r, "userId", "v-UserId")
@@ -65,11 +64,11 @@ func TestOperationOpenLiveStream(t *testing.T) {
 		OpenToken:                           "v-OpenToken",
 		UserId:                              "v-UserId",
 		PlaySessionId:                       "v-PlaySessionId",
-		MaxStreamingBitrate:                 7,
-		StartTimeTicks:                      7,
-		AudioStreamIndex:                    7,
-		SubtitleStreamIndex:                 7,
-		MaxAudioChannels:                    7,
+		MaxStreamingBitrate:                 new(7),
+		StartTimeTicks:                      new(int64(7)),
+		AudioStreamIndex:                    new(7),
+		SubtitleStreamIndex:                 new(7),
+		MaxAudioChannels:                    new(7),
 		ItemId:                              "v-ItemId",
 		EnableDirectPlay:                    new(true),
 		EnableDirectStream:                  new(true),
@@ -85,11 +84,11 @@ func TestOperationOpenLiveStream(t *testing.T) {
 		OpenToken:                           "v-OpenToken",
 		UserId:                              "v-UserId",
 		PlaySessionId:                       "v-PlaySessionId",
-		MaxStreamingBitrate:                 7,
-		StartTimeTicks:                      7,
-		AudioStreamIndex:                    7,
-		SubtitleStreamIndex:                 7,
-		MaxAudioChannels:                    7,
+		MaxStreamingBitrate:                 new(7),
+		StartTimeTicks:                      new(int64(7)),
+		AudioStreamIndex:                    new(7),
+		SubtitleStreamIndex:                 new(7),
+		MaxAudioChannels:                    new(7),
 		ItemId:                              "v-ItemId",
 		EnableDirectPlay:                    new(true),
 		EnableDirectStream:                  new(true),

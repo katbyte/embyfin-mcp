@@ -25,7 +25,7 @@ type GetInstantMixFromMusicGenreByIdOperationOptions struct {
 	UserId string
 
 	// Optional. The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// Optional. Specify additional fields of information to return in the output.
 	Fields []ItemFields
@@ -37,7 +37,7 @@ type GetInstantMixFromMusicGenreByIdOperationOptions struct {
 	EnableUserData *bool
 
 	// Optional. The max number of images to return, per image type.
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes []ImageType
@@ -58,8 +58,8 @@ func (o GetInstantMixFromMusicGenreByIdOperationOptions) ToQuery() *client.Query
 	if o.UserId != "" {
 		out.Append("userId", o.UserId)
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	for _, v := range o.Fields {
 		out.Append("fields", string(v))
@@ -70,8 +70,8 @@ func (o GetInstantMixFromMusicGenreByIdOperationOptions) ToQuery() *client.Query
 	if o.EnableUserData != nil {
 		out.Append("enableUserData", strconv.FormatBool(*o.EnableUserData))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("imageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("imageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	for _, v := range o.EnableImageTypes {
 		out.Append("enableImageTypes", string(v))

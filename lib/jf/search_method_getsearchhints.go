@@ -19,10 +19,10 @@ type GetSearchHintsOperationResponse struct {
 // GetSearchHintsOperationOptions holds the query and header parameters of GetSearchHints.
 type GetSearchHintsOperationOptions struct {
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// Optional. Supply a user id to search within a user's library or omit to search all.
 	UserId string
@@ -82,11 +82,11 @@ func (o GetSearchHintsOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetSearchHintsOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	if o.UserId != "" {
 		out.Append("userId", o.UserId)

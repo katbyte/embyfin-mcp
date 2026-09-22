@@ -26,7 +26,7 @@ type DeleteUsersByUserIdPlayingItemsByIdOperationOptions struct {
 	NextMediaType string
 
 	// Optional. The position, in ticks, where playback stopped. 1ms = 10000 ticks.
-	PositionTicks int64
+	PositionTicks *int64
 	LiveStreamId  string
 	PlaySessionId string
 }
@@ -46,8 +46,8 @@ func (o DeleteUsersByUserIdPlayingItemsByIdOperationOptions) ToQuery() *client.Q
 	if o.NextMediaType != "" {
 		out.Append("NextMediaType", o.NextMediaType)
 	}
-	if o.PositionTicks != 0 {
-		out.Append("PositionTicks", strconv.FormatInt(o.PositionTicks, 10))
+	if o.PositionTicks != nil {
+		out.Append("PositionTicks", strconv.FormatInt(*o.PositionTicks, 10))
 	}
 	if o.LiveStreamId != "" {
 		out.Append("LiveStreamId", o.LiveStreamId)

@@ -22,7 +22,6 @@ func TestOperationUpdateDisplayPreferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/DisplayPreferences/p%2FdisplayPreferencesId")
 	expectQuery(t, r, "userId", "v-UserId")
 	expectQuery(t, r, "client", "v-Client")

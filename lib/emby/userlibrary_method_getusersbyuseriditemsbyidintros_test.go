@@ -16,7 +16,7 @@ func TestOperationGetUsersByUserIdItemsByIdIntros(t *testing.T) {
 	result, err := c.GetUsersByUserIdItemsByIdIntros(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdIntrosOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -43,7 +43,7 @@ func TestOperationGetUsersByUserIdItemsByIdIntros(t *testing.T) {
 	result, err = c.GetUsersByUserIdItemsByIdIntros(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdIntrosOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -56,7 +56,7 @@ func TestOperationGetUsersByUserIdItemsByIdIntros(t *testing.T) {
 	result, err = c.GetUsersByUserIdItemsByIdIntros(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdIntrosOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -69,7 +69,7 @@ func TestOperationGetUsersByUserIdItemsByIdIntros(t *testing.T) {
 	result, err = c.GetUsersByUserIdItemsByIdIntros(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdIntrosOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})

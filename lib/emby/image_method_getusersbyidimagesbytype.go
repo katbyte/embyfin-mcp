@@ -23,19 +23,19 @@ type GetUsersByIdImagesByTypeOperationResponse struct {
 // GetUsersByIdImagesByTypeOperationOptions holds the query and header parameters of GetUsersByIdImagesByType.
 type GetUsersByIdImagesByTypeOperationOptions struct {
 	// The maximum image width to return.
-	MaxWidth int
+	MaxWidth *int
 
 	// The maximum image height to return.
-	MaxHeight int
+	MaxHeight *int
 
 	// The fixed image width to return.
-	Width int
+	Width *int
 
 	// The fixed image height to return.
-	Height int
+	Height *int
 
 	// Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.
-	Quality int
+	Quality *int
 
 	// Optional. Supply the cache tag from the item object to receive strong caching headers.
 	Tag string
@@ -62,7 +62,7 @@ type GetUsersByIdImagesByTypeOperationOptions struct {
 	KeepAnimation *bool
 
 	// Image Index
-	Index int
+	Index *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -74,20 +74,20 @@ func (o GetUsersByIdImagesByTypeOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetUsersByIdImagesByTypeOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.MaxWidth != 0 {
-		out.Append("MaxWidth", strconv.Itoa(o.MaxWidth))
+	if o.MaxWidth != nil {
+		out.Append("MaxWidth", strconv.Itoa(*o.MaxWidth))
 	}
-	if o.MaxHeight != 0 {
-		out.Append("MaxHeight", strconv.Itoa(o.MaxHeight))
+	if o.MaxHeight != nil {
+		out.Append("MaxHeight", strconv.Itoa(*o.MaxHeight))
 	}
-	if o.Width != 0 {
-		out.Append("Width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("Width", strconv.Itoa(*o.Width))
 	}
-	if o.Height != 0 {
-		out.Append("Height", strconv.Itoa(o.Height))
+	if o.Height != nil {
+		out.Append("Height", strconv.Itoa(*o.Height))
 	}
-	if o.Quality != 0 {
-		out.Append("Quality", strconv.Itoa(o.Quality))
+	if o.Quality != nil {
+		out.Append("Quality", strconv.Itoa(*o.Quality))
 	}
 	if o.Tag != "" {
 		out.Append("Tag", o.Tag)
@@ -113,8 +113,8 @@ func (o GetUsersByIdImagesByTypeOperationOptions) ToQuery() *client.QueryParams 
 	if o.KeepAnimation != nil {
 		out.Append("KeepAnimation", strconv.FormatBool(*o.KeepAnimation))
 	}
-	if o.Index != 0 {
-		out.Append("Index", strconv.Itoa(o.Index))
+	if o.Index != nil {
+		out.Append("Index", strconv.Itoa(*o.Index))
 	}
 	return &out
 }

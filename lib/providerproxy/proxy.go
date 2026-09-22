@@ -22,6 +22,8 @@
 package providerproxy
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -296,6 +298,7 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = conn.Close() }()
+	defer dropReader(conn)
 
 	if err := raw.SetDeadline(time.Time{}); err != nil {
 		p.logger.Printf("clearing the deadline for %s: %v", host, err)
@@ -481,6 +484,17 @@ func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, erro
 		return nil, err
 	}
 
+	// a gzipped answer is stored decoded: the cassette stays a readable
+	// diff, a credential in it can be redacted, and Verify has JSON to
+	// compare rather than two blobs
+	headers := resp.Header.Clone()
+	if strings.EqualFold(headers.Get("Content-Encoding"), "gzip") {
+		if plain, err := gunzip(body); err == nil {
+			body = plain
+			headers.Del("Content-Encoding")
+		}
+	}
+
 	i := &interaction{
 		Key:     k,
 		Method:  strings.ToUpper(r.Method),
@@ -488,12 +502,23 @@ func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, erro
 		Path:    path,
 		Query:   r.URL.RawQuery,
 		Status:  resp.StatusCode,
-		Headers: keepHeaders(resp.Header),
+		Headers: keepHeaders(headers),
 	}
-	i.setBody(body, resp.Header.Get("Content-Type"))
-	i.Body = redactJSONFields(i.Body, p.redactBody)
+	i.setBody(body, headers.Get("Content-Type"))
+	i.redact(p.redactBody)
 
 	return i, nil
+}
+
+// gunzip decodes a gzipped body.
+func gunzip(b []byte) ([]byte, error) {
+	zr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = zr.Close() }()
+
+	return io.ReadAll(zr)
 }
 
 // record fetches and stores. fetch alone is what Verify uses, so that a

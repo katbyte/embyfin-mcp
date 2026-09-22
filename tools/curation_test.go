@@ -215,6 +215,14 @@ func TestCheckQuality(t *testing.T) {
 	if _, _, flagged := checkQuality(&embyfin.Item{MediaSources: []embyfin.MediaSource{video("h264", 640, 360, 0), video("hevc", 3840, 2160, 0)}}, in); flagged {
 		t.Error("an item with a 4K version was flagged")
 	}
+	// a widescreen encode is judged by its width: 1280x536 is a 720p picture
+	// with the bars cropped, not a 536p one
+	if d, h, flagged := checkQuality(&embyfin.Item{MediaSources: []embyfin.MediaSource{video("h264", 1280, 536, 0)}}, in); flagged || h != 720 {
+		t.Errorf("a 2.39:1 720p encode = %q %d %v", d, h, flagged)
+	}
+	if d, h, flagged := checkQuality(&embyfin.Item{MediaSources: []embyfin.MediaSource{video("h264", 1920, 800, 0)}}, qualityDefaults(qualityIn{MinHeight: 1080})); flagged || h != 1080 {
+		t.Errorf("a 2.40:1 1080p encode against 1080 = %q %d %v", d, h, flagged)
+	}
 	// the codec check can be turned off, and a bitrate floor on
 	in.Codecs = new(false)
 	if _, _, flagged := checkQuality(&embyfin.Item{MediaSources: []embyfin.MediaSource{video("mpeg2video", 1920, 1080, 0)}}, in); flagged {

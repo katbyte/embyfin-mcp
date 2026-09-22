@@ -27,7 +27,7 @@ type GetSimilarArtistsOperationOptions struct {
 	UserId string
 
 	// Optional. The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// Optional. Specify additional fields of information to return in the output. This allows multiple, comma delimited. Options: Budget, Chapters, DateCreated, Genres, HomePageUrl, IndexOptions, MediaStreams, Overview, ParentId, Path, People, ProviderIds, PrimaryImageAspectRatio, Revenue, SortName, Studios, Taglines, TrailerUrls.
 	Fields []ItemFields
@@ -48,8 +48,8 @@ func (o GetSimilarArtistsOperationOptions) ToQuery() *client.QueryParams {
 	if o.UserId != "" {
 		out.Append("userId", o.UserId)
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	for _, v := range o.Fields {
 		out.Append("fields", string(v))

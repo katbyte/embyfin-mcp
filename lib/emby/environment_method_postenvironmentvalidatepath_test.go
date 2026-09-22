@@ -21,7 +21,6 @@ func TestOperationPostEnvironmentValidatePath(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Environment/ValidatePath")
 	expectQuery(t, r, "Path", "v-Path")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {

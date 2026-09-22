@@ -23,13 +23,13 @@ type GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentP
 // GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCountOperationOptions holds the query and header parameters of GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCount.
 type GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCountOperationOptions struct {
 	// The fixed image width to return.
-	Width int
+	Width *int
 
 	// The fixed image height to return.
-	Height int
+	Height *int
 
 	// Optional quality setting, from 0-100. Defaults to 90 and should suffice in most cases.
-	Quality int
+	Quality *int
 
 	// Specify if whitespace should be cropped out of the image. True/False. If unspecified, whitespace will be cropped from logos and clear art.
 	CropWhitespace *bool
@@ -59,14 +59,14 @@ func (o GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPerce
 // ToQuery returns the query parameters the options set.
 func (o GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCountOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Width != 0 {
-		out.Append("Width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("Width", strconv.Itoa(*o.Width))
 	}
-	if o.Height != 0 {
-		out.Append("Height", strconv.Itoa(o.Height))
+	if o.Height != nil {
+		out.Append("Height", strconv.Itoa(*o.Height))
 	}
-	if o.Quality != 0 {
-		out.Append("Quality", strconv.Itoa(o.Quality))
+	if o.Quality != nil {
+		out.Append("Quality", strconv.Itoa(*o.Quality))
 	}
 	if o.CropWhitespace != nil {
 		out.Append("CropWhitespace", strconv.FormatBool(*o.CropWhitespace))

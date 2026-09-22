@@ -19,7 +19,7 @@ type SearchKeywordOperationResponse struct {
 // SearchKeywordOperationOptions holds the query and header parameters of SearchKeyword.
 type SearchKeywordOperationOptions struct {
 	Query string
-	Page  int
+	Page  *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -34,8 +34,8 @@ func (o SearchKeywordOperationOptions) ToQuery() *client.QueryParams {
 	if o.Query != "" {
 		out.Append("query", o.Query)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	return &out
 }

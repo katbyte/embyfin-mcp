@@ -15,12 +15,12 @@ func TestOperationGetItemImage2(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "image/png", "file bytes")
 	result, err := c.GetItemImage2(t.Context(), "p/itemId", ImageTypePrimary, 7, "p/tag", ImageFormatBmp, 7, 7, 1.5, 7, GetItemImage2OperationOptions{
-		Width:           7,
-		Height:          7,
-		Quality:         7,
-		FillWidth:       7,
-		FillHeight:      7,
-		Blur:            7,
+		Width:           new(7),
+		Height:          new(7),
+		Quality:         new(7),
+		FillWidth:       new(7),
+		FillHeight:      new(7),
+		Blur:            new(7),
 		BackgroundColor: "v-BackgroundColor",
 		ForegroundLayer: "v-ForegroundLayer",
 	})
@@ -50,12 +50,12 @@ func TestOperationGetItemImage2(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetItemImage2(t.Context(), "p/itemId", ImageTypePrimary, 7, "p/tag", ImageFormatBmp, 7, 7, 1.5, 7, GetItemImage2OperationOptions{
-		Width:           7,
-		Height:          7,
-		Quality:         7,
-		FillWidth:       7,
-		FillHeight:      7,
-		Blur:            7,
+		Width:           new(7),
+		Height:          new(7),
+		Quality:         new(7),
+		FillWidth:       new(7),
+		FillHeight:      new(7),
+		Blur:            new(7),
 		BackgroundColor: "v-BackgroundColor",
 		ForegroundLayer: "v-ForegroundLayer",
 	})

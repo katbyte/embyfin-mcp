@@ -180,9 +180,9 @@ type SearchOptions struct {
 	Studios         []string
 	OfficialRatings []string
 	Years           string // comma-separated production years
-	// ParentIndexNumber restricts to one season number (episodes only); 0 is
-	// every season, so the specials cannot be asked for this way.
-	ParentIndexNumber int
+	// ParentIndexNumber restricts to one season number (episodes only): nil
+	// is every season, 0 the specials.
+	ParentIndexNumber *int
 	IDs               string // comma-separated item ids
 	Filters           string // e.g. IsPlayed, IsFavorite, IsResumable
 	SortBy            string // e.g. DateCreated, DateModified, DatePlayed, SortName
@@ -240,8 +240,8 @@ func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields stri
 		MinDateLastSaved:  opts.SavedSince,
 		Path:              opts.Path,
 		ParentIndexNumber: opts.ParentIndexNumber,
-		Limit:             opts.Limit,
-		StartIndex:        opts.StartIndex,
+		Limit:             nz(opts.Limit),
+		StartIndex:        nz(opts.StartIndex),
 	}
 	if opts.EnableUserData {
 		o.EnableUserData = new(true)
@@ -284,6 +284,8 @@ func embyUserItemsOptions(o *emby.GetItemsOperationOptions) emby.GetUsersByUserI
 		Studios:           o.Studios,
 		OfficialRatings:   o.OfficialRatings,
 		Years:             o.Years,
+		MinDateLastSaved:  o.MinDateLastSaved,
+		Path:              o.Path,
 		ParentIndexNumber: o.ParentIndexNumber,
 		Ids:               o.Ids,
 		Filters:           o.Filters,
@@ -324,8 +326,8 @@ func (c *Client) searchJF(ctx context.Context, opts SearchOptions, fields string
 		SortOrder:           list[jf.SortOrder](opts.SortOrder),
 		MinDateLastSaved:    opts.SavedSince,
 		UserId:              opts.UserID,
-		Limit:               opts.Limit,
-		StartIndex:          opts.StartIndex,
+		Limit:               nz(opts.Limit),
+		StartIndex:          nz(opts.StartIndex),
 	}
 	if opts.EnableUserData {
 		o.EnableUserData = new(true)
@@ -368,13 +370,14 @@ func (c *Client) SearchAll(ctx context.Context, opts SearchOptions, cb func(item
 
 // ItemByID fetches a single item with full detail fields.
 func (c *Client) ItemByID(ctx context.Context, id string) (*Item, error) {
-	items, _, err := c.Search(ctx, SearchOptions{IDs: id, Fields: FieldsDetail})
+	// Emby drops an Ids filter it cannot parse and answers with the whole
+	// library, so the answer has to be the item that was asked for, and the
+	// query is capped so that whole library is never actually pulled
+	items, _, err := c.Search(ctx, SearchOptions{IDs: id, Fields: FieldsDetail, Limit: 2})
 	if err != nil {
 		return nil, err
 	}
 
-	// Emby drops an Ids filter it cannot parse and answers with the whole
-	// library, so the answer has to be the item that was asked for
 	if len(items) == 0 || items[0].ID != id {
 		return nil, fmt.Errorf("no item with id %s", id)
 	}
@@ -421,7 +424,7 @@ func (c *Client) ItemsByProviderID(ctx context.Context, provider, id string) ([]
 // userID is required: Emby returns HTTP 500 for /Similar without one.
 func (c *Client) Similar(ctx context.Context, id, userID string, limit int) ([]Item, error) {
 	if c.isEmby() {
-		res, err := c.emby.GetItemsByIdSimilar(ctx, id, emby.GetItemsByIdSimilarOperationOptions{UserId: userID, Fields: FieldsDefault, Limit: limit})
+		res, err := c.emby.GetItemsByIdSimilar(ctx, id, emby.GetItemsByIdSimilarOperationOptions{UserId: userID, Fields: FieldsDefault, Limit: nz(limit)})
 		if err != nil {
 			return nil, err
 		}
@@ -429,7 +432,7 @@ func (c *Client) Similar(ctx context.Context, id, userID string, limit int) ([]I
 		return itemsFromEmby(res.Model.Items), nil
 	}
 
-	res, err := c.jf.GetSimilarItems(ctx, id, jf.GetSimilarItemsOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault), Limit: limit})
+	res, err := c.jf.GetSimilarItems(ctx, id, jf.GetSimilarItemsOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault), Limit: nz(limit)})
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +443,7 @@ func (c *Client) Similar(ctx context.Context, id, userID string, limit int) ([]I
 // InstantMix builds a music mix seeded from a song, album, artist, or genre.
 func (c *Client) InstantMix(ctx context.Context, id string, limit int) ([]Item, error) {
 	if c.isEmby() {
-		res, err := c.emby.GetItemsByIdInstantMix(ctx, id, emby.GetItemsByIdInstantMixOperationOptions{Fields: FieldsDefault, Limit: limit})
+		res, err := c.emby.GetItemsByIdInstantMix(ctx, id, emby.GetItemsByIdInstantMixOperationOptions{Fields: FieldsDefault, Limit: nz(limit)})
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +451,7 @@ func (c *Client) InstantMix(ctx context.Context, id string, limit int) ([]Item, 
 		return itemsFromEmby(res.Model.Items), nil
 	}
 
-	res, err := c.jf.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{Fields: list[jf.ItemFields](FieldsDefault), Limit: limit})
+	res, err := c.jf.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{Fields: list[jf.ItemFields](FieldsDefault), Limit: nz(limit)})
 	if err != nil {
 		return nil, err
 	}

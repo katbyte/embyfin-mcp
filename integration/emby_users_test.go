@@ -120,7 +120,7 @@ func TestEmbyPlayedAndResume(t *testing.T) {
 
 	// nothing is in progress yet, so the list is empty but must decode
 	resume := func() *emby.QueryResultBaseItemDto {
-		return must(embyc.GetUsersByUserIdItemsResume(ctx, adminID, emby.GetUsersByUserIdItemsResumeOperationOptions{Recursive: new(true), MediaTypes: "Video", Limit: 5})).Model
+		return must(embyc.GetUsersByUserIdItemsResume(ctx, adminID, emby.GetUsersByUserIdItemsResumeOperationOptions{Recursive: new(true), MediaTypes: "Video", Limit: new(5)})).Model
 	}
 	if res := resume(); len(res.Items) != 0 {
 		t.Errorf("resume items = %+v", res)

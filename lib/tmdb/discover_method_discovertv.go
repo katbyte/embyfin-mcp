@@ -20,20 +20,20 @@ type DiscoverTvOperationResponse struct {
 type DiscoverTvOperationOptions struct {
 	AirDateGte               string
 	AirDateLte               string
-	FirstAirDateYear         int
+	FirstAirDateYear         *int
 	FirstAirDateGte          string
 	FirstAirDateLte          string
 	IncludeAdult             *bool
 	IncludeNullFirstAirDates *bool
 	Language                 string
-	Page                     int
+	Page                     *int
 	ScreenedTheatrically     *bool
 	SortBy                   string
 	Timezone                 string
-	VoteAverageGte           float64
-	VoteAverageLte           float64
-	VoteCountGte             float64
-	VoteCountLte             float64
+	VoteAverageGte           *float64
+	VoteAverageLte           *float64
+	VoteCountGte             *float64
+	VoteCountLte             *float64
 
 	// use in conjunction with `with_watch_monetization_types ` or `with_watch_providers `
 	WatchRegion string
@@ -46,11 +46,11 @@ type DiscoverTvOperationOptions struct {
 
 	// can be a comma (`AND`) or pipe (`OR`) separated query
 	WithKeywords         string
-	WithNetworks         int
+	WithNetworks         *int
 	WithOriginCountry    string
 	WithOriginalLanguage string
-	WithRuntimeGte       int
-	WithRuntimeLte       int
+	WithRuntimeGte       *int
+	WithRuntimeLte       *int
 
 	// possible values are: [0, 1, 2, 3, 4, 5], can be a comma (`AND`) or pipe (`OR`) separated query
 	WithStatus string
@@ -84,8 +84,8 @@ func (o DiscoverTvOperationOptions) ToQuery() *client.QueryParams {
 	if o.AirDateLte != "" {
 		out.Append("air_date.lte", o.AirDateLte)
 	}
-	if o.FirstAirDateYear != 0 {
-		out.Append("first_air_date_year", strconv.Itoa(o.FirstAirDateYear))
+	if o.FirstAirDateYear != nil {
+		out.Append("first_air_date_year", strconv.Itoa(*o.FirstAirDateYear))
 	}
 	if o.FirstAirDateGte != "" {
 		out.Append("first_air_date.gte", o.FirstAirDateGte)
@@ -102,8 +102,8 @@ func (o DiscoverTvOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.ScreenedTheatrically != nil {
 		out.Append("screened_theatrically", strconv.FormatBool(*o.ScreenedTheatrically))
@@ -114,17 +114,17 @@ func (o DiscoverTvOperationOptions) ToQuery() *client.QueryParams {
 	if o.Timezone != "" {
 		out.Append("timezone", o.Timezone)
 	}
-	if o.VoteAverageGte != 0 {
-		out.Append("vote_average.gte", strconv.FormatFloat(o.VoteAverageGte, 'f', -1, 64))
+	if o.VoteAverageGte != nil {
+		out.Append("vote_average.gte", strconv.FormatFloat(*o.VoteAverageGte, 'f', -1, 64))
 	}
-	if o.VoteAverageLte != 0 {
-		out.Append("vote_average.lte", strconv.FormatFloat(o.VoteAverageLte, 'f', -1, 64))
+	if o.VoteAverageLte != nil {
+		out.Append("vote_average.lte", strconv.FormatFloat(*o.VoteAverageLte, 'f', -1, 64))
 	}
-	if o.VoteCountGte != 0 {
-		out.Append("vote_count.gte", strconv.FormatFloat(o.VoteCountGte, 'f', -1, 64))
+	if o.VoteCountGte != nil {
+		out.Append("vote_count.gte", strconv.FormatFloat(*o.VoteCountGte, 'f', -1, 64))
 	}
-	if o.VoteCountLte != 0 {
-		out.Append("vote_count.lte", strconv.FormatFloat(o.VoteCountLte, 'f', -1, 64))
+	if o.VoteCountLte != nil {
+		out.Append("vote_count.lte", strconv.FormatFloat(*o.VoteCountLte, 'f', -1, 64))
 	}
 	if o.WatchRegion != "" {
 		out.Append("watch_region", o.WatchRegion)
@@ -138,8 +138,8 @@ func (o DiscoverTvOperationOptions) ToQuery() *client.QueryParams {
 	if o.WithKeywords != "" {
 		out.Append("with_keywords", o.WithKeywords)
 	}
-	if o.WithNetworks != 0 {
-		out.Append("with_networks", strconv.Itoa(o.WithNetworks))
+	if o.WithNetworks != nil {
+		out.Append("with_networks", strconv.Itoa(*o.WithNetworks))
 	}
 	if o.WithOriginCountry != "" {
 		out.Append("with_origin_country", o.WithOriginCountry)
@@ -147,11 +147,11 @@ func (o DiscoverTvOperationOptions) ToQuery() *client.QueryParams {
 	if o.WithOriginalLanguage != "" {
 		out.Append("with_original_language", o.WithOriginalLanguage)
 	}
-	if o.WithRuntimeGte != 0 {
-		out.Append("with_runtime.gte", strconv.Itoa(o.WithRuntimeGte))
+	if o.WithRuntimeGte != nil {
+		out.Append("with_runtime.gte", strconv.Itoa(*o.WithRuntimeGte))
 	}
-	if o.WithRuntimeLte != 0 {
-		out.Append("with_runtime.lte", strconv.Itoa(o.WithRuntimeLte))
+	if o.WithRuntimeLte != nil {
+		out.Append("with_runtime.lte", strconv.Itoa(*o.WithRuntimeLte))
 	}
 	if o.WithStatus != "" {
 		out.Append("with_status", o.WithStatus)

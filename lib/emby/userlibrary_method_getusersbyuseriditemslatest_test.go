@@ -14,7 +14,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "application/json", "[{}]")
 	result, err := c.GetUsersByUserIdItemsLatest(t.Context(), "p/userId", GetUsersByUserIdItemsLatestOperationOptions{
-		Limit:            7,
+		Limit:            new(7),
 		ParentId:         "v-ParentId",
 		Fields:           "v-Fields",
 		IncludeItemTypes: "v-IncludeItemTypes",
@@ -23,7 +23,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 		IsPlayed:         new(true),
 		GroupItems:       new(true),
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -55,7 +55,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 	// a 204 is a null result, with no model
 	c, _ = newOperationServer(t, http.StatusNoContent, "", "")
 	result, err = c.GetUsersByUserIdItemsLatest(t.Context(), "p/userId", GetUsersByUserIdItemsLatestOperationOptions{
-		Limit:            7,
+		Limit:            new(7),
 		ParentId:         "v-ParentId",
 		Fields:           "v-Fields",
 		IncludeItemTypes: "v-IncludeItemTypes",
@@ -64,7 +64,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 		IsPlayed:         new(true),
 		GroupItems:       new(true),
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -75,7 +75,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 	// an answer that does not decode is an error, with the response
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetUsersByUserIdItemsLatest(t.Context(), "p/userId", GetUsersByUserIdItemsLatestOperationOptions{
-		Limit:            7,
+		Limit:            new(7),
 		ParentId:         "v-ParentId",
 		Fields:           "v-Fields",
 		IncludeItemTypes: "v-IncludeItemTypes",
@@ -84,7 +84,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 		IsPlayed:         new(true),
 		GroupItems:       new(true),
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -95,7 +95,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetUsersByUserIdItemsLatest(t.Context(), "p/userId", GetUsersByUserIdItemsLatestOperationOptions{
-		Limit:            7,
+		Limit:            new(7),
 		ParentId:         "v-ParentId",
 		Fields:           "v-Fields",
 		IncludeItemTypes: "v-IncludeItemTypes",
@@ -104,7 +104,7 @@ func TestOperationGetUsersByUserIdItemsLatest(t *testing.T) {
 		IsPlayed:         new(true),
 		GroupItems:       new(true),
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})

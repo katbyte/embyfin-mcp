@@ -233,10 +233,13 @@ func (c *Client) RenamePlaylist(ctx context.Context, playlistID, userID, name st
 // MovePlaylistEntry moves an entry (a PlaylistItemID, not an item id) to a
 // zero-based position in the playlist. Emby moves it in place. Jellyfin's
 // move checks access against the calling user, which an API key is not (a
-// 400), so there the entries are taken out and put back in the new order,
-// which the key may do. An add made meanwhile from this process waits for the
-// move (see keyedLocks): Emby would otherwise see the playlist change under
-// the move, and Jellyfin's put-back would race it.
+// 400), so there the entries from the lower of the two positions on are
+// taken out and put back in the new order, which the key may do; the put-back
+// is checked and re-sent as an add is, since a scan's re-read of the
+// playlist file can land between the two and put the old entries back. An
+// add made meanwhile from this process waits for the move (see keyedLocks):
+// Emby would otherwise see the playlist change under the move, and
+// Jellyfin's put-back would race it.
 func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entryID string, newIndex int) error {
 	unlock := c.items.lock(playlistID)
 	defer unlock()
@@ -258,17 +261,52 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 		return c.moveEmbyEntry(ctx, playlistID, userID, entries, order, from, newIndex)
 	}
 
-	entryIDs := make([]string, 0, len(entries))
-	itemIDs := make([]string, 0, len(entries))
-	for _, e := range order {
+	// everything before the lower of the two positions stays where it is
+	lo := min(from, newIndex)
+	entryIDs := make([]string, 0, len(entries)-lo)
+	for _, e := range entries[lo:] {
 		entryIDs = append(entryIDs, e.PlaylistItemID)
+	}
+	itemIDs := make([]string, 0, len(order)-lo)
+	for _, e := range order[lo:] {
 		itemIDs = append(itemIDs, e.ID)
 	}
-	if err := c.removeEntries(ctx, playlistID, entryIDs); err != nil {
-		return err
+	want := itemCounts(order)
+	now := entries
+	for attempt := range 2 {
+		if attempt > 0 {
+			if now, _, err = c.PlaylistItems(ctx, playlistID, userID); err != nil {
+				return err
+			}
+		}
+		switch {
+		case sameItems(now, order):
+			return nil
+		case !sameItems(now, entries):
+			return fmt.Errorf("the playlist changed while entry %s was being moved", entryID)
+		}
+		// the entry ids are read afresh: a put-back the server undid may
+		// have renumbered them
+		entryIDs = entryIDs[:0]
+		for _, e := range now[lo:] {
+			entryIDs = append(entryIDs, e.PlaylistItemID)
+		}
+		if err := c.removeEntries(ctx, playlistID, entryIDs); err != nil {
+			return err
+		}
+		if err := c.addItems(ctx, playlistID, itemIDs, userID); err != nil {
+			return err
+		}
+		missing, err := c.playlistMissing(ctx, playlistID, userID, want)
+		if err != nil {
+			return err
+		}
+		if len(missing) > 0 {
+			return fmt.Errorf("the server did not keep %s in the playlist after moving entry %s", strings.Join(missing, ", "), entryID)
+		}
 	}
 
-	return c.addItems(ctx, playlistID, itemIDs, userID)
+	return fmt.Errorf("the server did not move entry %s", entryID)
 }
 
 // moveEmbyEntry moves entries[from] to newIndex and waits to see order. Emby

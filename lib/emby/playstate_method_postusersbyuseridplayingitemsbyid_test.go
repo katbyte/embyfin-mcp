@@ -16,8 +16,8 @@ func TestOperationPostUsersByUserIdPlayingItemsById(t *testing.T) {
 	result, err := c.PostUsersByUserIdPlayingItemsById(t.Context(), "p/userId", "p/id", PostUsersByUserIdPlayingItemsByIdOperationOptions{
 		MediaSourceId:       "v-MediaSourceId",
 		CanSeek:             new(true),
-		AudioStreamIndex:    7,
-		SubtitleStreamIndex: 7,
+		AudioStreamIndex:    new(7),
+		SubtitleStreamIndex: new(7),
 		PlayMethod:          PlayMethodTranscode,
 		LiveStreamId:        "v-LiveStreamId",
 		PlaySessionId:       "v-PlaySessionId",
@@ -44,8 +44,8 @@ func TestOperationPostUsersByUserIdPlayingItemsById(t *testing.T) {
 	result, err = c.PostUsersByUserIdPlayingItemsById(t.Context(), "p/userId", "p/id", PostUsersByUserIdPlayingItemsByIdOperationOptions{
 		MediaSourceId:       "v-MediaSourceId",
 		CanSeek:             new(true),
-		AudioStreamIndex:    7,
-		SubtitleStreamIndex: 7,
+		AudioStreamIndex:    new(7),
+		SubtitleStreamIndex: new(7),
 		PlayMethod:          PlayMethodTranscode,
 		LiveStreamId:        "v-LiveStreamId",
 		PlaySessionId:       "v-PlaySessionId",

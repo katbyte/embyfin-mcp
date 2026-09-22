@@ -14,7 +14,7 @@ func TestOperationPostUsersByIdImagesByTypeDelete(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "", "")
 	result, err := c.PostUsersByIdImagesByTypeDelete(t.Context(), "p/id", ImageTypePrimary, PostUsersByIdImagesByTypeDeleteOperationOptions{
-		Index: 7,
+		Index: new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -30,7 +30,7 @@ func TestOperationPostUsersByIdImagesByTypeDelete(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.PostUsersByIdImagesByTypeDelete(t.Context(), "p/id", ImageTypePrimary, PostUsersByIdImagesByTypeDeleteOperationOptions{
-		Index: 7,
+		Index: new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

@@ -21,7 +21,6 @@ func TestOperationPostDisplayPreferencesByDisplayPreferencesId(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/DisplayPreferences/p%2FdisplayPreferencesId")
 	expectQuery(t, r, "UserId", "v-UserId")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {

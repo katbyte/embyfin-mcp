@@ -301,6 +301,45 @@ func TestCutoffs(t *testing.T) {
 	}
 }
 
+// audit_duplicates groups by shared id, and an entry carrying two ids joins
+// the entries sharing either: three copies of one film, one matched on tmdb,
+// one on imdb and one on both, are one group, not two that overlap or,
+// depending on map order, one of the two dropped.
+func TestGroupByProviderID(t *testing.T) {
+	t.Parallel()
+
+	both := embyfin.Item{ID: "x", Name: "Alien", ProviderIDs: map[string]string{"Tmdb": "348", "Imdb": "tt0078748"}}
+	imdb := embyfin.Item{ID: "y", Name: "Alien", ProviderIDs: map[string]string{"Imdb": "tt0078748"}}
+	tmdb := embyfin.Item{ID: "z", Name: "Alien", ProviderIDs: map[string]string{"Tmdb": "348"}}
+	other := embyfin.Item{ID: "o", Name: "Aliens", ProviderIDs: map[string]string{"Tmdb": "679"}}
+	noID := embyfin.Item{ID: "n", Name: "Alien"}
+	for range 20 { // map order must not matter
+		groups := groupByProviderID([]embyfin.Item{other, imdb, noID, both, tmdb})
+		if len(groups) != 1 || len(groups[0]) != 3 {
+			t.Fatalf("groups = %v", groups)
+		}
+		ids := make([]string, 0, len(groups[0]))
+		for _, it := range groups[0] {
+			ids = append(ids, it.ID)
+		}
+		if !slices.Equal(ids, []string{"y", "x", "z"}) {
+			t.Errorf("group = %v, want the three copies in sweep order", ids)
+		}
+	}
+
+	// an episode's id is shared far more loosely: the same imdb id on two
+	// episodes of different numbers is not a duplicate
+	e1 := embyfin.Item{ID: "e1", Type: "Episode", ParentIndexNumber: 1, IndexNumber: 1, ProviderIDs: map[string]string{"Imdb": "tt1"}}
+	e2 := embyfin.Item{ID: "e2", Type: "Episode", ParentIndexNumber: 1, IndexNumber: 2, ProviderIDs: map[string]string{"Imdb": "tt1"}}
+	e1again := embyfin.Item{ID: "e3", Type: "Episode", ParentIndexNumber: 1, IndexNumber: 1, ProviderIDs: map[string]string{"Imdb": "tt1"}}
+	if groups := groupByProviderID([]embyfin.Item{e1, e2, e1again}); len(groups) != 1 || len(groups[0]) != 2 || groups[0][1].ID != "e3" {
+		t.Errorf("episode groups = %v", groups)
+	}
+	if groups := groupByProviderID(nil); groups != nil {
+		t.Errorf("no items = %v", groups)
+	}
+}
+
 func TestAuditChecks(t *testing.T) {
 	t.Parallel()
 
@@ -326,10 +365,12 @@ func TestAuditChecks(t *testing.T) {
 	}{
 		{"/m/Dune (2021)/Dune (2021).mp4", 1984, true},
 		{"/m/Dune (2021)/Dune (2021).mp4", 2021, false},
-		{"/m/Dune (2021)/Dune (2021).mp4", 2022, false},       // a year out is a release-date quibble
-		{"/m/Dune/Dune.mp4", 1984, false},                     // no year in the path
-		{"/m/Dune (2021)/x.mp4", 0, false},                    // no metadata year
-		{"/m/2001 A Space Odyssey (1968)/x.mp4", 1968, false}, // the title's number is not in parentheses
+		{"/m/Dune (2021)/Dune (2021).mp4", 2022, false},                               // a year out is a release-date quibble
+		{"/m/Dune/Dune.mp4", 1984, false},                                             // no year in the path
+		{"/m/Dune (2021)/x.mp4", 0, false},                                            // no metadata year
+		{"/m/2001 A Space Odyssey (1968)/x.mp4", 1968, false},                         // the title's number is not in parentheses
+		{"/m/Alien Collection (1979)/Alien 3 (1992)/Alien 3 (1992).mkv", 1992, false}, // the collection folder's year is not the film's
+		{"/m/Alien Collection (1979)/Alien 3 (1992)/Alien 3 (1992).mkv", 1979, true},
 	} {
 		if _, bad := checkYearMismatch(item(tc.path, tc.year, nil)); bad != tc.bad {
 			t.Errorf("year mismatch %q/%d = %v, want %v", tc.path, tc.year, bad, tc.bad)
@@ -343,6 +384,12 @@ func TestAuditChecks(t *testing.T) {
 	poster := auditCheckByName("audit_missing_poster")
 	if _, bad := poster.check(&embyfin.Item{ImageTags: map[string]string{"Primary": "abc"}}); bad {
 		t.Error("poster: a primary image flagged")
+	}
+	if detail, bad := poster.check(&embyfin.Item{ImageTags: map[string]string{"Backdrop": "def"}}); !bad || !strings.Contains(detail, "no primary image") {
+		t.Errorf("poster: no primary image not flagged: %q %v", detail, bad)
+	}
+	if _, bad := poster.check(&embyfin.Item{}); !bad {
+		t.Error("poster: an item with no images at all not flagged")
 	}
 	versions := auditCheckByName("audit_multiple_versions")
 	detail, bad := versions.check(&embyfin.Item{MediaSources: []embyfin.MediaSource{{Path: "/m/a - 1080p.mp4"}, {Path: "/m/a - 2160p.mp4"}}})

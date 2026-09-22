@@ -106,7 +106,7 @@ func jfVirtualFolder(ctx context.Context, t *testing.T, name string) *jf.Virtual
 // jfCount is the recursive count of one item type under a folder.
 func jfCount(ctx context.Context, parentID string, kind jf.BaseItemKind) int {
 	res, err := jfc.GetItems(ctx, jf.GetItemsOperationOptions{
-		ParentId: parentID, Recursive: new(true), IncludeItemTypes: []jf.BaseItemKind{kind}, Limit: 1,
+		ParentId: parentID, Recursive: new(true), IncludeItemTypes: []jf.BaseItemKind{kind}, Limit: new(1),
 	})
 	if err != nil {
 		return -1
@@ -249,7 +249,7 @@ func jfFirst(t *testing.T, parentID string, kind jf.BaseItemKind) jf.BaseItemDto
 
 	res := must(jfc.GetItems(t.Context(), jf.GetItemsOperationOptions{
 		ParentId: parentID, Recursive: new(true), IncludeItemTypes: []jf.BaseItemKind{kind},
-		Limit: 1, SortBy: []jf.ItemSortBy{jf.ItemSortBySortName},
+		Limit: new(1), SortBy: []jf.ItemSortBy{jf.ItemSortBySortName},
 	})).Model
 	if len(res.Items) == 0 {
 		t.Fatalf("no %s in library %s", kind, parentID)

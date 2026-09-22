@@ -28,19 +28,19 @@ type OpenLiveStreamOperationOptions struct {
 	PlaySessionId string
 
 	// The maximum streaming bitrate.
-	MaxStreamingBitrate int
+	MaxStreamingBitrate *int
 
 	// The start time in ticks.
-	StartTimeTicks int64
+	StartTimeTicks *int64
 
 	// The audio stream index.
-	AudioStreamIndex int
+	AudioStreamIndex *int
 
 	// The subtitle stream index.
-	SubtitleStreamIndex int
+	SubtitleStreamIndex *int
 
 	// The maximum number of audio channels.
-	MaxAudioChannels int
+	MaxAudioChannels *int
 
 	// The item id.
 	ItemId string
@@ -73,20 +73,20 @@ func (o OpenLiveStreamOperationOptions) ToQuery() *client.QueryParams {
 	if o.PlaySessionId != "" {
 		out.Append("playSessionId", o.PlaySessionId)
 	}
-	if o.MaxStreamingBitrate != 0 {
-		out.Append("maxStreamingBitrate", strconv.Itoa(o.MaxStreamingBitrate))
+	if o.MaxStreamingBitrate != nil {
+		out.Append("maxStreamingBitrate", strconv.Itoa(*o.MaxStreamingBitrate))
 	}
-	if o.StartTimeTicks != 0 {
-		out.Append("startTimeTicks", strconv.FormatInt(o.StartTimeTicks, 10))
+	if o.StartTimeTicks != nil {
+		out.Append("startTimeTicks", strconv.FormatInt(*o.StartTimeTicks, 10))
 	}
-	if o.AudioStreamIndex != 0 {
-		out.Append("audioStreamIndex", strconv.Itoa(o.AudioStreamIndex))
+	if o.AudioStreamIndex != nil {
+		out.Append("audioStreamIndex", strconv.Itoa(*o.AudioStreamIndex))
 	}
-	if o.SubtitleStreamIndex != 0 {
-		out.Append("subtitleStreamIndex", strconv.Itoa(o.SubtitleStreamIndex))
+	if o.SubtitleStreamIndex != nil {
+		out.Append("subtitleStreamIndex", strconv.Itoa(*o.SubtitleStreamIndex))
 	}
-	if o.MaxAudioChannels != 0 {
-		out.Append("maxAudioChannels", strconv.Itoa(o.MaxAudioChannels))
+	if o.MaxAudioChannels != nil {
+		out.Append("maxAudioChannels", strconv.Itoa(*o.MaxAudioChannels))
 	}
 	if o.ItemId != "" {
 		out.Append("itemId", o.ItemId)

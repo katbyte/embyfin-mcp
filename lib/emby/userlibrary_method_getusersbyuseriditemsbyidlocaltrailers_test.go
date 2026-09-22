@@ -16,7 +16,7 @@ func TestOperationGetUsersByUserIdItemsByIdLocalTrailers(t *testing.T) {
 	result, err := c.GetUsersByUserIdItemsByIdLocalTrailers(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdLocalTrailersOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -43,7 +43,7 @@ func TestOperationGetUsersByUserIdItemsByIdLocalTrailers(t *testing.T) {
 	result, err = c.GetUsersByUserIdItemsByIdLocalTrailers(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdLocalTrailersOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -56,7 +56,7 @@ func TestOperationGetUsersByUserIdItemsByIdLocalTrailers(t *testing.T) {
 	result, err = c.GetUsersByUserIdItemsByIdLocalTrailers(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdLocalTrailersOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -69,7 +69,7 @@ func TestOperationGetUsersByUserIdItemsByIdLocalTrailers(t *testing.T) {
 	result, err = c.GetUsersByUserIdItemsByIdLocalTrailers(t.Context(), "p/userId", "p/id", GetUsersByUserIdItemsByIdLocalTrailersOperationOptions{
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})

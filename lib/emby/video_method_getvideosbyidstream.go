@@ -38,16 +38,16 @@ type GetVideosByIdStreamOperationOptions struct {
 	EnableAutoStreamCopy *bool
 
 	// Optional. Specify a specific audio sample rate, e.g. 44100
-	AudioSampleRate int
+	AudioSampleRate *int
 
 	// Optional. Specify an audio bitrate to encode to, e.g. 128000. If omitted this will be left to encoder defaults.
-	AudioBitRate int
+	AudioBitRate *int
 
 	// Optional. Specify a specific number of audio channels to encode to, e.g. 2
-	AudioChannels int
+	AudioChannels *int
 
 	// Optional. Specify a maximum number of audio channels to encode to, e.g. 2
-	MaxAudioChannels int
+	MaxAudioChannels *int
 
 	// Optional. If true, the original file will be streamed statically without any encoding. Use either no url extension or the original file extension. true/false
 	Static *bool
@@ -56,40 +56,40 @@ type GetVideosByIdStreamOperationOptions struct {
 	CopyTimestamps *bool
 
 	// Optional. Specify a starting offset, in ticks. 1ms = 10000 ticks.
-	StartTimeTicks int64
+	StartTimeTicks *int64
 
 	// Optional. The fixed horizontal resolution of the encoded video.
-	Width int
+	Width *int
 
 	// Optional. The fixed vertical resolution of the encoded video.
-	Height int
+	Height *int
 
 	// Optional. The maximum horizontal resolution of the encoded video.
-	MaxWidth int
+	MaxWidth *int
 
 	// Optional. The maximum vertical resolution of the encoded video.
-	MaxHeight int
+	MaxHeight *int
 
 	// Optional. Specify a video bitrate to encode to, e.g. 500000. If omitted this will be left to encoder defaults.
-	VideoBitRate int
+	VideoBitRate *int
 
 	// Optional. The index of the subtitle stream to use. If omitted no subtitles will be used.
-	SubtitleStreamIndex int
+	SubtitleStreamIndex *int
 
 	// Optional. Specify the subtitle delivery method.
 	SubtitleMethod SubtitleDeliveryMethod
 
 	// Optional.
-	MaxVideoBitDepth int
+	MaxVideoBitDepth *int
 
 	// Optional. Specify a video codec to encode to, e.g. h264. If omitted the server will auto-select using the url's extension. Options: h264, mpeg4, theora, vpx, wmv.
 	VideoCodec string
 
 	// Optional. The index of the audio stream to use. If omitted the first audio stream will be used.
-	AudioStreamIndex int
+	AudioStreamIndex *int
 
 	// Optional. The index of the video stream to use. If omitted the first video stream will be used.
-	VideoStreamIndex int
+	VideoStreamIndex *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -116,17 +116,17 @@ func (o GetVideosByIdStreamOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableAutoStreamCopy != nil {
 		out.Append("EnableAutoStreamCopy", strconv.FormatBool(*o.EnableAutoStreamCopy))
 	}
-	if o.AudioSampleRate != 0 {
-		out.Append("AudioSampleRate", strconv.Itoa(o.AudioSampleRate))
+	if o.AudioSampleRate != nil {
+		out.Append("AudioSampleRate", strconv.Itoa(*o.AudioSampleRate))
 	}
-	if o.AudioBitRate != 0 {
-		out.Append("AudioBitRate", strconv.Itoa(o.AudioBitRate))
+	if o.AudioBitRate != nil {
+		out.Append("AudioBitRate", strconv.Itoa(*o.AudioBitRate))
 	}
-	if o.AudioChannels != 0 {
-		out.Append("AudioChannels", strconv.Itoa(o.AudioChannels))
+	if o.AudioChannels != nil {
+		out.Append("AudioChannels", strconv.Itoa(*o.AudioChannels))
 	}
-	if o.MaxAudioChannels != 0 {
-		out.Append("MaxAudioChannels", strconv.Itoa(o.MaxAudioChannels))
+	if o.MaxAudioChannels != nil {
+		out.Append("MaxAudioChannels", strconv.Itoa(*o.MaxAudioChannels))
 	}
 	if o.Static != nil {
 		out.Append("Static", strconv.FormatBool(*o.Static))
@@ -134,41 +134,41 @@ func (o GetVideosByIdStreamOperationOptions) ToQuery() *client.QueryParams {
 	if o.CopyTimestamps != nil {
 		out.Append("CopyTimestamps", strconv.FormatBool(*o.CopyTimestamps))
 	}
-	if o.StartTimeTicks != 0 {
-		out.Append("StartTimeTicks", strconv.FormatInt(o.StartTimeTicks, 10))
+	if o.StartTimeTicks != nil {
+		out.Append("StartTimeTicks", strconv.FormatInt(*o.StartTimeTicks, 10))
 	}
-	if o.Width != 0 {
-		out.Append("Width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("Width", strconv.Itoa(*o.Width))
 	}
-	if o.Height != 0 {
-		out.Append("Height", strconv.Itoa(o.Height))
+	if o.Height != nil {
+		out.Append("Height", strconv.Itoa(*o.Height))
 	}
-	if o.MaxWidth != 0 {
-		out.Append("MaxWidth", strconv.Itoa(o.MaxWidth))
+	if o.MaxWidth != nil {
+		out.Append("MaxWidth", strconv.Itoa(*o.MaxWidth))
 	}
-	if o.MaxHeight != 0 {
-		out.Append("MaxHeight", strconv.Itoa(o.MaxHeight))
+	if o.MaxHeight != nil {
+		out.Append("MaxHeight", strconv.Itoa(*o.MaxHeight))
 	}
-	if o.VideoBitRate != 0 {
-		out.Append("VideoBitRate", strconv.Itoa(o.VideoBitRate))
+	if o.VideoBitRate != nil {
+		out.Append("VideoBitRate", strconv.Itoa(*o.VideoBitRate))
 	}
-	if o.SubtitleStreamIndex != 0 {
-		out.Append("SubtitleStreamIndex", strconv.Itoa(o.SubtitleStreamIndex))
+	if o.SubtitleStreamIndex != nil {
+		out.Append("SubtitleStreamIndex", strconv.Itoa(*o.SubtitleStreamIndex))
 	}
 	if o.SubtitleMethod != "" {
 		out.Append("SubtitleMethod", string(o.SubtitleMethod))
 	}
-	if o.MaxVideoBitDepth != 0 {
-		out.Append("MaxVideoBitDepth", strconv.Itoa(o.MaxVideoBitDepth))
+	if o.MaxVideoBitDepth != nil {
+		out.Append("MaxVideoBitDepth", strconv.Itoa(*o.MaxVideoBitDepth))
 	}
 	if o.VideoCodec != "" {
 		out.Append("VideoCodec", o.VideoCodec)
 	}
-	if o.AudioStreamIndex != 0 {
-		out.Append("AudioStreamIndex", strconv.Itoa(o.AudioStreamIndex))
+	if o.AudioStreamIndex != nil {
+		out.Append("AudioStreamIndex", strconv.Itoa(*o.AudioStreamIndex))
 	}
-	if o.VideoStreamIndex != 0 {
-		out.Append("VideoStreamIndex", strconv.Itoa(o.VideoStreamIndex))
+	if o.VideoStreamIndex != nil {
+		out.Append("VideoStreamIndex", strconv.Itoa(*o.VideoStreamIndex))
 	}
 	return &out
 }

@@ -170,7 +170,7 @@ func (c *Client) NextUp(ctx context.Context, userID string, limit int) ([]Item, 
 		// Emby 4.10's default NextUp mode returns nothing for API-key callers; the legacy
 		// per-series "next unwatched episode" mode is what we want anyway.
 		res, err := c.emby.GetShowsNextUp(ctx, emby.GetShowsNextUpOperationOptions{
-			UserId: userID, Fields: FieldsDefault, LegacyNextUp: new(true), Limit: limit,
+			UserId: userID, Fields: FieldsDefault, LegacyNextUp: new(true), Limit: nz(limit),
 		})
 		if err != nil {
 			return nil, err
@@ -179,7 +179,7 @@ func (c *Client) NextUp(ctx context.Context, userID string, limit int) ([]Item, 
 		return itemsFromEmby(res.Model.Items), nil
 	}
 
-	res, err := c.jf.GetNextUp(ctx, jf.GetNextUpOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault), Limit: limit})
+	res, err := c.jf.GetNextUp(ctx, jf.GetNextUpOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault), Limit: nz(limit)})
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (c *Client) Resume(ctx context.Context, userID string, limit int) ([]Item, 
 		// without Recursive and MediaTypes Emby answers with an empty list even
 		// when items are in progress
 		res, err := c.emby.GetUsersByUserIdItemsResume(ctx, userID, emby.GetUsersByUserIdItemsResumeOperationOptions{
-			Fields: FieldsDefault, EnableUserData: new(true), Recursive: new(true), MediaTypes: "Video", Limit: limit,
+			Fields: FieldsDefault, EnableUserData: new(true), Recursive: new(true), MediaTypes: "Video", Limit: nz(limit),
 		})
 		if err != nil {
 			return nil, err
@@ -209,7 +209,7 @@ func (c *Client) Resume(ctx context.Context, userID string, limit int) ([]Item, 
 
 	res, err := c.jf.GetResumeItems(ctx, jf.GetResumeItemsOperationOptions{
 		UserId: userID, Fields: list[jf.ItemFields](FieldsDefault), EnableUserData: new(true),
-		MediaTypes: []jf.MediaType{jf.MediaTypeVideo}, Limit: limit,
+		MediaTypes: []jf.MediaType{jf.MediaTypeVideo}, Limit: nz(limit),
 	})
 	if err != nil {
 		return nil, err

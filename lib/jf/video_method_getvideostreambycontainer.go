@@ -41,10 +41,10 @@ type GetVideoStreamByContainerOperationOptions struct {
 	SegmentContainer string
 
 	// The segment length.
-	SegmentLength int
+	SegmentLength *int
 
 	// The minimum number of segments.
-	MinSegments int
+	MinSegments *int
 
 	// The media version id, if playing an alternate version.
 	MediaSourceId string
@@ -65,19 +65,19 @@ type GetVideoStreamByContainerOperationOptions struct {
 	AllowAudioStreamCopy *bool
 
 	// Optional. Specify a specific audio sample rate, e.g. 44100.
-	AudioSampleRate int
+	AudioSampleRate *int
 
 	// Optional. The maximum audio bit depth.
-	MaxAudioBitDepth int
+	MaxAudioBitDepth *int
 
 	// Optional. Specify an audio bitrate to encode to, e.g. 128000. If omitted this will be left to encoder defaults.
-	AudioBitRate int
+	AudioBitRate *int
 
 	// Optional. Specify a specific number of audio channels to encode to, e.g. 2.
-	AudioChannels int
+	AudioChannels *int
 
 	// Optional. Specify a maximum number of audio channels to encode to, e.g. 2.
-	MaxAudioChannels int
+	MaxAudioChannels *int
 
 	// Optional. Specify a specific an encoder profile (varies by encoder), e.g. main, baseline, high.
 	Profile string
@@ -86,43 +86,43 @@ type GetVideoStreamByContainerOperationOptions struct {
 	Level string
 
 	// Optional. A specific video framerate to encode to, e.g. 23.976. Generally this should be omitted unless the device has specific requirements.
-	Framerate float64
+	Framerate *float64
 
 	// Optional. A specific maximum video framerate to encode to, e.g. 23.976. Generally this should be omitted unless the device has specific requirements.
-	MaxFramerate float64
+	MaxFramerate *float64
 
 	// Whether or not to copy timestamps when transcoding with an offset. Defaults to false.
 	CopyTimestamps *bool
 
 	// Optional. Specify a starting offset, in ticks. 1 tick = 10000 ms.
-	StartTimeTicks int64
+	StartTimeTicks *int64
 
 	// Optional. The fixed horizontal resolution of the encoded video.
-	Width int
+	Width *int
 
 	// Optional. The fixed vertical resolution of the encoded video.
-	Height int
+	Height *int
 
 	// Optional. The maximum horizontal resolution of the encoded video.
-	MaxWidth int
+	MaxWidth *int
 
 	// Optional. The maximum vertical resolution of the encoded video.
-	MaxHeight int
+	MaxHeight *int
 
 	// Optional. Specify a video bitrate to encode to, e.g. 500000. If omitted this will be left to encoder defaults.
-	VideoBitRate int
+	VideoBitRate *int
 
 	// Optional. The index of the subtitle stream to use. If omitted no subtitles will be used.
-	SubtitleStreamIndex int
+	SubtitleStreamIndex *int
 
 	// Optional. Specify the subtitle delivery method.
 	SubtitleMethod SubtitleDeliveryMethod
 
 	// Optional.
-	MaxRefFrames int
+	MaxRefFrames *int
 
 	// Optional. The maximum video bit depth.
-	MaxVideoBitDepth int
+	MaxVideoBitDepth *int
 
 	// Optional. Whether to require avc.
 	RequireAvc *bool
@@ -134,10 +134,10 @@ type GetVideoStreamByContainerOperationOptions struct {
 	RequireNonAnamorphic *bool
 
 	// Optional. The maximum number of audio channels to transcode.
-	TranscodingMaxAudioChannels int
+	TranscodingMaxAudioChannels *int
 
 	// Optional. The limit of how many cpu cores to use.
-	CpuCoreLimit int
+	CpuCoreLimit *int
 
 	// The live stream id.
 	LiveStreamId string
@@ -155,10 +155,10 @@ type GetVideoStreamByContainerOperationOptions struct {
 	TranscodeReasons string
 
 	// Optional. The index of the audio stream to use. If omitted the first audio stream will be used.
-	AudioStreamIndex int
+	AudioStreamIndex *int
 
 	// Optional. The index of the video stream to use. If omitted the first video stream will be used.
-	VideoStreamIndex int
+	VideoStreamIndex *int
 
 	// Optional. The MediaBrowser.Model.Dlna.EncodingContext.
 	Context EncodingContext
@@ -197,11 +197,11 @@ func (o GetVideoStreamByContainerOperationOptions) ToQuery() *client.QueryParams
 	if o.SegmentContainer != "" {
 		out.Append("segmentContainer", o.SegmentContainer)
 	}
-	if o.SegmentLength != 0 {
-		out.Append("segmentLength", strconv.Itoa(o.SegmentLength))
+	if o.SegmentLength != nil {
+		out.Append("segmentLength", strconv.Itoa(*o.SegmentLength))
 	}
-	if o.MinSegments != 0 {
-		out.Append("minSegments", strconv.Itoa(o.MinSegments))
+	if o.MinSegments != nil {
+		out.Append("minSegments", strconv.Itoa(*o.MinSegments))
 	}
 	if o.MediaSourceId != "" {
 		out.Append("mediaSourceId", o.MediaSourceId)
@@ -221,20 +221,20 @@ func (o GetVideoStreamByContainerOperationOptions) ToQuery() *client.QueryParams
 	if o.AllowAudioStreamCopy != nil {
 		out.Append("allowAudioStreamCopy", strconv.FormatBool(*o.AllowAudioStreamCopy))
 	}
-	if o.AudioSampleRate != 0 {
-		out.Append("audioSampleRate", strconv.Itoa(o.AudioSampleRate))
+	if o.AudioSampleRate != nil {
+		out.Append("audioSampleRate", strconv.Itoa(*o.AudioSampleRate))
 	}
-	if o.MaxAudioBitDepth != 0 {
-		out.Append("maxAudioBitDepth", strconv.Itoa(o.MaxAudioBitDepth))
+	if o.MaxAudioBitDepth != nil {
+		out.Append("maxAudioBitDepth", strconv.Itoa(*o.MaxAudioBitDepth))
 	}
-	if o.AudioBitRate != 0 {
-		out.Append("audioBitRate", strconv.Itoa(o.AudioBitRate))
+	if o.AudioBitRate != nil {
+		out.Append("audioBitRate", strconv.Itoa(*o.AudioBitRate))
 	}
-	if o.AudioChannels != 0 {
-		out.Append("audioChannels", strconv.Itoa(o.AudioChannels))
+	if o.AudioChannels != nil {
+		out.Append("audioChannels", strconv.Itoa(*o.AudioChannels))
 	}
-	if o.MaxAudioChannels != 0 {
-		out.Append("maxAudioChannels", strconv.Itoa(o.MaxAudioChannels))
+	if o.MaxAudioChannels != nil {
+		out.Append("maxAudioChannels", strconv.Itoa(*o.MaxAudioChannels))
 	}
 	if o.Profile != "" {
 		out.Append("profile", o.Profile)
@@ -242,44 +242,44 @@ func (o GetVideoStreamByContainerOperationOptions) ToQuery() *client.QueryParams
 	if o.Level != "" {
 		out.Append("level", o.Level)
 	}
-	if o.Framerate != 0 {
-		out.Append("framerate", strconv.FormatFloat(o.Framerate, 'f', -1, 64))
+	if o.Framerate != nil {
+		out.Append("framerate", strconv.FormatFloat(*o.Framerate, 'f', -1, 64))
 	}
-	if o.MaxFramerate != 0 {
-		out.Append("maxFramerate", strconv.FormatFloat(o.MaxFramerate, 'f', -1, 64))
+	if o.MaxFramerate != nil {
+		out.Append("maxFramerate", strconv.FormatFloat(*o.MaxFramerate, 'f', -1, 64))
 	}
 	if o.CopyTimestamps != nil {
 		out.Append("copyTimestamps", strconv.FormatBool(*o.CopyTimestamps))
 	}
-	if o.StartTimeTicks != 0 {
-		out.Append("startTimeTicks", strconv.FormatInt(o.StartTimeTicks, 10))
+	if o.StartTimeTicks != nil {
+		out.Append("startTimeTicks", strconv.FormatInt(*o.StartTimeTicks, 10))
 	}
-	if o.Width != 0 {
-		out.Append("width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("width", strconv.Itoa(*o.Width))
 	}
-	if o.Height != 0 {
-		out.Append("height", strconv.Itoa(o.Height))
+	if o.Height != nil {
+		out.Append("height", strconv.Itoa(*o.Height))
 	}
-	if o.MaxWidth != 0 {
-		out.Append("maxWidth", strconv.Itoa(o.MaxWidth))
+	if o.MaxWidth != nil {
+		out.Append("maxWidth", strconv.Itoa(*o.MaxWidth))
 	}
-	if o.MaxHeight != 0 {
-		out.Append("maxHeight", strconv.Itoa(o.MaxHeight))
+	if o.MaxHeight != nil {
+		out.Append("maxHeight", strconv.Itoa(*o.MaxHeight))
 	}
-	if o.VideoBitRate != 0 {
-		out.Append("videoBitRate", strconv.Itoa(o.VideoBitRate))
+	if o.VideoBitRate != nil {
+		out.Append("videoBitRate", strconv.Itoa(*o.VideoBitRate))
 	}
-	if o.SubtitleStreamIndex != 0 {
-		out.Append("subtitleStreamIndex", strconv.Itoa(o.SubtitleStreamIndex))
+	if o.SubtitleStreamIndex != nil {
+		out.Append("subtitleStreamIndex", strconv.Itoa(*o.SubtitleStreamIndex))
 	}
 	if o.SubtitleMethod != "" {
 		out.Append("subtitleMethod", string(o.SubtitleMethod))
 	}
-	if o.MaxRefFrames != 0 {
-		out.Append("maxRefFrames", strconv.Itoa(o.MaxRefFrames))
+	if o.MaxRefFrames != nil {
+		out.Append("maxRefFrames", strconv.Itoa(*o.MaxRefFrames))
 	}
-	if o.MaxVideoBitDepth != 0 {
-		out.Append("maxVideoBitDepth", strconv.Itoa(o.MaxVideoBitDepth))
+	if o.MaxVideoBitDepth != nil {
+		out.Append("maxVideoBitDepth", strconv.Itoa(*o.MaxVideoBitDepth))
 	}
 	if o.RequireAvc != nil {
 		out.Append("requireAvc", strconv.FormatBool(*o.RequireAvc))
@@ -290,11 +290,11 @@ func (o GetVideoStreamByContainerOperationOptions) ToQuery() *client.QueryParams
 	if o.RequireNonAnamorphic != nil {
 		out.Append("requireNonAnamorphic", strconv.FormatBool(*o.RequireNonAnamorphic))
 	}
-	if o.TranscodingMaxAudioChannels != 0 {
-		out.Append("transcodingMaxAudioChannels", strconv.Itoa(o.TranscodingMaxAudioChannels))
+	if o.TranscodingMaxAudioChannels != nil {
+		out.Append("transcodingMaxAudioChannels", strconv.Itoa(*o.TranscodingMaxAudioChannels))
 	}
-	if o.CpuCoreLimit != 0 {
-		out.Append("cpuCoreLimit", strconv.Itoa(o.CpuCoreLimit))
+	if o.CpuCoreLimit != nil {
+		out.Append("cpuCoreLimit", strconv.Itoa(*o.CpuCoreLimit))
 	}
 	if o.LiveStreamId != "" {
 		out.Append("liveStreamId", o.LiveStreamId)
@@ -311,17 +311,17 @@ func (o GetVideoStreamByContainerOperationOptions) ToQuery() *client.QueryParams
 	if o.TranscodeReasons != "" {
 		out.Append("transcodeReasons", o.TranscodeReasons)
 	}
-	if o.AudioStreamIndex != 0 {
-		out.Append("audioStreamIndex", strconv.Itoa(o.AudioStreamIndex))
+	if o.AudioStreamIndex != nil {
+		out.Append("audioStreamIndex", strconv.Itoa(*o.AudioStreamIndex))
 	}
-	if o.VideoStreamIndex != 0 {
-		out.Append("videoStreamIndex", strconv.Itoa(o.VideoStreamIndex))
+	if o.VideoStreamIndex != nil {
+		out.Append("videoStreamIndex", strconv.Itoa(*o.VideoStreamIndex))
 	}
 	if o.Context != "" {
 		out.Append("context", string(o.Context))
 	}
-	if len(o.StreamOptions) > 0 {
-		out.Append("streamOptions", client.JSONObject(o.StreamOptions))
+	for _, kv := range client.DeepObject("streamOptions", o.StreamOptions) {
+		out.Append(kv[0], kv[1])
 	}
 	if o.EnableAudioVbrEncoding != nil {
 		out.Append("enableAudioVbrEncoding", strconv.FormatBool(*o.EnableAudioVbrEncoding))

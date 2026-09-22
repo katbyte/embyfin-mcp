@@ -20,7 +20,7 @@ type AccountGetFavoritesOperationResponse struct {
 // AccountGetFavoritesOperationOptions holds the query and header parameters of AccountGetFavorites.
 type AccountGetFavoritesOperationOptions struct {
 	Language  string
-	Page      int
+	Page      *int
 	SessionId string
 	SortBy    string
 }
@@ -37,8 +37,8 @@ func (o AccountGetFavoritesOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.SessionId != "" {
 		out.Append("session_id", o.SessionId)

@@ -16,11 +16,11 @@ func TestOperationPlay(t *testing.T) {
 	result, err := c.Play(t.Context(), "p/sessionId", PlayOperationOptions{
 		PlayCommand:         PlayCommandPlayNow,
 		ItemIds:             []string{"a", "b"},
-		StartPositionTicks:  7,
+		StartPositionTicks:  new(int64(7)),
 		MediaSourceId:       "v-MediaSourceId",
-		AudioStreamIndex:    7,
-		SubtitleStreamIndex: 7,
-		StartIndex:          7,
+		AudioStreamIndex:    new(7),
+		SubtitleStreamIndex: new(7),
+		StartIndex:          new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -44,11 +44,11 @@ func TestOperationPlay(t *testing.T) {
 	result, err = c.Play(t.Context(), "p/sessionId", PlayOperationOptions{
 		PlayCommand:         PlayCommandPlayNow,
 		ItemIds:             []string{"a", "b"},
-		StartPositionTicks:  7,
+		StartPositionTicks:  new(int64(7)),
 		MediaSourceId:       "v-MediaSourceId",
-		AudioStreamIndex:    7,
-		SubtitleStreamIndex: 7,
-		StartIndex:          7,
+		AudioStreamIndex:    new(7),
+		SubtitleStreamIndex: new(7),
+		StartIndex:          new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

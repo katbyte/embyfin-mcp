@@ -186,10 +186,13 @@ func (f *Facts) SeriesEpisodes(ctx context.Context, id string) ([]Episode, error
 					continue
 				}
 				season, err := f.api.TvSeasonDetails(ctx, n, s.SeasonNumber, TvSeasonDetailsOperationOptions{})
-				if err != nil {
+				switch {
+				case client.IsNotFound(err):
+					// TMDB lists seasons it then has no record for
+					continue
+				case err != nil:
 					return nil, explain(fmt.Sprintf("tv %s season %d", id, s.SeasonNumber), err)
-				}
-				if season.Model == nil {
+				case season.Model == nil:
 					continue
 				}
 				for _, e := range season.Model.Episodes {

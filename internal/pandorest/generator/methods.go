@@ -63,14 +63,17 @@ func (g *gen) writeResponse(b *strings.Builder, o *definitions.Operation, respon
 	b.WriteString("}\n\n")
 }
 
-// optionType is how the options struct holds an option: a *bool so false can
-// be sent, the plain type for the rest (whose zero value is not sent).
+// optionType is how the options struct holds an option: a pointer for a
+// boolean or a number, so false and 0 can be sent (a series' specials are
+// season 0, a backdrop is image 0), the plain type for the rest, whose zero
+// value is not sent.
 func (g *gen) optionType(t definitions.TypeRef) string {
-	if t.Type == definitions.Boolean {
-		return "*bool"
+	switch t.Type {
+	case definitions.Boolean, definitions.Integer, definitions.Integer64, definitions.Float, definitions.Double:
+		return "*" + g.goType(t, false)
+	default:
+		return g.goType(t, false)
 	}
-
-	return g.goType(t, false)
 }
 
 func (g *gen) writeOptions(b *strings.Builder, o *definitions.Operation, optionsType string) {
@@ -114,13 +117,13 @@ func appendOption(opt definitions.Option) string {
 	case definitions.Boolean:
 		cond, value = field+" != nil", "strconv.FormatBool(*"+field+")"
 	case definitions.Integer:
-		cond, value = field+" != 0", "strconv.Itoa("+field+")"
+		cond, value = field+" != nil", "strconv.Itoa(*"+field+")"
 	case definitions.Integer64:
-		cond, value = field+" != 0", "strconv.FormatInt("+field+", 10)"
+		cond, value = field+" != nil", "strconv.FormatInt(*"+field+", 10)"
 	case definitions.Float:
-		cond, value = field+" != 0", "strconv.FormatFloat(float64("+field+"), 'f', -1, 32)"
+		cond, value = field+" != nil", "strconv.FormatFloat(float64(*"+field+"), 'f', -1, 32)"
 	case definitions.Double:
-		cond, value = field+" != 0", "strconv.FormatFloat("+field+", 'f', -1, 64)"
+		cond, value = field+" != nil", "strconv.FormatFloat(*"+field+", 'f', -1, 64)"
 	case definitions.List:
 		if !opt.CommaSeparated {
 			item := "v"
@@ -137,6 +140,9 @@ func appendOption(opt definitions.Option) string {
 		}
 		cond, value = "len("+field+") > 0", "client.CSV("+field+")"
 	case definitions.Dictionary:
+		if opt.DeepObject {
+			return fmt.Sprintf("\tfor _, kv := range client.DeepObject(%q, %s) {\n\t\tout.Append(kv[0], kv[1])\n\t}\n", opt.Name, field)
+		}
 		cond, value = "len("+field+") > 0", "client.JSONObject("+field+")"
 	case definitions.Reference:
 		cond, value = field+` != ""`, "string("+field+")"
@@ -310,7 +316,9 @@ func (g *gen) writeComplete(b *strings.Builder, o *definitions.Operation, option
 	fmt.Fprintf(b, "// result is loaded. options.%s is the page size, client.DefaultPageSize when\n// unset.\n", p.LimitOption)
 	fmt.Fprintf(b, "func (c Client) %s(%s) (result %s, err error) {\n",
 		method, strings.Join(append([]string{"ctx context.Context"}, params...), ", "), resultType)
-	fmt.Fprintf(b, "\tif options.%[1]s <= 0 {\n\t\toptions.%[1]s = client.DefaultPageSize\n\t}\n", p.LimitOption)
+	fmt.Fprintf(b, "\tlimit := client.DefaultPageSize\n\tif options.%[1]s != nil && *options.%[1]s > 0 {\n\t\tlimit = *options.%[1]s\n\t}\n", p.LimitOption)
+	fmt.Fprintf(b, "\toptions.%s = &limit\n", p.LimitOption)
+	fmt.Fprintf(b, "\tstart := 0\n\tif options.%[1]s != nil {\n\t\tstart = *options.%[1]s\n\t}\n", p.StartIndexOption)
 	b.WriteString("\tfor {\n")
 	fmt.Fprintf(b, "\t\tvar page %sOperationResponse\n", o.Name)
 	fmt.Fprintf(b, "\t\tpage, err = c.%s(%s)\n", o.Name, strings.Join(append([]string{"ctx"}, call...), ", "))
@@ -318,10 +326,10 @@ func (g *gen) writeComplete(b *strings.Builder, o *definitions.Operation, option
 	b.WriteString("\t\tif err != nil {\n\t\t\terr = fmt.Errorf(\"loading results: %w\", err)\n\t\t\treturn\n\t\t}\n")
 	fmt.Fprintf(b, "\t\tif page.Model == nil || len(page.Model.%s) == 0 {\n\t\t\treturn\n\t\t}\n", p.ItemsField)
 	fmt.Fprintf(b, "\t\tresult.Items = append(result.Items, page.Model.%s...)\n", p.ItemsField)
-	fmt.Fprintf(b, "\t\toptions.%s += len(page.Model.%s)\n", p.StartIndexOption, p.ItemsField)
+	fmt.Fprintf(b, "\t\tstart += len(page.Model.%s)\n\t\toptions.%s = &start\n", p.ItemsField, p.StartIndexOption)
 	b.WriteString("\t\t// a short page is the last; so is reaching the total, when the server\n")
 	b.WriteString("\t\t// reports one (some Emby lists report 0 whatever they hold)\n")
-	fmt.Fprintf(b, "\t\tif len(page.Model.%[1]s) < options.%[2]s || page.Model.%[3]s > 0 && options.%[4]s >= page.Model.%[3]s {\n\t\t\treturn\n\t\t}\n",
-		p.ItemsField, p.LimitOption, p.TotalField, p.StartIndexOption)
+	fmt.Fprintf(b, "\t\tif len(page.Model.%[1]s) < limit || page.Model.%[2]s > 0 && start >= page.Model.%[2]s {\n\t\t\treturn\n\t\t}\n",
+		p.ItemsField, p.TotalField)
 	b.WriteString("\t}\n}\n")
 }

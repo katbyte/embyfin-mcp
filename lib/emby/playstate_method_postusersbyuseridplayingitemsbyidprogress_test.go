@@ -16,24 +16,23 @@ func TestOperationPostUsersByUserIdPlayingItemsByIdProgress(t *testing.T) {
 	c, s := newOperationServer(t, 200, "", "")
 	result, err := c.PostUsersByUserIdPlayingItemsByIdProgress(t.Context(), "p/userId", "p/id", ApiOnPlaybackProgress{}, PostUsersByUserIdPlayingItemsByIdProgressOperationOptions{
 		MediaSourceId:       "v-MediaSourceId",
-		PositionTicks:       7,
+		PositionTicks:       new(int64(7)),
 		IsPaused:            new(true),
 		IsMuted:             new(true),
-		AudioStreamIndex:    7,
-		SubtitleStreamIndex: 7,
-		VolumeLevel:         7,
+		AudioStreamIndex:    new(7),
+		SubtitleStreamIndex: new(7),
+		VolumeLevel:         new(7),
 		PlayMethod:          PlayMethodTranscode,
 		LiveStreamId:        "v-LiveStreamId",
 		PlaySessionId:       "v-PlaySessionId",
 		RepeatMode:          RepeatModeRepeatNone,
-		SubtitleOffset:      7,
-		PlaybackRate:        1.5,
+		SubtitleOffset:      new(7),
+		PlaybackRate:        new(1.5),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Users/p%2FuserId/PlayingItems/p%2Fid/Progress")
 	expectQuery(t, r, "MediaSourceId", "v-MediaSourceId")
 	expectQuery(t, r, "PositionTicks", "7")
@@ -62,18 +61,18 @@ func TestOperationPostUsersByUserIdPlayingItemsByIdProgress(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.PostUsersByUserIdPlayingItemsByIdProgress(t.Context(), "p/userId", "p/id", ApiOnPlaybackProgress{}, PostUsersByUserIdPlayingItemsByIdProgressOperationOptions{
 		MediaSourceId:       "v-MediaSourceId",
-		PositionTicks:       7,
+		PositionTicks:       new(int64(7)),
 		IsPaused:            new(true),
 		IsMuted:             new(true),
-		AudioStreamIndex:    7,
-		SubtitleStreamIndex: 7,
-		VolumeLevel:         7,
+		AudioStreamIndex:    new(7),
+		SubtitleStreamIndex: new(7),
+		VolumeLevel:         new(7),
 		PlayMethod:          PlayMethodTranscode,
 		LiveStreamId:        "v-LiveStreamId",
 		PlaySessionId:       "v-PlaySessionId",
 		RepeatMode:          RepeatModeRepeatNone,
-		SubtitleOffset:      7,
-		PlaybackRate:        1.5,
+		SubtitleOffset:      new(7),
+		PlaybackRate:        new(1.5),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

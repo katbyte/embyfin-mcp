@@ -40,7 +40,7 @@ for both documents.
 | `definitions` | `api-definitions/` + its models | the contract: JSON per server per tag, load, save, validate |
 | `differ` | `data-api-differ` | reports operations, options, bodies, models, fields and enum values added, removed or changed |
 | `generator` | `generator-go-sdk` | writes the package from definitions only |
-| `lib/client` (outside) | `go-azure-sdk/sdk/client` | the hand-written base client both SDKs share |
+| `lib/client` (outside) | `go-azure-sdk/sdk/client` | the hand-written base client the three SDKs share |
 
 ## Importing
 
@@ -66,8 +66,10 @@ for both documents.
   `MovieDetailsResponse`).
 - **Operations.** Path parameters in template order; query and header
   parameters as options, with lists comma-separated or one key per value as
-  the document says, and a header named `Accept`, `Content-Type` or
-  `Authorization` ignored, as OpenAPI says; the JSON request body, a model
+  the document says (a header list is comma-separated unless it says
+  otherwise), an object sent as one JSON string or, in `deepObject` style,
+  as `name[key]=value` per key, and a header named `Accept`, `Content-Type`
+  or `Authorization` ignored, as OpenAPI says; the JSON request body, a model
   whether declared or inline, or raw bytes; the success response
   (JSON, a file, or nothing); `ExpectedStatusCodes` from the 2xx responses;
   and `Pageable` for a GET with `StartIndex` and `Limit` that answers `Items`
@@ -132,7 +134,8 @@ emby: 1 added, 0 removed, 2 changed (1 breaking)
 
 A change is breaking when it would break a caller of the generated SDK: a
 removal, a changed type or name, a new request body, a status code no longer
-expected. `-exit-code` exits 1 when anything differs.
+expected, a list that changes how it travels. A reworded description or a
+nullable flag is reported and not breaking: the generated code is the same.
 
 ## Generating
 
@@ -178,7 +181,7 @@ value, or an `io.Reader` and a content type), then the options struct by value,
 and returns `(result <Name>OperationResponse, err error)`:
 
 ```go
-res, err := c.GetItems(ctx, emby.GetItemsOperationOptions{Recursive: new(true), Limit: 50})
+res, err := c.GetItems(ctx, emby.GetItemsOperationOptions{Recursive: new(true), Limit: new(50)})
 res.HttpResponse // set whenever the server answered, its body readable again
 res.Model        // *emby.QueryResultBaseItemDto
 
@@ -186,14 +189,18 @@ all, err := c.GetItemsComplete(ctx, emby.GetItemsOperationOptions{Recursive: new
 all.Items        // every page
 ```
 
-- Options are sent only when set: zero values are skipped, booleans are
-  `*bool`.
+- Options are sent only when set: a boolean or a number is a pointer, so
+  false, season 0 and image 0 can be asked for; an empty string or list is
+  skipped.
 - In models, booleans are `*bool` and lists and maps are `omitzero`, so a body
   can leave a flag to the server's default, send an explicit false, and clear a
   list with an empty one.
 - `Model` is a pointer for a struct, enum or primitive, and the value for a
   list, map or raw JSON. An operation that answers a file has no `Model`: its
   body is left unread in `HttpResponse.Body` for the caller to read and close.
+  Emby answers 204 for a null result on any JSON operation (a lookup that
+  finds nothing), so on `lib/emby` a nil `Model` with no error is that answer
+  (`emby-null-result-no-content` declares the 204 on every one of them).
 - A status outside `ExpectedStatusCodes` is a `*client.StatusError`, even a
   2xx, returned with the response. `client.IsNotFound(err)` and
   `client.WasNotFound(res.HttpResponse)` recognise a 404.

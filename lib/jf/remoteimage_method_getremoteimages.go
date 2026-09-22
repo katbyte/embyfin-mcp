@@ -24,10 +24,10 @@ type GetRemoteImagesOperationOptions struct {
 	Type ImageType
 
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// Optional. The image provider to use.
 	ProviderName string
@@ -48,11 +48,11 @@ func (o GetRemoteImagesOperationOptions) ToQuery() *client.QueryParams {
 	if o.Type != "" {
 		out.Append("type", string(o.Type))
 	}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	if o.ProviderName != "" {
 		out.Append("providerName", o.ProviderName)

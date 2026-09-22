@@ -15,7 +15,7 @@ func TestOperationTvSeriesChanges(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.TvSeriesChanges(t.Context(), 7, TvSeriesChangesOperationOptions{
 		EndDate:   "v-EndDate",
-		Page:      7,
+		Page:      new(7),
 		StartDate: "v-StartDate",
 	})
 	if err != nil {
@@ -38,7 +38,7 @@ func TestOperationTvSeriesChanges(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.TvSeriesChanges(t.Context(), 7, TvSeriesChangesOperationOptions{
 		EndDate:   "v-EndDate",
-		Page:      7,
+		Page:      new(7),
 		StartDate: "v-StartDate",
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -49,7 +49,7 @@ func TestOperationTvSeriesChanges(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.TvSeriesChanges(t.Context(), 7, TvSeriesChangesOperationOptions{
 		EndDate:   "v-EndDate",
-		Page:      7,
+		Page:      new(7),
 		StartDate: "v-StartDate",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

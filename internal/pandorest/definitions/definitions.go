@@ -25,7 +25,7 @@ type Service struct {
 	// Source is the document the definitions were imported from.
 	Source string `json:"Source"`
 	// Auth names the base client authorizer the package's New uses:
-	// "Emby" or "Jellyfin".
+	// "Emby", "Jellyfin" or "TMDB".
 	Auth string `json:"Auth"`
 	// Workarounds lists the importer workarounds applied, in order.
 	Workarounds []string `json:"Workarounds"`
@@ -107,6 +107,10 @@ type Option struct {
 	// CommaSeparated sends a List as one comma-separated value; otherwise
 	// each element is sent under the parameter's name.
 	CommaSeparated bool `json:"CommaSeparated,omitempty"`
+	// DeepObject sends a Dictionary as one parameter per key, name[key]=value
+	// (OpenAPI's deepObject style, which Jellyfin's stream options use);
+	// otherwise the dictionary goes as one JSON string.
+	DeepObject bool `json:"DeepObject,omitempty"`
 }
 
 // Body is a request or response body.

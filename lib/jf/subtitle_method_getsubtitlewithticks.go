@@ -35,12 +35,12 @@ type GetSubtitleWithTicksOperationOptions struct {
 	// The subtitle stream index.
 	//
 	// Deprecated: the document marks this parameter deprecated.
-	Index int
+	Index *int
 
 	// The start position of the subtitle in ticks.
 	//
 	// Deprecated: the document marks this parameter deprecated.
-	StartPositionTicks int64
+	StartPositionTicks *int64
 
 	// The format of the returned subtitle.
 	//
@@ -48,7 +48,7 @@ type GetSubtitleWithTicksOperationOptions struct {
 	Format string
 
 	// Optional. The end position of the subtitle in ticks.
-	EndPositionTicks int64
+	EndPositionTicks *int64
 
 	// Optional. Whether to copy the timestamps.
 	CopyTimestamps *bool
@@ -72,17 +72,17 @@ func (o GetSubtitleWithTicksOperationOptions) ToQuery() *client.QueryParams {
 	if o.MediaSourceId != "" {
 		out.Append("mediaSourceId", o.MediaSourceId)
 	}
-	if o.Index != 0 {
-		out.Append("index", strconv.Itoa(o.Index))
+	if o.Index != nil {
+		out.Append("index", strconv.Itoa(*o.Index))
 	}
-	if o.StartPositionTicks != 0 {
-		out.Append("startPositionTicks", strconv.FormatInt(o.StartPositionTicks, 10))
+	if o.StartPositionTicks != nil {
+		out.Append("startPositionTicks", strconv.FormatInt(*o.StartPositionTicks, 10))
 	}
 	if o.Format != "" {
 		out.Append("format", o.Format)
 	}
-	if o.EndPositionTicks != 0 {
-		out.Append("endPositionTicks", strconv.FormatInt(o.EndPositionTicks, 10))
+	if o.EndPositionTicks != nil {
+		out.Append("endPositionTicks", strconv.FormatInt(*o.EndPositionTicks, 10))
 	}
 	if o.CopyTimestamps != nil {
 		out.Append("copyTimestamps", strconv.FormatBool(*o.CopyTimestamps))

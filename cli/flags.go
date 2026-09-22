@@ -11,6 +11,7 @@ import (
 	"github.com/katbyte/embyfin-mcp/tools"
 	"github.com/katbyte/go-kt/clog"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -31,6 +32,28 @@ type FlagData struct {
 	AnimeList    string   `mapstructure:"anime-list"`
 }
 
+// envNames binds each flag to its environment variable.
+var envNames = map[string]string{ //nolint:gosec // G101: these are env var names, not credentials
+	"backend":       "EMBYFIN_BACKEND",
+	"server":        "EMBYFIN_SERVER",
+	"token":         "EMBYFIN_TOKEN",
+	"read-only":     "EMBYFIN_READ_ONLY",
+	"enable-delete": "EMBYFIN_ENABLE_DELETE",
+	"toolsets":      "EMBYFIN_TOOLSETS",
+	"allow-tools":   "EMBYFIN_ALLOW_TOOLS",
+	"deny-tools":    "EMBYFIN_DENY_TOOLS",
+	"listen":        "EMBYFIN_LISTEN",
+	"auth-token":    "EMBYFIN_AUTH_TOKEN",
+	"allow-no-auth": "EMBYFIN_ALLOW_NO_AUTH",
+	"tmdb-token":    "EMBYFIN_TMDB_TOKEN",
+	"tmdb-key":      "EMBYFIN_TMDB_KEY",
+	"anime-list":    "EMBYFIN_ANIME_LIST",
+}
+
+// persistent is the flag set configureFlags bound, for the settings that
+// have to be read source by source rather than through viper.
+var persistent *pflag.FlagSet
+
 func configureFlags(root *cobra.Command) error {
 	pflags := root.PersistentFlags()
 
@@ -49,23 +72,8 @@ func configureFlags(root *cobra.Command) error {
 	pflags.String("tmdb-key", "", "the same as --tmdb-token, by its older name")
 	pflags.String("anime-list", "", "where audit_anime_ids reads the Anime-Lists mapping from: a URL or a file (default the list on GitHub)")
 
-	// binding map for viper/pflag -> env
-	m := map[string]string{ //nolint:gosec // G101: these are env var names, not credentials
-		"backend":       "EMBYFIN_BACKEND",
-		"server":        "EMBYFIN_SERVER",
-		"token":         "EMBYFIN_TOKEN",
-		"read-only":     "EMBYFIN_READ_ONLY",
-		"enable-delete": "EMBYFIN_ENABLE_DELETE",
-		"toolsets":      "EMBYFIN_TOOLSETS",
-		"allow-tools":   "EMBYFIN_ALLOW_TOOLS",
-		"deny-tools":    "EMBYFIN_DENY_TOOLS",
-		"listen":        "EMBYFIN_LISTEN",
-		"auth-token":    "EMBYFIN_AUTH_TOKEN",
-		"allow-no-auth": "EMBYFIN_ALLOW_NO_AUTH",
-		"tmdb-token":    "EMBYFIN_TMDB_TOKEN",
-		"tmdb-key":      "EMBYFIN_TMDB_KEY",
-		"anime-list":    "EMBYFIN_ANIME_LIST",
-	}
+	persistent = pflags
+	m := envNames
 
 	for name, env := range m {
 		if err := viper.BindPFlag(name, pflags.Lookup(name)); err != nil {
@@ -116,8 +124,38 @@ func GetFlags() *FlagData {
 	if err := viper.Unmarshal(&f); err != nil {
 		clog.Log.Fatalf("failed to unmarshal configuration: %v", err)
 	}
+	f.TMDBToken = tmdbCredential()
 
 	return &f
+}
+
+// tmdbCredential is the TMDB token by either of its names, from the highest
+// source that sets one: a flag, then the environment, then the config file.
+// viper settles each name on its own, so left to it a TMDB_TOKEN in the file
+// would beat a --tmdb-key on the command line.
+func tmdbCredential() string {
+	names := []string{"tmdb-token", "tmdb-key"}
+	sources := []func(name string) string{
+		func(name string) string {
+			if persistent != nil {
+				if fl := persistent.Lookup(name); fl != nil && fl.Changed {
+					return fl.Value.String()
+				}
+			}
+			return ""
+		},
+		func(name string) string { return os.Getenv(envNames[name]) },
+		func(name string) string { return viper.GetString(strings.ReplaceAll(name, "-", "_")) },
+	}
+	for _, source := range sources {
+		for _, name := range names {
+			if v := source(name); v != "" {
+				return v
+			}
+		}
+	}
+
+	return ""
 }
 
 func (f *FlagData) NewClient() (*embyfin.Client, error) {

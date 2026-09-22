@@ -15,7 +15,7 @@ func TestOperationAddItemToPlaylist(t *testing.T) {
 	c, s := newOperationServer(t, 204, "", "")
 	result, err := c.AddItemToPlaylist(t.Context(), "p/playlistId", AddItemToPlaylistOperationOptions{
 		Ids:      []string{"a", "b"},
-		Position: 7,
+		Position: new(7),
 		UserId:   "v-UserId",
 	})
 	if err != nil {
@@ -35,7 +35,7 @@ func TestOperationAddItemToPlaylist(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.AddItemToPlaylist(t.Context(), "p/playlistId", AddItemToPlaylistOperationOptions{
 		Ids:      []string{"a", "b"},
-		Position: 7,
+		Position: new(7),
 		UserId:   "v-UserId",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

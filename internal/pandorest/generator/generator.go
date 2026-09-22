@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -191,13 +192,7 @@ func fileName(prefix, kind, name string) string {
 }
 
 func sortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-
-	return keys
+	return slices.Sorted(maps.Keys(m))
 }
 
 func numbered(src string) string {

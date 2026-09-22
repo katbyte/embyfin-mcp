@@ -25,7 +25,6 @@ func TestOperationPostNotificationsAdmin(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Notifications/Admin")
 	expectQuery(t, r, "Name", "v-Name")
 	expectQuery(t, r, "Description", "v-Description")

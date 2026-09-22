@@ -58,7 +58,7 @@ func TestEmbyShows(t *testing.T) {
 		t.Errorf("first episode = %s S%02dE%02d", e.Name, e.ParentIndexNumber, e.IndexNumber)
 	}
 
-	one := must(embyc.GetShowsByIdEpisodes(ctx, sev.Id, emby.GetShowsByIdEpisodesOperationOptions{UserId: adminID, Season: 2})).Model
+	one := must(embyc.GetShowsByIdEpisodes(ctx, sev.Id, emby.GetShowsByIdEpisodesOperationOptions{UserId: adminID, Season: new(2)})).Model
 	if len(one.Items) != 2 {
 		t.Errorf("season 2 has %d episodes, want 2", len(one.Items))
 	}

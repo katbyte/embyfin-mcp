@@ -19,7 +19,7 @@ type PersonTaggedImagesOperationResponse struct {
 
 // PersonTaggedImagesOperationOptions holds the query and header parameters of PersonTaggedImages.
 type PersonTaggedImagesOperationOptions struct {
-	Page int
+	Page *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -31,8 +31,8 @@ func (o PersonTaggedImagesOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o PersonTaggedImagesOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	return &out
 }

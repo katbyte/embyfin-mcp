@@ -21,13 +21,13 @@ type SearchTvOperationOptions struct {
 	Query string
 
 	// Search only the first air date. Valid values are: 1000..9999
-	FirstAirDateYear int
+	FirstAirDateYear *int
 	IncludeAdult     *bool
 	Language         string
-	Page             int
+	Page             *int
 
 	// Search the first air date and all episode air dates. Valid values are: 1000..9999
-	Year int
+	Year *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -42,8 +42,8 @@ func (o SearchTvOperationOptions) ToQuery() *client.QueryParams {
 	if o.Query != "" {
 		out.Append("query", o.Query)
 	}
-	if o.FirstAirDateYear != 0 {
-		out.Append("first_air_date_year", strconv.Itoa(o.FirstAirDateYear))
+	if o.FirstAirDateYear != nil {
+		out.Append("first_air_date_year", strconv.Itoa(*o.FirstAirDateYear))
 	}
 	if o.IncludeAdult != nil {
 		out.Append("include_adult", strconv.FormatBool(*o.IncludeAdult))
@@ -51,11 +51,11 @@ func (o SearchTvOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
-	if o.Year != 0 {
-		out.Append("year", strconv.Itoa(o.Year))
+	if o.Year != nil {
+		out.Append("year", strconv.Itoa(*o.Year))
 	}
 	return &out
 }

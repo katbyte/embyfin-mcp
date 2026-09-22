@@ -39,7 +39,7 @@ type GetSeasonsOperationOptions struct {
 	EnableImages *bool
 
 	// Optional. The max number of images to return, per image type.
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes []ImageType
@@ -75,8 +75,8 @@ func (o GetSeasonsOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableImages != nil {
 		out.Append("enableImages", strconv.FormatBool(*o.EnableImages))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("imageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("imageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	for _, v := range o.EnableImageTypes {
 		out.Append("enableImageTypes", string(v))

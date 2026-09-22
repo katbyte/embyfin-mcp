@@ -76,15 +76,19 @@ func expectQuery(t *testing.T, r *http.Request, name string, want ...string) {
 	}
 }
 
-// pagedServer answers every page with one item of total items and records
-// the start index of each request.
-func pagedServer(t *testing.T, startIndex, item string, total int) (*Client, *[]string) {
+// pagedServer answers the first pages requests with one item each and an
+// empty list after, reporting total items, and records the start index of
+// each request.
+func pagedServer(t *testing.T, startIndex, item string, total, pages int) (*Client, *[]string) {
 	t.Helper()
 
 	var starts []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		starts = append(starts, r.URL.Query().Get(startIndex))
 		w.Header().Set("Content-Type", "application/json")
+		if len(starts) > pages {
+			item = ""
+		}
 		_, _ = fmt.Fprintf(w, "{\"Items\":[%s],\"TotalRecordCount\":%d}", item, total)
 	}))
 	t.Cleanup(srv.Close)

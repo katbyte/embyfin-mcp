@@ -23,7 +23,6 @@ func TestOperationAddListingProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/LiveTv/ListingProviders")
 	expectQuery(t, r, "pw", "v-Pw")
 	expectQuery(t, r, "validateListings", "true")

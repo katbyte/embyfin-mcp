@@ -15,7 +15,7 @@ func TestOperationGetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTick
 
 	c, s := newOperationServer(t, 200, "text/plain", "file bytes")
 	result, err := c.GetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat(t.Context(), "p/id", "p/mediaSourceId", 7, 7, "p/format", GetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormatOperationOptions{
-		EndPositionTicks: 7,
+		EndPositionTicks: new(int64(7)),
 		CopyTimestamps:   new(true),
 	})
 	if err != nil {
@@ -38,7 +38,7 @@ func TestOperationGetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTick
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat(t.Context(), "p/id", "p/mediaSourceId", 7, 7, "p/format", GetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormatOperationOptions{
-		EndPositionTicks: 7,
+		EndPositionTicks: new(int64(7)),
 		CopyTimestamps:   new(true),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

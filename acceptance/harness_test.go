@@ -12,6 +12,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -344,7 +345,9 @@ func startProxy() error {
 		// server's own account; replay never needs one
 		RedactBodyFields: []string{"token"},
 		// the media server reaching itself is not provider traffic
-		IgnoreHosts: containerAddresses(),
+		// Emby asks ipify, then its own service, for its public address on
+		// startup, which is nobody's business and not part of any recording
+		IgnoreHosts: append(containerAddresses(), "api.ipify.org", "api64.ipify.org", "connect.emby.media"),
 	}
 	if ca := os.Getenv("EMBYFIN_TEST_PROXY_CA"); ca != "" {
 		opts.CACert, opts.CAKey = filepath.Join(ca, "ca.pem"), filepath.Join(ca, "ca.key")
@@ -509,14 +512,18 @@ func rowsOf(v any) []map[string]any {
 	return out
 }
 
+// scanPatience is how long a library scan is given: quick on a quiet
+// machine, and not always quick on a runner sharing itself with three other
+// suites. Every wait on a scan uses it, so none gives up before the scan
+// can have finished and leaks the scan into the next test.
+const scanPatience = 6 * time.Minute
+
 // waitForItems polls library_get until a scan has settled on want items of
 // the library's primary type (see primaryType).
 func waitForItems(library string, want int) error {
 	kind := primaryType(library)
 	var last string
-	// 180 turns of two seconds: a scan is quick on a quiet machine and not
-	// always quick on a runner sharing itself with three other suites
-	for range 180 {
+	for range int(scanPatience / (2 * time.Second)) {
 		out, err := invoke("library_get", map[string]any{"library": library})
 		switch {
 		case err != nil:
@@ -537,28 +544,69 @@ func waitForItems(library string, want int) error {
 
 // waitForScan waits for the library scan task to go idle, so the provider
 // lookups the scan triggers have finished before a test looks at their
-// results.
+// results. A task_list that fails once (a server busy with the scan) is
+// asked again rather than ending the wait.
 func waitForScan() error {
-	for range 120 {
-		out, err := invoke("task_list", nil)
-		if err != nil {
-			return err
-		}
-		idle := true
-		for _, row := range rowsOf(out["tasks"]) {
-			name, _ := row["name"].(string)
-			state, _ := row["state"].(string)
-			if strings.Contains(strings.ToLower(name), "scan media library") && state != "Idle" {
-				idle = false
+	failures := 0
+	for range int(scanPatience / (2 * time.Second)) {
+		idle, err := scanIdle()
+		switch {
+		case err != nil:
+			if failures++; failures > 5 {
+				return err
 			}
-		}
-		if idle {
+		case idle:
 			return nil
 		}
 		time.Sleep(2 * time.Second)
 	}
 
-	return fmt.Errorf("the library scan never went idle")
+	return errors.New("the library scan never went idle")
+}
+
+// scanIdle says whether the library scan task is idle.
+func scanIdle() (bool, error) {
+	out, err := invoke("task_list", nil)
+	if err != nil {
+		return false, err
+	}
+	for _, row := range rowsOf(out["tasks"]) {
+		name, _ := row["name"].(string)
+		state, _ := row["state"].(string)
+		if strings.Contains(strings.ToLower(name), "scan media library") && state != "Idle" {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// waitForExpectedScan is waitForScan for a scan a change should have
+// started: a library made, deleted or given a folder on Jellyfin. It gives
+// the scan a moment to show up in the task list (Jellyfin starts the task
+// off the request thread) and, if it never does, starts one itself, so a
+// dropped scan costs a wait rather than a test. Emby's scans start on the
+// request, so there it is a plain waitForScan.
+func waitForExpectedScan() error {
+	if !isJellyfin() {
+		return waitForScan()
+	}
+	started := false
+	for range 10 {
+		idle, err := scanIdle()
+		if err == nil && !idle {
+			started = true
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+	if !started {
+		if _, err := invoke("task_run", map[string]any{"task": "scan media library"}); err != nil {
+			return fmt.Errorf("the change started no scan, and starting one failed: %w", err)
+		}
+	}
+
+	return waitForScan()
 }
 
 // invoke calls a tool and returns its structured result. Every tool call in

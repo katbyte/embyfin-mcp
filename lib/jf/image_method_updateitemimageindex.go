@@ -20,7 +20,7 @@ type UpdateItemImageIndexOperationResponse struct {
 // UpdateItemImageIndexOperationOptions holds the query and header parameters of UpdateItemImageIndex.
 type UpdateItemImageIndexOperationOptions struct {
 	// New image index.
-	NewIndex int
+	NewIndex *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -32,8 +32,8 @@ func (o UpdateItemImageIndexOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o UpdateItemImageIndexOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.NewIndex != 0 {
-		out.Append("newIndex", strconv.Itoa(o.NewIndex))
+	if o.NewIndex != nil {
+		out.Append("newIndex", strconv.Itoa(*o.NewIndex))
 	}
 	return &out
 }

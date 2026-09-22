@@ -21,7 +21,7 @@ type SearchPersonOperationOptions struct {
 	Query        string
 	IncludeAdult *bool
 	Language     string
-	Page         int
+	Page         *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -42,8 +42,8 @@ func (o SearchPersonOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	return &out
 }

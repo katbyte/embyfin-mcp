@@ -16,7 +16,7 @@ func TestOperationGetSessions(t *testing.T) {
 	result, err := c.GetSessions(t.Context(), GetSessionsOperationOptions{
 		ControllableByUserId: "v-ControllableByUserId",
 		DeviceId:             "v-DeviceId",
-		ActiveWithinSeconds:  7,
+		ActiveWithinSeconds:  new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +39,7 @@ func TestOperationGetSessions(t *testing.T) {
 	result, err = c.GetSessions(t.Context(), GetSessionsOperationOptions{
 		ControllableByUserId: "v-ControllableByUserId",
 		DeviceId:             "v-DeviceId",
-		ActiveWithinSeconds:  7,
+		ActiveWithinSeconds:  new(7),
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -50,7 +50,7 @@ func TestOperationGetSessions(t *testing.T) {
 	result, err = c.GetSessions(t.Context(), GetSessionsOperationOptions{
 		ControllableByUserId: "v-ControllableByUserId",
 		DeviceId:             "v-DeviceId",
-		ActiveWithinSeconds:  7,
+		ActiveWithinSeconds:  new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

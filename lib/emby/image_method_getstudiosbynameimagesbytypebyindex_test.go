@@ -15,11 +15,11 @@ func TestOperationGetStudiosByNameImagesByTypeByIndex(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "image/png", "file bytes")
 	result, err := c.GetStudiosByNameImagesByTypeByIndex(t.Context(), "p/name", ImageTypePrimary, 7, GetStudiosByNameImagesByTypeByIndexOperationOptions{
-		MaxWidth:             7,
-		MaxHeight:            7,
-		Width:                7,
-		Height:               7,
-		Quality:              7,
+		MaxWidth:             new(7),
+		MaxHeight:            new(7),
+		Width:                new(7),
+		Height:               new(7),
+		Quality:              new(7),
 		Tag:                  "v-Tag",
 		CropWhitespace:       new(true),
 		EnableImageEnhancers: new(true),
@@ -60,11 +60,11 @@ func TestOperationGetStudiosByNameImagesByTypeByIndex(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetStudiosByNameImagesByTypeByIndex(t.Context(), "p/name", ImageTypePrimary, 7, GetStudiosByNameImagesByTypeByIndexOperationOptions{
-		MaxWidth:             7,
-		MaxHeight:            7,
-		Width:                7,
-		Height:               7,
-		Quality:              7,
+		MaxWidth:             new(7),
+		MaxHeight:            new(7),
+		Width:                new(7),
+		Height:               new(7),
+		Quality:              new(7),
 		Tag:                  "v-Tag",
 		CropWhitespace:       new(true),
 		EnableImageEnhancers: new(true),

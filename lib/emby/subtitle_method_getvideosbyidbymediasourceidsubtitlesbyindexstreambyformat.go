@@ -23,10 +23,10 @@ type GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormatOperationResponse
 // GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormatOperationOptions holds the query and header parameters of GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormat.
 type GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormatOperationOptions struct {
 	// StartPositionTicks
-	StartPositionTicks int64
+	StartPositionTicks *int64
 
 	// EndPositionTicks
-	EndPositionTicks int64
+	EndPositionTicks *int64
 
 	// CopyTimestamps
 	CopyTimestamps *bool
@@ -41,11 +41,11 @@ func (o GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormatOperationOptio
 // ToQuery returns the query parameters the options set.
 func (o GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormatOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.StartPositionTicks != 0 {
-		out.Append("StartPositionTicks", strconv.FormatInt(o.StartPositionTicks, 10))
+	if o.StartPositionTicks != nil {
+		out.Append("StartPositionTicks", strconv.FormatInt(*o.StartPositionTicks, 10))
 	}
-	if o.EndPositionTicks != 0 {
-		out.Append("EndPositionTicks", strconv.FormatInt(o.EndPositionTicks, 10))
+	if o.EndPositionTicks != nil {
+		out.Append("EndPositionTicks", strconv.FormatInt(*o.EndPositionTicks, 10))
 	}
 	if o.CopyTimestamps != nil {
 		out.Append("CopyTimestamps", strconv.FormatBool(*o.CopyTimestamps))

@@ -17,7 +17,7 @@ func TestOperationGetVideosByIdAdditionalParts(t *testing.T) {
 		UserId:           "v-UserId",
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -46,7 +46,7 @@ func TestOperationGetVideosByIdAdditionalParts(t *testing.T) {
 		UserId:           "v-UserId",
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -60,7 +60,7 @@ func TestOperationGetVideosByIdAdditionalParts(t *testing.T) {
 		UserId:           "v-UserId",
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})
@@ -74,7 +74,7 @@ func TestOperationGetVideosByIdAdditionalParts(t *testing.T) {
 		UserId:           "v-UserId",
 		Fields:           "v-Fields",
 		EnableImages:     new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: "v-EnableImageTypes",
 		EnableUserData:   new(true),
 	})

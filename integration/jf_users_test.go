@@ -110,7 +110,7 @@ func TestJFPlayedAndResume(t *testing.T) {
 
 	// nothing is in progress yet, so the list is empty but must decode
 	resume := func() *jf.BaseItemDtoQueryResult {
-		return must(jfc.GetResumeItems(ctx, jf.GetResumeItemsOperationOptions{UserId: adminID, MediaTypes: []jf.MediaType{jf.MediaTypeVideo}, Limit: 5})).Model
+		return must(jfc.GetResumeItems(ctx, jf.GetResumeItemsOperationOptions{UserId: adminID, MediaTypes: []jf.MediaType{jf.MediaTypeVideo}, Limit: new(5)})).Model
 	}
 	if res := resume(); res.TotalRecordCount != 0 {
 		t.Errorf("GetResumeItems = %+v", res)

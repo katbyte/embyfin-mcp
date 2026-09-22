@@ -8,6 +8,7 @@ package differ
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -174,6 +175,9 @@ func diffOperations(older, newer *definitions.Service) []Change {
 			if o.Deprecated != n.Deprecated {
 				d.change(false, "deprecated %t -> %t", o.Deprecated, n.Deprecated)
 			}
+			if o.Description != n.Description {
+				d.change(false, "description changed")
+			}
 			diffPathParameters(&d, o.PathParameters, n.PathParameters)
 			diffOptions(&d, o.Options, n.Options)
 			diffBody(&d, "request", o.Request, n.Request)
@@ -183,8 +187,11 @@ func diffOperations(older, newer *definitions.Service) []Change {
 				gone := slices.ContainsFunc(o.ExpectedStatusCodes, func(c int) bool { return !slices.Contains(n.ExpectedStatusCodes, c) })
 				d.change(gone, "expected status codes %v -> %v", o.ExpectedStatusCodes, n.ExpectedStatusCodes)
 			}
-			if (o.Pageable == nil) != (n.Pageable == nil) {
+			switch {
+			case (o.Pageable == nil) != (n.Pageable == nil):
 				d.change(o.Pageable != nil, "pageable %t -> %t", o.Pageable != nil, n.Pageable != nil)
+			case o.Pageable != nil && !o.Pageable.ItemType.Equal(n.Pageable.ItemType):
+				d.change(true, "pageable item type %s -> %s", o.Pageable.ItemType, n.Pageable.ItemType)
 			}
 			if c, ok := d.result(operationSubject(n)); ok {
 				out = append(out, c)
@@ -273,8 +280,26 @@ func diffOptions(d *details, older, newer []definitions.Option) {
 			if o.Required != n.Required {
 				d.change(n.Required, "option %s: required %t -> %t", label, o.Required, n.Required)
 			}
+			if o.CommaSeparated != n.CommaSeparated {
+				d.change(true, "option %s: sent %s -> %s", label, wireForm(o.CommaSeparated), wireForm(n.CommaSeparated))
+			}
+			if o.DeepObject != n.DeepObject {
+				d.change(true, "option %s: deep object %t -> %t", label, o.DeepObject, n.DeepObject)
+			}
+			if o.Description != n.Description {
+				d.change(false, "option %s: description changed", label)
+			}
 		}
 	}
+}
+
+// wireForm names how a list option travels.
+func wireForm(commaSeparated bool) string {
+	if commaSeparated {
+		return "comma-separated"
+	}
+
+	return "one key per value"
 }
 
 func diffBody(d *details, what string, older, newer *definitions.Body) {
@@ -305,6 +330,9 @@ func diffModels(older, newer map[string]*definitions.Model) []Change {
 			if !slices.Equal(o.Union, n.Union) {
 				d.change(true, "union %v -> %v", o.Union, n.Union)
 			}
+			if o.Description != n.Description {
+				d.change(false, "description changed")
+			}
 			oldFields, oldNames := keyed(o.Fields, func(f definitions.Field) string { return f.JSONName })
 			newFields, newNames := keyed(n.Fields, func(f definitions.Field) string { return f.JSONName })
 			for _, field := range union(oldNames, newNames) {
@@ -320,7 +348,11 @@ func diffModels(older, newer map[string]*definitions.Model) []Change {
 				case of.Name != nf.Name:
 					d.change(true, "field %s: Go name %s -> %s", field, of.Name, nf.Name)
 				case of.Nullable != nf.Nullable:
-					d.change(nf.Type.Type == definitions.Boolean, "field %s: nullable %t -> %t", field, of.Nullable, nf.Nullable)
+					// the generator reads nothing from it: booleans are
+					// pointers and lists omitzero whatever the document says
+					d.change(false, "field %s: nullable %t -> %t", field, of.Nullable, nf.Nullable)
+				case of.Description != nf.Description:
+					d.change(false, "field %s: description changed", field)
 				}
 			}
 			if c, ok := d.result("model " + name); ok {
@@ -365,10 +397,5 @@ func diffConstants(older, newer map[string]*definitions.Constant) []Change {
 }
 
 func mapKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-
-	return keys
+	return slices.Collect(maps.Keys(m))
 }

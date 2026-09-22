@@ -18,7 +18,7 @@ func TestOperationSearchMovie(t *testing.T) {
 		IncludeAdult:       new(true),
 		Language:           "v-Language",
 		PrimaryReleaseYear: "v-PrimaryReleaseYear",
-		Page:               7,
+		Page:               new(7),
 		Region:             "v-Region",
 		Year:               "v-Year",
 	})
@@ -49,7 +49,7 @@ func TestOperationSearchMovie(t *testing.T) {
 		IncludeAdult:       new(true),
 		Language:           "v-Language",
 		PrimaryReleaseYear: "v-PrimaryReleaseYear",
-		Page:               7,
+		Page:               new(7),
 		Region:             "v-Region",
 		Year:               "v-Year",
 	})
@@ -64,7 +64,7 @@ func TestOperationSearchMovie(t *testing.T) {
 		IncludeAdult:       new(true),
 		Language:           "v-Language",
 		PrimaryReleaseYear: "v-PrimaryReleaseYear",
-		Page:               7,
+		Page:               new(7),
 		Region:             "v-Region",
 		Year:               "v-Year",
 	})

@@ -1378,33 +1378,6 @@
       ]
     },
     {
-      "Name": "BitRate",
-      "SchemaName": "BitRate",
-      "Fields": [
-        {
-          "Name": "Mbps",
-          "JsonName": "Mbps",
-          "Type": {
-            "Type": "Double"
-          }
-        },
-        {
-          "Name": "Bps",
-          "JsonName": "bps",
-          "Type": {
-            "Type": "Integer64"
-          }
-        },
-        {
-          "Name": "Kbps",
-          "JsonName": "kbps",
-          "Type": {
-            "Type": "Double"
-          }
-        }
-      ]
-    },
-    {
       "Name": "ChapterInfo",
       "SchemaName": "ChapterInfo",
       "Fields": [
@@ -4223,41 +4196,6 @@
           "JsonName": "Height",
           "Type": {
             "Type": "Integer"
-          }
-        },
-        {
-          "Name": "Width",
-          "JsonName": "Width",
-          "Type": {
-            "Type": "Integer"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "ResolutionWithRate",
-      "SchemaName": "ResolutionWithRate",
-      "Fields": [
-        {
-          "Name": "FrameRate",
-          "JsonName": "FrameRate",
-          "Type": {
-            "Type": "Double"
-          }
-        },
-        {
-          "Name": "Height",
-          "JsonName": "Height",
-          "Type": {
-            "Type": "Integer"
-          }
-        },
-        {
-          "Name": "Resolution",
-          "JsonName": "Resolution",
-          "Type": {
-            "Type": "Reference",
-            "ReferenceName": "Resolution"
           }
         },
         {

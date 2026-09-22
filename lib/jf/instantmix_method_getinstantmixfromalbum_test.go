@@ -15,11 +15,11 @@ func TestOperationGetInstantMixFromAlbum(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GetInstantMixFromAlbum(t.Context(), "p/itemId", GetInstantMixFromAlbumOperationOptions{
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 	})
 	if err != nil {
@@ -46,11 +46,11 @@ func TestOperationGetInstantMixFromAlbum(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetInstantMixFromAlbum(t.Context(), "p/itemId", GetInstantMixFromAlbumOperationOptions{
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -61,11 +61,11 @@ func TestOperationGetInstantMixFromAlbum(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetInstantMixFromAlbum(t.Context(), "p/itemId", GetInstantMixFromAlbumOperationOptions{
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

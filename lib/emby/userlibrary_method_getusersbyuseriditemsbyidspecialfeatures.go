@@ -27,7 +27,7 @@ type GetUsersByUserIdItemsByIdSpecialFeaturesOperationOptions struct {
 	EnableImages *bool
 
 	// Optional, the max number of images to return, per image type
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes string
@@ -51,8 +51,8 @@ func (o GetUsersByUserIdItemsByIdSpecialFeaturesOperationOptions) ToQuery() *cli
 	if o.EnableImages != nil {
 		out.Append("EnableImages", strconv.FormatBool(*o.EnableImages))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("ImageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("ImageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	if o.EnableImageTypes != "" {
 		out.Append("EnableImageTypes", o.EnableImageTypes)

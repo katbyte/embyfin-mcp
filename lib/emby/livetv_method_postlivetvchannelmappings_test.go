@@ -21,7 +21,6 @@ func TestOperationPostLiveTvChannelMappings(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/LiveTv/ChannelMappings")
 	expectQuery(t, r, "ProviderId", "v-ProviderId")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {

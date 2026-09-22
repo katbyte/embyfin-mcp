@@ -15,7 +15,7 @@ func TestOperationGuestSessionRatedTvEpisodes(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GuestSessionRatedTvEpisodes(t.Context(), "p/guestSessionId", GuestSessionRatedTvEpisodesOperationOptions{
 		Language: "v-Language",
-		Page:     7,
+		Page:     new(7),
 		SortBy:   "v-SortBy",
 	})
 	if err != nil {
@@ -38,7 +38,7 @@ func TestOperationGuestSessionRatedTvEpisodes(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GuestSessionRatedTvEpisodes(t.Context(), "p/guestSessionId", GuestSessionRatedTvEpisodesOperationOptions{
 		Language: "v-Language",
-		Page:     7,
+		Page:     new(7),
 		SortBy:   "v-SortBy",
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -49,7 +49,7 @@ func TestOperationGuestSessionRatedTvEpisodes(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GuestSessionRatedTvEpisodes(t.Context(), "p/guestSessionId", GuestSessionRatedTvEpisodesOperationOptions{
 		Language: "v-Language",
-		Page:     7,
+		Page:     new(7),
 		SortBy:   "v-SortBy",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

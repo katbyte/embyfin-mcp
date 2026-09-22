@@ -119,7 +119,11 @@ repeated keys), Emby's comma-separated.
     on its next scan. A scan of one Jellyfin library does not see a folder
     added to or removed from it (only the library scan revalidates folders),
     so a folder change there asks for that scan; Emby's scan of the one
-    library picks it up.
+    library picks it up. The scan is asked for on its own (`POST
+    /Library/Refresh`, which cancels a running scan and queues one) rather
+    than with the change (`refreshLibrary=true`), because Jellyfin drops the
+    latter without a word when a scan is already running, and a library made
+    or changed back to back with another then never gets scanned.
   - Scanning one library is a refresh of its folder, recursive, with the
     `Default` modes that fill in only what is missing: Emby needs
     `Recursive=true`, Jellyfin refreshes a folder's children without being
@@ -215,7 +219,7 @@ repeated keys), Emby's comma-separated.
   - Removing a library: Emby removes its items with it. Jellyfin keeps them,
     still in playlists, collections, favourites and a user's counts and
     readable by id, until its library scan finds their folder gone, so the
-    removal asks for that scan.
+    removal asks for that scan (on its own, as above).
   - The genre lists (`/Genres`) lag item edits: Jellyfin lists a new genre
     only after a scan, and both keep one no item carries any more, so
     `library_genres` reads the genres off the items.

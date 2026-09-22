@@ -17,7 +17,7 @@ func TestOperationSearchCollection(t *testing.T) {
 		Query:        "v-Query",
 		IncludeAdult: new(true),
 		Language:     "v-Language",
-		Page:         7,
+		Page:         new(7),
 		Region:       "v-Region",
 	})
 	if err != nil {
@@ -44,7 +44,7 @@ func TestOperationSearchCollection(t *testing.T) {
 		Query:        "v-Query",
 		IncludeAdult: new(true),
 		Language:     "v-Language",
-		Page:         7,
+		Page:         new(7),
 		Region:       "v-Region",
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -57,7 +57,7 @@ func TestOperationSearchCollection(t *testing.T) {
 		Query:        "v-Query",
 		IncludeAdult: new(true),
 		Language:     "v-Language",
-		Page:         7,
+		Page:         new(7),
 		Region:       "v-Region",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

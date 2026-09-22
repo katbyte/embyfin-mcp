@@ -25,7 +25,6 @@ func TestOperationPostItemsByIdRefresh(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Items/p%2Fid/Refresh")
 	expectQuery(t, r, "Recursive", "true")
 	expectQuery(t, r, "MetadataRefreshMode", "ValidationOnly")

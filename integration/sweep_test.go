@@ -13,9 +13,13 @@ package integration
 // Every operation either answers, or has a sweepCase that says why not: the
 // feature needs something the container lacks (a tuner, a DLNA client, a
 // transcoding session), the endpoint is gone from the server, or the server
-// answers a shape its document does not describe. A case whose operation
-// starts answering fails the sweep, so a stale case is noticed and removed,
-// the way a stale importer workaround is.
+// answers a shape its document does not describe. A Status or Decode case
+// whose operation starts answering fails the sweep, so a stale one is
+// noticed and removed, the way a stale importer workaround is. A Skip case
+// is never called, because calling it would hang on ffmpeg, scan a network
+// or need a fixture the container cannot have, so it is only ever reviewed by
+// hand; Sometimes marks an answer the container gives on some runs and not
+// others, which the sweep can therefore neither require nor forbid.
 
 import (
 	"context"
@@ -211,6 +215,12 @@ func setValue(v reflect.Value, value any) error {
 	switch v.Kind() {
 	case reflect.String:
 		v.SetString(s)
+	case reflect.Bool:
+		b, err := strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+		v.SetBool(b)
 	case reflect.Int, reflect.Int64:
 		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
@@ -224,11 +234,13 @@ func setValue(v reflect.Value, value any) error {
 		}
 		v.SetFloat(n)
 	case reflect.Pointer:
-		b, err := strconv.ParseBool(s)
-		if err != nil || v.Type().Elem().Kind() != reflect.Bool {
-			return fmt.Errorf("cannot set %s from %q", v.Type(), s)
+		// a bool or a number: the options hold both as pointers, so 0 and
+		// false can be asked for
+		elem := reflect.New(v.Type().Elem())
+		if err := setValue(elem.Elem(), value); err != nil {
+			return fmt.Errorf("cannot set %s from %q: %w", v.Type(), s, err)
 		}
-		v.Set(reflect.ValueOf(&b))
+		v.Set(elem)
 	case reflect.Slice:
 		parts := strings.Split(s, ",")
 		list := reflect.MakeSlice(v.Type(), len(parts), len(parts))

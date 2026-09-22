@@ -127,8 +127,18 @@ func TestJFCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	holds("after AddToCollection", a.Id, b.Id, c.Id)
+	// Jellyfin loses a collection edit made while it is still refreshing the
+	// collection after the last one (lib/embyfin re-sends for this; the
+	// behaviour is in docs/README.md), so one that has not landed in a third
+	// of the patience is sent once more before it is a failure
 	if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
 		t.Fatal(err)
+	}
+	if !poll(editPatience/3, func() bool { return slices.Equal(members(), []string{b.Id, c.Id}) }) {
+		t.Logf("the removal of %s did not land; sending it again", a.Id)
+		if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	holds("after RemoveFromCollection", b.Id, c.Id)
 	// removing an item the collection does not hold is answered 204 and

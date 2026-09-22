@@ -54,13 +54,13 @@ func (c *Client) Sessions(ctx context.Context) ([]Session, error) {
 func (c *Client) Play(ctx context.Context, sessionID string, itemIDs []string, playCommand string) error {
 	if c.isEmby() {
 		// Emby's document types the item ids as integers
-		ids := make([]int, 0, len(itemIDs))
+		ids := make([]int64, 0, len(itemIDs))
 		for _, id := range itemIDs {
 			n, err := embyID(id)
 			if err != nil {
 				return err
 			}
-			ids = append(ids, int(n))
+			ids = append(ids, n)
 		}
 		_, err := c.emby.PostSessionsByIdPlaying(ctx, sessionID, emby.PlayRequest{}, emby.PostSessionsByIdPlayingOperationOptions{ItemIds: ids, PlayCommand: emby.PlayCommand(playCommand)})
 
@@ -90,7 +90,7 @@ func (c *Client) PlayCommand(ctx context.Context, sessionID, command string, see
 
 	var options jf.SendPlaystateCommandOperationOptions
 	if seek {
-		options.SeekPositionTicks = seekTicks
+		options.SeekPositionTicks = &seekTicks
 	}
 	_, err := c.jf.SendPlaystateCommand(ctx, sessionID, jf.PlaystateCommand(command), options)
 
@@ -101,7 +101,7 @@ func (c *Client) PlayCommand(ctx context.Context, sessionID, command string, see
 // message as query parameters, Jellyfin as a JSON body.
 func (c *Client) Message(ctx context.Context, sessionID, header, text string, timeoutMs int) error {
 	if c.isEmby() {
-		_, err := c.emby.PostSessionsByIdMessage(ctx, sessionID, emby.PostSessionsByIdMessageOperationOptions{Text: text, Header: header, TimeoutMs: int64(timeoutMs)})
+		_, err := c.emby.PostSessionsByIdMessage(ctx, sessionID, emby.PostSessionsByIdMessageOperationOptions{Text: text, Header: header, TimeoutMs: nz(int64(timeoutMs))})
 		return err
 	}
 

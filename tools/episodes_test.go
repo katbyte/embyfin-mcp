@@ -401,6 +401,15 @@ func TestAuditMissingEpisodesSaysHowMuchItKnows(t *testing.T) {
 		t.Errorf("findings = %v, want the gap between the two files", rows)
 	}
 
+	// a file holding two episodes holds both: S01E01E02 then E03 is no gap
+	s.episodes[0].number2 = 2
+	cs = session(t, tvServer(t, s), Options{})
+	out = mustCall(t, cs, "audit_missing_episodes", map[string]any{"library": "Shows"})
+	if rows := objects(t, out["findings"], "findings"); len(rows) != 0 {
+		t.Errorf("findings = %v, want none: the double-episode file holds E02", rows)
+	}
+	s.episodes[0].number2 = 0
+
 	// a server that does keep the run says so, and drops the warning
 	s.episodes = append(s.episodes, ep{season: 1, number: 4, name: "four", missing: true})
 	cs = session(t, tvServer(t, s), Options{})

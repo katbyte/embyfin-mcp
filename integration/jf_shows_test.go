@@ -59,7 +59,7 @@ func TestJFShows(t *testing.T) {
 		t.Errorf("first episode = %s S%02dE%02d", e.Name, e.ParentIndexNumber, e.IndexNumber)
 	}
 
-	one := must(jfc.GetEpisodes(ctx, sev.Id, jf.GetEpisodesOperationOptions{UserId: adminID, Season: 2})).Model
+	one := must(jfc.GetEpisodes(ctx, sev.Id, jf.GetEpisodesOperationOptions{UserId: adminID, Season: new(2)})).Model
 	if len(one.Items) != 2 {
 		t.Errorf("season 2 has %d episodes, want 2", len(one.Items))
 	}
@@ -100,7 +100,7 @@ func TestJFShows(t *testing.T) {
 	if up := must(jfc.GetUpcomingEpisodes(ctx, jf.GetUpcomingEpisodesOperationOptions{UserId: adminID})).Model; len(up.Items) != 0 {
 		t.Errorf("GetUpcomingEpisodes = %+v", up.Items)
 	}
-	if similar := must(jfc.GetSimilarShows(ctx, sev.Id, jf.GetSimilarShowsOperationOptions{UserId: adminID, Limit: 2})).Model; len(similar.Items) == 0 {
+	if similar := must(jfc.GetSimilarShows(ctx, sev.Id, jf.GetSimilarShowsOperationOptions{UserId: adminID, Limit: new(2)})).Model; len(similar.Items) == 0 {
 		t.Error("GetSimilarShows found nothing among two other dramas")
 	}
 }

@@ -7,6 +7,7 @@ package openapi
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -59,16 +60,24 @@ type Parameter struct {
 	Schema      *Schema `json:"schema"`
 }
 
-// Exploded reports whether an array parameter is sent as one key per value,
-// OpenAPI's default for query parameters (style form, explode true), rather
-// than comma-separated.
+// Exploded reports whether an array parameter is sent as one key per value
+// rather than comma-separated: OpenAPI's default for a query parameter
+// (style form, explode true), but not for a header (style simple, explode
+// false).
 func (p *Parameter) Exploded() bool {
 	if p.Explode != nil {
 		return *p.Explode
 	}
+	if p.In == InHeader {
+		return p.Style == "form"
+	}
 
 	return p.Style == "" || p.Style == "form"
 }
+
+// DeepObject reports whether an object parameter is sent as one key per
+// field, name[field]=value, rather than as one JSON string.
+func (p *Parameter) DeepObject() bool { return p.Style == "deepObject" }
 
 // Parameter locations.
 const (
@@ -95,11 +104,10 @@ type Example struct {
 	Value json.RawMessage `json:"value"`
 }
 
-// Response is one status code of an operation. Ref is set when the response
-// is a `$ref` into components/responses (Emby does this for its error codes);
-// those never carry content, so the reference is not followed.
+// Response is one status code of an operation. A response that is a `$ref`
+// into components/responses (Emby's error codes) carries no content, and
+// decodes to one with none.
 type Response struct {
-	Ref         string                `json:"$ref"`
 	Description string                `json:"description"`
 	Content     map[string]*MediaType `json:"content"`
 }
@@ -186,7 +194,9 @@ func (s *Schema) Additional() (sch *Schema, ok bool) {
 	}
 	var a Schema
 	if err := json.Unmarshal(s.AdditionalProperties, &a); err != nil {
-		return nil, false
+		// not a schema at all: an untyped map, which is what a strict
+		// import would otherwise silently make of it as an empty struct
+		return &Schema{}, true
 	}
 
 	return &a, true
@@ -246,34 +256,6 @@ func (s *Spec) Operation(method, path string) *Operation {
 	return nil
 }
 
-// SetOperation replaces (or with nil removes) the operation for an HTTP
-// method on a path.
-func (s *Spec) SetOperation(method, path string, op *Operation) {
-	item := s.Paths[path]
-	if item == nil {
-		if op == nil {
-			return
-		}
-		item = &PathItem{}
-		if s.Paths == nil {
-			s.Paths = map[string]*PathItem{}
-		}
-		s.Paths[path] = item
-	}
-	switch strings.ToUpper(method) {
-	case "GET":
-		item.Get = op
-	case "POST":
-		item.Post = op
-	case "PUT":
-		item.Put = op
-	case "DELETE":
-		item.Delete = op
-	case "PATCH":
-		item.Patch = op
-	}
-}
-
 // Parameter returns the operation's parameter of that location and name
 // (case-insensitive, as both servers bind them), or nil.
 func (o *Operation) Parameter(in, name string) *Parameter {
@@ -288,11 +270,5 @@ func (o *Operation) Parameter(in, name string) *Parameter {
 
 // SortedKeys returns the keys of a map in sorted order, for deterministic output.
 func SortedKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-
-	return keys
+	return slices.Sorted(maps.Keys(m))
 }

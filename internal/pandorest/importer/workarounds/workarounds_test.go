@@ -54,6 +54,32 @@ func TestWorkaroundsApplyOnceThenFail(t *testing.T) {
 	}
 }
 
+// A refreshed document that drops the 200 a workaround reads must get an
+// error naming the workaround, as the README promises, not a nil-pointer
+// panic from the middle of the import.
+func TestWorkaroundsReportAMissing200(t *testing.T) {
+	t.Parallel()
+
+	for _, w := range All {
+		t.Run(w.Name(), func(t *testing.T) {
+			t.Parallel()
+
+			spec := loadSpec(t, w.Service())
+			for _, item := range spec.Paths {
+				for _, m := range item.Methods() {
+					delete(m.Operation.Responses, "200")
+				}
+			}
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("panicked on a document with no 200 responses: %v", r)
+				}
+			}()
+			_ = w.Apply(spec) // an error or a no-op: the point is that it returns
+		})
+	}
+}
+
 func TestApply(t *testing.T) {
 	t.Parallel()
 

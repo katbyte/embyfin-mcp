@@ -22,7 +22,7 @@ type SearchMovieOperationOptions struct {
 	IncludeAdult       *bool
 	Language           string
 	PrimaryReleaseYear string
-	Page               int
+	Page               *int
 	Region             string
 	Year               string
 }
@@ -48,8 +48,8 @@ func (o SearchMovieOperationOptions) ToQuery() *client.QueryParams {
 	if o.PrimaryReleaseYear != "" {
 		out.Append("primary_release_year", o.PrimaryReleaseYear)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.Region != "" {
 		out.Append("region", o.Region)

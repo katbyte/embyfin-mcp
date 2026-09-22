@@ -523,7 +523,7 @@ func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, 
 	for _, season := range queries {
 		opts := embyfin.EpisodeOptions{Fields: fields}
 		if len(queries) > 1 || season > 0 {
-			opts.Season = season
+			opts.Season = &season
 		}
 		episodes, err := client.Episodes(ctx, seriesID, opts)
 		if err != nil {
@@ -642,7 +642,7 @@ func registerEpisodeTools(r *registry) {
 	type exportIn struct {
 		Library    string   `json:"library,omitempty"     jsonschema:"name or id; default every library"`
 		SeriesID   string   `json:"series_id,omitempty"   jsonschema:"one series, in place of a library"`
-		Season     int      `json:"season,omitempty"      jsonschema:"one season; needs series_id"`
+		Season     *int     `json:"season,omitempty"      jsonschema:"one season, 0 for the specials; needs series_id"`
 		Quality    *bool    `json:"quality,omitempty"     jsonschema:"the facts and the path on each row; default true"`
 		Fields     []string `json:"fields,omitempty"      jsonschema:"only these facts on each row: path, runtime_s, container, size, bitrate, width, height, video_codec, frame_rate, hdr, audio, subtitles"`
 		WithFile   *bool    `json:"with_file,omitempty"   jsonschema:"only episodes with a file; default true"`
@@ -706,7 +706,7 @@ func registerEpisodeTools(r *registry) {
 				return nil, exportOut{}, err
 			}
 			opts.ParentID = series.ID
-		case in.Season > 0:
+		case in.Season != nil:
 			return nil, exportOut{}, errors.New("season needs series_id: a season number means nothing across a library")
 		default:
 			folder, err := resolveLibrary(ctx, client, in.Library)
@@ -730,7 +730,7 @@ func registerEpisodeTools(r *registry) {
 		scoped := in.SeriesID != ""
 		for i := range items {
 			it := &items[i]
-			if in.Season > 0 && it.ParentIndexNumber != in.Season {
+			if in.Season != nil && it.ParentIndexNumber != *in.Season {
 				continue
 			}
 			if withFile && !it.HasFile() {

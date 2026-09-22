@@ -15,11 +15,11 @@ func TestOperationSearchTv(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.SearchTv(t.Context(), SearchTvOperationOptions{
 		Query:            "v-Query",
-		FirstAirDateYear: 7,
+		FirstAirDateYear: new(7),
 		IncludeAdult:     new(true),
 		Language:         "v-Language",
-		Page:             7,
-		Year:             7,
+		Page:             new(7),
+		Year:             new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -44,11 +44,11 @@ func TestOperationSearchTv(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.SearchTv(t.Context(), SearchTvOperationOptions{
 		Query:            "v-Query",
-		FirstAirDateYear: 7,
+		FirstAirDateYear: new(7),
 		IncludeAdult:     new(true),
 		Language:         "v-Language",
-		Page:             7,
-		Year:             7,
+		Page:             new(7),
+		Year:             new(7),
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -58,11 +58,11 @@ func TestOperationSearchTv(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.SearchTv(t.Context(), SearchTvOperationOptions{
 		Query:            "v-Query",
-		FirstAirDateYear: 7,
+		FirstAirDateYear: new(7),
 		IncludeAdult:     new(true),
 		Language:         "v-Language",
-		Page:             7,
-		Year:             7,
+		Page:             new(7),
+		Year:             new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

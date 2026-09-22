@@ -16,11 +16,11 @@ func TestOperationGetInstantMixFromMusicGenreById(t *testing.T) {
 	result, err := c.GetInstantMixFromMusicGenreById(t.Context(), GetInstantMixFromMusicGenreByIdOperationOptions{
 		Id:               "v-Id",
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 	})
 	if err != nil {
@@ -49,11 +49,11 @@ func TestOperationGetInstantMixFromMusicGenreById(t *testing.T) {
 	result, err = c.GetInstantMixFromMusicGenreById(t.Context(), GetInstantMixFromMusicGenreByIdOperationOptions{
 		Id:               "v-Id",
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -65,11 +65,11 @@ func TestOperationGetInstantMixFromMusicGenreById(t *testing.T) {
 	result, err = c.GetInstantMixFromMusicGenreById(t.Context(), GetInstantMixFromMusicGenreByIdOperationOptions{
 		Id:               "v-Id",
 		UserId:           "v-UserId",
-		Limit:            7,
+		Limit:            new(7),
 		Fields:           []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableImages:     new(true),
 		EnableUserData:   new(true),
-		ImageTypeLimit:   7,
+		ImageTypeLimit:   new(7),
 		EnableImageTypes: []ImageType{ImageTypePrimary, ImageTypeProfile},
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

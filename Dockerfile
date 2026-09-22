@@ -13,8 +13,8 @@ WORKDIR /src
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -mod=vendor \
       -ldflags "-s -w \
-        -X github.com/katbyte/embyfin-mcp/lib/version.Version=${VERSION} \
-        -X github.com/katbyte/embyfin-mcp/lib/version.GitCommit=${COMMIT}" \
+        -X github.com/katbyte/go-kt/version.Version=${VERSION} \
+        -X github.com/katbyte/go-kt/version.GitCommit=${COMMIT}" \
       -o /embyfin-mcp .
 
 FROM alpine:${ALPINE_VERSION}

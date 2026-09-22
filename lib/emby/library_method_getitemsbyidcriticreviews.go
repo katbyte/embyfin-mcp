@@ -21,10 +21,10 @@ type GetItemsByIdCriticReviewsOperationResponse struct {
 // GetItemsByIdCriticReviewsOperationOptions holds the query and header parameters of GetItemsByIdCriticReviews.
 type GetItemsByIdCriticReviewsOperationOptions struct {
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return
-	Limit int
+	Limit *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -36,11 +36,11 @@ func (o GetItemsByIdCriticReviewsOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetItemsByIdCriticReviewsOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.StartIndex != 0 {
-		out.Append("StartIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("StartIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("Limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("Limit", strconv.Itoa(*o.Limit))
 	}
 	return &out
 }
@@ -94,8 +94,14 @@ type GetItemsByIdCriticReviewsCompleteResult struct {
 // result is loaded. options.Limit is the page size, client.DefaultPageSize when
 // unset.
 func (c Client) GetItemsByIdCriticReviewsComplete(ctx context.Context, id string, options GetItemsByIdCriticReviewsOperationOptions) (result GetItemsByIdCriticReviewsCompleteResult, err error) {
-	if options.Limit <= 0 {
-		options.Limit = client.DefaultPageSize
+	limit := client.DefaultPageSize
+	if options.Limit != nil && *options.Limit > 0 {
+		limit = *options.Limit
+	}
+	options.Limit = &limit
+	start := 0
+	if options.StartIndex != nil {
+		start = *options.StartIndex
 	}
 	for {
 		var page GetItemsByIdCriticReviewsOperationResponse
@@ -109,10 +115,11 @@ func (c Client) GetItemsByIdCriticReviewsComplete(ctx context.Context, id string
 			return
 		}
 		result.Items = append(result.Items, page.Model.Items...)
-		options.StartIndex += len(page.Model.Items)
+		start += len(page.Model.Items)
+		options.StartIndex = &start
 		// a short page is the last; so is reaching the total, when the server
 		// reports one (some Emby lists report 0 whatever they hold)
-		if len(page.Model.Items) < options.Limit || page.Model.TotalRecordCount > 0 && options.StartIndex >= page.Model.TotalRecordCount {
+		if len(page.Model.Items) < limit || page.Model.TotalRecordCount > 0 && start >= page.Model.TotalRecordCount {
 			return
 		}
 	}

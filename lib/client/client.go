@@ -39,6 +39,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/katbyte/go-kt/version"
 )
@@ -407,6 +408,18 @@ func CSV[T ~string | ~int | ~int64](values []T) string {
 	return strings.Join(parts, ",")
 }
 
+// DeepObject renders an object query parameter the deepObject way, one
+// parameter per key as name[key]=value, in key order so a request is the
+// same from one call to the next. Jellyfin binds its stream options from it.
+func DeepObject[K ~string](name string, value map[K]string) [][2]string {
+	out := make([][2]string, 0, len(value))
+	for _, k := range slices.Sorted(maps.Keys(value)) {
+		out = append(out, [2]string{fmt.Sprintf("%s[%v]", name, k), value[k]})
+	}
+
+	return out
+}
+
 // JSONObject renders an object query parameter as the JSON string the
 // servers bind it from.
 func JSONObject[T any](value map[string]T) string {
@@ -421,6 +434,10 @@ func JSONObject[T any](value map[string]T) string {
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	// back up to a rune boundary, so a preview never ends mid-character
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 
 	return s[:n] + "..."

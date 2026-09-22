@@ -16,7 +16,7 @@ func TestOperationPostSessionsByIdMessage(t *testing.T) {
 	result, err := c.PostSessionsByIdMessage(t.Context(), "p/id", PostSessionsByIdMessageOperationOptions{
 		Text:      "v-Text",
 		Header:    "v-Header",
-		TimeoutMs: 7,
+		TimeoutMs: new(int64(7)),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestOperationPostSessionsByIdMessage(t *testing.T) {
 	result, err = c.PostSessionsByIdMessage(t.Context(), "p/id", PostSessionsByIdMessageOperationOptions{
 		Text:      "v-Text",
 		Header:    "v-Header",
-		TimeoutMs: 7,
+		TimeoutMs: new(int64(7)),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

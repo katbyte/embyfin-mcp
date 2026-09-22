@@ -31,7 +31,7 @@ func (c *Client) Seasons(ctx context.Context, seriesID, userID string) ([]Item, 
 // episode of the series with the default fields.
 type EpisodeOptions struct {
 	SeasonID string // one season, by item id
-	Season   int    // one season, by number; 0 is every season
+	Season   *int   // one season, by number; nil is every season, 0 the specials
 	UserID   string // user context, so the server includes watch state
 	// Missing asks for only the episodes the library lacks. Jellyfin filters
 	// on it; Emby 4.10 has no such parameter and answers every episode, so a
@@ -56,7 +56,7 @@ func (c *Client) Episodes(ctx context.Context, seriesID string, opts EpisodeOpti
 	if c.isEmby() {
 		res, err := c.emby.GetShowsByIdEpisodes(ctx, seriesID, emby.GetShowsByIdEpisodesOperationOptions{
 			UserId: opts.UserID, Fields: opts.fields(), SeasonId: opts.SeasonID, Season: opts.Season,
-			Limit: opts.Limit, StartIndex: opts.StartIndex,
+			Limit: nz(opts.Limit), StartIndex: nz(opts.StartIndex),
 		})
 		if err != nil {
 			return nil, err
@@ -71,7 +71,7 @@ func (c *Client) Episodes(ctx context.Context, seriesID string, opts EpisodeOpti
 	}
 	res, err := c.jf.GetEpisodes(ctx, seriesID, jf.GetEpisodesOperationOptions{
 		UserId: opts.UserID, Fields: list[jf.ItemFields](opts.fields()), SeasonId: opts.SeasonID, Season: opts.Season,
-		IsMissing: isMissing, Limit: opts.Limit, StartIndex: opts.StartIndex,
+		IsMissing: isMissing, Limit: nz(opts.Limit), StartIndex: nz(opts.StartIndex),
 	})
 	if err != nil {
 		return nil, err

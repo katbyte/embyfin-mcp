@@ -336,9 +336,17 @@ func TestLibraryLifecycle(t *testing.T) {
 
 	holds := func(want ...string) {
 		t.Helper()
+		// what a library holds settles when the scan the last change asked
+		// for has run; on Jellyfin only the full library scan drops an item
+		// under a folder taken out, and it takes as long as it takes
+		if err := waitForExpectedScan(); err != nil {
+			t.Fatal(err)
+		}
 		var got []string
+		var lastErr error
 		for range 60 {
-			if out, err := invoke("library_items", map[string]any{"library": name, "types": "Movie"}); err == nil {
+			out, err := invoke("library_items", map[string]any{"library": name, "types": "Movie"})
+			if lastErr = err; err == nil {
 				got = got[:0]
 				for _, it := range rowsOf(out["items"]) {
 					got = append(got, title(str(it["name"])))
@@ -350,7 +358,7 @@ func TestLibraryLifecycle(t *testing.T) {
 			}
 			time.Sleep(time.Second)
 		}
-		t.Fatalf("%s holds %v, want %v", name, got, want)
+		t.Fatalf("%s holds %v, want %v (last error: %v)", name, got, want, lastErr)
 	}
 	holds("Zzyzx One")
 

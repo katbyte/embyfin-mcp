@@ -24,7 +24,7 @@ var legacyCodecs = []string{"mpeg1video", "mpeg2video", "mpeg4", "msmpeg4v1", "m
 type qualityIn struct {
 	Library    string `json:"library,omitempty"       jsonschema:"restrict to one library by name or id"`
 	Types      string `json:"types,omitempty"         jsonschema:"comma-separated item types; default Movie,Episode"`
-	MinHeight  int    `json:"min_height,omitempty"    jsonschema:"flag video shorter than this many lines, default 720 (so 480p and 576p rips)"`
+	MinHeight  int    `json:"min_height,omitempty"    jsonschema:"flag a picture below this class, default 720 (so 480p and 576p rips); a widescreen 1280x536 is 720p, judged by its width"`
 	MinBitrate int64  `json:"min_bitrate,omitempty"   jsonschema:"also flag video below this bitrate, in bits per second like every bitrate a tool answers with; off unless given"`
 	Codecs     *bool  `json:"legacy_codecs,omitempty" jsonschema:"flag legacy video codecs (MPEG-2, MPEG-4 part 2 such as XviD and DivX, WMV, VC-1, RealVideo...); default true"`
 	Limit      int    `json:"limit,omitempty"         jsonschema:"maximum findings to return, default 100"`
@@ -42,7 +42,8 @@ func videoOf(src *embyfin.MediaSource) *embyfin.MediaStream {
 }
 
 // checkQuality judges an item by its best file: a 4K copy beside a 480p one is
-// not a worklist entry. It returns the finding and the best height, which
+// not a worklist entry. It returns the finding and the best picture's class
+// (resolutionClass: a 2.39:1 encode at 1280x536 is 720p, not 536p), which
 // orders the worklist worst first.
 func checkQuality(it *embyfin.Item, in qualityIn) (detail string, height int, bad bool) {
 	var best *embyfin.MediaStream
@@ -52,7 +53,7 @@ func checkQuality(it *embyfin.Item, in qualityIn) (detail string, height int, ba
 		if v == nil {
 			continue
 		}
-		if best == nil || v.Height > best.Height {
+		if best == nil || resolutionClass(v.Width, v.Height) > resolutionClass(best.Width, best.Height) {
 			best, bitrate = v, v.BitRate
 			if bitrate == 0 {
 				bitrate = it.MediaSources[i].Bitrate
@@ -64,8 +65,9 @@ func checkQuality(it *embyfin.Item, in qualityIn) (detail string, height int, ba
 	}
 
 	var problems []string
-	if in.MinHeight > 0 && best.Height > 0 && best.Height < in.MinHeight {
-		problems = append(problems, fmt.Sprintf("%dp, below %dp", best.Height, in.MinHeight))
+	class := resolutionClass(best.Width, best.Height)
+	if in.MinHeight > 0 && class > 0 && class < in.MinHeight {
+		problems = append(problems, fmt.Sprintf("%dp, below %dp", class, in.MinHeight))
 	}
 	if (in.Codecs == nil || *in.Codecs) && slices.Contains(legacyCodecs, strings.ToLower(best.Codec)) {
 		problems = append(problems, "legacy codec "+best.Codec)
@@ -74,10 +76,10 @@ func checkQuality(it *embyfin.Item, in qualityIn) (detail string, height int, ba
 		problems = append(problems, fmt.Sprintf("%d kbps, below %d kbps", bitrate/1000, in.MinBitrate/1000))
 	}
 	if len(problems) == 0 {
-		return "", best.Height, false
+		return "", class, false
 	}
 
-	return fmt.Sprintf("%s %dx%d: %s", best.Codec, best.Width, best.Height, strings.Join(problems, "; ")), best.Height, true
+	return fmt.Sprintf("%s %dx%d: %s", best.Codec, best.Width, best.Height, strings.Join(problems, "; ")), class, true
 }
 
 // qualityDefaults fills audit_quality's defaults: 720 lines, legacy codecs
@@ -247,8 +249,9 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 				continue
 			}
 			out.Scanned++
-			if it.IndexNumber > 0 {
-				s.onDisk[it.ParentIndexNumber] = append(s.onDisk[it.ParentIndexNumber], it.IndexNumber)
+			// a file holding S01E01E02 is both, or E02 would be reported missing
+			for n := it.IndexNumber; n > 0 && n <= max(it.IndexNumber, it.IndexNumberEnd); n++ {
+				s.onDisk[it.ParentIndexNumber] = append(s.onDisk[it.ParentIndexNumber], n)
 			}
 		}
 		return true

@@ -26,7 +26,7 @@ type PostSessionsByIdMessageOperationOptions struct {
 	Header string
 
 	// The message timeout. If omitted the user will have to confirm viewing the message.
-	TimeoutMs int64
+	TimeoutMs *int64
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -44,8 +44,8 @@ func (o PostSessionsByIdMessageOperationOptions) ToQuery() *client.QueryParams {
 	if o.Header != "" {
 		out.Append("Header", o.Header)
 	}
-	if o.TimeoutMs != 0 {
-		out.Append("TimeoutMs", strconv.FormatInt(o.TimeoutMs, 10))
+	if o.TimeoutMs != nil {
+		out.Append("TimeoutMs", strconv.FormatInt(*o.TimeoutMs, 10))
 	}
 	return &out
 }

@@ -23,22 +23,22 @@ type GetItemImage2OperationResponse struct {
 // GetItemImage2OperationOptions holds the query and header parameters of GetItemImage2.
 type GetItemImage2OperationOptions struct {
 	// The fixed image width to return.
-	Width int
+	Width *int
 
 	// The fixed image height to return.
-	Height int
+	Height *int
 
 	// Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.
-	Quality int
+	Quality *int
 
 	// Width of box to fill.
-	FillWidth int
+	FillWidth *int
 
 	// Height of box to fill.
-	FillHeight int
+	FillHeight *int
 
 	// Optional. Blur image.
-	Blur int
+	Blur *int
 
 	// Optional. Apply a background color for transparent images.
 	BackgroundColor string
@@ -56,23 +56,23 @@ func (o GetItemImage2OperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetItemImage2OperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Width != 0 {
-		out.Append("width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("width", strconv.Itoa(*o.Width))
 	}
-	if o.Height != 0 {
-		out.Append("height", strconv.Itoa(o.Height))
+	if o.Height != nil {
+		out.Append("height", strconv.Itoa(*o.Height))
 	}
-	if o.Quality != 0 {
-		out.Append("quality", strconv.Itoa(o.Quality))
+	if o.Quality != nil {
+		out.Append("quality", strconv.Itoa(*o.Quality))
 	}
-	if o.FillWidth != 0 {
-		out.Append("fillWidth", strconv.Itoa(o.FillWidth))
+	if o.FillWidth != nil {
+		out.Append("fillWidth", strconv.Itoa(*o.FillWidth))
 	}
-	if o.FillHeight != 0 {
-		out.Append("fillHeight", strconv.Itoa(o.FillHeight))
+	if o.FillHeight != nil {
+		out.Append("fillHeight", strconv.Itoa(*o.FillHeight))
 	}
-	if o.Blur != 0 {
-		out.Append("blur", strconv.Itoa(o.Blur))
+	if o.Blur != nil {
+		out.Append("blur", strconv.Itoa(*o.Blur))
 	}
 	if o.BackgroundColor != "" {
 		out.Append("backgroundColor", o.BackgroundColor)

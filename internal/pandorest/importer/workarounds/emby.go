@@ -295,7 +295,7 @@ type embyNullResultNoContent struct{}
 func (embyNullResultNoContent) Name() string    { return "emby-null-result-no-content" }
 func (embyNullResultNoContent) Service() string { return emby }
 func (embyNullResultNoContent) Bug() string {
-	return "operations answering JSON declare only 200, but the server answers 204 No Content when the result is null (a timer, sync job or DLNA profile that does not exist)"
+	return "every operation answering JSON declares only 200, but the server answers 204 No Content for a null result (a timer, sync job or DLNA profile that does not exist, and any other lookup that finds nothing), so 204 is added to each of them and a nil Model with no error is that answer"
 }
 
 func (embyNullResultNoContent) Apply(spec *openapi.Spec) error {
@@ -335,8 +335,11 @@ func (embyOpenAPIDocuments) Apply(spec *openapi.Spec) error {
 		if err != nil {
 			return err
 		}
-		media := op.Responses["200"].Content["application/json"]
-		if media == nil || media.Schema == nil || media.Schema.Type != openapi.TypeString {
+		media, err := jsonResponse(op, "GET "+path)
+		if err != nil {
+			return err
+		}
+		if media.Schema == nil || media.Schema.Type != openapi.TypeString {
 			return fmt.Errorf("GET %s no longer declares a string", path)
 		}
 		media.Schema = nil
@@ -358,8 +361,11 @@ func (embyRecordingFoldersQueryResult) Apply(spec *openapi.Spec) error {
 	if err != nil {
 		return err
 	}
-	media := op.Responses["200"].Content["application/json"]
-	if media == nil || media.Schema == nil || media.Schema.Type != openapi.TypeArray {
+	media, err := jsonResponse(op, "GET /LiveTv/Recordings/Folders")
+	if err != nil {
+		return err
+	}
+	if media.Schema == nil || media.Schema.Type != openapi.TypeArray {
 		return errors.New("it no longer declares an array")
 	}
 	media.Schema = &openapi.Schema{Ref: openapi.SchemaRefPrefix + queryResult}
@@ -380,12 +386,14 @@ func (embyParentPathText) Apply(spec *openapi.Spec) error {
 	if err != nil {
 		return err
 	}
-	ok := op.Responses["200"]
-	media := ok.Content["application/json"]
-	if media == nil || media.Schema == nil || media.Schema.Type != openapi.TypeString {
+	media, err := jsonResponse(op, "GET /Environment/ParentPath")
+	if err != nil {
+		return err
+	}
+	if media.Schema == nil || media.Schema.Type != openapi.TypeString {
 		return errors.New("it no longer declares a JSON string")
 	}
-	ok.Content = map[string]*openapi.MediaType{"text/plain": {Schema: &openapi.Schema{Type: openapi.TypeString, Format: "binary"}}}
+	op.Responses["200"].Content = map[string]*openapi.MediaType{"text/plain": {Schema: &openapi.Schema{Type: openapi.TypeString, Format: "binary"}}}
 
 	return nil
 }
@@ -445,6 +453,14 @@ func (embyCodecDisplayText) Apply(spec *openapi.Spec) error {
 	}
 	if p.Type != openapi.TypeArray || p.Items == nil || p.Items.RefName() != "ResolutionWithRate" {
 		return errors.New("LevelInformation.ResolutionRates is no longer a list of ResolutionWithRate")
+	}
+	// nothing refers to the two schemas once the text stands in for them,
+	// so they would be two models no operation answers
+	for _, name := range []string{"BitRate", "ResolutionWithRate"} {
+		if spec.Components.Schemas[name] == nil {
+			return errors.New("schema " + name + " is gone")
+		}
+		delete(spec.Components.Schemas, name)
 	}
 	p.Items = &openapi.Schema{Type: openapi.TypeString}
 

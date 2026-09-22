@@ -23,7 +23,7 @@ type GetSubtitlePlaylistOperationResponse struct {
 // GetSubtitlePlaylistOperationOptions holds the query and header parameters of GetSubtitlePlaylist.
 type GetSubtitlePlaylistOperationOptions struct {
 	// The subtitle segment length.
-	SegmentLength int
+	SegmentLength *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -35,8 +35,8 @@ func (o GetSubtitlePlaylistOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetSubtitlePlaylistOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.SegmentLength != 0 {
-		out.Append("segmentLength", strconv.Itoa(o.SegmentLength))
+	if o.SegmentLength != nil {
+		out.Append("segmentLength", strconv.Itoa(*o.SegmentLength))
 	}
 	return &out
 }

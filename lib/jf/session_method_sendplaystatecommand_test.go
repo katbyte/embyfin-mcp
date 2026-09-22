@@ -14,7 +14,7 @@ func TestOperationSendPlaystateCommand(t *testing.T) {
 
 	c, s := newOperationServer(t, 204, "", "")
 	result, err := c.SendPlaystateCommand(t.Context(), "p/sessionId", PlaystateCommandStop, SendPlaystateCommandOperationOptions{
-		SeekPositionTicks: 7,
+		SeekPositionTicks: new(int64(7)),
 		ControllingUserId: "v-ControllingUserId",
 	})
 	if err != nil {
@@ -32,7 +32,7 @@ func TestOperationSendPlaystateCommand(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.SendPlaystateCommand(t.Context(), "p/sessionId", PlaystateCommandStop, SendPlaystateCommandOperationOptions{
-		SeekPositionTicks: 7,
+		SeekPositionTicks: new(int64(7)),
 		ControllingUserId: "v-ControllingUserId",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

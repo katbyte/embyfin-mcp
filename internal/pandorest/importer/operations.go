@@ -149,6 +149,9 @@ func (im *importer) operation(namer *uniqueNamer, method, path string, op *opena
 		if opt.Type.Type == definitions.List {
 			opt.CommaSeparated = !prm.Exploded()
 		}
+		if opt.Type.Type == definitions.Dictionary {
+			opt.DeepObject = prm.DeepObject()
+		}
 		o.Options = append(o.Options, opt)
 	}
 
@@ -196,6 +199,9 @@ func (im *importer) optionType(s *openapi.Schema) definitions.TypeRef {
 		if im.kindOf(ref) == kindEnum {
 			return reference(typeName(ref))
 		}
+		if im.spec.Components.Schemas[ref] == nil {
+			im.warn(fmt.Sprintf("parameter refers to undefined schema %s; sent as a string", ref))
+		}
 		return str
 	}
 	switch s.Type {
@@ -215,6 +221,9 @@ func (im *importer) optionType(s *openapi.Schema) definitions.TypeRef {
 				item = reference(typeName(ref))
 			} else if s.Items.Type == openapi.TypeInteger {
 				item = definitions.TypeRef{Type: definitions.Integer}
+				if s.Items.Format == "int64" {
+					item = definitions.TypeRef{Type: definitions.Integer64}
+				}
 			}
 		}
 		return definitions.TypeRef{Type: definitions.List, NestedItem: &item}

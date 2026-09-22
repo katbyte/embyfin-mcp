@@ -21,7 +21,7 @@ type GetBitrateTestBytesOperationResponse struct {
 // GetBitrateTestBytesOperationOptions holds the query and header parameters of GetBitrateTestBytes.
 type GetBitrateTestBytesOperationOptions struct {
 	// The bitrate. Defaults to 102400.
-	Size int
+	Size *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -33,8 +33,8 @@ func (o GetBitrateTestBytesOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetBitrateTestBytesOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Size != 0 {
-		out.Append("size", strconv.Itoa(o.Size))
+	if o.Size != nil {
+		out.Append("size", strconv.Itoa(*o.Size))
 	}
 	return &out
 }

@@ -17,18 +17,18 @@ func TestOperationGetLiveTvChannels(t *testing.T) {
 	result, err := c.GetLiveTvChannels(t.Context(), GetLiveTvChannelsOperationOptions{
 		Type:                  ChannelTypeTV,
 		UserId:                "v-UserId",
-		StartIndex:            7,
+		StartIndex:            new(7),
 		IsMovie:               new(true),
 		IsSeries:              new(true),
 		IsNews:                new(true),
 		IsKids:                new(true),
 		IsSports:              new(true),
-		Limit:                 7,
+		Limit:                 new(7),
 		IsFavorite:            new(true),
 		IsLiked:               new(true),
 		IsDisliked:            new(true),
 		EnableImages:          new(true),
-		ImageTypeLimit:        7,
+		ImageTypeLimit:        new(7),
 		EnableImageTypes:      []ImageType{ImageTypePrimary, ImageTypeProfile},
 		Fields:                []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableUserData:        new(true),
@@ -76,18 +76,18 @@ func TestOperationGetLiveTvChannels(t *testing.T) {
 	result, err = c.GetLiveTvChannels(t.Context(), GetLiveTvChannelsOperationOptions{
 		Type:                  ChannelTypeTV,
 		UserId:                "v-UserId",
-		StartIndex:            7,
+		StartIndex:            new(7),
 		IsMovie:               new(true),
 		IsSeries:              new(true),
 		IsNews:                new(true),
 		IsKids:                new(true),
 		IsSports:              new(true),
-		Limit:                 7,
+		Limit:                 new(7),
 		IsFavorite:            new(true),
 		IsLiked:               new(true),
 		IsDisliked:            new(true),
 		EnableImages:          new(true),
-		ImageTypeLimit:        7,
+		ImageTypeLimit:        new(7),
 		EnableImageTypes:      []ImageType{ImageTypePrimary, ImageTypeProfile},
 		Fields:                []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableUserData:        new(true),
@@ -105,18 +105,18 @@ func TestOperationGetLiveTvChannels(t *testing.T) {
 	result, err = c.GetLiveTvChannels(t.Context(), GetLiveTvChannelsOperationOptions{
 		Type:                  ChannelTypeTV,
 		UserId:                "v-UserId",
-		StartIndex:            7,
+		StartIndex:            new(7),
 		IsMovie:               new(true),
 		IsSeries:              new(true),
 		IsNews:                new(true),
 		IsKids:                new(true),
 		IsSports:              new(true),
-		Limit:                 7,
+		Limit:                 new(7),
 		IsFavorite:            new(true),
 		IsLiked:               new(true),
 		IsDisliked:            new(true),
 		EnableImages:          new(true),
-		ImageTypeLimit:        7,
+		ImageTypeLimit:        new(7),
 		EnableImageTypes:      []ImageType{ImageTypePrimary, ImageTypeProfile},
 		Fields:                []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		EnableUserData:        new(true),
@@ -133,13 +133,30 @@ func TestOperationGetLiveTvChannels(t *testing.T) {
 func TestOperationGetLiveTvChannelsComplete(t *testing.T) {
 	t.Parallel()
 
-	c, starts := pagedServer(t, "startIndex", "{}", 2)
-	result, err := c.GetLiveTvChannelsComplete(t.Context(), GetLiveTvChannelsOperationOptions{Limit: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// a page of one from the start, then from the first item, then the total is reached
-	if len(result.Items) != 2 || !slices.Equal(*starts, []string{"", "1"}) || result.LatestHttpResponse == nil {
-		t.Errorf("Complete = %d items over pages starting %q", len(result.Items), *starts)
+	// the three ways a walk ends: the total is reached, an empty page when the
+	// server reports no total, and a page shorter than the limit
+	for _, tc := range []struct {
+		name         string
+		total, pages int
+		options      GetLiveTvChannelsOperationOptions
+		items        int
+		starts       []string
+	}{
+		{"total reached", 2, 9, GetLiveTvChannelsOperationOptions{Limit: new(1)}, 2, []string{"", "1"}},
+		{"empty page", 0, 2, GetLiveTvChannelsOperationOptions{Limit: new(1)}, 2, []string{"", "1", "2"}},
+		{"short page", 0, 9, GetLiveTvChannelsOperationOptions{Limit: new(2)}, 1, []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, starts := pagedServer(t, "startIndex", "{}", tc.total, tc.pages)
+			result, err := c.GetLiveTvChannelsComplete(t.Context(), tc.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Items) != tc.items || !slices.Equal(*starts, tc.starts) || result.LatestHttpResponse == nil {
+				t.Errorf("Complete = %d items over pages starting %q, want %d over %q", len(result.Items), *starts, tc.items, tc.starts)
+			}
+		})
 	}
 }

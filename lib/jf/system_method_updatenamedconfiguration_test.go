@@ -19,7 +19,6 @@ func TestOperationUpdateNamedConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/System/Configuration/p%2Fkey")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {
 		t.Errorf("Content-Type = %q, want %q", got, "application/json")

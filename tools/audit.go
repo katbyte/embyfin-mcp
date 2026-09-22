@@ -164,18 +164,20 @@ var auditChecks = []auditCheck{
 }
 
 // checkYearMismatch compares the (year) in an item's path with its metadata
-// year: two or more apart is a wrong edition or a wrong match.
+// year: two or more apart is a wrong edition or a wrong match. The last
+// year in the path is the item's own: a collection folder above it can carry
+// the first film's.
 func checkYearMismatch(it *embyfin.Item) (string, bool) {
 	if it.Path == "" || it.ProductionYear == 0 {
 		return "", false
 	}
 
-	m := pathYearRe.FindString(it.Path)
-	if m == "" {
+	years := pathYearRe.FindAllString(it.Path, -1)
+	if len(years) == 0 {
 		return "", false
 	}
 
-	pathYear, _ := strconv.Atoi(strings.Trim(m, "()"))
+	pathYear, _ := strconv.Atoi(strings.Trim(years[len(years)-1], "()"))
 	diff := pathYear - it.ProductionYear
 	if diff < 0 {
 		diff = -diff
@@ -420,41 +422,73 @@ func duplicateGroups(ctx context.Context, client *embyfin.Client, in auditIn) ([
 		opts.ParentID = folder.ItemID
 	}
 
-	byProvider := map[string][]embyfin.Item{}
-	scanned := 0
+	var all []embyfin.Item
 	sweepErr := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
-		for _, it := range items {
-			scanned++
-			for k, v := range it.ProviderIDs {
-				lk := strings.ToLower(k)
-				if (lk == "tmdb" || lk == "imdb" || lk == "tvdb") && v != "" {
-					// an episode's provider id is shared far more loosely than
-					// a film's: a library can carry one imdb id on many
-					// unrelated episodes, even across different shows. Its
-					// season and episode number go into the key, so a group
-					// is at worst the same episode of the same show.
-					key := lk + ":" + v
-					if it.Type == typeEpisode {
-						key = fmt.Sprintf("%s:s%02de%02d", key, it.ParentIndexNumber, it.IndexNumber)
-					}
-					byProvider[key] = append(byProvider[key], it)
-				}
-			}
-		}
+		all = append(all, items...)
 		return true
 	})
 	if sweepErr != nil {
 		return nil, 0, sweepErr
 	}
 
-	seen := map[string]bool{}
-	var groups [][]embyfin.Item
-	for _, group := range byProvider {
-		if len(group) < 2 || seen[group[0].ID] {
-			continue
+	return groupByProviderID(all), len(all), nil
+}
+
+// groupByProviderID groups items sharing a tmdb, imdb or tvdb id. An item
+// carrying two ids joins the entries sharing either, so one group holds every
+// copy of a film however each copy is matched, rather than the copies being
+// split by which id they happen to share.
+func groupByProviderID(items []embyfin.Item) [][]embyfin.Item {
+	// union-find over item positions, joined by each provider key
+	parent := make([]int, len(items))
+	for i := range parent {
+		parent[i] = i
+	}
+	var find func(int) int
+	find = func(i int) int {
+		if parent[i] != i {
+			parent[i] = find(parent[i])
 		}
-		seen[group[0].ID] = true
-		groups = append(groups, group)
+		return parent[i]
+	}
+	firstWith := map[string]int{}
+	for i, it := range items {
+		for k, v := range it.ProviderIDs {
+			lk := strings.ToLower(k)
+			if (lk != "tmdb" && lk != "imdb" && lk != "tvdb") || v == "" {
+				continue
+			}
+			// an episode's provider id is shared far more loosely than a
+			// film's: a library can carry one imdb id on many unrelated
+			// episodes, even across different shows. Its season and episode
+			// number go into the key, so a group is at worst the same
+			// episode of the same show.
+			key := lk + ":" + v
+			if it.Type == typeEpisode {
+				key = fmt.Sprintf("%s:s%02de%02d", key, it.ParentIndexNumber, it.IndexNumber)
+			}
+			if j, ok := firstWith[key]; ok {
+				parent[find(i)] = find(j)
+			} else {
+				firstWith[key] = i
+			}
+		}
+	}
+
+	byRoot := map[int][]embyfin.Item{}
+	var roots []int
+	for i, it := range items {
+		r := find(i)
+		if byRoot[r] == nil {
+			roots = append(roots, r)
+		}
+		byRoot[r] = append(byRoot[r], it)
+	}
+	var groups [][]embyfin.Item
+	for _, r := range roots {
+		if len(byRoot[r]) >= 2 {
+			groups = append(groups, byRoot[r])
+		}
 	}
 	slices.SortFunc(groups, func(a, b []embyfin.Item) int {
 		if c := strings.Compare(a[0].Name, b[0].Name); c != 0 {
@@ -463,7 +497,7 @@ func duplicateGroups(ctx context.Context, client *embyfin.Client, in auditIn) ([
 		return strings.Compare(a[0].ID, b[0].ID)
 	})
 
-	return groups, scanned, nil
+	return groups
 }
 
 // audit_all --------------------------------------------------------------

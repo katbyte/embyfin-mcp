@@ -15,15 +15,15 @@ func TestOperationGetGenres(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GetGenres(t.Context(), GetGenresOperationOptions{
-		StartIndex:              7,
-		Limit:                   7,
+		StartIndex:              new(7),
+		Limit:                   new(7),
 		SearchTerm:              "v-SearchTerm",
 		ParentId:                "v-ParentId",
 		Fields:                  []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		ExcludeItemTypes:        []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IncludeItemTypes:        []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IsFavorite:              new(true),
-		ImageTypeLimit:          7,
+		ImageTypeLimit:          new(7),
 		EnableImageTypes:        []ImageType{ImageTypePrimary, ImageTypeProfile},
 		UserId:                  "v-UserId",
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
@@ -68,15 +68,15 @@ func TestOperationGetGenres(t *testing.T) {
 	// an answer that does not decode is an error, with the response
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetGenres(t.Context(), GetGenresOperationOptions{
-		StartIndex:              7,
-		Limit:                   7,
+		StartIndex:              new(7),
+		Limit:                   new(7),
 		SearchTerm:              "v-SearchTerm",
 		ParentId:                "v-ParentId",
 		Fields:                  []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		ExcludeItemTypes:        []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IncludeItemTypes:        []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IsFavorite:              new(true),
-		ImageTypeLimit:          7,
+		ImageTypeLimit:          new(7),
 		EnableImageTypes:        []ImageType{ImageTypePrimary, ImageTypeProfile},
 		UserId:                  "v-UserId",
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
@@ -94,15 +94,15 @@ func TestOperationGetGenres(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetGenres(t.Context(), GetGenresOperationOptions{
-		StartIndex:              7,
-		Limit:                   7,
+		StartIndex:              new(7),
+		Limit:                   new(7),
 		SearchTerm:              "v-SearchTerm",
 		ParentId:                "v-ParentId",
 		Fields:                  []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
 		ExcludeItemTypes:        []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IncludeItemTypes:        []BaseItemKind{BaseItemKindAggregateFolder, BaseItemKindYear},
 		IsFavorite:              new(true),
-		ImageTypeLimit:          7,
+		ImageTypeLimit:          new(7),
 		EnableImageTypes:        []ImageType{ImageTypePrimary, ImageTypeProfile},
 		UserId:                  "v-UserId",
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
@@ -121,13 +121,30 @@ func TestOperationGetGenres(t *testing.T) {
 func TestOperationGetGenresComplete(t *testing.T) {
 	t.Parallel()
 
-	c, starts := pagedServer(t, "startIndex", "{}", 2)
-	result, err := c.GetGenresComplete(t.Context(), GetGenresOperationOptions{Limit: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// a page of one from the start, then from the first item, then the total is reached
-	if len(result.Items) != 2 || !slices.Equal(*starts, []string{"", "1"}) || result.LatestHttpResponse == nil {
-		t.Errorf("Complete = %d items over pages starting %q", len(result.Items), *starts)
+	// the three ways a walk ends: the total is reached, an empty page when the
+	// server reports no total, and a page shorter than the limit
+	for _, tc := range []struct {
+		name         string
+		total, pages int
+		options      GetGenresOperationOptions
+		items        int
+		starts       []string
+	}{
+		{"total reached", 2, 9, GetGenresOperationOptions{Limit: new(1)}, 2, []string{"", "1"}},
+		{"empty page", 0, 2, GetGenresOperationOptions{Limit: new(1)}, 2, []string{"", "1", "2"}},
+		{"short page", 0, 9, GetGenresOperationOptions{Limit: new(2)}, 1, []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			c, starts := pagedServer(t, "startIndex", "{}", tc.total, tc.pages)
+			result, err := c.GetGenresComplete(t.Context(), tc.options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Items) != tc.items || !slices.Equal(*starts, tc.starts) || result.LatestHttpResponse == nil {
+				t.Errorf("Complete = %d items over pages starting %q, want %d over %q", len(result.Items), *starts, tc.items, tc.starts)
+			}
+		})
 	}
 }

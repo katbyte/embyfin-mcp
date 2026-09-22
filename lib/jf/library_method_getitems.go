@@ -44,10 +44,10 @@ type GetItemsOperationOptions struct {
 	AdjacentTo string
 
 	// Optional filter by index number.
-	IndexNumber int
+	IndexNumber *int
 
 	// Optional filter by parent index number.
-	ParentIndexNumber int
+	ParentIndexNumber *int
 
 	// Optional filter by items that have or do not have a parental rating.
 	HasParentalRating *bool
@@ -71,10 +71,10 @@ type GetItemsOperationOptions struct {
 	IsUnaired *bool
 
 	// Optional filter by minimum community rating.
-	MinCommunityRating float64
+	MinCommunityRating *float64
 
 	// Optional filter by minimum critic rating.
-	MinCriticRating float64
+	MinCriticRating *float64
 
 	// Optional. The minimum premiere date. Format = ISO.
 	MinPremiereDate string
@@ -119,10 +119,10 @@ type GetItemsOperationOptions struct {
 	ExcludeItemIds []string
 
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// When searching within folders, this determines whether or not the search will be recursive. true/false.
 	Recursive *bool
@@ -179,7 +179,7 @@ type GetItemsOperationOptions struct {
 	EnableUserData *bool
 
 	// Optional, the max number of images to return, per image type.
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes []ImageType
@@ -239,16 +239,16 @@ type GetItemsOperationOptions struct {
 	CollapseBoxSetItems *bool
 
 	// Optional. Filter by the minimum width of the item.
-	MinWidth int
+	MinWidth *int
 
 	// Optional. Filter by the minimum height of the item.
-	MinHeight int
+	MinHeight *int
 
 	// Optional. Filter by the maximum width of the item.
-	MaxWidth int
+	MaxWidth *int
 
 	// Optional. Filter by the maximum height of the item.
-	MaxHeight int
+	MaxHeight *int
 
 	// Optional filter by items that are 3D, or not.
 	Is3D *bool
@@ -317,11 +317,11 @@ func (o GetItemsOperationOptions) ToQuery() *client.QueryParams {
 	if o.AdjacentTo != "" {
 		out.Append("adjacentTo", o.AdjacentTo)
 	}
-	if o.IndexNumber != 0 {
-		out.Append("indexNumber", strconv.Itoa(o.IndexNumber))
+	if o.IndexNumber != nil {
+		out.Append("indexNumber", strconv.Itoa(*o.IndexNumber))
 	}
-	if o.ParentIndexNumber != 0 {
-		out.Append("parentIndexNumber", strconv.Itoa(o.ParentIndexNumber))
+	if o.ParentIndexNumber != nil {
+		out.Append("parentIndexNumber", strconv.Itoa(*o.ParentIndexNumber))
 	}
 	if o.HasParentalRating != nil {
 		out.Append("hasParentalRating", strconv.FormatBool(*o.HasParentalRating))
@@ -344,11 +344,11 @@ func (o GetItemsOperationOptions) ToQuery() *client.QueryParams {
 	if o.IsUnaired != nil {
 		out.Append("isUnaired", strconv.FormatBool(*o.IsUnaired))
 	}
-	if o.MinCommunityRating != 0 {
-		out.Append("minCommunityRating", strconv.FormatFloat(o.MinCommunityRating, 'f', -1, 64))
+	if o.MinCommunityRating != nil {
+		out.Append("minCommunityRating", strconv.FormatFloat(*o.MinCommunityRating, 'f', -1, 64))
 	}
-	if o.MinCriticRating != 0 {
-		out.Append("minCriticRating", strconv.FormatFloat(o.MinCriticRating, 'f', -1, 64))
+	if o.MinCriticRating != nil {
+		out.Append("minCriticRating", strconv.FormatFloat(*o.MinCriticRating, 'f', -1, 64))
 	}
 	if o.MinPremiereDate != "" {
 		out.Append("minPremiereDate", o.MinPremiereDate)
@@ -392,11 +392,11 @@ func (o GetItemsOperationOptions) ToQuery() *client.QueryParams {
 	for _, v := range o.ExcludeItemIds {
 		out.Append("excludeItemIds", v)
 	}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	if o.Recursive != nil {
 		out.Append("recursive", strconv.FormatBool(*o.Recursive))
@@ -452,8 +452,8 @@ func (o GetItemsOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableUserData != nil {
 		out.Append("enableUserData", strconv.FormatBool(*o.EnableUserData))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("imageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("imageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	for _, v := range o.EnableImageTypes {
 		out.Append("enableImageTypes", string(v))
@@ -512,17 +512,17 @@ func (o GetItemsOperationOptions) ToQuery() *client.QueryParams {
 	if o.CollapseBoxSetItems != nil {
 		out.Append("collapseBoxSetItems", strconv.FormatBool(*o.CollapseBoxSetItems))
 	}
-	if o.MinWidth != 0 {
-		out.Append("minWidth", strconv.Itoa(o.MinWidth))
+	if o.MinWidth != nil {
+		out.Append("minWidth", strconv.Itoa(*o.MinWidth))
 	}
-	if o.MinHeight != 0 {
-		out.Append("minHeight", strconv.Itoa(o.MinHeight))
+	if o.MinHeight != nil {
+		out.Append("minHeight", strconv.Itoa(*o.MinHeight))
 	}
-	if o.MaxWidth != 0 {
-		out.Append("maxWidth", strconv.Itoa(o.MaxWidth))
+	if o.MaxWidth != nil {
+		out.Append("maxWidth", strconv.Itoa(*o.MaxWidth))
 	}
-	if o.MaxHeight != 0 {
-		out.Append("maxHeight", strconv.Itoa(o.MaxHeight))
+	if o.MaxHeight != nil {
+		out.Append("maxHeight", strconv.Itoa(*o.MaxHeight))
 	}
 	if o.Is3D != nil {
 		out.Append("is3D", strconv.FormatBool(*o.Is3D))
@@ -604,8 +604,14 @@ type GetItemsCompleteResult struct {
 // result is loaded. options.Limit is the page size, client.DefaultPageSize when
 // unset.
 func (c Client) GetItemsComplete(ctx context.Context, options GetItemsOperationOptions) (result GetItemsCompleteResult, err error) {
-	if options.Limit <= 0 {
-		options.Limit = client.DefaultPageSize
+	limit := client.DefaultPageSize
+	if options.Limit != nil && *options.Limit > 0 {
+		limit = *options.Limit
+	}
+	options.Limit = &limit
+	start := 0
+	if options.StartIndex != nil {
+		start = *options.StartIndex
 	}
 	for {
 		var page GetItemsOperationResponse
@@ -619,10 +625,11 @@ func (c Client) GetItemsComplete(ctx context.Context, options GetItemsOperationO
 			return
 		}
 		result.Items = append(result.Items, page.Model.Items...)
-		options.StartIndex += len(page.Model.Items)
+		start += len(page.Model.Items)
+		options.StartIndex = &start
 		// a short page is the last; so is reaching the total, when the server
 		// reports one (some Emby lists report 0 whatever they hold)
-		if len(page.Model.Items) < options.Limit || page.Model.TotalRecordCount > 0 && options.StartIndex >= page.Model.TotalRecordCount {
+		if len(page.Model.Items) < limit || page.Model.TotalRecordCount > 0 && start >= page.Model.TotalRecordCount {
 			return
 		}
 	}

@@ -20,7 +20,7 @@ type PostItemsByIdImagesByTypeByIndexIndexOperationResponse struct {
 // PostItemsByIdImagesByTypeByIndexIndexOperationOptions holds the query and header parameters of PostItemsByIdImagesByTypeByIndexIndex.
 type PostItemsByIdImagesByTypeByIndexIndexOperationOptions struct {
 	// The new image index
-	NewIndex int
+	NewIndex *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -32,8 +32,8 @@ func (o PostItemsByIdImagesByTypeByIndexIndexOperationOptions) ToHeaders() *clie
 // ToQuery returns the query parameters the options set.
 func (o PostItemsByIdImagesByTypeByIndexIndexOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.NewIndex != 0 {
-		out.Append("NewIndex", strconv.Itoa(o.NewIndex))
+	if o.NewIndex != nil {
+		out.Append("NewIndex", strconv.Itoa(*o.NewIndex))
 	}
 	return &out
 }

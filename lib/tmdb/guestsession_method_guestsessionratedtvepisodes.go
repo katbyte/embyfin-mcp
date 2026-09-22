@@ -21,7 +21,7 @@ type GuestSessionRatedTvEpisodesOperationResponse struct {
 // GuestSessionRatedTvEpisodesOperationOptions holds the query and header parameters of GuestSessionRatedTvEpisodes.
 type GuestSessionRatedTvEpisodesOperationOptions struct {
 	Language string
-	Page     int
+	Page     *int
 	SortBy   string
 }
 
@@ -37,8 +37,8 @@ func (o GuestSessionRatedTvEpisodesOperationOptions) ToQuery() *client.QueryPara
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.SortBy != "" {
 		out.Append("sort_by", o.SortBy)

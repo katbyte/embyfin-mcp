@@ -1,5 +1,5 @@
-// Command pandorest generates the Emby and Jellyfin SDKs (lib/emby, lib/jf)
-// from their vendored OpenAPI documents. It is inspired by Pandora, the
+// Command pandorest generates the Emby, Jellyfin and TMDB SDKs (lib/emby,
+// lib/jf, lib/tmdb) from their vendored OpenAPI documents. It is inspired by Pandora, the
 // go-azure-sdk generator (https://github.com/hashicorp/pandora):
 //
 //	import    spec -> workarounds -> api-definitions/<service>/*.json

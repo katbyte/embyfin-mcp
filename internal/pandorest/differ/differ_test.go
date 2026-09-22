@@ -135,3 +135,128 @@ func TestDiffBodiesAndPaths(t *testing.T) {
 		}
 	}
 }
+
+func list() definitions.TypeRef {
+	return definitions.TypeRef{Type: definitions.List, NestedItem: &definitions.TypeRef{Type: definitions.String}}
+}
+
+func dict() definitions.TypeRef {
+	return definitions.TypeRef{Type: definitions.Dictionary, NestedItem: &definitions.TypeRef{Type: definitions.String}}
+}
+
+// wired is base() with a list option, an object option and a union model,
+// the shapes whose wire form and variants the differ compares.
+func wired() *definitions.Service {
+	svc := base()
+	items := &svc.Groups[0]
+	items.Operations[0].Options = append(items.Operations[0].Options,
+		definitions.Option{Name: "Ids", Field: "Ids", In: definitions.InQuery, Type: list(), CommaSeparated: true},
+		definitions.Option{Name: "Tags", Field: "Tags", In: definitions.InQuery, Type: list()},
+		definitions.Option{Name: "StreamOptions", Field: "StreamOptions", In: definitions.InQuery, Type: dict()},
+		definitions.Option{Name: "X-Ids", Field: "XIds", In: definitions.InHeader, Type: list(), CommaSeparated: true},
+	)
+	items.Models[0].Fields = append(items.Models[0].Fields, definitions.Field{Name: "Url", JSONName: "Url", Type: str()})
+	items.Models = append(items.Models, definitions.Model{Name: "Union", Union: []string{"Item"}})
+
+	return svc
+}
+
+// What the differ marks breaking: a caller of the generated SDK would fail
+// to compile, or send something the server reads differently.
+func TestDiffBreaking(t *testing.T) {
+	t.Parallel()
+
+	newer := wired()
+	get := &newer.Groups[0].Operations[0]
+	get.Options[2].CommaSeparated = false // Ids: comma-separated -> one key per value
+	get.Options[3].CommaSeparated = true  // Tags: one key per value -> comma-separated
+	get.Options[4].DeepObject = true      // StreamOptions
+	get.Options[5].CommaSeparated = false // X-Ids header
+	get.Options[0].Required = true        // Limit
+	get.Options[1].Field = "FieldList"    // Fields
+	newer.Groups[0].Models[0].Fields[2].Name = "URL"
+	newer.Groups[0].Models[1].Union = []string{"Item", "Other"}
+
+	r := Diff(wired(), newer)
+	if !r.Breaking() {
+		t.Fatalf("Diff = %q, want breaking", r.String())
+	}
+	got := r.String()
+	for _, want := range []string{
+		"mini: 0 added, 0 removed, 3 changed (3 breaking)",
+		"~ operation GetItems (GET /Items)",
+		"    ~ option query ids: sent comma-separated -> one key per value [breaking]",
+		"    ~ option query tags: sent one key per value -> comma-separated [breaking]",
+		"    ~ option query streamoptions: deep object false -> true [breaking]",
+		"    ~ option header x-ids: sent comma-separated -> one key per value [breaking]",
+		"    ~ option query limit: required false -> true [breaking]",
+		"    ~ option query fields: field Fields -> FieldList [breaking]",
+		"~ model Item",
+		"    ~ field Url: Go name Url -> URL [breaking]",
+		"~ model Union",
+		"    ~ union [Item] -> [Item Other] [breaking]",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report lacks %q:\n%s", want, got)
+		}
+	}
+}
+
+// What is reported and not breaking: the generated code is the same, or
+// only accepts more.
+func TestDiffNotBreaking(t *testing.T) {
+	t.Parallel()
+
+	newer := wired()
+	get := &newer.Groups[0].Operations[0]
+	get.Description = "Gets items."
+	get.Deprecated = true
+	get.Options[0].Description = "How many."
+	get.Options[0].Deprecated = true
+	get.Options[1].Required = false // already false: unchanged
+	get.ExpectedStatusCodes = []int{200, 204}
+	newer.Groups[0].Operations[1].Options = append(newer.Groups[0].Operations[1].Options,
+		definitions.Option{Name: "Force", Field: "Force", In: definitions.InQuery, Type: definitions.TypeRef{Type: definitions.Boolean}, Required: true})
+	item := &newer.Groups[0].Models[0]
+	item.Fields[0].Nullable = true
+	item.Fields[1].Description = "The tags."
+
+	r := Diff(wired(), newer)
+	got := r.String()
+	if r.Empty() {
+		t.Fatal("Diff reported no changes")
+	}
+	if r.Breaking() {
+		t.Errorf("Diff marks a non-breaking change breaking:\n%s", got)
+	}
+	for _, want := range []string{
+		"mini: 0 added, 0 removed, 3 changed (0 breaking)",
+		"~ operation GetItems (GET /Items)\n",
+		"    ~ description changed\n",
+		"    ~ deprecated false -> true\n",
+		"    ~ option query limit: deprecated false -> true\n",
+		"    ~ option query limit: description changed\n",
+		"    ~ expected status codes [200] -> [200 204]\n",
+		"~ operation DeleteItem (DELETE /Items/{Id})\n",
+		"    + option query force: Boolean\n",
+		"~ model Item\n",
+		"    ~ field Id: nullable false -> true\n",
+		"    ~ field Tags: description changed\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "[breaking]") || strings.Contains(got, "fields") {
+		t.Errorf("report marks something breaking, or reports the unchanged option:\n%s", got)
+	}
+
+	// required true -> false only relaxes the caller
+	relaxed := wired()
+	relaxed.Groups[0].Operations[0].Options[0].Required = true
+	newer = wired()
+	r = Diff(relaxed, newer)
+	if r.Breaking() || !strings.Contains(r.String(), "    ~ option query limit: required true -> false\n") {
+		t.Errorf("required true -> false = %q", r.String())
+	}
+}

@@ -21,7 +21,6 @@ func TestOperationAccountAddToWatchlist(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/3/account/7/watchlist")
 	expectQuery(t, r, "session_id", "v-SessionId")
 	if got := r.Header.Get("Content-Type"); got != "application/json" {

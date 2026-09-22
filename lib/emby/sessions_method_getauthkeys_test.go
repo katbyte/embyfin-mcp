@@ -14,8 +14,8 @@ func TestOperationGetAuthKeys(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GetAuthKeys(t.Context(), GetAuthKeysOperationOptions{
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -35,8 +35,8 @@ func TestOperationGetAuthKeys(t *testing.T) {
 	// a 204 is a null result, with no model
 	c, _ = newOperationServer(t, http.StatusNoContent, "", "")
 	result, err = c.GetAuthKeys(t.Context(), GetAuthKeysOperationOptions{
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if err != nil || result.Model != nil {
 		t.Errorf("a 204 = %v, model %v", err, result.Model)
@@ -45,8 +45,8 @@ func TestOperationGetAuthKeys(t *testing.T) {
 	// an answer that does not decode is an error, with the response
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetAuthKeys(t.Context(), GetAuthKeysOperationOptions{
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -55,8 +55,8 @@ func TestOperationGetAuthKeys(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetAuthKeys(t.Context(), GetAuthKeysOperationOptions{
-		StartIndex: 7,
-		Limit:      7,
+		StartIndex: new(7),
+		Limit:      new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

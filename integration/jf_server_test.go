@@ -66,7 +66,7 @@ func TestJFLogsAndActivity(t *testing.T) {
 		t.Errorf("GetLogFile(%s) read %d bytes, err %v", logs[0].Name, n, err)
 	}
 
-	entries := must(jfc.GetLogEntries(ctx, jf.GetLogEntriesOperationOptions{Limit: 5})).Model
+	entries := must(jfc.GetLogEntries(ctx, jf.GetLogEntriesOperationOptions{Limit: new(5)})).Model
 	if entries.TotalRecordCount == 0 || len(entries.Items) == 0 {
 		t.Fatalf("GetLogEntries = %+v", entries)
 	}

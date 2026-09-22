@@ -20,13 +20,13 @@ type GetAlbumArtistsOperationResponse struct {
 // GetAlbumArtistsOperationOptions holds the query and header parameters of GetAlbumArtists.
 type GetAlbumArtistsOperationOptions struct {
 	// Optional filter by minimum community rating.
-	MinCommunityRating float64
+	MinCommunityRating *float64
 
 	// Optional. The record index to start at. All items with a lower index will be dropped from the results.
-	StartIndex int
+	StartIndex *int
 
 	// Optional. The maximum number of records to return.
-	Limit int
+	Limit *int
 
 	// Optional. Search term.
 	SearchTerm string
@@ -71,7 +71,7 @@ type GetAlbumArtistsOperationOptions struct {
 	EnableUserData *bool
 
 	// Optional, the max number of images to return, per image type.
-	ImageTypeLimit int
+	ImageTypeLimit *int
 
 	// Optional. The image types to include in the output.
 	EnableImageTypes []ImageType
@@ -125,14 +125,14 @@ func (o GetAlbumArtistsOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetAlbumArtistsOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.MinCommunityRating != 0 {
-		out.Append("minCommunityRating", strconv.FormatFloat(o.MinCommunityRating, 'f', -1, 64))
+	if o.MinCommunityRating != nil {
+		out.Append("minCommunityRating", strconv.FormatFloat(*o.MinCommunityRating, 'f', -1, 64))
 	}
-	if o.StartIndex != 0 {
-		out.Append("startIndex", strconv.Itoa(o.StartIndex))
+	if o.StartIndex != nil {
+		out.Append("startIndex", strconv.Itoa(*o.StartIndex))
 	}
-	if o.Limit != 0 {
-		out.Append("limit", strconv.Itoa(o.Limit))
+	if o.Limit != nil {
+		out.Append("limit", strconv.Itoa(*o.Limit))
 	}
 	if o.SearchTerm != "" {
 		out.Append("searchTerm", o.SearchTerm)
@@ -176,8 +176,8 @@ func (o GetAlbumArtistsOperationOptions) ToQuery() *client.QueryParams {
 	if o.EnableUserData != nil {
 		out.Append("enableUserData", strconv.FormatBool(*o.EnableUserData))
 	}
-	if o.ImageTypeLimit != 0 {
-		out.Append("imageTypeLimit", strconv.Itoa(o.ImageTypeLimit))
+	if o.ImageTypeLimit != nil {
+		out.Append("imageTypeLimit", strconv.Itoa(*o.ImageTypeLimit))
 	}
 	for _, v := range o.EnableImageTypes {
 		out.Append("enableImageTypes", string(v))
@@ -270,8 +270,14 @@ type GetAlbumArtistsCompleteResult struct {
 // result is loaded. options.Limit is the page size, client.DefaultPageSize when
 // unset.
 func (c Client) GetAlbumArtistsComplete(ctx context.Context, options GetAlbumArtistsOperationOptions) (result GetAlbumArtistsCompleteResult, err error) {
-	if options.Limit <= 0 {
-		options.Limit = client.DefaultPageSize
+	limit := client.DefaultPageSize
+	if options.Limit != nil && *options.Limit > 0 {
+		limit = *options.Limit
+	}
+	options.Limit = &limit
+	start := 0
+	if options.StartIndex != nil {
+		start = *options.StartIndex
 	}
 	for {
 		var page GetAlbumArtistsOperationResponse
@@ -285,10 +291,11 @@ func (c Client) GetAlbumArtistsComplete(ctx context.Context, options GetAlbumArt
 			return
 		}
 		result.Items = append(result.Items, page.Model.Items...)
-		options.StartIndex += len(page.Model.Items)
+		start += len(page.Model.Items)
+		options.StartIndex = &start
 		// a short page is the last; so is reaching the total, when the server
 		// reports one (some Emby lists report 0 whatever they hold)
-		if len(page.Model.Items) < options.Limit || page.Model.TotalRecordCount > 0 && options.StartIndex >= page.Model.TotalRecordCount {
+		if len(page.Model.Items) < limit || page.Model.TotalRecordCount > 0 && start >= page.Model.TotalRecordCount {
 			return
 		}
 	}

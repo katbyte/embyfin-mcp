@@ -16,8 +16,9 @@
 // A method takes a context, then the path parameters in path order, then the
 // request body (input: the model for a JSON body, or an io.Reader and its
 // content type for raw bytes), then, when the operation has query or header
-// parameters, a <Name>OperationOptions. Unset options are not sent: zero
-// values are skipped, a *bool is sent when set, and lists are sent
+// parameters, a <Name>OperationOptions. Unset options are not sent: a
+// boolean or a number is a pointer, sent when set (so 0 and false can be
+// asked for), an empty string or list is skipped, and lists are sent
 // comma-joined.
 //
 // It returns a <Name>OperationResponse holding HttpResponse and, when the

@@ -15,8 +15,8 @@ func TestOperationGetRemoteImages(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.GetRemoteImages(t.Context(), "p/itemId", GetRemoteImagesOperationOptions{
 		Type:                ImageTypePrimary,
-		StartIndex:          7,
-		Limit:               7,
+		StartIndex:          new(7),
+		Limit:               new(7),
 		ProviderName:        "v-ProviderName",
 		IncludeAllLanguages: new(true),
 	})
@@ -42,8 +42,8 @@ func TestOperationGetRemoteImages(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.GetRemoteImages(t.Context(), "p/itemId", GetRemoteImagesOperationOptions{
 		Type:                ImageTypePrimary,
-		StartIndex:          7,
-		Limit:               7,
+		StartIndex:          new(7),
+		Limit:               new(7),
 		ProviderName:        "v-ProviderName",
 		IncludeAllLanguages: new(true),
 	})
@@ -55,8 +55,8 @@ func TestOperationGetRemoteImages(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.GetRemoteImages(t.Context(), "p/itemId", GetRemoteImagesOperationOptions{
 		Type:                ImageTypePrimary,
-		StartIndex:          7,
-		Limit:               7,
+		StartIndex:          new(7),
+		Limit:               new(7),
 		ProviderName:        "v-ProviderName",
 		IncludeAllLanguages: new(true),
 	})

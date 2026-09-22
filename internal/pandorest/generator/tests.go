@@ -91,15 +91,19 @@ func expectQuery(t *testing.T, r *http.Request, name string, want ...string) {
 	}
 }
 
-// pagedServer answers every page with one item of total items and records
-// the start index of each request.
-func pagedServer(t *testing.T, startIndex, item string, total int) (*Client, *[]string) {
+// pagedServer answers the first pages requests with one item each and an
+// empty list after, reporting total items, and records the start index of
+// each request.
+func pagedServer(t *testing.T, startIndex, item string, total, pages int) (*Client, *[]string) {
 	t.Helper()
 
 	var starts []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		starts = append(starts, r.URL.Query().Get(startIndex))
 		w.Header().Set("Content-Type", "application/json")
+		if len(starts) > pages {
+			item = ""
+		}
 		_, _ = fmt.Fprintf(w, "{\"Items\":[%s],\"TotalRecordCount\":%d}", item, total)
 	}))
 	t.Cleanup(srv.Close)
@@ -145,7 +149,9 @@ func (g *gen) testFile(o *definitions.Operation) string {
 	fmt.Fprintf(&b, "\tresult, err := %s\n", call.expr)
 	b.WriteString("\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n")
 	b.WriteString("\tr, body := s.only(t)\n")
-	b.WriteString("\t_ = body\n")
+	if o.Request == nil {
+		b.WriteString("\t_ = body\n")
+	}
 	fmt.Fprintf(&b, "\texpectRequest(t, r, %s, %q)\n", httpMethods[o.Method], call.path)
 	for _, q := range call.query {
 		fmt.Fprintf(&b, "\texpectQuery(t, r, %q, %s)\n", q.name, quoteAll(q.values))
@@ -246,9 +252,12 @@ func (g *gen) testCall(o *definitions.Operation) testCallInfo {
 			}
 			info.optNames[opt.Field] = opt.Name
 			fields = append(fields, opt.Field+": "+expr)
-			if opt.In == definitions.InHeader {
+			switch {
+			case opt.DeepObject:
+				info.query = append(info.query, wireValue{opt.Name + "[a]", []string{"b"}}, wireValue{opt.Name + "[k]", []string{"v"}})
+			case opt.In == definitions.InHeader:
 				info.headers = append(info.headers, wireHeader{opt.Name, wire[0]})
-			} else {
+			default:
 				info.query = append(info.query, wireValue{opt.Name, wire})
 			}
 		}
@@ -289,10 +298,14 @@ func (g *gen) sampleOption(opt definitions.Option) (expr string, wire []string, 
 	switch opt.Type.Type {
 	case definitions.Boolean:
 		return "new(true)", []string{"true"}, true
-	case definitions.Integer, definitions.Integer64:
-		return "7", []string{"7"}, true
-	case definitions.Float, definitions.Double:
-		return "1.5", []string{"1.5"}, true
+	case definitions.Integer:
+		return "new(7)", []string{"7"}, true
+	case definitions.Integer64:
+		return "new(int64(7))", []string{"7"}, true
+	case definitions.Float:
+		return "new(float32(1.5))", []string{"1.5"}, true
+	case definitions.Double:
+		return "new(1.5)", []string{"1.5"}, true
 	case definitions.String:
 		value := "v-" + opt.Field
 		return strconv.Quote(value), []string{value}, true
@@ -302,6 +315,10 @@ func (g *gen) sampleOption(opt definitions.Option) (expr string, wire []string, 
 		}
 		return "", nil, false
 	case definitions.Dictionary:
+		if opt.DeepObject {
+			// two keys, so the order on the wire is proven sorted
+			return `map[string]string{"k": "v", "a": "b"}`, nil, true
+		}
 		return `map[string]string{"k": "v"}`, []string{`{"k":"v"}`}, true
 	case definitions.List:
 		items, values := g.sampleList(*opt.Type.NestedItem)
@@ -434,24 +451,30 @@ func (g *gen) responseChecks(o *definitions.Operation) string {
 func (g *gen) completeTest(o *definitions.Operation, call testCallInfo) string {
 	p := o.Pageable
 	startName := call.optNames[p.StartIndexOption]
-	if startName == "" {
-		for _, opt := range o.Options {
-			if opt.Field == p.StartIndexOption {
-				startName = opt.Name
-			}
-		}
+	args := strings.Join(slicesWithout(call.args, call.options), ", ")
+	if args != "" {
+		args += ", "
 	}
-	args := slicesWithout(call.args, call.options)
-	options := o.Name + "OperationOptions{" + p.LimitOption + ": 1}"
+	options := func(limit int) string {
+		return fmt.Sprintf("%sOperationOptions{%s: new(%d)}", o.Name, p.LimitOption, limit)
+	}
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "\nfunc TestOperation%sComplete(t *testing.T) {\n\tt.Parallel()\n\n", o.Name)
-	fmt.Fprintf(&b, "\tc, starts := pagedServer(t, %q, %q, 2)\n", startName, g.sampleJSON(p.ItemType))
-	fmt.Fprintf(&b, "\tresult, err := c.%sComplete(%s)\n", o.Name, strings.Join(append(args, options), ", "))
-	b.WriteString("\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n")
-	b.WriteString("\t// a page of one from the start, then from the first item, then the total is reached\n")
-	b.WriteString("\tif len(result.Items) != 2 || !slices.Equal(*starts, []string{\"\", \"1\"}) || result.LatestHttpResponse == nil {\n")
-	b.WriteString("\t\tt.Errorf(\"Complete = %d items over pages starting %q\", len(result.Items), *starts)\n\t}\n}\n")
+	b.WriteString("\t// the three ways a walk ends: the total is reached, an empty page when the\n")
+	b.WriteString("\t// server reports no total, and a page shorter than the limit\n")
+	b.WriteString("\tfor _, tc := range []struct {\n\t\tname          string\n\t\ttotal, pages  int\n\t\toptions       ")
+	fmt.Fprintf(&b, "%sOperationOptions\n\t\titems         int\n\t\tstarts        []string\n\t}{\n", o.Name)
+	fmt.Fprintf(&b, "\t\t{\"total reached\", 2, 9, %s, 2, []string{\"\", \"1\"}},\n", options(1))
+	fmt.Fprintf(&b, "\t\t{\"empty page\", 0, 2, %s, 2, []string{\"\", \"1\", \"2\"}},\n", options(1))
+	fmt.Fprintf(&b, "\t\t{\"short page\", 0, 9, %s, 1, []string{\"\"}},\n", options(2))
+	b.WriteString("\t} {\n\t\tt.Run(tc.name, func(t *testing.T) {\n\t\t\tt.Parallel()\n\n")
+	fmt.Fprintf(&b, "\t\t\tc, starts := pagedServer(t, %q, %q, tc.total, tc.pages)\n", startName, g.sampleJSON(p.ItemType))
+	fmt.Fprintf(&b, "\t\t\tresult, err := c.%sComplete(%stc.options)\n", o.Name, args)
+	b.WriteString("\t\t\tif err != nil {\n\t\t\t\tt.Fatal(err)\n\t\t\t}\n")
+	b.WriteString("\t\t\tif len(result.Items) != tc.items || !slices.Equal(*starts, tc.starts) || result.LatestHttpResponse == nil {\n")
+	b.WriteString("\t\t\t\tt.Errorf(\"Complete = %d items over pages starting %q, want %d over %q\", len(result.Items), *starts, tc.items, tc.starts)\n")
+	b.WriteString("\t\t\t}\n\t\t})\n\t}\n}\n")
 
 	return b.String()
 }

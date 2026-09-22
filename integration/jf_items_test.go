@@ -82,7 +82,7 @@ func TestJFItemsQuery(t *testing.T) {
 	t.Run("Paging", func(t *testing.T) {
 		res := must(jfc.GetItems(ctx, jf.GetItemsOperationOptions{
 			ParentId: moviesID, Recursive: new(true), IncludeItemTypes: []jf.BaseItemKind{jf.BaseItemKindMovie},
-			SortBy: []jf.ItemSortBy{jf.ItemSortByProductionYear}, SortOrder: []jf.SortOrder{jf.SortOrderDescending}, StartIndex: 2, Limit: 3,
+			SortBy: []jf.ItemSortBy{jf.ItemSortByProductionYear}, SortOrder: []jf.SortOrder{jf.SortOrderDescending}, StartIndex: new(2), Limit: new(3),
 		})).Model
 		if len(res.Items) != 3 || res.TotalRecordCount != len(movies) || res.StartIndex != 2 {
 			t.Errorf("StartIndex=2 Limit=3: %d items of %d from %d", len(res.Items), res.TotalRecordCount, res.StartIndex)
@@ -197,7 +197,7 @@ func TestJFItem(t *testing.T) {
 	}
 
 	t.Run("Similar", func(t *testing.T) {
-		res := must(jfc.GetSimilarItems(ctx, id, jf.GetSimilarItemsOperationOptions{UserId: adminID, Limit: 3})).Model
+		res := must(jfc.GetSimilarItems(ctx, id, jf.GetSimilarItemsOperationOptions{UserId: adminID, Limit: new(3)})).Model
 		if len(res.Items) == 0 {
 			t.Fatal("GetSimilarItems found nothing among seven other films")
 		}
@@ -208,7 +208,7 @@ func TestJFItem(t *testing.T) {
 		}
 	})
 	t.Run("InstantMix", func(t *testing.T) {
-		res := must(jfc.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{UserId: adminID, Limit: 5})).Model
+		res := must(jfc.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{UserId: adminID, Limit: new(5)})).Model
 		for _, it := range res.Items {
 			if it.Id == "" || it.Name == "" {
 				t.Errorf("instant mix item = %+v", it)
@@ -307,11 +307,11 @@ func TestJFCatalogue(t *testing.T) {
 	if hints.TotalRecordCount < 2 || !slices.ContainsFunc(hints.SearchHints, func(h jf.SearchHint) bool { return h.Name == alien && h.Id != "" && h.ProductionYear == 1979 }) {
 		t.Errorf("GetSearchHints(Alien) = %+v", hints)
 	}
-	latest := must(jfc.GetLatestMedia(ctx, jf.GetLatestMediaOperationOptions{UserId: adminID, ParentId: moviesID, Limit: 3})).Model
+	latest := must(jfc.GetLatestMedia(ctx, jf.GetLatestMediaOperationOptions{UserId: adminID, ParentId: moviesID, Limit: new(3)})).Model
 	if len(latest) != 3 || latest[0].Id == "" {
 		t.Errorf("GetLatestMedia = %d items", len(latest))
 	}
-	suggestions := must(jfc.GetSuggestions(ctx, jf.GetSuggestionsOperationOptions{UserId: adminID, Type: []jf.BaseItemKind{jf.BaseItemKindMovie}, Limit: 2})).Model
+	suggestions := must(jfc.GetSuggestions(ctx, jf.GetSuggestionsOperationOptions{UserId: adminID, Type: []jf.BaseItemKind{jf.BaseItemKindMovie}, Limit: new(2)})).Model
 	if len(suggestions.Items) == 0 {
 		t.Error("GetSuggestions returned nothing")
 	}

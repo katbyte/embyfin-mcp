@@ -24,7 +24,6 @@ func TestOperationAddVirtualFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Library/VirtualFolders")
 	expectQuery(t, r, "name", "v-Name")
 	expectQuery(t, r, "collectionType", "movies")

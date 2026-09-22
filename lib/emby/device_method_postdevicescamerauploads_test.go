@@ -23,7 +23,6 @@ func TestOperationPostDevicesCameraUploads(t *testing.T) {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Devices/CameraUploads")
 	expectQuery(t, r, "Album", "v-Album")
 	expectQuery(t, r, "Name", "v-Name")

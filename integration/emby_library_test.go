@@ -126,7 +126,7 @@ func embyVirtualFolder(ctx context.Context, t *testing.T, name string) *emby.Vir
 // embyCount is the recursive count of one item type under a folder.
 func embyCount(ctx context.Context, parentID, kind string) int {
 	res, err := embyc.GetItems(ctx, emby.GetItemsOperationOptions{
-		ParentId: parentID, Recursive: new(true), IncludeItemTypes: kind, Limit: 1,
+		ParentId: parentID, Recursive: new(true), IncludeItemTypes: kind, Limit: new(1),
 	})
 	if err != nil {
 		return -1
@@ -249,7 +249,7 @@ func embyFirst(t *testing.T, parentID, kind string) emby.BaseItemDto {
 	t.Helper()
 
 	res := must(embyc.GetItems(t.Context(), emby.GetItemsOperationOptions{
-		ParentId: parentID, Recursive: new(true), IncludeItemTypes: kind, Limit: 1, SortBy: "SortName",
+		ParentId: parentID, Recursive: new(true), IncludeItemTypes: kind, Limit: new(1), SortBy: "SortName",
 	})).Model
 	if len(res.Items) == 0 {
 		t.Fatalf("no %s in library %s", kind, parentID)

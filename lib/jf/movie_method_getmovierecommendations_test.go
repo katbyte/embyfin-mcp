@@ -17,8 +17,8 @@ func TestOperationGetMovieRecommendations(t *testing.T) {
 		UserId:        "v-UserId",
 		ParentId:      "v-ParentId",
 		Fields:        []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
-		CategoryLimit: 7,
-		ItemLimit:     7,
+		CategoryLimit: new(7),
+		ItemLimit:     new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -44,8 +44,8 @@ func TestOperationGetMovieRecommendations(t *testing.T) {
 		UserId:        "v-UserId",
 		ParentId:      "v-ParentId",
 		Fields:        []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
-		CategoryLimit: 7,
-		ItemLimit:     7,
+		CategoryLimit: new(7),
+		ItemLimit:     new(7),
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -57,8 +57,8 @@ func TestOperationGetMovieRecommendations(t *testing.T) {
 		UserId:        "v-UserId",
 		ParentId:      "v-ParentId",
 		Fields:        []ItemFields{ItemFieldsAirTime, ItemFieldsSpecialFeatureCount},
-		CategoryLimit: 7,
-		ItemLimit:     7,
+		CategoryLimit: new(7),
+		ItemLimit:     new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

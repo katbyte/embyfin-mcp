@@ -29,34 +29,34 @@ type GetStudioImageOperationOptions struct {
 	Format ImageFormat
 
 	// The maximum image width to return.
-	MaxWidth int
+	MaxWidth *int
 
 	// The maximum image height to return.
-	MaxHeight int
+	MaxHeight *int
 
 	// Optional. Percent to render for the percent played overlay.
-	PercentPlayed float64
+	PercentPlayed *float64
 
 	// Optional. Unplayed count overlay to render.
-	UnplayedCount int
+	UnplayedCount *int
 
 	// The fixed image width to return.
-	Width int
+	Width *int
 
 	// The fixed image height to return.
-	Height int
+	Height *int
 
 	// Optional. Quality setting, from 0-100. Defaults to 90 and should suffice in most cases.
-	Quality int
+	Quality *int
 
 	// Width of box to fill.
-	FillWidth int
+	FillWidth *int
 
 	// Height of box to fill.
-	FillHeight int
+	FillHeight *int
 
 	// Optional. Blur image.
-	Blur int
+	Blur *int
 
 	// Optional. Apply a background color for transparent images.
 	BackgroundColor string
@@ -65,7 +65,7 @@ type GetStudioImageOperationOptions struct {
 	ForegroundLayer string
 
 	// Image index.
-	ImageIndex int
+	ImageIndex *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -83,35 +83,35 @@ func (o GetStudioImageOperationOptions) ToQuery() *client.QueryParams {
 	if o.Format != "" {
 		out.Append("format", string(o.Format))
 	}
-	if o.MaxWidth != 0 {
-		out.Append("maxWidth", strconv.Itoa(o.MaxWidth))
+	if o.MaxWidth != nil {
+		out.Append("maxWidth", strconv.Itoa(*o.MaxWidth))
 	}
-	if o.MaxHeight != 0 {
-		out.Append("maxHeight", strconv.Itoa(o.MaxHeight))
+	if o.MaxHeight != nil {
+		out.Append("maxHeight", strconv.Itoa(*o.MaxHeight))
 	}
-	if o.PercentPlayed != 0 {
-		out.Append("percentPlayed", strconv.FormatFloat(o.PercentPlayed, 'f', -1, 64))
+	if o.PercentPlayed != nil {
+		out.Append("percentPlayed", strconv.FormatFloat(*o.PercentPlayed, 'f', -1, 64))
 	}
-	if o.UnplayedCount != 0 {
-		out.Append("unplayedCount", strconv.Itoa(o.UnplayedCount))
+	if o.UnplayedCount != nil {
+		out.Append("unplayedCount", strconv.Itoa(*o.UnplayedCount))
 	}
-	if o.Width != 0 {
-		out.Append("width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("width", strconv.Itoa(*o.Width))
 	}
-	if o.Height != 0 {
-		out.Append("height", strconv.Itoa(o.Height))
+	if o.Height != nil {
+		out.Append("height", strconv.Itoa(*o.Height))
 	}
-	if o.Quality != 0 {
-		out.Append("quality", strconv.Itoa(o.Quality))
+	if o.Quality != nil {
+		out.Append("quality", strconv.Itoa(*o.Quality))
 	}
-	if o.FillWidth != 0 {
-		out.Append("fillWidth", strconv.Itoa(o.FillWidth))
+	if o.FillWidth != nil {
+		out.Append("fillWidth", strconv.Itoa(*o.FillWidth))
 	}
-	if o.FillHeight != 0 {
-		out.Append("fillHeight", strconv.Itoa(o.FillHeight))
+	if o.FillHeight != nil {
+		out.Append("fillHeight", strconv.Itoa(*o.FillHeight))
 	}
-	if o.Blur != 0 {
-		out.Append("blur", strconv.Itoa(o.Blur))
+	if o.Blur != nil {
+		out.Append("blur", strconv.Itoa(*o.Blur))
 	}
 	if o.BackgroundColor != "" {
 		out.Append("backgroundColor", o.BackgroundColor)
@@ -119,8 +119,8 @@ func (o GetStudioImageOperationOptions) ToQuery() *client.QueryParams {
 	if o.ForegroundLayer != "" {
 		out.Append("foregroundLayer", o.ForegroundLayer)
 	}
-	if o.ImageIndex != 0 {
-		out.Append("imageIndex", strconv.Itoa(o.ImageIndex))
+	if o.ImageIndex != nil {
+		out.Append("imageIndex", strconv.Itoa(*o.ImageIndex))
 	}
 	return &out
 }

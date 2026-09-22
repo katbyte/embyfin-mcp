@@ -15,7 +15,7 @@ func TestOperationAccountRatedMovies(t *testing.T) {
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.AccountRatedMovies(t.Context(), 7, AccountRatedMoviesOperationOptions{
 		Language:  "v-Language",
-		Page:      7,
+		Page:      new(7),
 		SessionId: "v-SessionId",
 		SortBy:    "v-SortBy",
 	})
@@ -40,7 +40,7 @@ func TestOperationAccountRatedMovies(t *testing.T) {
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.AccountRatedMovies(t.Context(), 7, AccountRatedMoviesOperationOptions{
 		Language:  "v-Language",
-		Page:      7,
+		Page:      new(7),
 		SessionId: "v-SessionId",
 		SortBy:    "v-SortBy",
 	})
@@ -52,7 +52,7 @@ func TestOperationAccountRatedMovies(t *testing.T) {
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.AccountRatedMovies(t.Context(), 7, AccountRatedMoviesOperationOptions{
 		Language:  "v-Language",
-		Page:      7,
+		Page:      new(7),
 		SessionId: "v-SessionId",
 		SortBy:    "v-SortBy",
 	})

@@ -19,7 +19,7 @@ type TvSeriesOnTheAirListOperationResponse struct {
 // TvSeriesOnTheAirListOperationOptions holds the query and header parameters of TvSeriesOnTheAirList.
 type TvSeriesOnTheAirListOperationOptions struct {
 	Language string
-	Page     int
+	Page     *int
 	Timezone string
 }
 
@@ -35,8 +35,8 @@ func (o TvSeriesOnTheAirListOperationOptions) ToQuery() *client.QueryParams {
 	if o.Language != "" {
 		out.Append("language", o.Language)
 	}
-	if o.Page != 0 {
-		out.Append("page", strconv.Itoa(o.Page))
+	if o.Page != nil {
+		out.Append("page", strconv.Itoa(*o.Page))
 	}
 	if o.Timezone != "" {
 		out.Append("timezone", o.Timezone)

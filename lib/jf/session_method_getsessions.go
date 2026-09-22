@@ -25,7 +25,7 @@ type GetSessionsOperationOptions struct {
 	DeviceId string
 
 	// Optional. Filter by sessions that were active in the last n seconds.
-	ActiveWithinSeconds int
+	ActiveWithinSeconds *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -43,8 +43,8 @@ func (o GetSessionsOperationOptions) ToQuery() *client.QueryParams {
 	if o.DeviceId != "" {
 		out.Append("deviceId", o.DeviceId)
 	}
-	if o.ActiveWithinSeconds != 0 {
-		out.Append("activeWithinSeconds", strconv.Itoa(o.ActiveWithinSeconds))
+	if o.ActiveWithinSeconds != nil {
+		out.Append("activeWithinSeconds", strconv.Itoa(*o.ActiveWithinSeconds))
 	}
 	return &out
 }

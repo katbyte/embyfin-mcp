@@ -13,6 +13,7 @@ import (
 const (
 	testServer = "http://nas:8096"
 	testTool   = "item_get"
+	testUse    = "embyfin-mcp"
 )
 
 // load drives the real flag wiring against a temporary home and working
@@ -25,8 +26,28 @@ func load(t *testing.T, home, wd string) *FlagData {
 	t.Setenv("HOME", home)
 	t.Chdir(wd)
 
-	if err := configureFlags(&cobra.Command{Use: "embyfin-mcp"}); err != nil {
+	if err := configureFlags(&cobra.Command{Use: testUse}); err != nil {
 		t.Fatalf("configureFlags: %v", err)
+	}
+
+	return GetFlags()
+}
+
+// loadArgs is load with command-line arguments parsed as well.
+func loadArgs(t *testing.T, home, wd string, args ...string) *FlagData {
+	t.Helper()
+
+	viper.Reset()
+	t.Cleanup(viper.Reset)
+	t.Setenv("HOME", home)
+	t.Chdir(wd)
+
+	root := &cobra.Command{Use: testUse}
+	if err := configureFlags(root); err != nil {
+		t.Fatalf("configureFlags: %v", err)
+	}
+	if err := root.ParseFlags(args); err != nil {
+		t.Fatalf("ParseFlags: %v", err)
 	}
 
 	return GetFlags()
@@ -113,8 +134,6 @@ func TestConfigFileTwoWordKeys(t *testing.T) {
 
 // TMDB calls its credential a read access token, so the setting is named for
 // that; its older name still works, and the new one wins where both are set.
-//
-//nolint:paralleltest // viper is global state; these mutate it
 func TestTMDBTokenAndItsOlderName(t *testing.T) {
 	home := t.TempDir()
 
@@ -125,6 +144,20 @@ func TestTMDBTokenAndItsOlderName(t *testing.T) {
 	write(t, home, "TMDB_KEY=older\nTMDB_TOKEN=newer\n")
 	if got := load(t, home, t.TempDir()).ToolOptions().TMDBKey; got != "newer" {
 		t.Errorf("both = %q, want the token", got)
+	}
+
+	// the two names are one setting: a flag or the environment under either
+	// name beats the file under the other, as it would under the same name
+	write(t, home, "TMDB_TOKEN=from-file\n")
+	t.Setenv("EMBYFIN_TMDB_KEY", "from-env-key")
+	if got := load(t, home, t.TempDir()).ToolOptions().TMDBKey; got != "from-env-key" {
+		t.Errorf("file TMDB_TOKEN and env TMDB_KEY = %q, want the environment", got)
+	}
+	if got := loadArgs(t, home, t.TempDir(), "--tmdb-key", "from-flag").ToolOptions().TMDBKey; got != "from-flag" {
+		t.Errorf("file TMDB_TOKEN, env TMDB_KEY and --tmdb-key = %q, want the flag", got)
+	}
+	if got := loadArgs(t, home, t.TempDir(), "--tmdb-token", "from-token-flag", "--tmdb-key", "from-key-flag").ToolOptions().TMDBKey; got != "from-token-flag" {
+		t.Errorf("both flags = %q, want --tmdb-token", got)
 	}
 }
 

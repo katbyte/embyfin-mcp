@@ -15,15 +15,14 @@ func TestOperationPostSessionsByIdPlaying(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "", "")
 	result, err := c.PostSessionsByIdPlaying(t.Context(), "p/id", PlayRequest{}, PostSessionsByIdPlayingOperationOptions{
-		ItemIds:            []int{1, 2},
-		StartPositionTicks: 7,
+		ItemIds:            []int64{1, 2},
+		StartPositionTicks: new(int64(7)),
 		PlayCommand:        PlayCommandPlayNow,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
-	_ = body
 	expectRequest(t, r, http.MethodPost, "/Sessions/p%2Fid/Playing")
 	expectQuery(t, r, "ItemIds", "1,2")
 	expectQuery(t, r, "StartPositionTicks", "7")
@@ -41,8 +40,8 @@ func TestOperationPostSessionsByIdPlaying(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.PostSessionsByIdPlaying(t.Context(), "p/id", PlayRequest{}, PostSessionsByIdPlayingOperationOptions{
-		ItemIds:            []int{1, 2},
-		StartPositionTicks: 7,
+		ItemIds:            []int64{1, 2},
+		StartPositionTicks: new(int64(7)),
 		PlayCommand:        PlayCommandPlayNow,
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

@@ -23,24 +23,24 @@ type PostUsersByUserIdPlayingItemsByIdProgressOperationOptions struct {
 	MediaSourceId string
 
 	// Optional. The current position, in ticks. 1ms = 10000 ticks.
-	PositionTicks int64
+	PositionTicks *int64
 
 	// Indicates if the player is paused.
 	IsPaused *bool
 
 	// Indicates if the player is muted.
 	IsMuted             *bool
-	AudioStreamIndex    int
-	SubtitleStreamIndex int
+	AudioStreamIndex    *int
+	SubtitleStreamIndex *int
 
 	// Scale of 0-100
-	VolumeLevel    int
+	VolumeLevel    *int
 	PlayMethod     PlayMethod
 	LiveStreamId   string
 	PlaySessionId  string
 	RepeatMode     RepeatMode
-	SubtitleOffset int
-	PlaybackRate   float64
+	SubtitleOffset *int
+	PlaybackRate   *float64
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -55,8 +55,8 @@ func (o PostUsersByUserIdPlayingItemsByIdProgressOperationOptions) ToQuery() *cl
 	if o.MediaSourceId != "" {
 		out.Append("MediaSourceId", o.MediaSourceId)
 	}
-	if o.PositionTicks != 0 {
-		out.Append("PositionTicks", strconv.FormatInt(o.PositionTicks, 10))
+	if o.PositionTicks != nil {
+		out.Append("PositionTicks", strconv.FormatInt(*o.PositionTicks, 10))
 	}
 	if o.IsPaused != nil {
 		out.Append("IsPaused", strconv.FormatBool(*o.IsPaused))
@@ -64,14 +64,14 @@ func (o PostUsersByUserIdPlayingItemsByIdProgressOperationOptions) ToQuery() *cl
 	if o.IsMuted != nil {
 		out.Append("IsMuted", strconv.FormatBool(*o.IsMuted))
 	}
-	if o.AudioStreamIndex != 0 {
-		out.Append("AudioStreamIndex", strconv.Itoa(o.AudioStreamIndex))
+	if o.AudioStreamIndex != nil {
+		out.Append("AudioStreamIndex", strconv.Itoa(*o.AudioStreamIndex))
 	}
-	if o.SubtitleStreamIndex != 0 {
-		out.Append("SubtitleStreamIndex", strconv.Itoa(o.SubtitleStreamIndex))
+	if o.SubtitleStreamIndex != nil {
+		out.Append("SubtitleStreamIndex", strconv.Itoa(*o.SubtitleStreamIndex))
 	}
-	if o.VolumeLevel != 0 {
-		out.Append("VolumeLevel", strconv.Itoa(o.VolumeLevel))
+	if o.VolumeLevel != nil {
+		out.Append("VolumeLevel", strconv.Itoa(*o.VolumeLevel))
 	}
 	if o.PlayMethod != "" {
 		out.Append("PlayMethod", string(o.PlayMethod))
@@ -85,11 +85,11 @@ func (o PostUsersByUserIdPlayingItemsByIdProgressOperationOptions) ToQuery() *cl
 	if o.RepeatMode != "" {
 		out.Append("RepeatMode", string(o.RepeatMode))
 	}
-	if o.SubtitleOffset != 0 {
-		out.Append("SubtitleOffset", strconv.Itoa(o.SubtitleOffset))
+	if o.SubtitleOffset != nil {
+		out.Append("SubtitleOffset", strconv.Itoa(*o.SubtitleOffset))
 	}
-	if o.PlaybackRate != 0 {
-		out.Append("PlaybackRate", strconv.FormatFloat(o.PlaybackRate, 'f', -1, 64))
+	if o.PlaybackRate != nil {
+		out.Append("PlaybackRate", strconv.FormatFloat(*o.PlaybackRate, 'f', -1, 64))
 	}
 	return &out
 }

@@ -60,7 +60,7 @@ func TestJFSessions(t *testing.T) {
 	if _, err := jfc.SendPlaystateCommand(ctx, own.Id, jf.PlaystateCommandPause, jf.SendPlaystateCommandOperationOptions{}); err != nil {
 		t.Errorf("SendPlaystateCommand(Pause): %v", err)
 	}
-	if _, err := jfc.SendPlaystateCommand(ctx, own.Id, jf.PlaystateCommandSeek, jf.SendPlaystateCommandOperationOptions{SeekPositionTicks: 10_000_000}); err != nil {
+	if _, err := jfc.SendPlaystateCommand(ctx, own.Id, jf.PlaystateCommandSeek, jf.SendPlaystateCommandOperationOptions{SeekPositionTicks: new(int64(10_000_000))}); err != nil {
 		t.Errorf("SendPlaystateCommand(Seek): %v", err)
 	}
 	if _, err := jfc.SendMessageCommand(ctx, own.Id, jf.MessageCommand{Header: "SDK", Text: "hello from the integration suite", TimeoutMs: 1000}); err != nil {

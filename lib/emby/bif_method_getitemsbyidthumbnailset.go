@@ -20,7 +20,7 @@ type GetItemsByIdThumbnailSetOperationResponse struct {
 
 // GetItemsByIdThumbnailSetOperationOptions holds the query and header parameters of GetItemsByIdThumbnailSet.
 type GetItemsByIdThumbnailSetOperationOptions struct {
-	Width int
+	Width *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -32,8 +32,8 @@ func (o GetItemsByIdThumbnailSetOperationOptions) ToHeaders() *client.Headers {
 // ToQuery returns the query parameters the options set.
 func (o GetItemsByIdThumbnailSetOperationOptions) ToQuery() *client.QueryParams {
 	out := client.QueryParams{}
-	if o.Width != 0 {
-		out.Append("Width", strconv.Itoa(o.Width))
+	if o.Width != nil {
+		out.Append("Width", strconv.Itoa(*o.Width))
 	}
 	return &out
 }

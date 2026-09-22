@@ -335,3 +335,40 @@ func TestFind(t *testing.T) {
 		t.Errorf("TMDB was asked %d times, want once per id", n)
 	}
 }
+
+// A failure TMDB answers once (a 502 on a bad minute) is reported and not
+// remembered: the next ask goes to TMDB again and gets the film, which is
+// then remembered like any other.
+func TestMovieDoesNotRememberAFailure(t *testing.T) {
+	t.Parallel()
+
+	var asked atomic.Int32
+	c, calls := newTMDB(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/3/movie/1" {
+			http.NotFound(w, r)
+			return
+		}
+		if asked.Add(1) == 1 {
+			http.Error(w, "down", http.StatusBadGateway)
+			return
+		}
+		_, _ = w.Write([]byte(`{"id":1,"title":"Zzyzx","release_date":"2001-01-01","runtime":90}`))
+	})
+
+	if _, err := c.Movie(t.Context(), "1"); err == nil || !contains(err.Error(), "502") {
+		t.Fatalf("the first ask = %v, want the 502 reported", err)
+	}
+	m, err := c.Movie(t.Context(), "1")
+	if err != nil || m.ID != 1 || m.Title != "Zzyzx" || m.Year() != 2001 || m.Runtime != 90 {
+		t.Fatalf("the second ask = %+v, %v, want the film", m, err)
+	}
+	if n := atomic.LoadInt32(calls); n != 2 {
+		t.Errorf("TMDB was asked %d times, want 2 (the failure and the answer)", n)
+	}
+	if minutes, err := c.MovieRuntime(t.Context(), "1"); err != nil || minutes != 90 {
+		t.Errorf("runtime after the answer = %d, %v", minutes, err)
+	}
+	if n := atomic.LoadInt32(calls); n != 2 {
+		t.Errorf("the answer was not remembered: %d calls", n)
+	}
+}

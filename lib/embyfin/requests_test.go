@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -99,6 +101,18 @@ func (f *fake) only(key string) recorded {
 	return got[0]
 }
 
+// all returns every request made to "METHOD /path".
+func (f *fake) all(key string) []recorded {
+	var got []recorded
+	for _, r := range f.requests {
+		if r.method+" "+r.path == key {
+			got = append(got, r)
+		}
+	}
+
+	return got
+}
+
 // jsonBody decodes a recorded body.
 func jsonBody(t *testing.T, body string) map[string]any {
 	t.Helper()
@@ -173,6 +187,52 @@ func TestSearchEmby(t *testing.T) {
 	}
 }
 
+// A user's view goes through Emby's per-user route, whose options are a
+// hand copy of the plain route's: every filter a query sets must reach the
+// server whichever route it takes, or a user's view silently drops one
+// (saved_since did, once).
+func TestEmbyPerUserRouteKeepsEveryFilter(t *testing.T) {
+	t.Parallel()
+
+	c, f := newFake(t, Emby, map[string]route{"GET /Items": ok(`{"Items":[]}`), "GET /Users/u1/Items": ok(`{"Items":[]}`)})
+
+	// every field set to something the zero value is not
+	full := SearchOptions{}
+	v := reflect.ValueOf(&full).Elem()
+	for i := range v.NumField() {
+		f := v.Field(i)
+		switch f.Kind() {
+		case reflect.String:
+			f.SetString("x" + v.Type().Field(i).Name)
+		case reflect.Slice:
+			f.Set(reflect.ValueOf([]string{"a"}))
+		case reflect.Pointer:
+			f.Set(reflect.ValueOf(new(3)))
+		case reflect.Bool:
+			f.SetBool(true)
+		case reflect.Int:
+			f.SetInt(5)
+		default:
+			t.Fatalf("SearchOptions.%s is a %s: teach this test to set one", v.Type().Field(i).Name, f.Kind())
+		}
+	}
+	full.UserID = ""
+	if _, _, err := c.Search(t.Context(), full); err != nil {
+		t.Fatal(err)
+	}
+	full.UserID = "u1"
+	if _, _, err := c.Search(t.Context(), full); err != nil {
+		t.Fatal(err)
+	}
+
+	plain, user := f.only("GET /Items").query, f.only("GET /Users/u1/Items").query
+	for key, want := range plain {
+		if got := user[key]; !slices.Equal(got, want) {
+			t.Errorf("%s=%v on the plain route is %v on the per-user route", key, want, got)
+		}
+	}
+}
+
 func TestSearchJellyfin(t *testing.T) {
 	t.Parallel()
 
@@ -235,6 +295,11 @@ func TestSearchAllAndLookups(t *testing.T) {
 	it, err := c.ItemByID(t.Context(), "1")
 	if err != nil || it.Name != "Alien" || f.requests[len(f.requests)-1].query.Get("Fields") != FieldsDetail {
 		t.Errorf("ItemByID = %+v, %v", it, err)
+	}
+	// and the query is capped, so the whole library Emby answers for an id it
+	// ignored is never actually pulled
+	if q := f.requests[len(f.requests)-1].query; q.Get("Limit") != "2" {
+		t.Errorf("ItemByID query = %v, want Limit=2", q)
 	}
 }
 
@@ -397,13 +462,17 @@ func TestLibraries(t *testing.T) {
 		t.Errorf("delete = %s", body)
 	}
 
-	c, f = newFake(t, Jellyfin, map[string]route{"DELETE /Library/VirtualFolders": noContent})
+	// Jellyfin keeps a removed library's items until its library scan finds
+	// the folder gone, so the removal asks for that scan the way that is not
+	// dropped when one is already running: on its own, not with the removal
+	c, f = newFake(t, Jellyfin, map[string]route{"DELETE /Library/VirtualFolders": noContent, "POST /Library/Refresh": noContent})
 	if err := c.DeleteLibrary(t.Context(), &VirtualFolder{Name: "Films", ItemID: "9"}); err != nil {
 		t.Fatal(err)
 	}
-	if q := f.requests[0].query; q.Get("name") != "Films" || q.Has("Id") {
+	if q := f.only("DELETE /Library/VirtualFolders").query; q.Get("name") != "Films" || q.Has("Id") || q.Get("refreshLibrary") != "false" {
 		t.Errorf("delete = %v", q)
 	}
+	f.only("POST /Library/Refresh")
 }
 
 func TestEditItem(t *testing.T) {
@@ -1012,6 +1081,7 @@ func TestLibraryEdits(t *testing.T) {
 		"POST /Library/VirtualFolders/Paths":   noContent,
 		"DELETE /Library/VirtualFolders/Paths": noContent,
 		"POST /Items/9/Refresh":                noContent,
+		"POST /Library/Refresh":                noContent,
 	})
 	if err := c.RenameLibrary(t.Context(), folder, "Movies"); err != nil {
 		t.Fatal(err)
@@ -1029,13 +1099,17 @@ func TestLibraryEdits(t *testing.T) {
 	if q := f.only("POST /Library/VirtualFolders/Name").query; q.Get("name") != "Films" || q.Get("newName") != "Movies" || q.Get("refreshLibrary") != "false" {
 		t.Errorf("rename = %v", q)
 	}
-	// a folder change asks for Jellyfin's library scan: a scan of the one
-	// library does not see it
-	if r := f.only("POST /Library/VirtualFolders/Paths"); r.body != `{"Name":"Films","PathInfo":{"Path":"/media/more"}}` || r.query.Get("refreshLibrary") != "true" {
+	// a folder change asks for Jellyfin's library scan, which a scan of the
+	// one library does not do; asked for with the change it is dropped when a
+	// scan is already running, so it is asked for on its own, once per change
+	if r := f.only("POST /Library/VirtualFolders/Paths"); r.body != `{"Name":"Films","PathInfo":{"Path":"/media/more"}}` || r.query.Get("refreshLibrary") != "false" {
 		t.Errorf("add path = %v %s", r.query, r.body)
 	}
-	if q := f.only("DELETE /Library/VirtualFolders/Paths").query; q.Get("name") != "Films" || q.Get("path") != "/media/old" || q.Get("refreshLibrary") != "true" {
+	if q := f.only("DELETE /Library/VirtualFolders/Paths").query; q.Get("name") != "Films" || q.Get("path") != "/media/old" || q.Get("refreshLibrary") != "false" {
 		t.Errorf("remove path = %v", q)
+	}
+	if n := len(f.all("POST /Library/Refresh")); n != 2 {
+		t.Errorf("the two folder changes asked for %d library scans, want 2", n)
 	}
 	if q := f.only("POST /Items/9/Refresh").query; q.Get("metadataRefreshMode") != "Default" {
 		t.Errorf("scan = %v", q)
@@ -1130,23 +1204,71 @@ func TestPlaylistEdits(t *testing.T) {
 		t.Errorf("rename = %v", body)
 	}
 
+	// a Jellyfin playlist the routes below change: removes take entries out,
+	// adds append items with new entry ids, and one listing never changes
+	// however it is edited, like a scan re-reading the playlist file
+	jf := map[string][]string{"p2": {"a:ea", "b:eb", "c:ec"}, "p5": {"a:ea", "b:eb"}}
+	jfListing := func(id string) route {
+		return func(*http.Request, string) (int, string) {
+			items := make([]string, 0, len(jf[id]))
+			for _, e := range jf[id] {
+				item, entry, _ := strings.Cut(e, ":")
+				items = append(items, `{"Id":"`+item+`","PlaylistItemId":"`+entry+`"}`)
+			}
+			return http.StatusOK, `{"Items":[` + strings.Join(items, ",") + `],"TotalRecordCount":` + strconv.Itoa(len(items)) + `}`
+		}
+	}
+	jfRemove := func(id string) route {
+		return func(r *http.Request, _ string) (int, string) {
+			gone := r.URL.Query()["entryIds"]
+			jf[id] = slices.DeleteFunc(jf[id], func(e string) bool {
+				_, entry, _ := strings.Cut(e, ":")
+				return slices.Contains(gone, entry)
+			})
+			return http.StatusNoContent, ""
+		}
+	}
+	jfAdd := func(id string) route {
+		return func(r *http.Request, _ string) (int, string) {
+			for _, item := range r.URL.Query()["ids"] {
+				jf[id] = append(jf[id], item+":e"+item+strconv.Itoa(len(jf[id])))
+			}
+			return http.StatusNoContent, ""
+		}
+	}
 	c, f = newFake(t, Jellyfin, map[string]route{
-		"GET /Playlists/p2/Items":    ok(`{"Items":[{"Id":"a","PlaylistItemId":"ea"},{"Id":"b","PlaylistItemId":"eb"},{"Id":"c","PlaylistItemId":"ec"}],"TotalRecordCount":3}`),
-		"DELETE /Playlists/p2/Items": noContent,
-		"POST /Playlists/p2/Items":   noContent,
+		"GET /Playlists/p2/Items":    jfListing("p2"),
+		"DELETE /Playlists/p2/Items": jfRemove("p2"),
+		"POST /Playlists/p2/Items":   jfAdd("p2"),
 		"GET /Items/p2":              ok(`{"Id":"p2","Name":"Mix"}`),
 		"POST /Items/p2":             noContent,
+		"GET /Playlists/p5/Items":    ok(`{"Items":[{"Id":"a","PlaylistItemId":"ea"},{"Id":"b","PlaylistItemId":"eb"}],"TotalRecordCount":2}`),
+		"DELETE /Playlists/p5/Items": noContent,
+		"POST /Playlists/p5/Items":   noContent,
 	})
-	// Jellyfin's move wants a user behind the request, so the entries come
-	// out and go back in the new order
-	if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", "ec", 0); err != nil {
+	// Jellyfin's move wants a user behind the request, so the entries from
+	// the lower of the two positions on come out and go back in the new
+	// order; the ones before stay where they are
+	if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", "ec", 1); err != nil {
 		t.Fatal(err)
 	}
-	if q := f.only("DELETE /Playlists/p2/Items").query; !slices.Equal(q["entryIds"], []string{"ec", "ea", "eb"}) {
+	if q := f.only("DELETE /Playlists/p2/Items").query; !slices.Equal(q["entryIds"], []string{"eb", "ec"}) {
 		t.Errorf("remove = %v", q)
 	}
-	if q := f.only("POST /Playlists/p2/Items").query; !slices.Equal(q["ids"], []string{"c", "a", "b"}) || q.Get("userId") != "u1" {
+	if q := f.only("POST /Playlists/p2/Items").query; !slices.Equal(q["ids"], []string{"c", "b"}) || q.Get("userId") != "u1" {
 		t.Errorf("re-add = %v", q)
+	}
+	if got := jf["p2"]; len(got) != 3 || !strings.HasPrefix(got[0], "a:") || !strings.HasPrefix(got[1], "c:") || !strings.HasPrefix(got[2], "b:") {
+		t.Errorf("after the move the playlist holds %v, want a, c, b", got)
+	}
+	// a put-back the server undoes (a scan re-reading the playlist file
+	// between the removal and the add) is sent once more, then an error,
+	// rather than the old order being reported as moved
+	if err := c.MovePlaylistEntry(t.Context(), "p5", "u1", "eb", 0); err == nil || !strings.Contains(err.Error(), "did not move entry eb") {
+		t.Errorf("a move whose put-back is lost = %v", err)
+	}
+	if n := len(f.all("POST /Playlists/p5/Items")); n != 2 {
+		t.Errorf("the put-back was sent %d times, want 2", n)
 	}
 	for entry, index := range map[string]int{"nope": 0, "ea": 3} {
 		if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", entry, index); err == nil {

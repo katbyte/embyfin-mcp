@@ -368,7 +368,7 @@
           "Type": {
             "Type": "List",
             "NestedItem": {
-              "Type": "Integer"
+              "Type": "Integer64"
             }
           },
           "CommaSeparated": true

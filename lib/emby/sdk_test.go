@@ -64,7 +64,7 @@ func TestGetItems(t *testing.T) {
 		return http.StatusOK, `{"Items":[{"Id":"1","Name":"Alien","IsFolder":false,"Genres":[],"TagItems":[{"Name":"sci-fi","Id":7}]}],"TotalRecordCount":1}`
 	})
 	res, err := c.GetItems(t.Context(), GetItemsOperationOptions{
-		Recursive: new(false), IncludeItemTypes: "Movie,Series", SearchTerm: "ali", Limit: 5, MinCommunityRating: 7.5,
+		Recursive: new(false), IncludeItemTypes: "Movie,Series", SearchTerm: "ali", Limit: new(5), MinCommunityRating: new(7.5),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +107,7 @@ func TestGetItemsComplete(t *testing.T) {
 		}
 		return http.StatusInternalServerError, "asked for a page past the end"
 	})
-	res, err := c.GetItemsComplete(t.Context(), GetItemsOperationOptions{Limit: 2})
+	res, err := c.GetItemsComplete(t.Context(), GetItemsOperationOptions{Limit: new(2)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestWorkaroundOptions(t *testing.T) {
 			return err
 		}, "POST /Playlists?Ids=1%2C2&Name=P&UserId=u"},
 		{"comma-separated ids", func() error {
-			_, err := c.PostSessionsByIdPlaying(ctx, "s", PlayRequest{}, PostSessionsByIdPlayingOperationOptions{ItemIds: []int{1, 2}, PlayCommand: "PlayNow"})
+			_, err := c.PostSessionsByIdPlaying(ctx, "s", PlayRequest{}, PostSessionsByIdPlayingOperationOptions{ItemIds: []int64{1, 2}, PlayCommand: "PlayNow"})
 			return err
 		}, "POST /Sessions/s/Playing?ItemIds=1%2C2&PlayCommand=PlayNow"},
 		{"escaped path", func() error {

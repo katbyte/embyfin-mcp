@@ -28,10 +28,10 @@ type GetMovieRecommendationsOperationOptions struct {
 	Fields []ItemFields
 
 	// The max number of categories to return.
-	CategoryLimit int
+	CategoryLimit *int
 
 	// The max number of items to return per category.
-	ItemLimit int
+	ItemLimit *int
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -52,11 +52,11 @@ func (o GetMovieRecommendationsOperationOptions) ToQuery() *client.QueryParams {
 	for _, v := range o.Fields {
 		out.Append("fields", string(v))
 	}
-	if o.CategoryLimit != 0 {
-		out.Append("categoryLimit", strconv.Itoa(o.CategoryLimit))
+	if o.CategoryLimit != nil {
+		out.Append("categoryLimit", strconv.Itoa(*o.CategoryLimit))
 	}
-	if o.ItemLimit != 0 {
-		out.Append("itemLimit", strconv.Itoa(o.ItemLimit))
+	if o.ItemLimit != nil {
+		out.Append("itemLimit", strconv.Itoa(*o.ItemLimit))
 	}
 	return &out
 }

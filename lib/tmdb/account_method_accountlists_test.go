@@ -14,7 +14,7 @@ func TestOperationAccountLists(t *testing.T) {
 
 	c, s := newOperationServer(t, 200, "application/json", "{}")
 	result, err := c.AccountLists(t.Context(), 7, AccountListsOperationOptions{
-		Page:      7,
+		Page:      new(7),
 		SessionId: "v-SessionId",
 	})
 	if err != nil {
@@ -35,7 +35,7 @@ func TestOperationAccountLists(t *testing.T) {
 	// an answer that does not decode is an error, with the response
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
 	result, err = c.AccountLists(t.Context(), 7, AccountListsOperationOptions{
-		Page:      7,
+		Page:      new(7),
 		SessionId: "v-SessionId",
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
@@ -45,7 +45,7 @@ func TestOperationAccountLists(t *testing.T) {
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
 	result, err = c.AccountLists(t.Context(), 7, AccountListsOperationOptions{
-		Page:      7,
+		Page:      new(7),
 		SessionId: "v-SessionId",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {

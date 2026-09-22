@@ -17,7 +17,7 @@ func TestOperationSearchPerson(t *testing.T) {
 		Query:        "v-Query",
 		IncludeAdult: new(true),
 		Language:     "v-Language",
-		Page:         7,
+		Page:         new(7),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func TestOperationSearchPerson(t *testing.T) {
 		Query:        "v-Query",
 		IncludeAdult: new(true),
 		Language:     "v-Language",
-		Page:         7,
+		Page:         new(7),
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -54,7 +54,7 @@ func TestOperationSearchPerson(t *testing.T) {
 		Query:        "v-Query",
 		IncludeAdult: new(true),
 		Language:     "v-Language",
-		Page:         7,
+		Page:         new(7),
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

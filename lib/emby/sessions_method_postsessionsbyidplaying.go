@@ -20,10 +20,10 @@ type PostSessionsByIdPlayingOperationResponse struct {
 // PostSessionsByIdPlayingOperationOptions holds the query and header parameters of PostSessionsByIdPlaying.
 type PostSessionsByIdPlayingOperationOptions struct {
 	// The ids of the items to play, comma delimited
-	ItemIds []int
+	ItemIds []int64
 
 	// The starting position of the first item.
-	StartPositionTicks int64
+	StartPositionTicks *int64
 
 	// The type of play command to issue (PlayNow, PlayNext, PlayLast). Clients who have not yet implemented play next and play last may play now.
 	PlayCommand PlayCommand
@@ -41,8 +41,8 @@ func (o PostSessionsByIdPlayingOperationOptions) ToQuery() *client.QueryParams {
 	if len(o.ItemIds) > 0 {
 		out.Append("ItemIds", client.CSV(o.ItemIds))
 	}
-	if o.StartPositionTicks != 0 {
-		out.Append("StartPositionTicks", strconv.FormatInt(o.StartPositionTicks, 10))
+	if o.StartPositionTicks != nil {
+		out.Append("StartPositionTicks", strconv.FormatInt(*o.StartPositionTicks, 10))
 	}
 	if o.PlayCommand != "" {
 		out.Append("PlayCommand", string(o.PlayCommand))
