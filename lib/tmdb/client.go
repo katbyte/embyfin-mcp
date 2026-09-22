@@ -8,6 +8,11 @@ import (
 	"github.com/katbyte/embyfin-mcp/lib/client"
 )
 
+// APIVersion is the version of the API document this package was generated
+// from (tmdb-api, as the document names itself); a server of another version may
+// answer differently.
+const APIVersion = "3"
+
 // DefaultBaseURL is where the TMDB API lives.
 const DefaultBaseURL = "https://api.themoviedb.org"
 

@@ -11,8 +11,8 @@ documents:
 ```
 api-defs/
   emby-openapi-4.10.0.40.json ──┐               ┌─ emby-4.10.0.40/*.json ──┐
-  jellyfin-openapi-12.0.0.json ─┼─ import ──────┼─ jellyfin-12.0.0/*.json ─┼─ generate ─ lib/emby, lib/jf, lib/tmdb
-  tmdb-openapi-3.json ──────────┘ (workarounds) └─ tmdb-3/*.json ──────────┘
+  jellyfin-openapi-12.1.0.json ─┼─ import ──────┼─ jellyfin-12.1.0/*.json ─┼─ generate ─ lib/emby, lib/jf, lib/tmdb
+  tmdb-openapi-2026.09.22.json ─┘ (workarounds) └─ tmdb-2026.09.22/*.json ─┘
                                                         │
                                          diff ──────────┘  (what a refreshed spec changes)
 ```

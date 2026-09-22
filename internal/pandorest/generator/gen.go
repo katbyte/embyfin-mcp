@@ -251,12 +251,25 @@ func firstSentence(s string) string {
 	return s
 }
 
+// apiVersionConsts names the document a package was generated from, so a
+// caller can read it at run time and compare it with the server's own.
+func (g *gen) apiVersionConsts() string {
+	g.declare("APIVersion", "client.go")
+
+	return fmt.Sprintf(`// APIVersion is the version of the API document this package was generated
+// from (%s, as the document names itself); a server of another version may
+// answer differently.
+const APIVersion = %q
+
+`, g.svc.Title, g.svc.APIVersion)
+}
+
 func (g *gen) clientFile() string {
 	if g.svc.Auth == "TMDB" {
-		return g.fileHeader(tmdbClient)
+		return g.fileHeader(g.apiVersionConsts() + tmdbClient)
 	}
 	server := g.svc.Auth
-	body := fmt.Sprintf(`// Client is a client for the %[1]s API; each of its operations is a method.
+	body := g.apiVersionConsts() + fmt.Sprintf(`// Client is a client for the %[1]s API; each of its operations is a method.
 // Requests go through Client.Client, the shared base client.
 type Client struct {
 	Client *client.Client

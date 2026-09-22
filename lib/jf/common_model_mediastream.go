@@ -9,7 +9,7 @@ type MediaStream struct {
 	// Gets or sets the aspect ratio.
 	AspectRatio string `json:"AspectRatio,omitempty"`
 
-	// An enum representing formats of spatial audio.
+	// Gets the audio spatial format.
 	AudioSpatialFormat AudioSpatialFormat `json:"AudioSpatialFormat,omitempty"`
 
 	// Gets or sets the average frame rate.
@@ -176,10 +176,10 @@ type MediaStream struct {
 	// Gets the video dovi title.
 	VideoDoViTitle string `json:"VideoDoViTitle,omitempty"`
 
-	// An enum representing video ranges.
+	// Gets the video range.
 	VideoRange VideoRange `json:"VideoRange,omitempty"`
 
-	// An enum representing types of video ranges.
+	// Gets the video range type.
 	VideoRangeType VideoRangeType `json:"VideoRangeType,omitempty"`
 
 	// Gets or sets the width.

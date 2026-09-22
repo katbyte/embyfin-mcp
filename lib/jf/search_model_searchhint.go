@@ -51,7 +51,7 @@ type SearchHint struct {
 	// Gets or sets the matched term.
 	MatchedTerm string `json:"MatchedTerm,omitempty"`
 
-	// Media types.
+	// Gets or sets the type of the media.
 	MediaType MediaType `json:"MediaType,omitempty"`
 
 	// Gets or sets the name.
@@ -90,6 +90,6 @@ type SearchHint struct {
 	// Gets or sets the thumb image tag.
 	ThumbImageTag string `json:"ThumbImageTag,omitempty"`
 
-	// The base item kind.
+	// Gets or sets the type.
 	Type BaseItemKind `json:"Type,omitempty"`
 }

@@ -3,7 +3,7 @@
   "Package": "tmdb",
   "Title": "tmdb-api",
   "ApiVersion": "3",
-  "Source": "api-defs/tmdb-openapi-3.json",
+  "Source": "api-defs/tmdb-openapi-2026.09.22.json",
   "Auth": "TMDB",
   "Workarounds": [
     "tmdb-tags",

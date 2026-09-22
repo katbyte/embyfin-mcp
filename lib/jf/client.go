@@ -8,6 +8,11 @@ import (
 	"github.com/katbyte/embyfin-mcp/lib/client"
 )
 
+// APIVersion is the version of the API document this package was generated
+// from (Jellyfin API, as the document names itself); a server of another version may
+// answer differently.
+const APIVersion = "12.1.0"
+
 // Client is a client for the Jellyfin API; each of its operations is a method.
 // Requests go through Client.Client, the shared base client.
 type Client struct {

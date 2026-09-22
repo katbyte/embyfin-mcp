@@ -18,6 +18,6 @@ type MediaSegmentDto struct {
 	// Gets or sets the start of the segment.
 	StartTicks int64 `json:"StartTicks,omitempty"`
 
-	// Defines the types of content an individual Jellyfin.Database.Implementations.Entities.MediaSegment represents.
+	// Gets or sets the type of content this segment defines.
 	Type MediaSegmentType `json:"Type,omitempty"`
 }

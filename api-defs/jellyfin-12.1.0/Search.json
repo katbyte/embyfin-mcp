@@ -341,7 +341,7 @@
         {
           "Name": "MediaType",
           "JsonName": "MediaType",
-          "Description": "Media types.",
+          "Description": "Gets or sets the type of the media.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "MediaType"
@@ -457,7 +457,7 @@
         {
           "Name": "Type",
           "JsonName": "Type",
-          "Description": "The base item kind.",
+          "Description": "Gets or sets the type.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "BaseItemKind"

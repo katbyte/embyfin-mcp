@@ -937,7 +937,7 @@
         {
           "Name": "MediaType",
           "JsonName": "MediaType",
-          "Description": "Media types.",
+          "Description": "Gets or sets the type of the media.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "MediaType"
@@ -1543,7 +1543,7 @@
         {
           "Name": "Type",
           "JsonName": "Type",
-          "Description": "The base item kind.",
+          "Description": "Gets or sets the type.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "BaseItemKind"
@@ -1813,7 +1813,7 @@
         {
           "Name": "Type",
           "JsonName": "Type",
-          "Description": "The person kind.",
+          "Description": "Gets or sets the type.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "PersonKind"
@@ -3063,7 +3063,7 @@
     {
       "Name": "ForceKeepAliveMessage",
       "SchemaName": "ForceKeepAliveMessage",
-      "Description": "Force keep alive websocket messages.",
+      "Description": "Force keep alive websocket messages. The data is the timeout in seconds after which the\nserver considers the connection lost; clients are expected to answer with a KeepAlive\nmessage and to keep sending one at least every half of that timeout.",
       "Fields": [
         {
           "Name": "Data",
@@ -3999,7 +3999,7 @@
         {
           "Name": "AudioSpatialFormat",
           "JsonName": "AudioSpatialFormat",
-          "Description": "An enum representing formats of spatial audio.",
+          "Description": "Gets the audio spatial format.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "AudioSpatialFormat"
@@ -4546,7 +4546,7 @@
         {
           "Name": "VideoRange",
           "JsonName": "VideoRange",
-          "Description": "An enum representing video ranges.",
+          "Description": "Gets the video range.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "VideoRange"
@@ -4555,7 +4555,7 @@
         {
           "Name": "VideoRangeType",
           "JsonName": "VideoRangeType",
-          "Description": "An enum representing types of video ranges.",
+          "Description": "Gets the video range type.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "VideoRangeType"
@@ -7265,7 +7265,7 @@
         {
           "Name": "Protocol",
           "JsonName": "Protocol",
-          "Description": "Media streaming protocol.\nLowercase for backwards compatibility.",
+          "Description": "Gets or sets the protocol.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "MediaStreamProtocol"
@@ -8197,7 +8197,7 @@
         {
           "Name": "SyncPlayAccess",
           "JsonName": "SyncPlayAccess",
-          "Description": "Enum SyncPlayUserAccessType.",
+          "Description": "Gets or sets a value indicating what SyncPlay features the user can access.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "SyncPlayUserAccessType"

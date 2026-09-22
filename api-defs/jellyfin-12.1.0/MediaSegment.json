@@ -85,7 +85,7 @@
         {
           "Name": "Type",
           "JsonName": "Type",
-          "Description": "Defines the types of content an individual Jellyfin.Database.Implementations.Entities.MediaSegment represents.",
+          "Description": "Gets or sets the type of content this segment defines.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "MediaSegmentType"

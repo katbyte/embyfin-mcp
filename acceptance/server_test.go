@@ -61,10 +61,13 @@ func TestServerActivity(t *testing.T) {
 	if num(t, out["total"], "total") < len(entries) || num(t, out["offset"], "offset") != 0 {
 		t.Errorf("total %v offset %v for %d entries", out["total"], out["offset"], len(entries))
 	}
-	// paged by offset: the second entry heads a page that skips the first
+	// paged by offset: the second entry heads a page that skips the first.
+	// Matched by what it says rather than its stamp: Emby orders two entries
+	// written milliseconds apart either way round from one read to the next
 	if len(entries) > 1 {
 		page := call(t, "server_activity", map[string]any{"days": 1, "limit": 1, "offset": 1})
-		if got := rows(t, page["entries"], "entries"); num(t, page["offset"], "offset") != 1 || len(got) != 1 || str(got[0]["date"]) != str(entries[1]["date"]) {
+		got := rows(t, page["entries"], "entries")
+		if num(t, page["offset"], "offset") != 1 || len(got) != 1 || str(got[0]["type"]) != str(entries[1]["type"]) || str(got[0]["summary"]) != str(entries[1]["summary"]) {
 			t.Errorf("page at offset 1 = %v, want %v", page, entries[1])
 		}
 	}

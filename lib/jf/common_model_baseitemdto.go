@@ -210,7 +210,7 @@ type BaseItemDto struct {
 	// Gets or sets the media streams.
 	MediaStreams []MediaStream `json:"MediaStreams,omitzero"`
 
-	// Media types.
+	// Gets or sets the type of the media.
 	MediaType MediaType `json:"MediaType,omitempty"`
 
 	// Gets or sets the movie count.
@@ -386,7 +386,7 @@ type BaseItemDto struct {
 	// Gets or sets the trickplay manifest.
 	Trickplay map[string]map[string]TrickplayInfoDto `json:"Trickplay,omitzero"`
 
-	// The base item kind.
+	// Gets or sets the type.
 	Type BaseItemKind `json:"Type,omitempty"`
 
 	// Gets or sets the user data for this item based on the user it's being requested for.

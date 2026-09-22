@@ -43,8 +43,7 @@ type TranscodingProfile struct {
 	// Gets or sets the minimum amount of segments.
 	MinSegments int `json:"MinSegments,omitempty"`
 
-	// Media streaming protocol.
-	// Lowercase for backwards compatibility.
+	// Gets or sets the protocol.
 	Protocol MediaStreamProtocol `json:"Protocol,omitempty"`
 
 	// Gets or sets the segment length.

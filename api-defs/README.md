@@ -18,19 +18,22 @@ and `make apicheck` proves every operation in each spec has a method.
 | File | Source | Version vendored |
 |---|---|---|
 | `emby-openapi-4.10.0.40.json` | a stock Emby 4.10 server's own `/emby/openapi.json` | Emby Server API 4.10.0.40 - 433 paths, 499 operations (HEAD and OPTIONS skipped) |
-| `jellyfin-openapi-12.0.0.json` | <https://repo.jellyfin.org/files/openapi/stable/> | Jellyfin API 12.0.0 - 294 paths, 346 operations |
-| `tmdb-openapi-3.json` | <https://developer.themoviedb.org/openapi/tmdb-api.json> | tmdb-api 3 - 148 paths, 152 operations |
+| `jellyfin-openapi-12.1.0.json` | the running `jellyfin/jellyfin:latest`'s own `/api-docs/openapi.json` (also published at <https://repo.jellyfin.org/files/openapi/stable/>) | Jellyfin API 12.1.0 - 294 paths, 346 operations |
+| `tmdb-openapi-2026.09.22.json` | <https://developer.themoviedb.org/openapi/tmdb-api.json> | tmdb-api 3 - 148 paths, 152 operations; named by the date fetched, since the document evolves under one API version |
 
 Emby's published document (<https://swagger.emby.media/openapi.json>) is
 still the 4.1.1 one, eight years behind the server, so the vendored copy is
-what a running 4.10 server serves about itself: start the test container
-(`scripts/testenv.sh up`), which has no plugins beyond the stock ones, and
-fetch `http://127.0.0.1:18097/emby/openapi.json`. Jellyfin's stable directory
-names files by release and matches its container image. Pretty-print either
-with `jq .` so a refresh is a readable diff, run `make pandorest-diff` to see
-what changed in API terms (breaking changes are marked), then `make generate`
-and review the diff. A workaround whose bug the new document fixes fails the
-import and names itself; delete it.
+what a running server serves about itself (`/emby/openapi.json`), and
+Jellyfin's likewise (`/api-docs/openapi.json`), each from the same `:latest`
+image the live tests run against. **`make spec-refresh`** does the whole
+refresh: pulls the latest images, starts each server once and reads its
+document, fetches TMDB's, vendors anything that changed under its version
+beside the old one, runs `make generate`, prints the API-level diff between
+the two versions (breaking changes marked) and removes the old pair, which git
+keeps. Review the diff, run the tests, commit. A workaround whose bug the new
+document fixes fails the import and names itself; delete it. Every generated
+package records the document version it was built from in its `APIVersion` constant,
+and `server_info` reports it beside the server's own.
 
 The specs are documentation of intent, not of behaviour: the live suites
 (`integration/`, `acceptance/`) are what prove the shapes against a real

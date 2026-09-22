@@ -626,7 +626,7 @@
         {
           "Name": "Mode",
           "JsonName": "Mode",
-          "Description": "Gets or sets the mode in which to add the new items.",
+          "Description": "Enum GroupQueueMode.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "GroupQueueMode"
@@ -745,7 +745,7 @@
         {
           "Name": "Mode",
           "JsonName": "Mode",
-          "Description": "Gets or sets the repeat mode.",
+          "Description": "Enum GroupRepeatMode.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "GroupRepeatMode"
@@ -761,7 +761,7 @@
         {
           "Name": "Mode",
           "JsonName": "Mode",
-          "Description": "Gets or sets the shuffle mode.",
+          "Description": "Enum GroupShuffleMode.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "GroupShuffleMode"

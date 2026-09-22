@@ -2,8 +2,8 @@
   "Name": "jellyfin",
   "Package": "jf",
   "Title": "Jellyfin API",
-  "ApiVersion": "12.0.0",
-  "Source": "api-defs/jellyfin-openapi-12.0.0.json",
+  "ApiVersion": "12.1.0",
+  "Source": "api-defs/jellyfin-openapi-12.1.0.json",
   "Auth": "Jellyfin",
   "Workarounds": [
     "jellyfin-create-playlist-query"

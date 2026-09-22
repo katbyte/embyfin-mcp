@@ -10,12 +10,6 @@
     },
     "version": "4.10.0.40"
   },
-  "servers": [
-    {
-      "url": "http://127.0.0.1:18297/emby",
-      "description": "embyfin-mcp-sweep-emby"
-    }
-  ],
   "paths": {
     "/Artists": {
       "summary": "Gets all artists from a given item, folder, or the entire library",

@@ -83,6 +83,16 @@ func New(backend Backend, baseURL, token string) (*Client, error) {
 
 func (c *Client) Backend() Backend { return c.backend }
 
+// APIVersion is the version of the server's API document the SDK in use was
+// generated from, which is not always the server's own version.
+func (c *Client) APIVersion() string {
+	if c.isEmby() {
+		return emby.APIVersion
+	}
+
+	return jf.APIVersion
+}
+
 // BaseURL is the server address the client was created with, without a
 // trailing slash.
 func (c *Client) BaseURL() string { return c.baseURL }

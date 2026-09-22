@@ -21,12 +21,13 @@ func registerServerTools(r *registry) {
 		Backend           string `json:"backend"`
 		ServerName        string `json:"server_name"`
 		ServerVersion     string `json:"server_version"`
+		SDKAPIVersion     string `json:"sdk_api_version"     jsonschema:"the server API version this MCP server's client was generated from; a server ahead of it may answer with fields the client does not read"`
 		OperatingSystem   string `json:"operating_system"`
 		EmbyfinMCPVersion string `json:"embyfin_mcp_version" jsonschema:"the build of this MCP server answering, e.g. v0.1.1+4@g8909c7c: the tag, the commits since it, and the commit"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "server_info",
-		Description: "Check connectivity to the media server and return its name and version, and the version of this MCP server.",
+		Description: "Check connectivity to the media server and return its name and version, the API version this MCP server's client was built against, and the version of this MCP server.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, serverInfoOut, error) {
 		info, err := client.SystemInfo(ctx)
 		if err != nil {
@@ -37,6 +38,7 @@ func registerServerTools(r *registry) {
 			Backend:           string(client.Backend()),
 			ServerName:        info.ServerName,
 			ServerVersion:     info.Version,
+			SDKAPIVersion:     client.APIVersion(),
 			OperatingSystem:   info.OperatingSystem,
 			EmbyfinMCPVersion: version.Version,
 		}, nil

@@ -6,6 +6,6 @@ package jf
 //
 // Class SetRepeatModeRequestDto.
 type SetRepeatModeRequestDto struct {
-	// Gets or sets the repeat mode.
+	// Enum GroupRepeatMode.
 	Mode GroupRepeatMode `json:"Mode,omitempty"`
 }

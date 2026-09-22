@@ -10,6 +10,7 @@
 //
 //	diff      what a refreshed spec changes, against the checked-in definitions
 //	check     the definitions match the spec and the package has every method
+//	resolve   which document and definitions each service is at
 //
 // Run from the repository root (the make targets do):
 //
@@ -48,6 +49,7 @@ const usage = `usage: pandorest <import|generate|diff|check> [flags]
   generate  write the SDK packages from those definitions
   diff      report what the specs change against the checked-in definitions
   check     verify the definitions match the specs and the packages have every method
+  resolve   print each service's version, document and definitions (the highest version present)
 
 run "pandorest <command> -h" for a command's flags`
 
@@ -109,6 +111,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 			changed = changed || differs
 		case "check":
 			err = checkService(svc, log, stdout)
+		case "resolve":
+			_, _ = fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", svc.Name, svc.Version, svc.Spec, svc.Definitions)
 		default:
 			return fmt.Errorf("unknown command %q\n%s", cmd, usage)
 		}

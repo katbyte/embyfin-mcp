@@ -122,11 +122,26 @@ func TestJFCollections(t *testing.T) {
 			t.Errorf("%s members = %v, want %v", step, got, want)
 		}
 	}
-	holds("after CreateCollection", a.Id, b.Id)
+	// a collection's initial members and an add are written the same way,
+	// and both are lost when a library scan's refresh of the collection
+	// writes over them (lib/embyfin re-sends for this; the behaviour is in
+	// api-defs/README.md), so one that has not landed in a third of the
+	// patience is sent once more before it is a failure
+	ensure := func(step string, want ...string) {
+		t.Helper()
+		if !poll(editPatience/3, func() bool { return slices.Equal(members(), want) }) {
+			t.Logf("%s: the members did not land; adding them again", step)
+			if _, err := jfc.AddToCollection(ctx, id, jf.AddToCollectionOperationOptions{Ids: want}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		holds(step, want...)
+	}
+	ensure("after CreateCollection", a.Id, b.Id)
 	if _, err := jfc.AddToCollection(ctx, id, jf.AddToCollectionOperationOptions{Ids: []string{c.Id}}); err != nil {
 		t.Fatal(err)
 	}
-	holds("after AddToCollection", a.Id, b.Id, c.Id)
+	ensure("after AddToCollection", a.Id, b.Id, c.Id)
 	// Jellyfin loses a collection edit made while it is still refreshing the
 	// collection after the last one (lib/embyfin re-sends for this; the
 	// behaviour is in api-defs/README.md), so one that has not landed in a third

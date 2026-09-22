@@ -4,7 +4,9 @@ package jf
 
 // ForceKeepAliveMessage is the "ForceKeepAliveMessage" schema.
 //
-// Force keep alive websocket messages.
+// Force keep alive websocket messages. The data is the timeout in seconds after which the
+// server considers the connection lost; clients are expected to answer with a KeepAlive
+// message and to keep sending one at least every half of that timeout.
 type ForceKeepAliveMessage struct {
 	// Gets or sets the data.
 	Data int `json:"Data,omitempty"`

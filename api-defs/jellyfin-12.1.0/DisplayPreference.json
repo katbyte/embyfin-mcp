@@ -176,7 +176,7 @@
         {
           "Name": "ScrollDirection",
           "JsonName": "ScrollDirection",
-          "Description": "An enum representing the axis that should be scrolled.",
+          "Description": "Gets or sets the scroll direction.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "ScrollDirection"
@@ -210,7 +210,7 @@
         {
           "Name": "SortOrder",
           "JsonName": "SortOrder",
-          "Description": "An enum representing the sorting order.",
+          "Description": "Gets or sets the sort order.",
           "Type": {
             "Type": "Reference",
             "ReferenceName": "SortOrder"

@@ -30,7 +30,7 @@ type DisplayPreferencesDto struct {
 	// Gets or sets a value indicating whether [remember sorting].
 	RememberSorting *bool `json:"RememberSorting,omitempty"`
 
-	// An enum representing the axis that should be scrolled.
+	// Gets or sets the scroll direction.
 	ScrollDirection ScrollDirection `json:"ScrollDirection,omitempty"`
 
 	// Gets or sets a value indicating whether to show backdrops on this item.
@@ -42,7 +42,7 @@ type DisplayPreferencesDto struct {
 	// Gets or sets the sort by.
 	SortBy string `json:"SortBy,omitempty"`
 
-	// An enum representing the sorting order.
+	// Gets or sets the sort order.
 	SortOrder SortOrder `json:"SortOrder,omitempty"`
 
 	// Gets or sets the type of the view.

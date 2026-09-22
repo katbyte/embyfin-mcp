@@ -108,6 +108,9 @@ pandorest-generate: ## Generate lib/emby, lib/jf and lib/tmdb from api-defs/<ser
 	@echo "==> generating lib/emby, lib/jf and lib/tmdb from api-defs/<service>-<version>/..."
 	go run ./internal/pandorest generate
 
+spec-refresh: ## Pull the latest server images, vendor each server's current OpenAPI document and TMDB's as of today under its version, regenerate, and print the API diff
+	@scripts/spec-refresh.sh
+
 pandorest-diff: ## Report what the vendored specs change against their checked-in definitions
 	@go run ./internal/pandorest diff -quiet
 

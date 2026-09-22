@@ -626,5 +626,6 @@ case "${1:-up}" in
   down) down ;;
   fixtures) fixtures ;;  # generate the media tree only, for inspecting the layout
   logs) logs ;;          # what the server wrote about itself, for a failing run
-  *) echo "usage: EMBYFIN_TEST_BACKEND=emby|jellyfin $0 [up|down|fixtures|logs]" >&2; exit 1 ;;
+  image) echo "$IMAGE" ;; # the image this backend runs, for a docker pull
+  *) echo "usage: EMBYFIN_TEST_BACKEND=emby|jellyfin $0 [up|down|fixtures|logs|image]" >&2; exit 1 ;;
 esac

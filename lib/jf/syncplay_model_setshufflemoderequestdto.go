@@ -6,6 +6,6 @@ package jf
 //
 // Class SetShuffleModeRequestDto.
 type SetShuffleModeRequestDto struct {
-	// Gets or sets the shuffle mode.
+	// Enum GroupShuffleMode.
 	Mode GroupShuffleMode `json:"Mode,omitempty"`
 }

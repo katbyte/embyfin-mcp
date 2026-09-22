@@ -9,6 +9,6 @@ type QueueRequestDto struct {
 	// Gets or sets the items to enqueue.
 	ItemIds []string `json:"ItemIds,omitzero"`
 
-	// Gets or sets the mode in which to add the new items.
+	// Enum GroupQueueMode.
 	Mode GroupQueueMode `json:"Mode,omitempty"`
 }

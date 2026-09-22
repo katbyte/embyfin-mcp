@@ -8,6 +8,11 @@ import (
 	"github.com/katbyte/embyfin-mcp/lib/client"
 )
 
+// APIVersion is the version of the API document this package was generated
+// from (Emby Server REST API, as the document names itself); a server of another version may
+// answer differently.
+const APIVersion = "4.10.0.40"
+
 // Client is a client for the Emby API; each of its operations is a method.
 // Requests go through Client.Client, the shared base client.
 type Client struct {

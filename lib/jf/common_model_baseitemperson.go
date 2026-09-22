@@ -21,6 +21,6 @@ type BaseItemPerson struct {
 	// Gets or sets the role.
 	Role string `json:"Role,omitempty"`
 
-	// The person kind.
+	// Gets or sets the type.
 	Type PersonKind `json:"Type,omitempty"`
 }
