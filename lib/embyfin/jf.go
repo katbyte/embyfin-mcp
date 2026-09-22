@@ -91,6 +91,7 @@ func mediaStreamFromJF(d *jf.MediaStream) MediaStream {
 		ColourPrimaries: d.ColorPrimaries,
 		VideoRange:      string(d.VideoRange),
 		VideoRangeType:  string(d.VideoRangeType),
+		AspectRatio:     d.AspectRatio,
 	}
 }
 
@@ -142,6 +143,12 @@ func userFromJF(d *jf.UserDto) User {
 			EnableAllFolders: pointer.From(p.EnableAllFolders), EnabledFolders: p.EnabledFolders,
 			EnableContentDeletion: pointer.From(p.EnableContentDeletion), EnableRemoteAccess: pointer.From(p.EnableRemoteAccess),
 			MaxParentalRating: p.MaxParentalRating,
+		}
+	}
+	if c := d.Configuration; c != nil {
+		u.Preferences = Preferences{
+			AudioLanguage: c.AudioLanguagePreference, SubtitleLanguage: c.SubtitleLanguagePreference,
+			SubtitleMode: string(c.SubtitleMode), PlayDefaultAudioTrack: pointer.From(c.PlayDefaultAudioTrack),
 		}
 	}
 

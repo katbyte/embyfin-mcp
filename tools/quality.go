@@ -152,17 +152,18 @@ func (p comparePolicy) efficiency(codec string) float64 {
 // copyIn is one of the two copies being compared: a library item by id, or
 // the numbers off a file the library has never seen.
 type copyIn struct {
-	ItemID     string       `json:"item_id,omitempty"     jsonschema:"library item to read the facts from, in place of numbers"`
-	Width      int          `json:"width,omitempty"`
-	Height     int          `json:"height,omitempty"`
-	VideoCodec string       `json:"video_codec,omitempty" jsonschema:"h264, hevc, av1..."`
-	FrameRate  float64      `json:"frame_rate,omitempty"  jsonschema:"frames per second"`
-	HDR        string       `json:"hdr,omitempty"         jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10; omit when unknown"`
-	Bitrate    int64        `json:"bitrate,omitempty"     jsonschema:"bits per second; otherwise worked out from size and runtime_s"`
-	Size       int64        `json:"size,omitempty"        jsonschema:"bytes"`
-	RuntimeS   int          `json:"runtime_s,omitempty"   jsonschema:"seconds"`
-	Audio      []audioTrack `json:"audio,omitempty"       jsonschema:"tracks: language, codec, channels, bitrate"`
-	Container  string       `json:"container,omitempty"`
+	ItemID      string       `json:"item_id,omitempty"      jsonschema:"library item to read the facts from, in place of numbers"`
+	Width       int          `json:"width,omitempty"`
+	Height      int          `json:"height,omitempty"`
+	AspectRatio string       `json:"aspect_ratio,omitempty" jsonschema:"the shape the picture is shown at, when the file states one (16:9, 4:3): an anamorphic DVD is 720x480 either way"`
+	VideoCodec  string       `json:"video_codec,omitempty"  jsonschema:"h264, hevc, av1..."`
+	FrameRate   float64      `json:"frame_rate,omitempty"   jsonschema:"frames per second"`
+	HDR         string       `json:"hdr,omitempty"          jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10; omit when unknown"`
+	Bitrate     int64        `json:"bitrate,omitempty"      jsonschema:"bits per second; otherwise worked out from size and runtime_s"`
+	Size        int64        `json:"size,omitempty"         jsonschema:"bytes"`
+	RuntimeS    int          `json:"runtime_s,omitempty"    jsonschema:"seconds"`
+	Audio       []audioTrack `json:"audio,omitempty"        jsonschema:"tracks: language, codec, channels, bitrate"`
+	Container   string       `json:"container,omitempty"`
 }
 
 // copyFacts is one side as the comparison reads it: what it was given, and
@@ -172,7 +173,8 @@ type copyFacts struct {
 	Width           int      `json:"width,omitempty"`
 	Height          int      `json:"height,omitempty"`
 	ResolutionClass int      `json:"resolution_class,omitempty"  jsonschema:"480, 720, 1080, 2160: the line this frame belongs on, from max(height, width scaled to 16:9) so black bars on either axis do not move it"`
-	Aspect          float64  `json:"aspect,omitempty"            jsonschema:"the encoded frame's shape, width over height"`
+	Aspect          float64  `json:"aspect,omitempty"            jsonschema:"the shape the picture is shown at: the ratio the file states when it has one, else the frame's width over height"`
+	AspectFrom      string   `json:"aspect_from,omitempty"       jsonschema:"stated when the file's own ratio was used (a DVD's 720x480 says nothing about its shape), frame when only the frame was there to go on"`
 	VideoCodec      string   `json:"video_codec,omitempty"`
 	FrameRate       float64  `json:"frame_rate,omitempty"        jsonschema:"frames per second"`
 	HDR             string   `json:"hdr,omitempty"               jsonschema:"the dynamic range, or unknown when the server has not probed it"`
@@ -263,6 +265,7 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		RuntimeS:   in.RuntimeS,
 	}
 	audio := in.Audio
+	stated := in.AspectRatio
 
 	if in.ItemID == "" && in.Width <= 0 && in.Height <= 0 {
 		return copyFacts{}, nil, fmt.Errorf("copy %s: %w", side, errNoCopy)
@@ -288,6 +291,7 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 			RuntimeS:   int(item.RunTimeTicks / 10_000_000),
 		}
 		audio = q.Audio
+		stated = q.AspectRatio
 		if !item.HasFile() {
 			return copyFacts{}, nil, fmt.Errorf("copy %s: %q is a record with no file, so there is nothing to compare", side, item.Name)
 		}
@@ -308,6 +312,11 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 	facts.ResolutionClass = resolutionClass(facts.Width, facts.Height)
 	if facts.Height > 0 {
 		facts.Aspect = math.Round(float64(facts.Width)/float64(facts.Height)*100) / 100
+		facts.AspectFrom = "frame"
+	}
+	if w, h, ok := embyfin.ParseAspect(stated); ok {
+		facts.Aspect = math.Round(float64(w)/float64(h)*100) / 100
+		facts.AspectFrom = "stated"
 	}
 	if facts.Bitrate > 0 {
 		factor := policy.efficiency(facts.VideoCodec)

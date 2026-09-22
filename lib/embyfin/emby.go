@@ -94,6 +94,7 @@ func mediaStreamFromEmby(d *emby.MediaStream) MediaStream {
 		ColourTransfer:  d.ColorTransfer,
 		ColourPrimaries: d.ColorPrimaries,
 		VideoRange:      d.VideoRange,
+		AspectRatio:     d.AspectRatio,
 	}
 }
 
@@ -144,6 +145,12 @@ func userFromEmby(d *emby.UserDto) User {
 			EnableAllFolders: pointer.From(p.EnableAllFolders), EnabledFolders: p.EnabledFolders,
 			EnableContentDeletion: pointer.From(p.EnableContentDeletion), EnableRemoteAccess: pointer.From(p.EnableRemoteAccess),
 			MaxParentalRating: p.MaxParentalRating,
+		}
+	}
+	if c := d.Configuration; c != nil {
+		u.Preferences = Preferences{
+			AudioLanguage: c.AudioLanguagePreference, SubtitleLanguage: c.SubtitleLanguagePreference,
+			SubtitleMode: string(c.SubtitleMode), PlayDefaultAudioTrack: pointer.From(c.PlayDefaultAudioTrack),
 		}
 	}
 

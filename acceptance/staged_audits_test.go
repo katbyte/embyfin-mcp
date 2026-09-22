@@ -106,3 +106,40 @@ func TestAuditRuntimeFindsAShortEpisode(t *testing.T) {
 		t.Errorf("findings = %v, want the one short episode", found)
 	}
 }
+
+// library_export writes what library_episodes answers, every row in one
+// file, and nothing to the server.
+func TestLibraryExport(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shows.jsonl")
+	out := call(t, "library_export", map[string]any{"path": path, "library": "Shows"})
+	paged := call(t, "library_episodes", map[string]any{"library": "Shows", "limit": 1000})
+	if rows, total := num(t, out["rows"], "rows"), num(t, paged["total"], "total"); rows != total || rows == 0 {
+		t.Errorf("exported %d rows, library_episodes counts %d", rows, total)
+	}
+	raw, err := os.ReadFile(path) //nolint:gosec // a path this test chose
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	if len(lines) != num(t, out["rows"], "rows") || !strings.Contains(lines[0], `"width"`) || !strings.Contains(lines[0], `"series"`) {
+		t.Errorf("the file holds %d lines; first: %s", len(lines), lines[0])
+	}
+	if msg := callErr(t, "library_export", map[string]any{"path": path, "library": "Shows"}); !strings.Contains(msg, "exists") {
+		t.Errorf("writing over the file = %q", msg)
+	}
+}
+
+// The fixtures were probed at their scan and never rewritten, so the audit
+// proves its sweep: every file counted, nothing reported.
+func TestAuditMediaFacts(t *testing.T) {
+	out := call(t, "audit_media_facts", map[string]any{"library": "Shows"})
+	if n := num(t, out["items_scanned"], "items_scanned"); n < 5 {
+		t.Errorf("items_scanned = %d, want every episode with a file", n)
+	}
+	if n := num(t, out["total_unprobed"], "total_unprobed"); n != 0 {
+		t.Errorf("%d files reported unprobed: %v", n, out["unprobed"])
+	}
+	if n := num(t, out["total_replaced"], "total_replaced"); n != 0 {
+		t.Errorf("%d files reported replaced: %v", n, out["replaced"])
+	}
+}

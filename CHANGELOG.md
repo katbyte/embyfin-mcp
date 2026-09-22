@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **`aspect_ratio` and `display_width` on every quality row** (`item_get`, `library_episodes`, `show_episodes_exist`, `quality_compare`): the shape the file says the picture is shown at, which the stored frame does not: a DVD rip is 720x480 whether it is 4:3 or an anamorphic 16:9. `quality_compare` compares the stated shape when there is one and says which it used.
+- **`library_export`**: a whole library to a file on the machine embyfin-mcp runs on, one JSON object per line, nothing through the conversation.
+- **`audit_media_facts`**: files the server has never probed, and on Emby files written over since the server first saw them.
+- `audit_title_mismatch` says, with a TMDB token, which TMDB episode the file's title belongs to: a download numbered from TVDB in a library matched to TMDB reads as that rather than as a mislabel.
+- `user_get` reports the account's playback preferences: audio and subtitle language, subtitle mode, whether the default track plays regardless.
+
 - **Season 0 can be asked for.** Every number in a generated SDK option is now a pointer, so `show_episodes` and `library_episodes` take `season: 0` for the specials and an image index of 0 means the first image; before, a 0 was "not asked" and the whole series came back.
 - `library_items` and `library_episodes` with `saved_since` on Emby no longer drop the filter when a user, `watched` or `sort=played` is also given.
 - `audit_quality` judges a widescreen encode by its width (1280x536 is 720p), `audit_duplicates` keeps every copy of a film matched on two ids in one group, `audit_year_mismatch` reads the film's own year rather than a collection folder's, and `audit_missing_episodes` counts both halves of a double-episode file.

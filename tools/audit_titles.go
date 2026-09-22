@@ -2,12 +2,14 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -188,19 +190,28 @@ func episodeTitleFromFile(path string) string {
 	return strings.Trim(strings.Join(words, " "), " -_([{")
 }
 
+// mismatchRow is one reported file.
+type mismatchRow struct {
+	ID            string  `json:"id"`
+	Series        string  `json:"series,omitempty"`
+	Season        int     `json:"season"`
+	Episode       int     `json:"episode"`
+	TitleInFile   string  `json:"title_in_file"    jsonschema:"the title the file name claims"`
+	TitleOnServer string  `json:"title_on_server"  jsonschema:"the title the server holds, from its metadata provider"`
+	Score         float64 `json:"similarity"       jsonschema:"0 to 1: how close the two are once case, punctuation and accents are folded"`
+	Path          string  `json:"path,omitempty"`
+	// where the file's title sits in the provider's own list, which tells
+	// a file numbered another way (a download numbered from TVDB in a
+	// library matched to TMDB) from a file that is simply wrong
+	TMDBEpisode string `json:"tmdb_episode,omitempty" jsonschema:"the episode TMDB gives the file's title to, as SxxEyy, when the series has a TMDB id and EMBYFIN_TMDB_TOKEN is set: a different number means the file is numbered in another order, not mislabelled"`
+	Diagnosis   string `json:"diagnosis,omitempty"    jsonschema:"what the tmdb lookup made of it"`
+
+	seriesID string
+}
+
 func registerTitleMismatchAudit(r *registry) {
 	client := r.client
 
-	type mismatchRow struct {
-		ID            string  `json:"id"`
-		Series        string  `json:"series,omitempty"`
-		Season        int     `json:"season"`
-		Episode       int     `json:"episode"`
-		TitleInFile   string  `json:"title_in_file"    jsonschema:"the title the file name claims"`
-		TitleOnServer string  `json:"title_on_server"  jsonschema:"the title the server holds, from its metadata provider"`
-		Score         float64 `json:"similarity"       jsonschema:"0 to 1: how close the two are once case, punctuation and accents are folded"`
-		Path          string  `json:"path,omitempty"`
-	}
 	type mismatchIn struct {
 		Library string `json:"library,omitempty" jsonschema:"one library by name or id"`
 		Limit   int    `json:"limit,omitempty"   jsonschema:"maximum findings, default 100"`
@@ -212,10 +223,11 @@ func registerTitleMismatchAudit(r *registry) {
 		Findings []mismatchRow `json:"findings"       jsonschema:"least similar first; capped at limit"`
 	}
 
+	provider := tmdbFacts(r.opts)
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_title_mismatch",
 		Description: "Find episodes whose file name claims a different title from the one the server holds, with both strings side by side. " +
-			"A file named after one episode sitting where the server holds a different one is the tell that a file from another series was written to this path. Files whose name claims no title are counted in unnamed, not reported.",
+			"A file named after one episode sitting where the server holds a different one is the tell that a file from another series was written to this path, or of a file numbered in another provider's order: with EMBYFIN_TMDB_TOKEN set, each row says which episode TMDB gives the file's title to, so a download numbered from TVDB in a library matched to TMDB reads as that rather than as a mislabel. Files whose name claims no title are counted in unnamed, not reported.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in mismatchIn) (*mcp.CallToolResult, mismatchOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
@@ -247,7 +259,7 @@ func registerTitleMismatchAudit(r *registry) {
 				}
 				findings = append(findings, mismatchRow{
 					ID: it.ID, Series: it.SeriesName, Season: it.ParentIndexNumber, Episode: it.IndexNumber,
-					TitleInFile: claimed, TitleOnServer: it.Name, Score: score, Path: it.Path,
+					TitleInFile: claimed, TitleOnServer: it.Name, Score: score, Path: it.Path, seriesID: it.SeriesID,
 				})
 			}
 
@@ -271,7 +283,68 @@ func registerTitleMismatchAudit(r *registry) {
 		})
 		out.Found = len(findings)
 		out.Findings = append(out.Findings, findings[:min(len(findings), limit)]...)
+		if provider != nil {
+			diagnoseByTMDB(ctx, client, provider, out.Findings)
+		}
 
 		return nil, out, nil
 	})
+}
+
+// diagnoseByTMDB looks each reported file's title up in TMDB's list of the
+// series' episodes, one read per series, and says on the row where TMDB
+// puts that title: the same number as the file is a title the server has
+// reworded, another number is a file numbered in a different order, and no
+// number is a title TMDB has never heard of.
+func diagnoseByTMDB(ctx context.Context, client *embyfin.Client, provider *tmdb.Facts, rows []mismatchRow) {
+	guides := map[string][]tmdb.Episode{} // series item id -> TMDB's episodes, nil when it cannot be read
+	for i := range rows {
+		row := &rows[i]
+		eps, ok := guides[row.seriesID]
+		if !ok {
+			eps = tmdbGuide(ctx, client, provider, row.seriesID)
+			guides[row.seriesID] = eps
+		}
+		if eps == nil {
+			continue
+		}
+		best, bestScore := tmdb.Episode{}, 0.0
+		for _, e := range eps {
+			if score, _ := titleScore(row.TitleInFile, e.Name); score > bestScore {
+				best, bestScore = e, score
+			}
+		}
+		switch {
+		case bestScore < seriesConfident:
+			row.Diagnosis = "no TMDB episode of this series has the file's title: the file is from another series, or named by hand"
+		case best.Season == row.Season && best.Episode == row.Episode:
+			row.TMDBEpisode = fmt.Sprintf("S%02dE%02d", best.Season, best.Episode)
+			row.Diagnosis = "TMDB gives the file's title to this very episode: the server's title is a reworded one, not a different episode"
+		default:
+			row.TMDBEpisode = fmt.Sprintf("S%02dE%02d", best.Season, best.Episode)
+			row.Diagnosis = fmt.Sprintf("the file's title is TMDB's %s, not S%02dE%02d: the file is numbered in another order (a download numbered from TVDB, most often), and its content is that episode", row.TMDBEpisode, row.Season, row.Episode)
+		}
+	}
+}
+
+// tmdbGuide is TMDB's episodes for a library series, or nil when the series
+// has no TMDB id or TMDB cannot be asked.
+func tmdbGuide(ctx context.Context, client *embyfin.Client, provider *tmdb.Facts, seriesID string) []tmdb.Episode {
+	if seriesID == "" {
+		return nil
+	}
+	series, err := client.ItemByID(ctx, seriesID)
+	if err != nil {
+		return nil
+	}
+	id := providerID(series, "tmdb")
+	if id == "" {
+		return nil
+	}
+	eps, err := provider.SeriesEpisodes(ctx, id)
+	if err != nil {
+		return nil
+	}
+
+	return eps
 }

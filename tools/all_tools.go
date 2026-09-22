@@ -82,11 +82,11 @@ var Toolsets = map[string][]string{
 	"curation": {
 		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
 		"audit_year_mismatch", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_titles", "audit_title_mismatch", "audit_duplicate_series_folders", "audit_disc_folders", "audit_anime_ids", "audit_movie_ids", "quality_compare", "plan_check",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_titles", "audit_title_mismatch", "audit_duplicate_series_folders", "audit_disc_folders", "audit_anime_ids", "audit_movie_ids", "audit_media_facts", "quality_compare", "plan_check",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "item_batch_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes", "show_episodes_exist", "show_missing", "show_resolve",
-		"library_episodes", "library_recent", "library_genres", "library_filters", "library_people", "person_get",
+		"library_episodes", "library_export", "library_recent", "library_genres", "library_filters", "library_people", "person_get",
 	},
 	// who watched what, and keeping watch state right: the users, their
 	// history, what is next and in progress, favourites, played flags
@@ -257,6 +257,8 @@ func queueTools(r *registry) {
 	registerDiscAudit(r)
 	registerAnimeAudit(r)
 	registerMovieIDAudit(r)
+	registerMediaFactsAudit(r)
+	registerExportTool(r)
 	registerPlanTools(r)
 	registerOrphanTools(r)
 	registerSpellingTools(r)

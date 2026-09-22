@@ -18,6 +18,22 @@ type User struct {
 	LastLoginDate    string     `json:"LastLoginDate,omitempty"`
 	HasPassword      bool       `json:"HasPassword"`
 	Policy           UserPolicy `json:"Policy"`
+	// Preferences are how the account wants playback: which audio and
+	// subtitle languages, and when subtitles show. Both servers keep them
+	// on the user's configuration under the same names.
+	Preferences Preferences `json:"Preferences"`
+}
+
+// Preferences are an account's playback preferences.
+type Preferences struct {
+	AudioLanguage    string `json:"AudioLanguage,omitempty"`    // ISO 639-2, e.g. "eng"; empty for the server's default
+	SubtitleLanguage string `json:"SubtitleLanguage,omitempty"` // likewise
+	// SubtitleMode is Default, Always, OnlyForced, None, Smart, or on Emby
+	// HearingImpaired.
+	SubtitleMode string `json:"SubtitleMode,omitempty"`
+	// PlayDefaultAudioTrack plays the file's default track rather than the
+	// one in the preferred language.
+	PlayDefaultAudioTrack bool `json:"PlayDefaultAudioTrack"`
 }
 
 // UserPolicy is what an account may do and see.

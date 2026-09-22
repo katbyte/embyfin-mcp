@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +42,49 @@ type MediaStream struct {
 	// server has not probed the file, which is not the same as SDR.
 	VideoRange     string `json:"VideoRange,omitempty"`
 	VideoRangeType string `json:"VideoRangeType,omitempty"`
+	// AspectRatio is the shape the picture is meant to be shown at, as the
+	// server read it from the file ("16:9", "4:3"), which the stored frame
+	// does not always say: a DVD rip is 720x480 or 720x576 whether it is
+	// 4:3 or an anamorphic 16:9. Empty when the file does not say.
+	AspectRatio string `json:"AspectRatio,omitempty"`
+}
+
+// DisplayWidth is the width the picture is shown at, worked out from the
+// height and the aspect ratio the file states, when that differs from the
+// stored frame by more than rounding: an anamorphic 720x480 16:9 DVD is
+// shown at 853x480. It is 0 when the file states no ratio, or the frame
+// already has that shape.
+func (s *MediaStream) DisplayWidth() int {
+	w, h, ok := ParseAspect(s.AspectRatio)
+	if !ok || s.Height <= 0 {
+		return 0
+	}
+	display := int(math.Round(float64(s.Height) * float64(w) / float64(h)))
+	if diff := display - s.Width; diff < 0 {
+		diff = -diff
+		if diff*50 <= s.Width { // within 2%
+			return 0
+		}
+	} else if diff*50 <= s.Width {
+		return 0
+	}
+
+	return display
+}
+
+// ParseAspect reads a stated ratio, "16:9", as 16 and 9.
+func ParseAspect(ratio string) (w, h int, ok bool) {
+	a, b, found := strings.Cut(ratio, ":")
+	if !found {
+		return 0, 0, false
+	}
+	w, err1 := strconv.Atoi(strings.TrimSpace(a))
+	h, err2 := strconv.Atoi(strings.TrimSpace(b))
+	if err1 != nil || err2 != nil || w <= 0 || h <= 0 {
+		return 0, 0, false
+	}
+
+	return w, h, true
 }
 
 type MediaSource struct {

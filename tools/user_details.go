@@ -92,10 +92,16 @@ func registerUserDetailTools(r *registry) {
 		EpisodesWatched   int      `json:"episodes_watched"`
 		InProgress        int      `json:"in_progress"`
 		Favourites        int      `json:"favourites"`
+		// how the account wants playback, which decides whether a file whose
+		// first audio track is in another language plays right for it
+		AudioLanguage         string `json:"audio_language,omitempty"    jsonschema:"preferred audio language (ISO 639-2, e.g. eng); absent means the server's default"`
+		SubtitleLanguage      string `json:"subtitle_language,omitempty" jsonschema:"preferred subtitle language; absent means the server's default"`
+		SubtitleMode          string `json:"subtitle_mode,omitempty"     jsonschema:"when subtitles show: Default, Always, OnlyForced, None, Smart (or HearingImpaired on Emby)"`
+		PlayDefaultAudioTrack bool   `json:"play_default_audio_track"    jsonschema:"true plays the file's default track whatever its language, rather than the one in the preferred language"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_get",
-		Description: "One account in depth: whether it is an administrator, disabled or hidden, what it may do, which libraries it sees, when it last logged in, and how much it has watched, has in progress and has favourited (a film with copies in several places counted once).",
+		Description: "One account in depth: whether it is an administrator, disabled or hidden, what it may do, which libraries it sees, when it last logged in, its playback preferences (audio and subtitle language, subtitle mode), and how much it has watched, has in progress and has favourited (a film with copies in several places counted once).",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in userRef) (*mcp.CallToolResult, getOut, error) {
 		u, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
@@ -107,6 +113,8 @@ func registerUserDetailTools(r *registry) {
 			HasPassword: u.HasPassword, CanDelete: p.EnableContentDeletion, RemoteAccess: p.EnableRemoteAccess,
 			AllLibraries: p.EnableAllFolders, MaxParentalRating: p.MaxParentalRating,
 			LastLogin: u.LastLoginDate, LastActivity: u.LastActivityDate, Libraries: []string{},
+			AudioLanguage: u.Preferences.AudioLanguage, SubtitleLanguage: u.Preferences.SubtitleLanguage,
+			SubtitleMode: u.Preferences.SubtitleMode, PlayDefaultAudioTrack: u.Preferences.PlayDefaultAudioTrack,
 		}
 
 		folders, err := client.VirtualFolders(ctx)

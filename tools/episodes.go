@@ -103,16 +103,21 @@ func episodeFacts(it *embyfin.Item, quality bool, keep map[string]bool) episodeR
 // check asked trash-or-upgrade about its hits - so which file speaks for an
 // item is decided here rather than twice.
 type qualityFacts struct {
-	Container  string       `json:"container,omitempty"`
-	Size       int64        `json:"size,omitempty"        jsonschema:"file size in bytes"`
-	Bitrate    int64        `json:"bitrate,omitempty"     jsonschema:"video bitrate in bits per second, falling back to the file's overall bitrate"`
-	Width      int          `json:"width,omitempty"`
-	Height     int          `json:"height,omitempty"`
-	VideoCodec string       `json:"video_codec,omitempty"`
-	FrameRate  float64      `json:"frame_rate,omitempty"  jsonschema:"frames per second. The one fact a release cannot inflate: a scripted show at 59.94 or 60 was interpolated from a 23.976 master, because no broadcast or disc master of one ships at 60p. Read it beside the resolution - 2160p at 23.976 is plausibly a remaster, 2160p at 59.94 is machine-made"`
-	HDR        string       `json:"hdr,omitempty"         jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10, or unknown when the server has not said. Present on every row with video: an absent field would read as SDR, and 'we did not look' is not a measurement"`
-	Audio      []audioTrack `json:"audio,omitempty"       jsonschema:"one entry per audio track"`
-	Subtitles  []string     `json:"subtitles,omitempty"   jsonschema:"one entry per subtitle track, by language"`
+	Container string `json:"container,omitempty"`
+	Size      int64  `json:"size,omitempty"      jsonschema:"file size in bytes"`
+	Bitrate   int64  `json:"bitrate,omitempty"   jsonschema:"video bitrate in bits per second, falling back to the file's overall bitrate"`
+	Width     int    `json:"width,omitempty"`
+	Height    int    `json:"height,omitempty"`
+	// the stored frame is not always the shape the picture is shown at:
+	// a DVD rip is 720x480 or 720x576 whether it is 4:3 or an anamorphic
+	// 16:9, and only the ratio the file states tells which
+	AspectRatio  string       `json:"aspect_ratio,omitempty"  jsonschema:"the shape the picture is shown at, as the file states it (16:9, 4:3); absent when the file does not say, which on a DVD-sized frame means the shape is not known"`
+	DisplayWidth int          `json:"display_width,omitempty" jsonschema:"the width the picture is shown at when that differs from width: an anamorphic 720x480 16:9 DVD shows at 853x480"`
+	VideoCodec   string       `json:"video_codec,omitempty"`
+	FrameRate    float64      `json:"frame_rate,omitempty"    jsonschema:"frames per second. The one fact a release cannot inflate: a scripted show at 59.94 or 60 was interpolated from a 23.976 master, because no broadcast or disc master of one ships at 60p. Read it beside the resolution - 2160p at 23.976 is plausibly a remaster, 2160p at 59.94 is machine-made"`
+	HDR          string       `json:"hdr,omitempty"           jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10, or unknown when the server has not said. Present on every row with video: an absent field would read as SDR, and 'we did not look' is not a measurement"`
+	Audio        []audioTrack `json:"audio,omitempty"         jsonschema:"one entry per audio track"`
+	Subtitles    []string     `json:"subtitles,omitempty"     jsonschema:"one entry per subtitle track, by language"`
 }
 
 // audioTrack is one audio track, in fields rather than in a sentence.
@@ -221,11 +226,11 @@ func hdrFromTransfer(transfer string) string {
 // On a series dubbed into thirty languages the subtitle and audio lists are
 // most of the row, and the path is most of the rest; across thousands of
 // episodes that is megabytes of answer nobody reads.
-var factNames = []string{"path", "date_created", "file_modified", "runtime_s", "runtime_multiple", "container", "size", "bitrate", "width", "height", "video_codec", "frame_rate", "hdr", "audio", "subtitles"}
+var factNames = []string{"path", "date_created", "file_modified", "runtime_s", "runtime_multiple", "container", "size", "bitrate", "width", "height", "aspect_ratio", "display_width", "video_codec", "frame_rate", "hdr", "audio", "subtitles"}
 
 // mediaFacts are the ones that need the server's media sources, which is the
 // expensive half of an episode read: asked for none of them, we do not ask.
-var mediaFacts = []string{"container", "size", "bitrate", "width", "height", "video_codec", "frame_rate", "hdr", "audio", "subtitles"}
+var mediaFacts = []string{"container", "size", "bitrate", "width", "height", "aspect_ratio", "display_width", "video_codec", "frame_rate", "hdr", "audio", "subtitles"}
 
 // keptFacts reads the fields a caller asked for. Nil means all of them. An
 // unknown name is refused rather than ignored: a typo that silently dropped
@@ -279,6 +284,12 @@ func (q *qualityFacts) keepOnly(keep map[string]bool) {
 	if !keep["height"] {
 		q.Height = 0
 	}
+	if !keep["aspect_ratio"] {
+		q.AspectRatio = ""
+	}
+	if !keep["display_width"] {
+		q.DisplayWidth = 0
+	}
 	if !keep["video_codec"] {
 		q.VideoCodec = ""
 	}
@@ -322,6 +333,7 @@ func qualityOf(it *embyfin.Item) qualityFacts {
 		case "Video":
 			if q.Width == 0 && q.Height == 0 && q.VideoCodec == "" {
 				q.Width, q.Height, q.VideoCodec = st.Width, st.Height, st.Codec
+				q.AspectRatio, q.DisplayWidth = st.AspectRatio, st.DisplayWidth()
 				q.FrameRate = math.Round(float64(st.FrameRate)*1000) / 1000
 				q.HDR = hdrFormat(&st)
 				if st.BitRate > 0 {
@@ -644,7 +656,7 @@ func registerEpisodeTools(r *registry) {
 		SeriesID   string   `json:"series_id,omitempty"   jsonschema:"one series, in place of a library"`
 		Season     *int     `json:"season,omitempty"      jsonschema:"one season, 0 for the specials; needs series_id"`
 		Quality    *bool    `json:"quality,omitempty"     jsonschema:"the facts and the path on each row; default true"`
-		Fields     []string `json:"fields,omitempty"      jsonschema:"only these facts on each row: path, runtime_s, container, size, bitrate, width, height, video_codec, frame_rate, hdr, audio, subtitles"`
+		Fields     []string `json:"fields,omitempty"      jsonschema:"only these facts on each row: path, date_created, file_modified, runtime_s, container, size, bitrate, width, height, aspect_ratio, display_width, video_codec, frame_rate, hdr, audio, subtitles"`
 		WithFile   *bool    `json:"with_file,omitempty"   jsonschema:"only episodes with a file; default true"`
 		Limit      int      `json:"limit,omitempty"       jsonschema:"page size, default 500, max 1000"`
 		SavedSince string   `json:"saved_since,omitempty" jsonschema:"only items the server last SAVED at or after this time (RFC3339). The closest either server offers to 'what changed': a file written over an existing path is re-read and saved, but so is an item somebody edited, so it is a net rather than a measurement. Neither server can sort by it"`
@@ -757,7 +769,7 @@ func registerEpisodeTools(r *registry) {
 		Episodes []existsPair  `json:"episodes,omitempty"  jsonschema:"season and episode pairs, for one series"`
 		Queries  []existsQuery `json:"queries,omitempty"   jsonschema:"up to 50 series, answered in order in results"`
 		Quality  *bool         `json:"quality,omitempty"   jsonschema:"add the held copy's facts to each hit; default false"`
-		Fields   []string      `json:"fields,omitempty"    jsonschema:"only these facts on each hit: path, runtime_s, container, size, bitrate, width, height, video_codec, frame_rate, hdr, audio, subtitles. Implies quality"`
+		Fields   []string      `json:"fields,omitempty"    jsonschema:"only these facts on each hit: path, runtime_s, container, size, bitrate, width, height, aspect_ratio, display_width, video_codec, frame_rate, hdr, audio, subtitles. Implies quality"`
 	}
 	type existsOut struct {
 		Series   string           `json:"series,omitempty"            jsonschema:"the series asked after, for a single-series call"`

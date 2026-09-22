@@ -118,6 +118,13 @@ func TestAuditTitleMismatch(t *testing.T) {
 	if num(t, f["episode"], "episode") != 2 || !strings.Contains(str(f["path"]), "Dulcinea") {
 		t.Errorf("finding names the wrong episode: %v", f)
 	}
+	// with a TMDB token the row says where TMDB puts the file's title: the
+	// first episode, so the file is numbered in another order
+	if tmdbKey() != "" {
+		if str(f["tmdb_episode"]) != "S01E01" || !strings.Contains(str(f["diagnosis"]), "another order") {
+			t.Errorf("diagnosis = %v, want the file's title placed at TMDB's S01E01", f)
+		}
+	}
 	// the files whose names claim no title at all are counted, not reported
 	if num(t, out["unnamed"], "unnamed") < 8 {
 		t.Errorf("unnamed = %v, want the rest of the library's episodes", out["unnamed"])
