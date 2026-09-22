@@ -15,6 +15,23 @@ import (
 // repoRoot is where the config's paths resolve from.
 const repoRoot = "../.."
 
+// resolvedServices is every service with its document and definitions
+// settled to the highest version checked in.
+func resolvedServices(t *testing.T) []config.Service {
+	t.Helper()
+
+	out := make([]config.Service, 0, len(config.Services))
+	for _, svc := range config.Services {
+		resolved, err := svc.In(repoRoot).Resolve()
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, resolved)
+	}
+
+	return out
+}
+
 func runCmd(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
@@ -50,7 +67,7 @@ func TestCheckRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, svc := range config.Services {
+	for _, svc := range resolvedServices(t) {
 		if !strings.Contains(stdout, svc.Name+": ") || !strings.Contains(stdout, "every one has a method in "+filepath.Join(repoRoot, svc.Output)) {
 			t.Errorf("check output lacks %s:\n%s", svc.Name, stdout)
 		}
@@ -67,7 +84,8 @@ func TestImportGenerateReproduces(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	for _, svc := range config.Services {
+	services := resolvedServices(t)
+	for _, svc := range services {
 		src, err := os.ReadFile(filepath.Join(repoRoot, svc.Spec))
 		if err != nil {
 			t.Fatal(err)
@@ -89,7 +107,7 @@ func TestImportGenerateReproduces(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, svc := range config.Services {
+	for _, svc := range services {
 		for _, dir := range []string{svc.Definitions, svc.Output} {
 			// (hand-written tests beside the generated code are not regenerated)
 			want := listFiles(t, filepath.Join(repoRoot, dir), dir == svc.Output)
@@ -106,14 +124,14 @@ func TestImportGenerateReproduces(t *testing.T) {
 	}
 
 	// the diff between two copies of the same definitions is empty
-	stdout, _, err := runCmd(t, "diff", "-old", filepath.Join(repoRoot, config.Services[0].Definitions), "-new", filepath.Join(root, config.Services[0].Definitions), "-exit-code")
+	stdout, _, err := runCmd(t, "diff", "-old", filepath.Join(repoRoot, services[0].Definitions), "-new", filepath.Join(root, services[0].Definitions), "-exit-code")
 	if err != nil || !strings.Contains(stdout, "no changes") {
 		t.Errorf("diff -old -new = %v:\n%s", err, stdout)
 	}
-	if err := os.Remove(filepath.Join(root, config.Services[0].Definitions, "Collection.json")); err != nil {
+	if err := os.Remove(filepath.Join(root, services[0].Definitions, "Collection.json")); err != nil {
 		t.Fatal(err)
 	}
-	stdout, _, err = runCmd(t, "diff", "-old", filepath.Join(repoRoot, config.Services[0].Definitions), "-new", filepath.Join(root, config.Services[0].Definitions), "-exit-code")
+	stdout, _, err = runCmd(t, "diff", "-old", filepath.Join(repoRoot, services[0].Definitions), "-new", filepath.Join(root, services[0].Definitions), "-exit-code")
 	if !errors.Is(err, errChanges) || !strings.Contains(stdout, "- operation PostCollections (POST /Collections) [breaking]") {
 		t.Errorf("diff with a group gone = %v:\n%s", err, stdout)
 	}

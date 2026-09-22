@@ -322,9 +322,9 @@ found, err := c.FindById(ctx, "tt0137523", tmdb.FindByIdOperationOptions{Externa
 ```
 
 They are generated from the servers' own OpenAPI documents (`docs/`, see
-[docs/README.md](docs/README.md)) by `internal/pandorest`, a generator kept in this
+[api-defs/README.md](api-defs/README.md)) by `internal/pandorest`, a generator kept in this
 repository and modelled on [hashicorp/pandora](https://github.com/hashicorp/pandora): an
-importer normalises each spec into checked-in definitions (`api-definitions/`, one file per
+importer normalises each spec into checked-in definitions (`api-defs/<service>-<version>/`, one file per
 tag) through named workarounds for the spec's known bugs, a differ reports what a spec
 refresh changes, and a generator writes one file per operation and model from the
 definitions. That is **a method for every one of Emby's 499 operations, Jellyfin's 346 and
@@ -338,7 +338,7 @@ changing shape underneath a spec that says otherwise. See
 
 `lib/embyfin` is the backend-neutral layer the tools use: the handful of item, library, user,
 session and provider operations a curation session needs, answering the same way on both
-servers. [docs/README.md](docs/README.md) records where the two servers differ and how it
+servers. [api-defs/README.md](api-defs/README.md) records where the two servers differ and how it
 hides that.
 
 ## Development

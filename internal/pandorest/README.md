@@ -9,16 +9,26 @@ importer, definitions, differ and generator pipeline, scaled down to three
 documents:
 
 ```
-docs/emby-openapi.json ────┐                   ┌─ api-definitions/emby/*.json ─────┐
-docs/jellyfin-openapi.json ├─ import ──────────┼─ api-definitions/jellyfin/*.json ─┼─ generate ─ lib/emby, lib/jf, lib/tmdb
-docs/tmdb-openapi.json ────┘  (workarounds)    └─ api-definitions/tmdb/*.json ─────┘
-                                                          │
-                                           diff ──────────┘  (what a refreshed spec changes)
+api-defs/
+  emby-openapi-4.10.0.40.json ──┐               ┌─ emby-4.10.0.40/*.json ──┐
+  jellyfin-openapi-12.0.0.json ─┼─ import ──────┼─ jellyfin-12.0.0/*.json ─┼─ generate ─ lib/emby, lib/jf, lib/tmdb
+  tmdb-openapi-3.json ──────────┘ (workarounds) └─ tmdb-3/*.json ──────────┘
+                                                        │
+                                         diff ──────────┘  (what a refreshed spec changes)
 ```
+
+A document and its definitions are named by the document's own version
+(`info.version`): `api-defs/<service>-openapi-<version>.json` imports into
+`api-defs/<service>-<version>/` beside it, and the highest version present is
+the one imported and generated from. To refresh a spec, vendor the new
+document beside the old one; `make generate` then imports it into its own
+definitions directory, `make pandorest-diff` (or `diff -old <old dir> -new
+<new dir>`) says what changed, and the old pair is deleted once the new one
+is in.
 
 ```bash
 make generate          # import + generate
-make pandorest-diff    # what docs/*.json change against api-definitions/, breaking changes marked
+make pandorest-diff    # what the specs change against their checked-in definitions, breaking changes marked
 make apicheck          # definitions match the specs, and every operation has a method
 make gencheck          # regenerate, fail if anything is uncommitted
 ```
@@ -37,7 +47,7 @@ for both documents.
 | `openapi` | the swagger parser | decodes the subset of OpenAPI 3 the documents use, mutably |
 | `importer/workarounds` | `importer-rest-api-specs/components/dataworkarounds` | one named fix per document bug |
 | `importer` | `importer-rest-api-specs` | normalises a patched document into definitions, strictly |
-| `definitions` | `api-definitions/` + its models | the contract: JSON per server per tag, load, save, validate |
+| `definitions` | `api-defs/` + its models | the contract: JSON per server version per tag, load, save, validate |
 | `differ` | `data-api-differ` | reports operations, options, bodies, models, fields and enum values added, removed or changed |
 | `generator` | `generator-go-sdk` | writes the package from definitions only |
 | `lib/client` (outside) | `go-azure-sdk/sdk/client` | the hand-written base client the three SDKs share |
@@ -101,12 +111,12 @@ to its vendored document and must fail when applied a second time.
 Workarounds are for the document's shape - what an operation takes and
 answers. Behaviour no document could express (Emby keying watch state by
 provider id, a filter it silently drops, an add it loses mid-refresh) belongs
-in `lib/embyfin`, next to the live test that found it; `docs/README.md` lists
+in `lib/embyfin`, next to the live test that found it; `api-defs/README.md` lists
 both kinds.
 
 ## Definitions
 
-`api-definitions/<service>/Service.json` names the package, the document's
+`api-defs/<service>-<version>/Service.json` names the package, the document's
 title and version, the authorizer and the workarounds applied;
 `<Group>.json` holds a tag's operations, models and constants. Operations are
 sorted by name, fields by JSON name, enum values and options in document

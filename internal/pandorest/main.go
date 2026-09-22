@@ -2,8 +2,12 @@
 // lib/jf, lib/tmdb) from their vendored OpenAPI documents. It is inspired by Pandora, the
 // go-azure-sdk generator (https://github.com/hashicorp/pandora):
 //
-//	import    spec -> workarounds -> api-definitions/<service>/*.json
-//	generate  api-definitions/<service> -> lib/<package>
+//	import    api-defs/<service>-openapi-<version>.json -> workarounds -> api-defs/<service>-<version>/*.json
+//	generate  api-defs/<service>-<version> -> lib/<package>
+//
+// A service's document and definitions are named by the document's version,
+// and the highest version present is the one imported and generated from.
+//
 //	diff      what a refreshed spec changes, against the checked-in definitions
 //	check     the definitions match the spec and the package has every method
 //
@@ -12,7 +16,7 @@
 //	go run ./internal/pandorest import
 //	go run ./internal/pandorest generate -service jellyfin
 //	go run ./internal/pandorest diff
-//	go run ./internal/pandorest diff -old /tmp/old-definitions/emby -new api-definitions/emby
+//	go run ./internal/pandorest diff -old api-defs/emby-4.9.0.30 -new api-defs/emby-4.10.0.40
 //
 // See internal/pandorest/README.md for the design and how to refresh a spec.
 package main
@@ -40,8 +44,8 @@ func main() {
 
 const usage = `usage: pandorest <import|generate|diff|check> [flags]
 
-  import    read the specs into api-definitions/, applying the workarounds
-  generate  write the SDK packages from api-definitions/
+  import    read each service's highest-versioned spec into api-defs/<service>-<version>/, applying the workarounds
+  generate  write the SDK packages from those definitions
   diff      report what the specs change against the checked-in definitions
   check     verify the definitions match the specs and the packages have every method
 
@@ -90,7 +94,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 	changed := false
 	for _, svc := range selected {
-		svc = svc.In(*root)
+		svc, err = svc.In(*root).Resolve()
+		if err != nil {
+			return err
+		}
 		switch cmd {
 		case "import":
 			err = importService(svc, log, stdout)

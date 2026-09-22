@@ -162,6 +162,12 @@ func (c *Client) addItems(ctx context.Context, playlistID string, itemIDs []stri
 // Jellyfin's entry id is the item's id, so a playlist holding an item twice
 // lists both entries under one id and removing it removes both; Emby numbers
 // each entry.
+//
+// Like an add, a removal that lands while a library scan is saving the
+// playlist as it found it is answered and then lost, so what the playlist
+// should hold afterwards is checked, by item rather than by entry id (Emby
+// renumbers the entries when it refreshes the playlist), and the removal is
+// sent once more for the entries that came back before it is an error.
 func (c *Client) RemoveFromPlaylist(ctx context.Context, playlistID, userID string, entryIDs []string) (int, error) {
 	unlock := c.items.lock(playlistID)
 	defer unlock()
@@ -170,14 +176,73 @@ func (c *Client) RemoveFromPlaylist(ctx context.Context, playlistID, userID stri
 	if err != nil {
 		return 0, err
 	}
+	want := itemCounts(entries)
 	removed := 0
 	for i := range entries {
 		if slices.Contains(entryIDs, entries[i].PlaylistItemID) {
 			removed++
+			want[entries[i].ID]--
 		}
 	}
 
-	return removed, c.removeEntries(ctx, playlistID, entryIDs)
+	for range 2 {
+		if err := c.removeEntries(ctx, playlistID, entryIDs); err != nil {
+			return 0, err
+		}
+		extra, err := c.playlistExtra(ctx, playlistID, userID, want)
+		if err != nil || len(extra) == 0 {
+			return removed, err
+		}
+		// the entries holding the items that came back, by their ids now
+		entryIDs = entryIDs[:0]
+		for _, e := range extra {
+			entryIDs = append(entryIDs, e.PlaylistItemID)
+		}
+	}
+
+	return removed, fmt.Errorf("the server did not remove %d entries from the playlist", len(entryIDs))
+}
+
+// playlistExtra waits for a playlist to hold no more of each item than want,
+// then looks again a moment later to see that it stayed so, and returns the
+// entries above want (the ones a refresh put back).
+func (c *Client) playlistExtra(ctx context.Context, playlistID, userID string, want map[string]int) ([]Item, error) {
+	var extra []Item
+	held := false
+	for range 20 {
+		entries, _, err := c.PlaylistItems(ctx, playlistID, userID)
+		if err != nil {
+			return nil, err
+		}
+		have := map[string]int{}
+		extra = extra[:0]
+		for i := range entries {
+			have[entries[i].ID]++
+			if have[entries[i].ID] > want[entries[i].ID] {
+				extra = append(extra, entries[i])
+			}
+		}
+		switch {
+		case len(extra) > 0 && held:
+			return extra, nil
+		case len(extra) == 0 && held:
+			return nil, nil
+		case len(extra) == 0:
+			held = true
+			for range 2 {
+				if err := c.pause(ctx); err != nil {
+					return nil, err
+				}
+			}
+
+			continue
+		}
+		if err := c.pause(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	return extra, nil
 }
 
 func (c *Client) removeEntries(ctx context.Context, playlistID string, entryIDs []string) error {

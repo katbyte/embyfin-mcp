@@ -38,20 +38,28 @@ func TestSharedNamesAndHeldItems(t *testing.T) {
 	t.Parallel()
 
 	f := newFakeServer(t)
+	var added []string
 	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		switch {
-		case q.Get("ParentId") == "c1": // the collection's members
-			_, _ = io.WriteString(w, `{"Items":[{"Id":"a","Name":"Alien"}],"TotalRecordCount":1}`)
+		case q.Get("ParentId") == "c1": // the collection's members, with what was added
+			rows := []string{`{"Id":"a","Name":"Alien"}`}
+			for _, ids := range added {
+				for id := range strings.SplitSeq(ids, ",") {
+					rows = append(rows, `{"Id":"`+id+`"}`)
+				}
+			}
+			_, _ = io.WriteString(w, `{"Items":[`+strings.Join(rows, ",")+`],"TotalRecordCount":1}`)
 		case q.Get("IncludeItemTypes") == "Playlist":
 			_, _ = io.WriteString(w, `{"Items":[{"Id":"p1","Name":"Mix"},{"Id":"p2","Name":"mix"}],"TotalRecordCount":2}`)
 		default:
 			_, _ = io.WriteString(w, `{"Items":[{"Id":"c1","Name":"Set"}],"TotalRecordCount":1}`)
 		}
 	})
-	var added []string
 	f.mux.HandleFunc("POST /Collections/c1/Items", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
 		added = append(added, r.URL.Query().Get("Ids"))
+		f.mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	})
 	cs := session(t, f, Options{})

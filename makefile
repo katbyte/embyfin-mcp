@@ -98,17 +98,17 @@ docker: ## Build the embyfin-mcp container image with version info from git
 tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(SHELLCHECK) $(YAMLLINT) $(ZIZMOR) ## Install all pinned dev tools into .tools/bin
 
 ##@ SDK generation (internal/pandorest)
-generate: pandorest-import pandorest-generate ## Import the specs into api-definitions/, then generate lib/emby, lib/jf and lib/tmdb from them
+generate: pandorest-import pandorest-generate ## Import each service's highest-versioned spec into api-defs/<service>-<version>/, then generate lib/emby, lib/jf and lib/tmdb
 
-pandorest-import: ## Import docs/*-openapi.json into api-definitions/, applying the workarounds
-	@echo "==> importing the OpenAPI specs into api-definitions/..."
+pandorest-import: ## Import api-defs/<service>-openapi-<version>.json (the highest version of each) into api-defs/<service>-<version>/, applying the workarounds
+	@echo "==> importing the OpenAPI specs into api-defs/<service>-<version>/..."
 	go run ./internal/pandorest import
 
-pandorest-generate: ## Generate lib/emby, lib/jf and lib/tmdb from api-definitions/
-	@echo "==> generating lib/emby, lib/jf and lib/tmdb from api-definitions/..."
+pandorest-generate: ## Generate lib/emby, lib/jf and lib/tmdb from api-defs/<service>-<version>/
+	@echo "==> generating lib/emby, lib/jf and lib/tmdb from api-defs/<service>-<version>/..."
 	go run ./internal/pandorest generate
 
-pandorest-diff: ## Report what the specs in docs/ change against the checked-in api-definitions/
+pandorest-diff: ## Report what the vendored specs change against their checked-in definitions
 	@go run ./internal/pandorest diff -quiet
 
 ##@ Formatting
@@ -150,9 +150,9 @@ zizmor: $(ZIZMOR) ## Audit GitHub workflows for security issues with zizmor
 	@$(ZIZMOR) .
 
 gencheck: generate ## Check that the definitions and generated SDKs match the specs (regenerate, then diff)
-	@test -z "$$(git status --porcelain -- api-definitions lib/emby lib/jf lib/tmdb)" || \
-		(git status --short -- api-definitions lib/emby lib/jf lib/tmdb; echo; \
-		echo "api-definitions/, lib/emby, lib/jf or lib/tmdb is stale. Run 'make generate' and commit."; exit 1)
+	@test -z "$$(git status --porcelain -- api-defs lib/emby lib/jf lib/tmdb)" || \
+		(git status --short -- api-defs lib/emby lib/jf lib/tmdb; echo; \
+		echo "api-defs/, lib/emby, lib/jf or lib/tmdb is stale. Run 'make generate' and commit."; exit 1)
 
 apicheck: ## Check that the definitions match the specs and every operation has a method in lib/emby, lib/jf and lib/tmdb
 	@echo "==> Checking API coverage of lib/emby, lib/jf and lib/tmdb..."

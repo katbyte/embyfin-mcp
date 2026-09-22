@@ -2,7 +2,7 @@
 // API, the contract between the importer and the generator. The importer
 // writes it from an OpenAPI document (after the workarounds have patched the
 // document); the generator reads only this, never the document. It is checked
-// in under api-definitions/<service>/, one JSON file per spec tag plus
+// in under api-defs/<service>-<version>/, one JSON file per spec tag plus
 // Service.json, so a spec refresh shows up as a readable diff and the differ
 // can report what changed in API terms.
 //
@@ -15,7 +15,7 @@ package definitions
 // per-tag files next to it.
 type Service struct {
 	// Name is the service's name in the pandorest config and the
-	// api-definitions directory, e.g. "emby".
+	// prefix of its api-defs directory, e.g. "emby" for emby-4.10.0.40.
 	Name string `json:"Name"`
 	// Package is the Go package the generator writes, e.g. "emby".
 	Package string `json:"Package"`

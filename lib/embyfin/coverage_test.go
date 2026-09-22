@@ -3,8 +3,10 @@ package embyfin
 import (
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/client"
 )
@@ -20,8 +22,19 @@ var fieldsDefault = strings.Split(FieldsDefault, ",")
 func TestAddToCollection(t *testing.T) {
 	t.Parallel()
 
-	// Emby joins the ids, Jellyfin repeats the key
-	c, f := newFake(t, Emby, map[string]route{"POST /Collections/c1/Items": noContent})
+	// Emby joins the ids, Jellyfin repeats the key; both are read back until
+	// the collection holds what was added
+	members := func(ids ...string) route {
+		return func(*http.Request, string) (int, string) {
+			rows := make([]string, 0, len(ids))
+			for _, id := range ids {
+				rows = append(rows, `{"Id":"`+id+`"}`)
+			}
+			return http.StatusOK, `{"Items":[` + strings.Join(rows, ",") + `],"TotalRecordCount":` + strconv.Itoa(len(ids)) + `}`
+		}
+	}
+	c, f := newFake(t, Emby, map[string]route{"POST /Collections/c1/Items": noContent, "GET /Items": members("1", "2")})
+	c.settle = time.Millisecond
 	if err := c.AddToCollection(t.Context(), "c1", []string{"1", "2"}); err != nil {
 		t.Fatal(err)
 	}
@@ -29,15 +42,28 @@ func TestAddToCollection(t *testing.T) {
 		t.Errorf("Emby add = %v %q", r.query, r.body)
 	}
 
+	// Jellyfin: the first add is written over by a refresh of the
+	// collection (the members read back without it), so it is sent again
+	adds := 0
 	c, f = newFake(t, Jellyfin, map[string]route{
-		"POST /Collections/c1/Items": noContent,
+		"POST /Collections/c1/Items": func(*http.Request, string) (int, string) {
+			adds++
+			return http.StatusNoContent, ""
+		},
+		"GET /Items": func(r *http.Request, s string) (int, string) {
+			if adds >= 2 {
+				return members("a", "b")(r, s)
+			}
+			return members("a")(r, s)
+		},
 		"POST /Collections/c9/Items": answer(http.StatusNotFound, ""),
 	})
+	c.settle = time.Millisecond
 	if err := c.AddToCollection(t.Context(), "c1", []string{"a", "b"}); err != nil {
 		t.Fatal(err)
 	}
-	if q := f.only("POST /Collections/c1/Items").query; !slices.Equal(q["ids"], []string{"a", "b"}) {
-		t.Errorf("Jellyfin add = %v", q)
+	if reqs := f.all("POST /Collections/c1/Items"); len(reqs) != 2 || !slices.Equal(reqs[1].query["ids"], []string{"b"}) {
+		t.Errorf("Jellyfin add = %d sends, %v; want the lost item sent again, on its own", len(reqs), reqs)
 	}
 	// a collection the server does not have is the server's 404, not a success
 	if err := c.AddToCollection(t.Context(), "c9", []string{"a"}); !client.IsNotFound(err) {

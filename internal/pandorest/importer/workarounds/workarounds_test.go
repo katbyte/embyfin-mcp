@@ -19,7 +19,11 @@ func loadSpec(t *testing.T, service string) *openapi.Spec {
 		t.Fatalf("no service %q", service)
 	}
 	// tests run in the package directory, four below the repository root
-	spec, err := openapi.Load(filepath.Join("..", "..", "..", "..", cfg.Spec))
+	cfg, err := cfg.In(filepath.Join("..", "..", "..", "..")).Resolve()
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := openapi.Load(cfg.Path(cfg.Spec))
 	if err != nil {
 		t.Fatal(err)
 	}

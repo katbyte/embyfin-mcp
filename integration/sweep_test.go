@@ -27,13 +27,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/katbyte/embyfin-mcp/internal/pandorest/config"
 	"github.com/katbyte/embyfin-mcp/internal/pandorest/definitions"
 	"github.com/katbyte/embyfin-mcp/lib/client"
 )
@@ -100,7 +100,15 @@ func lookupFold(m map[string]string, key string) (string, bool) {
 func sweep(t *testing.T, service string, sdk any, fixtures sweepFixtures, cases map[string]sweepCase) {
 	t.Helper()
 
-	svc, err := definitions.Load(filepath.Join("..", "api-definitions", service))
+	cfg, ok := config.Find(service)
+	if !ok {
+		t.Fatalf("no service %q", service)
+	}
+	cfg, err := cfg.In("..").Resolve()
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := definitions.Load(cfg.Path(cfg.Definitions))
 	if err != nil {
 		t.Fatal(err)
 	}

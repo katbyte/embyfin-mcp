@@ -555,12 +555,22 @@ func TestPlaylists(t *testing.T) {
 		t.Errorf("Emby add = %v", q)
 	}
 
+	var p2Removed bool
 	c, f = newFake(t, Jellyfin, map[string]route{
-		"POST /Playlists":            ok(`{"Id":"p2"}`),
-		"DELETE /Playlists/p2/Items": noContent,
-		"GET /Playlists/p2/Items":    ok(`{"Items":[{"Id":"a","PlaylistItemId":"e1"},{"Id":"b","PlaylistItemId":"e2"}],"TotalRecordCount":2}`),
-		"POST /Collections":          ok(`{"Id":"c1"}`),
+		"POST /Playlists": ok(`{"Id":"p2"}`),
+		"DELETE /Playlists/p2/Items": func(*http.Request, string) (int, string) {
+			p2Removed = true
+			return http.StatusNoContent, ""
+		},
+		"GET /Playlists/p2/Items": func(*http.Request, string) (int, string) {
+			if p2Removed {
+				return http.StatusOK, `{"Items":[],"TotalRecordCount":0}`
+			}
+			return http.StatusOK, `{"Items":[{"Id":"a","PlaylistItemId":"e1"},{"Id":"b","PlaylistItemId":"e2"}],"TotalRecordCount":2}`
+		},
+		"POST /Collections": ok(`{"Id":"c1"}`),
 	})
+	c.settle = time.Millisecond
 	if id, err := c.CreatePlaylist(t.Context(), "Mix", []string{"a"}, "Audio", "u1"); err != nil || id != "p2" {
 		t.Fatalf("CreatePlaylist = %q, %v", id, err)
 	}
@@ -1149,7 +1159,14 @@ func TestPlaylistEdits(t *testing.T) {
 	c, f := newFake(t, Emby, map[string]route{
 		"GET /Playlists/p1/Items":           listing("p1"),
 		"POST /Playlists/p1/Items/7/Move/0": moved("p1", "b:7", "a:5"),
-		"DELETE /Playlists/p1/Items":        noContent,
+		"DELETE /Playlists/p1/Items": func(r *http.Request, _ string) (int, string) {
+			gone := strings.Split(r.URL.Query().Get("EntryIds"), ",")
+			playlists["p1"] = slices.DeleteFunc(playlists["p1"], func(e string) bool {
+				_, entry, _ := strings.Cut(e, ":")
+				return slices.Contains(gone, entry)
+			})
+			return http.StatusNoContent, ""
+		},
 		"GET /Playlists/p3/Items":           listing("p3"),
 		"POST /Playlists/p3/Items/3/Move/0": moved("p3", "a:1", "b:2"),
 		"POST /Playlists/p3/Items/2/Move/0": moved("p3", "b:1", "a:2"),
@@ -1383,11 +1400,26 @@ func TestJourneyFindings(t *testing.T) {
 
 	// Jellyfin lists an item's entries under its own id, so one removal takes
 	// every copy, and says so
-	c, _ = newFake(t, Jellyfin, map[string]route{
-		"GET /Playlists/p1/Items":    ok(`{"Items":[{"Id":"a","PlaylistItemId":"a"},{"Id":"b","PlaylistItemId":"b"},{"Id":"a","PlaylistItemId":"a"}]}`),
-		"DELETE /Playlists/p1/Items": noContent,
+	// (the first removal is answered and lost, as a scan saving the playlist
+	// as it found it does; the second lands, and only then is it done)
+	removals := 0
+	c, f = newFake(t, Jellyfin, map[string]route{
+		"GET /Playlists/p1/Items": func(*http.Request, string) (int, string) {
+			if removals >= 2 {
+				return http.StatusOK, `{"Items":[{"Id":"b","PlaylistItemId":"b"}]}`
+			}
+			return http.StatusOK, `{"Items":[{"Id":"a","PlaylistItemId":"a"},{"Id":"b","PlaylistItemId":"b"},{"Id":"a","PlaylistItemId":"a"}]}`
+		},
+		"DELETE /Playlists/p1/Items": func(*http.Request, string) (int, string) {
+			removals++
+			return http.StatusNoContent, ""
+		},
 	})
+	c.settle = time.Millisecond
 	if n, err := c.RemoveFromPlaylist(t.Context(), "p1", "u1", []string{"a"}); err != nil || n != 2 {
 		t.Errorf("removing a twice-held item's entry = %d, %v, want 2", n, err)
+	}
+	if len(f.all("DELETE /Playlists/p1/Items")) != 2 {
+		t.Errorf("a removal the server lost was not sent again: %d removals", removals)
 	}
 }

@@ -1,11 +1,14 @@
-# docs
+# api-defs
+
+The vendored OpenAPI documents, the definitions imported from them, and what each server does that its document does not say.
 
 ## API specs
 
-The two backends and TMDB publish OpenAPI documents, vendored here as the
-reference for `lib/emby`, `lib/jf` and `lib/tmdb` - and, unlike
-Audiobookshelf's, they are build inputs. `internal/pandorest` (see its [README](../internal/pandorest/README.md))
-imports each into checked-in definitions under `api-definitions/<server>/`,
+The two backends and TMDB publish OpenAPI documents, vendored at the top of
+`api-defs/` as `<server>-openapi-<version>.json`, the reference for
+`lib/emby`, `lib/jf` and `lib/tmdb` - and, unlike Audiobookshelf's, they are
+build inputs. `internal/pandorest` (see its [README](../internal/pandorest/README.md))
+imports each into checked-in definitions under `api-defs/<server>-<version>/` beside it,
 fixing the document's known bugs with named workarounds on the way, and
 generates the two clients from those definitions. `make generate` runs both
 steps, `make pandorest-diff` reports what a refreshed document would change,
@@ -14,9 +17,9 @@ and `make apicheck` proves every operation in each spec has a method.
 
 | File | Source | Version vendored |
 |---|---|---|
-| `emby-openapi.json` | a stock Emby 4.10 server's own `/emby/openapi.json` | Emby Server API 4.10.0.40 - 433 paths, 499 operations (HEAD and OPTIONS skipped) |
-| `jellyfin-openapi.json` | <https://repo.jellyfin.org/files/openapi/stable/> | Jellyfin API 12.0.0 - 294 paths, 346 operations |
-| `tmdb-openapi.json` | <https://developer.themoviedb.org/openapi/tmdb-api.json> | tmdb-api 3 - 148 paths, 152 operations |
+| `emby-openapi-4.10.0.40.json` | a stock Emby 4.10 server's own `/emby/openapi.json` | Emby Server API 4.10.0.40 - 433 paths, 499 operations (HEAD and OPTIONS skipped) |
+| `jellyfin-openapi-12.0.0.json` | <https://repo.jellyfin.org/files/openapi/stable/> | Jellyfin API 12.0.0 - 294 paths, 346 operations |
+| `tmdb-openapi-3.json` | <https://developer.themoviedb.org/openapi/tmdb-api.json> | tmdb-api 3 - 148 paths, 152 operations |
 
 Emby's published document (<https://swagger.emby.media/openapi.json>) is
 still the 4.1.1 one, eight years behind the server, so the vendored copy is
@@ -37,7 +40,7 @@ server, and the quirks they found are recorded below.
 
 These are shape bugs, fixed in the generated clients by the importer's
 workarounds (`internal/pandorest/importer/workarounds`, listed in each
-`api-definitions/<server>/Service.json`). Each checks its bug is still in the
+`api-defs/<server>-<version>/Service.json`). Each checks its bug is still in the
 document and fails the import once it is not.
 
 - Emby (`emby-*`):
@@ -311,4 +314,3 @@ repeated keys), Emby's comma-separated.
   previous timeout`) until it restarts, so a replay miss can fail tests that
   come after it.
 
-`ROADMAP.md` records the tool design rules and what is deliberately not wrapped.

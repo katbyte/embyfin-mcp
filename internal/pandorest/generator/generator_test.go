@@ -107,7 +107,7 @@ func generateInModule(t *testing.T, svc *definitions.Service) string {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll("testdata") })
-	if _, err := generator.Generate(svc, generator.Options{Dir: dir, Definitions: "api-definitions/mini"}); err != nil {
+	if _, err := generator.Generate(svc, generator.Options{Dir: dir, Definitions: "api-defs/mini"}); err != nil {
 		t.Fatal(err)
 	}
 

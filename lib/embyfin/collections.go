@@ -46,14 +46,67 @@ func (c *Client) CreateCollection(ctx context.Context, name string, itemIDs []st
 	return res.Model.Id, nil
 }
 
-// AddToCollection adds items to a collection. Jellyfin saves a collection's
-// members as a list it reads and writes back, so two adds at once lose one
-// (a journey saw five parallel adds keep four); changes to one collection
-// from this process are made one at a time (see keyedLocks).
+// AddToCollection adds items to a collection and waits until it holds them.
+// Jellyfin saves a collection's members as a list it reads and writes back,
+// so two adds at once lose one (a journey saw five parallel adds keep four);
+// changes to one collection from this process are made one at a time (see
+// keyedLocks), and an add that a scan's refresh of the collection wrote over
+// is sent once more before it is an error, as a removal is.
 func (c *Client) AddToCollection(ctx context.Context, collectionID string, itemIDs []string) error {
 	unlock := c.items.lock(collectionID)
 	defer unlock()
 
+	missing := itemIDs
+	for range 2 {
+		if err := c.addMembers(ctx, collectionID, missing); err != nil {
+			return err
+		}
+		var err error
+		if missing, err = c.collectionMissing(ctx, collectionID, itemIDs); err != nil || len(missing) == 0 {
+			return err
+		}
+	}
+
+	return fmt.Errorf("the server did not keep %s in the collection", strings.Join(missing, ", "))
+}
+
+// collectionMissing waits for a collection to hold every one of itemIDs,
+// then looks again a moment later to see they stayed, and returns the ones
+// it does not hold.
+func (c *Client) collectionMissing(ctx context.Context, collectionID string, itemIDs []string) ([]string, error) {
+	var missing []string
+	held := false
+	for range 20 {
+		members, err := c.CollectionMembers(ctx, collectionID)
+		if err != nil {
+			return nil, err
+		}
+		missing = slices.DeleteFunc(slices.Clone(itemIDs), func(id string) bool { return slices.Contains(members, id) })
+		switch {
+		case len(missing) > 0 && held:
+			// it held, then a refresh put the collection back
+			return missing, nil
+		case len(missing) == 0 && held:
+			return nil, nil
+		case len(missing) == 0:
+			held = true
+			for range 2 {
+				if err := c.pause(ctx); err != nil {
+					return nil, err
+				}
+			}
+
+			continue
+		}
+		if err := c.pause(ctx); err != nil {
+			return nil, err
+		}
+	}
+
+	return missing, nil
+}
+
+func (c *Client) addMembers(ctx context.Context, collectionID string, itemIDs []string) error {
 	if c.isEmby() {
 		_, err := c.emby.PostCollectionsByIdItems(ctx, collectionID, emby.PostCollectionsByIdItemsOperationOptions{Ids: strings.Join(itemIDs, ",")})
 		return err

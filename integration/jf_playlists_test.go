@@ -129,7 +129,7 @@ func TestJFCollections(t *testing.T) {
 	holds("after AddToCollection", a.Id, b.Id, c.Id)
 	// Jellyfin loses a collection edit made while it is still refreshing the
 	// collection after the last one (lib/embyfin re-sends for this; the
-	// behaviour is in docs/README.md), so one that has not landed in a third
+	// behaviour is in api-defs/README.md), so one that has not landed in a third
 	// of the patience is sent once more before it is a failure
 	if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
 		t.Fatal(err)

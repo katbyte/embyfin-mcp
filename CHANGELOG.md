@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Documents and definitions are named by version.** `api-defs/<service>-openapi-<version>.json` imports into `api-defs/<service>-<version>/` beside it (Emby 4.10.0.40, Jellyfin 12.0.0, TMDB 3), and the highest version present is the one the SDK is generated from, so a refreshed document is vendored beside the old one and the diff between the two is a `diff -old -new` away.
+- A playlist removal or a collection add that a library scan undid (Emby saves a playlist as it found it; Jellyfin writes a collection's members back over an add) is read back and sent once more, as adds to playlists and removals from collections already were.
+
 - **Fewer tools that do the same thing.** `library_search` is gone: `library_items` takes `query` and `person` as well as its filters. `user_favourites` is `library_items` with `watched: favourite`. `item_set_watched`, `item_set_favourite` and `item_set_progress` are one `item_set_state`. `item_batch_edit` is folded into `item_edit`, which takes `ids` (one or many). `library_people` is gone: `person_get` given part of a name answers the people it could mean. 91 tools, from 97.
 - **Paging is one rule.** A list that can run past its page takes `limit` and `offset` and answers `total` and `offset` (`library_items`, `library_episodes`, `user_history`, `server_activity`); a bounded top-N takes `limit` only. `library_episodes` no longer hands out a cursor.
 - **Outputs named alike.** `changed` on every edit (was `updated_fields` on two), `updated` on `metadata_rename` (was `items_updated`), `total` on `server_activity` (was `total_in_timeframe`), `items` on `user_history` (was `watched`).

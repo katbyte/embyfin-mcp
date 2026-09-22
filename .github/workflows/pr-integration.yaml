@@ -16,9 +16,8 @@ on:
       - 'integration/**'
       - 'lib/providerproxy/**'
       # internal/pandorest's tests re-import the specs and regenerate the SDKs,
-      # failing when api-definitions/, lib/emby or lib/jf are stale
-      - 'docs/*-openapi.json'
-      - 'api-definitions/**'
+      # failing when api-defs/, lib/emby or lib/jf are stale
+      - 'api-defs/**'
       - '.github/workflows/pr-integration.yaml'
   workflow_dispatch:
 

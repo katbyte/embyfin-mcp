@@ -3,7 +3,7 @@
   "Package": "emby",
   "Title": "Emby Server REST API",
   "ApiVersion": "4.10.0.40",
-  "Source": "docs/emby-openapi.json",
+  "Source": "api-defs/emby-openapi-4.10.0.40.json",
   "Auth": "Emby",
   "Workarounds": [
     "emby-undeclared-responses",

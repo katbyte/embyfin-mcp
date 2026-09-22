@@ -9,7 +9,7 @@
 // neutral types (Item, VirtualFolder, User, Session, ...) with one explicit
 // field-mapping function per DTO per backend (emby.go, jf.go). Every
 // difference between the servers lives here, next to a comment saying which
-// server it is for; docs/README.md lists them under "Conventions worth
+// server it is for; api-defs/README.md lists them under "Conventions worth
 // knowing".
 //
 // The typed clients are generated (make generate) and must not be edited by
