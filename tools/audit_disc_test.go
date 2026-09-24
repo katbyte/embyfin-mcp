@@ -78,7 +78,7 @@ func TestAuditDiscFolders(t *testing.T) {
 	cs := session(t, f, Options{})
 
 	out := mustCall(t, cs, "audit_disc_folders", map[string]any{})
-	if number(t, out["items_scanned"], "items_scanned") != len(rows) || number(t, out["total_folders"], "total_folders") != 2 {
+	if number(t, out["items_scanned"], "items_scanned") != len(rows) || number(t, out["total_findings"], "total_findings") != 2 {
 		t.Fatalf("out = %v", out)
 	}
 	folders := objects(t, out["folders"], "folders")

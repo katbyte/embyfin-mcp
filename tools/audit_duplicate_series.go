@@ -55,9 +55,9 @@ type folderIn struct {
 }
 
 type folderOut struct {
-	Scanned int           `json:"series_scanned"`
-	Found   int           `json:"total_groups"`
-	Groups  []folderGroup `json:"groups"         jsonschema:"capped at limit; total_groups is the real count"`
+	Scanned int           `json:"items_scanned"`
+	Found   int           `json:"total_findings"`
+	Groups  []folderGroup `json:"groups"         jsonschema:"capped at limit; total_findings is the real count"`
 }
 
 type folderRow struct {
@@ -73,21 +73,21 @@ type folderGroup struct {
 	Series []folderRow `json:"series" jsonschema:"the entries built from those folders"`
 }
 
-func registerFolderAudit(r *registry) {
+func registerDuplicateSeriesAudit(r *registry) {
 	client := r.client
 
 	add(r, readTool, &mcp.Tool{
-		Name: "audit_duplicate_series_folders",
+		Name: "audit_duplicate_series",
 		Description: "Find shows the server holds twice because two folders name the same series: a rename that changed only spacing, case, an accent or punctuation leaves the old folder behind and a second entry is built from it. " +
 			"The episodes are then split across both entries, so each answers 'no' to half the questions asked of it. audit_duplicates cannot see these when the second entry carries no provider id, which is usual.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in folderIn) (*mcp.CallToolResult, folderOut, error) {
-		out, err := auditDuplicateSeriesFolders(ctx, client, in)
+		out, err := auditDuplicateSeries(ctx, client, in)
 
 		return nil, out, err
 	})
 }
 
-func auditDuplicateSeriesFolders(ctx context.Context, client *embyfin.Client, in folderIn) (folderOut, error) {
+func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folderIn) (folderOut, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 50

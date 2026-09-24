@@ -299,8 +299,8 @@ func TestAuditOrphans(t *testing.T) {
 
 	// the five leftovers and the recording; not the library items, and not a
 	// trailer with no folder
-	if number(t, out["total_orphans"], "total_orphans") != 6 {
-		t.Errorf("total_orphans = %v", out["total_orphans"])
+	if number(t, out["total_findings"], "total_findings") != 6 {
+		t.Errorf("total_findings = %v", out["total_findings"])
 	}
 	folders := objects(t, out["folders"], "folders")
 	if len(folders) != 2 {

@@ -437,8 +437,8 @@ type orphansIn struct {
 
 type orphansOut struct {
 	Scanned int           `json:"items_scanned"`
-	Found   int           `json:"total_orphans" jsonschema:"items outside every library, under every folder"`
-	Folders []orphanGroup `json:"folders"       jsonschema:"one row per folder, most items first; capped at limit"`
+	Found   int           `json:"total_findings" jsonschema:"items outside every library, under every folder"`
+	Folders []orphanGroup `json:"folders"        jsonschema:"one row per folder, most items first; capped at limit"`
 }
 
 func registerOrphanTools(r *registry) {

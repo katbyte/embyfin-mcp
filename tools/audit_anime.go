@@ -177,7 +177,7 @@ func registerAnimeAudit(r *registry) {
 	type animeOut struct {
 		Source        string        `json:"list_source"`
 		Entries       int           `json:"list_entries"        jsonschema:"AniDB entries the list maps, so an empty report is not a list that failed to load"`
-		Scanned       int           `json:"series_scanned"`
+		Scanned       int           `json:"items_scanned"`
 		IDsDisagree   []animeSeries `json:"ids_disagree"        jsonschema:"series whose TMDB or TVDB id is a whole show while their AniDB id is one of that show's specials: one of the two ids is wrong"`
 		SplitOut      []animeSplit  `json:"split_out"           jsonschema:"specials that are an AniDB entry of their own, which a library keeping those apart would split out into a series"`
 		KeptSeparate  []animeSeries `json:"kept_separate"       jsonschema:"series held on their own that TMDB or TVDB fold into another series' specials; the AniDB entry is why they stay apart"`

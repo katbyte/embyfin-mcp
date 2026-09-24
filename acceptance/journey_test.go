@@ -378,18 +378,8 @@ func TestAuditAllMatchesEachAudit(t *testing.T) {
 				own = nil
 			}
 			out := call(t, name, own)
-			// each audit names its count and its sweep by what they are
+			// every audit names its count and its sweep the same way
 			count, scanned := out["total_findings"], out["items_scanned"]
-			switch name {
-			case "audit_duplicates", "audit_duplicate_titles":
-				count = out["total_groups"]
-			case "audit_duplicate_series_folders":
-				count, scanned = out["total_groups"], out["series_scanned"]
-			case "audit_disc_folders":
-				count = out["total_folders"]
-			case "audit_orphans":
-				count = out["total_orphans"]
-			}
 			if num(t, count, name) != num(t, row["findings"], "findings") || num(t, scanned, name) != num(t, row["items_scanned"], "items_scanned") {
 				t.Errorf("%q %s: audit_all counted %v of %v, the audit %v of %v", library, name, row["findings"], row["items_scanned"], count, scanned)
 			}
@@ -950,7 +940,7 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		return len(rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348"})["items"], "items"))
 	}
 	alienGroup := func() int {
-		groups, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})["duplicate_groups"].([]any)
+		groups, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})["groups"].([]any)
 		for _, g := range groups {
 			if group := rowsOf(g); len(group) > 0 && str(group[0]["name"]) == "Alien" {
 				return len(group)

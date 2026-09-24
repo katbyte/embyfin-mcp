@@ -112,32 +112,6 @@ func session(t *testing.T, f *fakeServer, opts Options) *mcp.ClientSession {
 	return cs
 }
 
-// runtimeAudit calls audit_runtime and returns its structured result.
-func runtimeAudit(t *testing.T, cs *mcp.ClientSession, args map[string]any) map[string]any {
-	t.Helper()
-
-	const name = "audit_runtime"
-	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: name, Arguments: args})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.IsError {
-		var msgs []string
-		for _, c := range res.Content {
-			if tc, ok := c.(*mcp.TextContent); ok {
-				msgs = append(msgs, tc.Text)
-			}
-		}
-		t.Fatalf("%s: %s", name, strings.Join(msgs, "; "))
-	}
-	out, ok := res.StructuredContent.(map[string]any)
-	if !ok {
-		t.Fatalf("%s: structured content is %T", name, res.StructuredContent)
-	}
-
-	return out
-}
-
 // number pulls a JSON number out of a decoded field.
 func number(t *testing.T, v any, field string) int {
 	t.Helper()
@@ -148,34 +122,6 @@ func number(t *testing.T, v any, field string) int {
 	}
 
 	return int(f)
-}
-
-// findingNames lists the names in an audit's worklist, checking each field
-// carries a detail from the provider comparison.
-func findingNames(t *testing.T, out map[string]any) []string {
-	t.Helper()
-
-	raw, ok := out["findings"].([]any)
-	if !ok {
-		t.Fatalf("findings is %T, want a list", out["findings"])
-	}
-	names := make([]string, 0, len(raw))
-	for _, row := range raw {
-		m, ok := row.(map[string]any)
-		if !ok {
-			t.Fatalf("finding is %T, want an object", row)
-		}
-		name, ok := m["name"].(string)
-		if !ok {
-			t.Fatalf("finding name is %T, want a string", m["name"])
-		}
-		names = append(names, name)
-		if d, ok := m["detail"].(string); !ok || !strings.Contains(d, "TMDB says") {
-			t.Errorf("detail = %v", m["detail"])
-		}
-	}
-
-	return names
 }
 
 // rewrite is a transport that sends every request to a local server in place
@@ -243,10 +189,10 @@ func movieRows(films []struct {
 	return string(b)
 }
 
-// The movie runtime audit pages through the library, asks TMDB once per
-// matched film, skips the unmatched, reports the ones that are off, and
+// audit_provider's runtime check pages through the library, asks TMDB once
+// per matched film, skips the unmatched, reports the ones that are off, and
 // hands back where to continue when the lookup budget runs out.
-func TestAuditRuntimeMoviesPages(t *testing.T) {
+func TestAuditProviderRuntimePages(t *testing.T) {
 	t.Parallel()
 
 	films := []struct {
@@ -271,14 +217,21 @@ func TestAuditRuntimeMoviesPages(t *testing.T) {
 	})
 	cs := session(t, f, Options{TMDBKey: "k", ProviderTransport: tmdbTransport(t, map[string]int{"348": 117, "329865": 116, "78": 117, "157336": 169, "1": 0})})
 
-	out := runtimeAudit(t, cs, map[string]any{"library": "Movies", "types": "Movie"})
+	out := mustCall(t, cs, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime"})
 	if got := number(t, out["total_findings"], "total_findings"); got != 2 {
 		t.Errorf("total_findings = %v, want 2: %v", got, out["findings"])
 	}
 	if got := number(t, out["items_scanned"], "items_scanned"); got != 6 {
 		t.Errorf("items_scanned = %v, want 6", got)
 	}
-	if names := findingNames(t, out); strings.Join(names, ",") != "Arrival,Interstellar" {
+	names := make([]string, 0, 2)
+	for _, row := range objects(t, out["findings"], "findings") {
+		names = append(names, text(row["name"]))
+		if ps := texts(row["problems"]); len(ps) != 1 || !strings.HasPrefix(ps[0], "runtime: file ") || !strings.Contains(ps[0], "TMDB says") {
+			t.Errorf("problems = %v", ps)
+		}
+	}
+	if strings.Join(names, ",") != "Arrival,Interstellar" {
 		t.Errorf("findings = %v", names)
 	}
 	if _, ok := out["next_offset"]; ok {
@@ -289,7 +242,7 @@ func TestAuditRuntimeMoviesPages(t *testing.T) {
 	}
 
 	// two lookups per call: Alien and Arrival, then continue from the third
-	out = runtimeAudit(t, cs, map[string]any{"library": "Movies", "types": "Movie", "max_lookups": 2})
+	out = mustCall(t, cs, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime", "max_lookups": 2})
 	if got := number(t, out["total_findings"], "total_findings"); got != 1 {
 		t.Errorf("first page total_findings = %v, want 1 (Arrival)", got)
 	}
@@ -297,20 +250,30 @@ func TestAuditRuntimeMoviesPages(t *testing.T) {
 	if next != 3 {
 		t.Fatalf("next_offset = %v, want 3", next)
 	}
-	out = runtimeAudit(t, cs, map[string]any{"library": "Movies", "types": "Movie", "offset": next})
+	out = mustCall(t, cs, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime", "offset": next})
 	if got := number(t, out["total_findings"], "total_findings"); got != 1 {
 		t.Errorf("second page total_findings = %v, want 1 (Interstellar)", got)
 	}
 	// a tolerance wide enough finds nothing
-	out = runtimeAudit(t, cs, map[string]any{"library": "Movies", "types": "Movie", "tolerance_percent": 100})
+	out = mustCall(t, cs, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime", "tolerance_percent": 100})
 	if got := number(t, out["total_findings"], "total_findings"); got != 0 {
 		t.Errorf("tolerance 100 found %v", got)
 	}
+	// only TMDB and only films, said plainly
+	for args, want := range map[*map[string]any]string{
+		{"provider": "tvdb"}: "provider must be tmdb",
+		{"types": "Series"}:  "types must be Movie",
+		{"checks": "year"}:   "checks must be among",
+	} {
+		if msg := mustRefuse(t, cs, "audit_provider", *args); !strings.Contains(msg, want) {
+			t.Errorf("%v = %q, want %q", *args, msg, want)
+		}
+	}
 }
 
-// Without a key the movie mode is refused with the fix in the message, and
-// the tool says so in its description.
-func TestAuditRuntimeMoviesNeedsAKey(t *testing.T) {
+// Without a key the audit is refused with the fix in the message, and the
+// tool says so in its description.
+func TestAuditProviderNeedsAKey(t *testing.T) {
 	t.Parallel()
 
 	f := newFakeServer(t)
@@ -319,24 +282,16 @@ func TestAuditRuntimeMoviesNeedsAKey(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "audit_runtime", Arguments: map[string]any{"types": "Movie"}})
+	if msg := mustRefuse(t, cs, "audit_provider", map[string]any{}); !strings.Contains(msg, "EMBYFIN_TMDB_TOKEN") {
+		t.Errorf("the refusal does not say how to fix it: %s", msg)
+	}
+	res, err := cs.ListTools(t.Context(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !res.IsError {
-		t.Fatal("movie mode ran without a TMDB key")
-	}
-	if tc, ok := res.Content[0].(*mcp.TextContent); !ok || !strings.Contains(tc.Text, "EMBYFIN_TMDB_TOKEN") {
-		t.Errorf("the refusal does not say how to fix it: %v", res.Content)
-	}
-
-	list, err := cs.ListTools(context.Background(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, tool := range list.Tools {
-		if tool.Name == "audit_runtime" && !strings.Contains(tool.Description, "movie mode disabled") {
-			t.Errorf("the description does not say movie mode is off: %s", tool.Description)
+	for _, tool := range res.Tools {
+		if tool.Name == "audit_provider" && !strings.Contains(tool.Description, "Disabled: set EMBYFIN_TMDB_TOKEN") {
+			t.Errorf("the description does not say the audit is off: %s", tool.Description)
 		}
 	}
 }

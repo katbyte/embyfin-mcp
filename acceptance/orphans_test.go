@@ -28,7 +28,7 @@ func TestOrphans(t *testing.T) {
 
 	// the fixtures leave nothing outside a library, so anything reported here
 	// is something the sweep should not have counted
-	if audit := call(t, "audit_orphans", nil); num(t, audit["total_orphans"], "total_orphans") != 0 || num(t, audit["items_scanned"], "items_scanned") == 0 {
+	if audit := call(t, "audit_orphans", nil); num(t, audit["total_findings"], "total_findings") != 0 || num(t, audit["items_scanned"], "items_scanned") == 0 {
 		t.Errorf("before anything was removed: %v", audit)
 	}
 
@@ -123,7 +123,7 @@ func TestOrphans(t *testing.T) {
 	if num(t, out["deleted"], "deleted") != found || num(t, out["remaining"], "remaining") != 0 || out["failed"] != nil || out["stopped"] != nil {
 		t.Errorf("delete = %v", out)
 	}
-	if audit := call(t, "audit_orphans", nil); num(t, audit["total_orphans"], "total_orphans") != 0 {
+	if audit := call(t, "audit_orphans", nil); num(t, audit["total_findings"], "total_findings") != 0 {
 		t.Errorf("after the delete: %v", audit)
 	}
 	if got := movieCount(t, "Movies"); got != movies {

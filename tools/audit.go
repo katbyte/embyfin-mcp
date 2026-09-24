@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"slices"
@@ -266,8 +265,8 @@ func registerAuditTools(r *registry) {
 
 	type dupOut struct {
 		Scanned     int             `json:"items_scanned"`
-		TotalGroups int             `json:"total_groups"`
-		Groups      [][]itemSummary `json:"duplicate_groups" jsonschema:"each group shares one metadata provider id; capped at limit, total_groups is the real count"`
+		TotalGroups int             `json:"total_findings"`
+		Groups      [][]itemSummary `json:"groups"         jsonschema:"each group shares one metadata provider id; capped at limit, total_findings is the real count"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_duplicates",
@@ -492,7 +491,7 @@ func registerAuditAll(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_all",
 		Description: "Run every audit and report only the counts, so one call says where a library needs work; start here, then call the audit whose count is not zero for its worklist. " +
-			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_movie_ids asks TMDB one film at a time and is paged, and audit_anime_ids reads the Anime-Lists file; audit_runtime here is the episode pass, the movie pass being TMDB's.",
+			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_provider asks the provider one film at a time and is paged, and audit_anime_ids reads the Anime-Lists file.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditAllIn) (*mcp.CallToolResult, auditAllOut, error) {
 		out := auditAllOut{Audits: []auditAllRow{}}
 		add := func(row auditAllRow) {
@@ -531,17 +530,17 @@ func registerAuditAll(r *registry) {
 		}
 		add(auditAllRow{Audit: "audit_duplicates", Findings: len(groups), Scanned: scanned, Note: "groups of entries sharing a provider id, films series and episodes"})
 
-		titles, err := auditDuplicateTitles(ctx, client, dupTitlesIn{Library: in.Library, Limit: 1})
+		titles, err := auditDuplicateEpisodes(ctx, client, dupTitlesIn{Library: in.Library, Limit: 1})
 		if err != nil {
-			return fail("audit_duplicate_titles", err)
+			return fail("audit_duplicate_episodes", err)
 		}
-		add(auditAllRow{Audit: "audit_duplicate_titles", Findings: titles.Found, Scanned: titles.Scanned, Note: "seasons holding one episode title twice"})
+		add(auditAllRow{Audit: "audit_duplicate_episodes", Findings: titles.Found, Scanned: titles.Scanned, Note: "seasons holding one episode title twice"})
 
-		folders, err := auditDuplicateSeriesFolders(ctx, client, folderIn{Library: in.Library, Limit: 1})
+		folders, err := auditDuplicateSeries(ctx, client, folderIn{Library: in.Library, Limit: 1})
 		if err != nil {
-			return fail("audit_duplicate_series_folders", err)
+			return fail("audit_duplicate_series", err)
 		}
-		add(auditAllRow{Audit: "audit_duplicate_series_folders", Findings: folders.Found, Scanned: folders.Scanned, Note: "series held twice from two folders of one name; items_scanned is series"})
+		add(auditAllRow{Audit: "audit_duplicate_series", Findings: folders.Found, Scanned: folders.Scanned, Note: "series held twice from two folders of one name; items_scanned is series"})
 
 		discs, err := auditDiscFolders(ctx, client, discIn{Library: in.Library, Limit: 1})
 		if err != nil {
@@ -569,7 +568,7 @@ func registerAuditAll(r *registry) {
 		}
 		add(auditAllRow{Audit: "audit_quality", Findings: quality.Found, Scanned: quality.Scanned, Note: fmt.Sprintf("below 720p or in a legacy codec; %d files never probed and so not judged, %d written over since the server saw them, neither counted here", quality.TotalUnprobed, quality.TotalReplaced)})
 
-		missing, err := auditMissingEpisodes(ctx, client, episodesIn{Library: in.Library, Limit: 1})
+		missing, err := auditMissingEpisodes(ctx, client, nil, episodesIn{Library: in.Library, Limit: 1})
 		if err != nil {
 			return fail("audit_missing_episodes", err)
 		}
@@ -603,7 +602,7 @@ func registerAuditAll(r *registry) {
 			skip("audit_orphans", "server-wide: run it without a library")
 		}
 		skip("audit_language", "needs a language to ask about")
-		skip("audit_movie_ids", "asks TMDB one film at a time and is paged: run it on its own")
+		skip("audit_provider", "asks the provider one film at a time and is paged: run it on its own")
 		skip("audit_anime_ids", "reads the Anime-Lists file from the web: run it on its own")
 
 		return nil, out, nil
@@ -621,31 +620,17 @@ const (
 
 type runtimeIn struct {
 	Library      string `json:"library,omitempty"           jsonschema:"restrict to one library by name or id"`
-	Types        string `json:"types,omitempty"             jsonschema:"Episode compares each episode to its season's median (no external data); Movie compares to TMDB's runtime and needs EMBYFIN_TMDB_TOKEN. Default Episode"`
-	TolerancePct int    `json:"tolerance_percent,omitempty" jsonschema:"flag when the file runtime differs from the expected one by more than this percent, default 20"`
+	TolerancePct int    `json:"tolerance_percent,omitempty" jsonschema:"flag when the file runtime differs from the season's median by more than this percent, default 20"`
 	Limit        int    `json:"limit,omitempty"             jsonschema:"maximum findings to return, default 100"`
-	Offset       int    `json:"offset,omitempty"            jsonschema:"Movie only: skip this many movies, to go on from a previous call's next_offset"`
-	MaxLookups   int    `json:"max_lookups,omitempty"       jsonschema:"Movie only: TMDB lookups per call, default 250"`
-}
-
-type runtimeOut struct {
-	auditOut
-	NextOffset int `json:"next_offset,omitempty" jsonschema:"Movie only: pass back as offset to go on; absent when the sweep finished"`
 }
 
 func registerRuntimeAudit(r *registry) {
 	client := r.client
-	opts := r.opts
-	provider := tmdbFacts(opts)
 
-	desc := "Find media files whose runtime disagrees with what it should be: truncated downloads, wrong files, or wrong matches. Episodes are compared to the median of their season (needs 3+ episodes); movies to TMDB's runtime"
-	if provider == nil {
-		desc += " (movie mode disabled: set EMBYFIN_TMDB_TOKEN to enable)"
-	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "audit_runtime",
-		Description: desc + ".",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in runtimeIn) (*mcp.CallToolResult, runtimeOut, error) {
+		Description: "Find episodes whose runtime disagrees with their season's: truncated downloads, wrong files, or wrong matches, each compared to the median of its season (needs 3+ episodes), with no external data. A film's runtime against its provider's is audit_provider.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in runtimeIn) (*mcp.CallToolResult, auditOut, error) {
 		if in.TolerancePct <= 0 {
 			in.TolerancePct = defaultRuntimeTolerancePct
 		}
@@ -655,26 +640,15 @@ func registerRuntimeAudit(r *registry) {
 
 		folder, err := resolveLibrary(ctx, client, in.Library)
 		if err != nil {
-			return nil, runtimeOut{}, err
+			return nil, auditOut{}, err
 		}
 		parent := ""
 		if folder != nil {
 			parent = folder.ItemID
 		}
+		out, err := auditEpisodeRuntimes(ctx, client, parent, in)
 
-		switch strings.ToLower(in.Types) {
-		case "", "episode", "episodes":
-			out, err := auditEpisodeRuntimes(ctx, client, parent, in)
-			return nil, runtimeOut{auditOut: out}, err
-		case "movie", "movies":
-			if provider == nil {
-				return nil, runtimeOut{}, errors.New("movie runtime audit needs a TMDB token: set EMBYFIN_TMDB_TOKEN (or --tmdb-token) and restart")
-			}
-			out, err := auditMovieRuntimes(ctx, client, provider, parent, in)
-			return nil, out, err
-		default:
-			return nil, runtimeOut{}, fmt.Errorf("types must be Episode or Movie, got %q", in.Types)
-		}
+		return nil, out, err
 	})
 }
 
@@ -810,68 +784,6 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 	}
 
 	return out, nil
-}
-
-func auditMovieRuntimes(ctx context.Context, client *embyfin.Client, provider *tmdb.Facts, parent string, in runtimeIn) (runtimeOut, error) {
-	maxLookups := in.MaxLookups
-	if maxLookups <= 0 {
-		maxLookups = defaultTMDBLookups
-	}
-
-	out := runtimeOut{Findings: []auditFinding{}}
-	lookups := 0
-	for start := max(in.Offset, 0); ; start += moviePage {
-		items, total, err := client.Search(ctx, embyfin.SearchOptions{
-			IncludeItemTypes: "Movie",
-			ParentID:         parent,
-			Fields:           "Path,ProviderIds,ProductionYear",
-			SortBy:           "SortName",
-			SortOrder:        "Ascending",
-			StartIndex:       start,
-			Limit:            moviePage,
-		})
-		if err != nil {
-			return runtimeOut{}, err
-		}
-
-		for i := range items {
-			it := &items[i]
-			tmdbID := providerID(it, "tmdb")
-			if tmdbID == "" || it.RunTimeTicks <= 0 {
-				out.Scanned++
-				continue
-			}
-			if lookups >= maxLookups {
-				out.NextOffset = start + i
-				return out, nil
-			}
-			lookups++
-			out.Scanned++
-
-			expected, err := provider.MovieRuntime(ctx, tmdbID)
-			if err != nil {
-				return runtimeOut{}, err
-			}
-			pct, off := runtimeOff(it.RuntimeMinutes(), expected, in.TolerancePct)
-			if !off {
-				continue
-			}
-			out.Found++
-			if len(out.Findings) < in.Limit {
-				out.Findings = append(out.Findings, auditFinding{
-					ID:     it.ID,
-					Name:   it.Name,
-					Year:   it.ProductionYear,
-					Path:   it.Path,
-					Detail: fmt.Sprintf("file %d min, TMDB says %d min (%d%% off)", it.RuntimeMinutes(), expected, pct),
-				})
-			}
-		}
-
-		if len(items) < moviePage || start+len(items) >= total {
-			return out, nil
-		}
-	}
 }
 
 // tmdbFacts is how the tools ask TMDB, or nil when no token is set.

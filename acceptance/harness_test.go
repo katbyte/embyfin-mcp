@@ -521,9 +521,14 @@ const scanPatience = 6 * time.Minute
 // waitForItems polls library_get until a scan has settled on want items of
 // the library's primary type (see primaryType).
 func waitForItems(library string, want int) error {
+	return waitForItemsFor(library, want, scanPatience)
+}
+
+// waitForItemsFor is waitForItems with its own patience.
+func waitForItemsFor(library string, want int, patience time.Duration) error {
 	kind := primaryType(library)
 	var last string
-	for range int(scanPatience / (2 * time.Second)) {
+	for range int(patience / (2 * time.Second)) {
 		out, err := invoke("library_get", map[string]any{"library": library})
 		switch {
 		case err != nil:
@@ -540,6 +545,29 @@ func waitForItems(library string, want int) error {
 	}
 
 	return fmt.Errorf("library %s never reached %d %s items (%s)", library, want, kind, last)
+}
+
+// scanUntil asks for a library scan and waits for the library to hold want
+// items of its kind, asking again whenever the scan goes idle short of the
+// count. A scan already running when the ask comes passes folders written
+// since it started, on both servers, and the ask itself is dropped by
+// Jellyfin, so one ask is not enough on a busy server (CI's runners are).
+func scanUntil(library string, want int) error {
+	deadline := time.Now().Add(scanPatience)
+	for {
+		// idle before asking, so the ask starts a scan rather than joining one
+		if err := waitForScan(); err != nil {
+			return err
+		}
+		if _, err := invoke("library_scan", nil); err != nil {
+			return err
+		}
+		if err := waitForItemsFor(library, want, 45*time.Second); err == nil {
+			return waitForScan()
+		} else if time.Now().After(deadline) {
+			return err
+		}
+	}
 }
 
 // waitForScan waits for the library scan task to go idle, so the provider

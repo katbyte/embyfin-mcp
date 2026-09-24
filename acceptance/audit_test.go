@@ -174,12 +174,12 @@ func TestAuditDuplicates(t *testing.T) {
 	// within the messy library: Alien twice, and on Emby the two Blade
 	// Runner files as two entries too
 	out := call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})
-	groups, _ := out["duplicate_groups"].([]any)
+	groups, _ := out["groups"].([]any)
 	wantGroups := 1
 	if !versionsMerged() {
 		wantGroups = 2
 	}
-	if num(t, out["total_groups"], "total_groups") != wantGroups || len(groups) != wantGroups {
+	if num(t, out["total_findings"], "total_findings") != wantGroups || len(groups) != wantGroups {
 		t.Fatalf("duplicates = %v", out)
 	}
 	group := rows(t, groups[0], "group") // Alien sorts first
@@ -205,7 +205,7 @@ func TestAuditDuplicates(t *testing.T) {
 	// across libraries the clean Alien joins the group, and a limit caps the
 	// groups returned but not the count
 	out = call(t, "audit_duplicates", map[string]any{"types": "Movie", "limit": 1})
-	groups, _ = out["duplicate_groups"].([]any)
+	groups, _ = out["groups"].([]any)
 	if len(groups) != 1 {
 		t.Fatalf("limit 1 returned %d groups", len(groups))
 	}
@@ -222,12 +222,12 @@ func TestAuditDuplicates(t *testing.T) {
 	if len(alien) != 3 {
 		t.Errorf("Alien group across libraries has %d copies, want 3", len(alien))
 	}
-	if n := num(t, out["total_groups"], "total_groups"); n < 2 {
-		t.Errorf("total_groups = %d, want Alien and Blade Runner at least", n)
+	if n := num(t, out["total_findings"], "total_findings"); n < 2 {
+		t.Errorf("total_findings = %d, want Alien and Blade Runner at least", n)
 	}
 	// the clean libraries alone have none
 	out = call(t, "audit_duplicates", map[string]any{"library": "Movies"})
-	if num(t, out["total_groups"], "total_groups") != 0 {
+	if num(t, out["total_findings"], "total_findings") != 0 {
 		t.Errorf("Movies has duplicates: %v", out)
 	}
 }
@@ -265,20 +265,14 @@ func TestAuditRuntimeEpisodes(t *testing.T) {
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("findings = %v", out["findings"])
 	}
-	if _, ok := out["next_offset"]; ok {
-		t.Error("episode mode paged")
-	}
-	if msg := callErr(t, "audit_runtime", map[string]any{"types": "Album"}); !strings.Contains(msg, "Episode or Movie") {
-		t.Errorf("an unsupported type: %s", msg)
-	}
 }
 
 // Movie runtimes come from TMDB, through the provider proxy: Interstellar's
 // nfo says 169 minutes and the file runs a second, but the audit asks TMDB,
 // not the nfo, so every one-second film in the messy library is off.
-func TestAuditRuntimeMovies(t *testing.T) {
+func TestAuditProviderRuntime(t *testing.T) {
 	needsTMDBCassette(t)
-	out := call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "types": "Movie"})
+	out := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime"})
 	got := findings(t, out)
 	// Princess Mononoke has no tmdb id and is skipped; every other file is a
 	// second long
@@ -293,13 +287,13 @@ func TestAuditRuntimeMovies(t *testing.T) {
 		t.Errorf("scanned %d, want %d", got, messyMovies())
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
-		if d := str(f["detail"]); !strings.Contains(d, "TMDB says") {
-			t.Errorf("detail = %q", d)
+		if ps, _ := f["problems"].([]any); len(ps) != 1 || !strings.Contains(str(ps[0]), "runtime: file") || !strings.Contains(str(ps[0]), "TMDB says") {
+			t.Errorf("problems = %v", f["problems"])
 		}
 	}
 
 	// paging: two lookups per call, then continue from next_offset
-	out = call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "types": "Movie", "max_lookups": 2})
+	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime", "max_lookups": 2})
 	if len(rows(t, out["findings"], "findings")) != 2 {
 		t.Errorf("max_lookups 2 = %v", out["findings"])
 	}
@@ -307,33 +301,45 @@ func TestAuditRuntimeMovies(t *testing.T) {
 	if !ok {
 		t.Fatal("no next_offset after a partial sweep")
 	}
-	rest := call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "types": "Movie", "offset": next})
+	rest := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime", "offset": next})
 	if n, want := num(t, rest["total_findings"], "total_findings"), len(want)-2; n != want {
 		t.Errorf("the rest = %d findings, want %d", n, want)
 	}
 	// tolerance: a one-second file is always more than 99% off, so a
 	// tolerance of 100 finds nothing
-	out = call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "types": "Movie", "tolerance_percent": 100})
+	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime", "tolerance_percent": 100})
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("tolerance 100 found %d", n)
 	}
+	// only TMDB yet, said plainly
+	if msg := callErr(t, "audit_provider", map[string]any{"provider": "tvdb"}); !strings.Contains(msg, "provider must be tmdb") {
+		t.Errorf("another provider: %s", msg)
+	}
 }
 
-// needsTMDBCassette skips the movie runtime audit when it cannot run: a
+// needsTMDBCassette skips a TMDB-backed test when it cannot run: a
 // recording needs a real TMDB key, and a replay needs the recording to have
 // been made (make record with EMBYFIN_TMDB_TOKEN set).
 func needsTMDBCassette(t *testing.T) {
 	t.Helper()
 
+	needsTMDBRecording(t, "GET api.themoviedb.org/3/movie/348")
+}
+
+// needsTMDBRecording skips unless the TMDB request named can be answered:
+// live while recording with a key, else from the cassette.
+func needsTMDBRecording(t *testing.T, key string) {
+	t.Helper()
+
 	if recording() {
 		if os.Getenv("EMBYFIN_TMDB_TOKEN") == "" && os.Getenv("EMBYFIN_TMDB_KEY") == "" {
-			t.Skip("recording the TMDB runtime lookups needs EMBYFIN_TMDB_TOKEN")
+			t.Skip("recording the TMDB lookups needs EMBYFIN_TMDB_TOKEN")
 		}
 		return
 	}
 	raw, err := os.ReadFile(filepath.Join(cassetteDir(), "api.themoviedb.org.json"))
-	if err != nil || !strings.Contains(string(raw), `"key": "GET api.themoviedb.org/3/movie/348"`) {
-		t.Skip("the TMDB runtime lookups have not been recorded; run make record with EMBYFIN_TMDB_TOKEN set")
+	if err != nil || !strings.Contains(string(raw), `"key": "`+key+`"`) {
+		t.Skipf("%s has not been recorded; run make record with EMBYFIN_TMDB_TOKEN set", key)
 	}
 }
 
@@ -363,8 +369,8 @@ func TestAuditAll(t *testing.T) {
 		"audit_file_path":                 1,
 		"audit_multiple_versions":         1,
 		"audit_duplicates":                1,
-		"audit_duplicate_titles":          0,
-		"audit_duplicate_series_folders":  0,
+		"audit_duplicate_episodes":        0,
+		"audit_duplicate_series":          0,
 		"audit_disc_folders":              0,
 		"audit_runtime":                   0,
 		"audit_quality":                   6,
@@ -384,7 +390,7 @@ func TestAuditAll(t *testing.T) {
 	if _, ok := counts["audit_unwatched"]; !ok {
 		t.Error("no audit_unwatched row")
 	}
-	for _, audit := range []string{"audit_orphans", "audit_language", "audit_movie_ids", "audit_anime_ids"} {
+	for _, audit := range []string{"audit_orphans", "audit_language", "audit_provider", "audit_anime_ids"} {
 		if !skipped[audit] {
 			t.Errorf("%s is not marked skipped for one library: %v", audit, out["audits"])
 		}
@@ -431,9 +437,9 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 		}
 	}
 	want := []string{
-		"audit_all", "audit_anime_ids", "audit_disc_folders", "audit_duplicate_series_folders", "audit_duplicate_titles", "audit_duplicates", "audit_file_path", "audit_language",
+		"audit_all", "audit_anime_ids", "audit_disc_folders", "audit_duplicate_episodes", "audit_duplicate_series", "audit_duplicates", "audit_file_path", "audit_language",
 		"audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
-		"audit_missing_poster", "audit_movie_ids", "audit_multiple_versions", "audit_orphans", "audit_quality", "audit_runtime", "audit_spelling",
+		"audit_missing_poster", "audit_multiple_versions", "audit_orphans", "audit_provider", "audit_quality", "audit_runtime", "audit_spelling",
 		"audit_unwatched",
 	}
 	slices.Sort(got)

@@ -22,9 +22,7 @@ func stageShows(t *testing.T, shows map[string]map[string][]byte) {
 		for folder := range shows {
 			_ = os.RemoveAll(filepath.Join(root, folder))
 		}
-		if _, err := invoke("library_scan", nil); err == nil {
-			_ = waitForItems("Messy Shows", have)
-		}
+		_ = scanUntil("Messy Shows", have)
 	})
 	for folder, files := range shows {
 		dir := filepath.Join(root, folder)
@@ -34,11 +32,7 @@ func stageShows(t *testing.T, shows map[string]map[string][]byte) {
 			mediaWrite(t, filepath.Join(dir, name), data)
 		}
 	}
-	call(t, "library_scan", nil)
-	if err := waitForItems("Messy Shows", have+len(shows)); err != nil {
-		t.Fatal(err)
-	}
-	if err := waitForScan(); err != nil {
+	if err := scanUntil("Messy Shows", have+len(shows)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -56,9 +50,9 @@ func fixtureVideo(t *testing.T, parts ...string) []byte {
 }
 
 // Two folders for one show, differing only in spacing and case: the sweep
-// in TestAuditDuplicateSeriesFolders proves nothing is reported that does
+// in TestAuditDuplicateSeries proves nothing is reported that does
 // not collide; this proves the collision is.
-func TestAuditDuplicateSeriesFoldersFindsAPair(t *testing.T) {
+func TestAuditDuplicateSeriesFindsAPair(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
@@ -68,7 +62,7 @@ func TestAuditDuplicateSeriesFoldersFindsAPair(t *testing.T) {
 		"Zzyzx  twins (2005)": {"Season 01/Zzyzx Twins S01E02.mp4": short},
 	})
 
-	out := call(t, "audit_duplicate_series_folders", map[string]any{"library": "Messy Shows"})
+	out := call(t, "audit_duplicate_series", map[string]any{"library": "Messy Shows"})
 	groups := rows(t, out["groups"], "groups")
 	if len(groups) != 1 {
 		t.Fatalf("groups = %v, want the one pair", out)

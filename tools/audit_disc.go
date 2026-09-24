@@ -73,8 +73,8 @@ type discIn struct {
 
 type discOut struct {
 	Scanned int         `json:"items_scanned"`
-	Found   int         `json:"total_folders"`
-	Folders []discGroup `json:"folders"       jsonschema:"most items first; capped at limit"`
+	Found   int         `json:"total_findings"`
+	Folders []discGroup `json:"folders"        jsonschema:"most items first; capped at limit"`
 }
 
 type discRow struct {

@@ -347,11 +347,12 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 		switch {
 		case sameItems(now, order):
 			return nil
-		case !sameItems(now, entries):
+		case !tailReshuffled(now, entries, lo):
 			return fmt.Errorf("the playlist changed while entry %s was being moved", entryID)
 		}
 		// the entry ids are read afresh: a put-back the server undid may
-		// have renumbered them
+		// have renumbered them, or a refresh may have restored the old tail
+		// beside the new one, and everything from lo on goes out again
 		entryIDs = entryIDs[:0]
 		for _, e := range now[lo:] {
 			entryIDs = append(entryIDs, e.PlaylistItemID)
@@ -362,13 +363,20 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 		if err := c.addItems(ctx, playlistID, itemIDs, userID); err != nil {
 			return err
 		}
-		missing, err := c.playlistMissing(ctx, playlistID, userID, want)
-		if err != nil {
-			return err
+		missing, missErr := c.playlistMissing(ctx, playlistID, userID, want)
+		if missErr != nil {
+			return missErr
 		}
 		if len(missing) > 0 {
 			return fmt.Errorf("the server did not keep %s in the playlist after moving entry %s", strings.Join(missing, ", "), entryID)
 		}
+	}
+	// the last put-back is read back like the others
+	if now, _, err = c.PlaylistItems(ctx, playlistID, userID); err != nil {
+		return err
+	}
+	if sameItems(now, order) {
+		return nil
 	}
 
 	return fmt.Errorf("the server did not move entry %s", entryID)
@@ -378,7 +386,9 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 // answers a move of an entry id it no longer holds with a 204, so a refresh
 // that renumbers the playlist between reading the entries and the move leaves
 // it as it was: the entry is then found again at its old position (a
-// renumbering keeps the order) and moved once more. Anything else changing
+// renumbering keeps the order) and moved once more. A scan's refresh can
+// also write the playlist back as it found it after a move it accepted, so
+// an order that never changes is sent once more too. Anything else changing
 // the playlist meanwhile is an error rather than a guess.
 func (c *Client) moveEmbyEntry(ctx context.Context, playlistID, userID string, entries, order []Item, from, newIndex int) error {
 	move := func(entryID string) error {
@@ -391,32 +401,30 @@ func (c *Client) moveEmbyEntry(ctx context.Context, playlistID, userID string, e
 		return err
 	}
 	entryID := entries[from].PlaylistItemID
-	if err := move(entryID); err != nil {
-		return err
-	}
-
-	retried := false
-	for range 10 {
-		now, _, err := c.PlaylistItems(ctx, playlistID, userID)
-		if err != nil {
+	for range 3 {
+		if err := move(entryID); err != nil {
 			return err
 		}
-		switch {
-		case sameItems(now, order):
-			return nil
-		case !sameItems(now, entries):
-			return fmt.Errorf("the playlist changed while entry %s was being moved", entryID)
-		case !retried && now[from].PlaylistItemID != entryID:
-			retried = true
-			if err := move(now[from].PlaylistItemID); err != nil {
+	wait:
+		for range 10 {
+			now, _, err := c.PlaylistItems(ctx, playlistID, userID)
+			if err != nil {
 				return err
 			}
+			switch {
+			case sameItems(now, order):
+				return nil
+			case !sameItems(now, entries):
+				return fmt.Errorf("the playlist changed while entry %s was being moved", entryID)
+			case now[from].PlaylistItemID != entryID:
+				// renumbered under the move: the id sent no longer exists
+				entryID = now[from].PlaylistItemID
 
-			continue
-		}
-
-		if err := c.pause(ctx); err != nil {
-			return err
+				break wait
+			}
+			if err := c.pause(ctx); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -425,6 +433,25 @@ func (c *Client) moveEmbyEntry(ctx context.Context, playlistID, userID string, e
 
 // sameItems reports whether two entry lists hold the same items in the same
 // order, whatever their entry ids.
+// tailReshuffled says whether now is entries with only the tail from lo on
+// changed, and changed only among the tail's own items: what a scan's
+// refresh leaves when it writes the playlist back around a move (the old
+// tail restored, beside or instead of the new one). Anything before lo
+// changed, or an item that was never in the tail, is someone else's edit.
+func tailReshuffled(now, entries []Item, lo int) bool {
+	if len(now) < lo || !sameItems(now[:lo], entries[:lo]) {
+		return false
+	}
+	tail := itemCounts(entries[lo:])
+	for _, e := range now[lo:] {
+		if tail[e.ID] == 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
 func sameItems(a, b []Item) bool {
 	return slices.EqualFunc(a, b, func(x, y Item) bool { return x.ID == y.ID })
 }

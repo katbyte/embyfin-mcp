@@ -477,7 +477,7 @@ func TestRuntimeAuditReadsSpansAndBrokenDurations(t *testing.T) {
 	}
 	cs := session(t, tvServer(t, s), Options{})
 
-	out := mustCall(t, cs, "audit_runtime", map[string]any{"types": "Episode"})
+	out := mustCall(t, cs, "audit_runtime", map[string]any{})
 	details := map[string]string{}
 	for _, f := range objects(t, out["findings"], "findings") {
 		details[text(f["name"])] = text(f["detail"])
@@ -502,7 +502,7 @@ func TestRuntimeAuditReadsSpansAndBrokenDurations(t *testing.T) {
 // duplicate audit sees it - the provider ids differ because the server
 // believes they are different episodes, and both files stand alone under
 // their own item, so a library can carry the pair for years unreported.
-func TestAuditDuplicateTitles(t *testing.T) {
+func TestAuditDuplicateEpisodes(t *testing.T) {
 	t.Parallel()
 
 	s := severance()
@@ -517,9 +517,9 @@ func TestAuditDuplicateTitles(t *testing.T) {
 	}
 	cs := session(t, tvServer(t, s), Options{})
 
-	out := mustCall(t, cs, "audit_duplicate_titles", map[string]any{})
+	out := mustCall(t, cs, "audit_duplicate_episodes", map[string]any{})
 	groups := objects(t, out["groups"], "groups")
-	if len(groups) != 2 || number(t, out["total_groups"], "total_groups") != 2 {
+	if len(groups) != 2 || number(t, out["total_findings"], "total_findings") != 2 {
 		t.Fatalf("groups = %v", groups)
 	}
 
@@ -559,7 +559,7 @@ func TestAuditDuplicateTitles(t *testing.T) {
 // are then split across two entries, each answering "no" to half the
 // questions. audit_duplicates misses these because the second entry usually
 // carries no provider id - nothing matched it.
-func TestAuditDuplicateSeriesFolders(t *testing.T) {
+func TestAuditDuplicateSeries(t *testing.T) {
 	t.Parallel()
 
 	shows := []*fakeSeries{
@@ -581,7 +581,7 @@ func TestAuditDuplicateSeriesFolders(t *testing.T) {
 	shows[1].path = "/media/shows/Law & Order (1999)  - Special Victims Unit"
 	cs := session(t, tvServer(t, shows...), Options{})
 
-	out := mustCall(t, cs, "audit_duplicate_series_folders", map[string]any{})
+	out := mustCall(t, cs, "audit_duplicate_series", map[string]any{})
 	groups := objects(t, out["groups"], "groups")
 	if len(groups) != 1 {
 		t.Fatalf("groups = %v", groups)

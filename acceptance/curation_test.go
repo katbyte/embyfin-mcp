@@ -459,6 +459,29 @@ func TestAuditMissingEpisodes(t *testing.T) {
 			t.Errorf("a clean show has a gap: %v", f)
 		}
 	}
+
+	// with the provider, TMDB's run says what the messy Severance lacks
+	// after its last file (season one has nine episodes, and we hold three),
+	// and the unidentified Star Trek is a series nobody can be asked about
+	needsTMDBRecording(t, "GET api.themoviedb.org/3/tv/95396")
+	out = call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true})
+	if !boolOf(out["runs_known"]) || str(out["note"]) != "" {
+		t.Errorf("with the provider runs_known = %v, note %q", out["runs_known"], out["note"])
+	}
+	found := map[string]string{}
+	for _, f := range rows(t, out["findings"], "findings") {
+		found[title(str(f["name"]))] = str(f["detail"])
+	}
+	if d := found["Severance"]; !strings.Contains(d, "listed by TMDB without a file: S01E04, S01E05") {
+		t.Errorf("Severance = %q, want TMDB's run past the three files", d)
+	}
+	if d := found["Star Trek The Next Generation"]; !strings.Contains(d, "between the episodes on disk: S01E02") || strings.Contains(d, "TMDB") {
+		t.Errorf("Star Trek = %q, want its gap alone", d)
+	}
+	unknown := rows(t, out["unknown"], "unknown")
+	if len(unknown) != 1 || title(str(unknown[0]["name"])) != "Star Trek The Next Generation" || !strings.Contains(str(unknown[0]["reason"]), "carries no tmdb, tvdb or imdb id") {
+		t.Errorf("unknown = %v, want the unidentified series alone", unknown)
+	}
 }
 
 func TestAuditUnwatched(t *testing.T) {

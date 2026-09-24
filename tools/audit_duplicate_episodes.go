@@ -52,26 +52,26 @@ type dupTitlesIn struct {
 
 type dupTitlesOut struct {
 	Scanned int          `json:"items_scanned"`
-	Found   int          `json:"total_groups"`
-	Groups  []titleGroup `json:"groups"        jsonschema:"near-certain groups first, then leads; capped at limit"`
+	Found   int          `json:"total_findings"`
+	Groups  []titleGroup `json:"groups"         jsonschema:"near-certain groups first, then leads; capped at limit"`
 }
 
-func registerTitleAudits(r *registry) {
+func registerDuplicateEpisodesAudit(r *registry) {
 	client := r.client
 
 	add(r, readTool, &mcp.Tool{
-		Name: "audit_duplicate_titles",
+		Name: "audit_duplicate_episodes",
 		Description: "Find one episode's content filed under two episode numbers: a season holding the same episode title twice. " +
 			"Neither other duplicate audit sees this - audit_duplicates matches provider ids, which differ because the server believes they are different episodes, and audit_multiple_versions finds several files under one item. " +
 			"Runtimes within 5% make it near certain; matching titles alone are a lead, because a season can reuse a title and generic ones repeat by nature. It does not pick a winner: the larger file can be the worse copy.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in dupTitlesIn) (*mcp.CallToolResult, dupTitlesOut, error) {
-		out, err := auditDuplicateTitles(ctx, client, in)
+		out, err := auditDuplicateEpisodes(ctx, client, in)
 
 		return nil, out, err
 	})
 }
 
-func auditDuplicateTitles(ctx context.Context, client *embyfin.Client, in dupTitlesIn) (dupTitlesOut, error) {
+func auditDuplicateEpisodes(ctx context.Context, client *embyfin.Client, in dupTitlesIn) (dupTitlesOut, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 50

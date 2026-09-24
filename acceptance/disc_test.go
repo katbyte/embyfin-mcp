@@ -21,7 +21,7 @@ func TestAuditDiscFolders(t *testing.T) {
 	}
 
 	// nothing in the fixtures is a disc
-	if before := call(t, "audit_disc_folders", nil); num(t, before["total_folders"], "total_folders") != 0 {
+	if before := call(t, "audit_disc_folders", nil); num(t, before["total_findings"], "total_findings") != 0 {
 		t.Errorf("before staging one: %v", before)
 	}
 

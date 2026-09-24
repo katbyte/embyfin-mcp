@@ -42,18 +42,18 @@ differences between them live in one package, and every tool is tested against b
 | `audit_file_path` | items whose path disagrees with their metadata: a folder saying `(2021)` under a film matched to 1984 (the wrong edition, or the wrong film), a folder or file named for a different title, and for episodes the series, season and episode number the file name claims against the ones the server holds - a file holding two episodes (`S01E01E02`) where the server lists one has the second's content on disk while the server calls it missing, and a file named after one episode where the server holds another is a file from another series, or, with a TMDB token, one numbered in another provider's order (each such row says which TMDB episode the file's title is). `checks` narrows to any of title, year, series, season, episode |
 | `audit_duplicates` | separate entries sharing one tmdb/imdb id, in one library or across libraries, each group listing every copy with its path and quality |
 | `audit_multiple_versions` | one entry the server has merged from several files - a 4K and a 1080p copy - which is what `audit_duplicates` cannot see (Jellyfin merges same-folder versions at scan time; Emby only when merged in its web client, so there the pair shows up in `audit_duplicates`) |
-| `audit_runtime` | files whose runtime disagrees with what it should be: truncated downloads, wrong files, wrong matches. Episodes against the median of their season; movies against TMDB's runtime (needs `EMBYFIN_TMDB_TOKEN`, paged with `offset`) |
+| `audit_runtime` | episodes whose runtime disagrees with their season's: truncated downloads, wrong files, wrong matches, each against the median of its season, with no external data |
 | `audit_quality` | films and episodes worth replacing with a better copy: below a resolution (720 lines by default, so 480p and 576p rips), in a legacy codec (MPEG-2, XviD and DivX, WMV, VC-1), or below a bitrate when one is given; an item is judged by its best version, lowest resolution first. Two more lists say which facts cannot be trusted: files the server never probed (every quality question reads as nothing, so they are not judged) and, on Emby, files written over after the server first saw them, whose facts may be the old file's until a scan re-reads them; each such row carries the size the server believes |
-| `audit_missing_episodes` | series with episodes missing: the numbers a season skips between the episodes on disk, whole seasons skipped, and, when the server records them, the episodes its provider lists without a file |
+| `audit_missing_episodes` | series with episodes missing: the numbers a season skips between the episodes on disk, whole seasons skipped, and, when the server records them, the episodes its provider lists without a file. `provider: true` reads every series' whole run from the configured metadata providers instead (TMDB today), one request a series and paged, so what a series lacks after its last file is seen too |
 | `audit_spelling` | genres, tags and studios that mean the same thing spelled differently: `Sci-Fi` and `Sci Fi`, `Science-Fiction` and `Science Fiction`, a letter apart, or a studio cut short (`Warner Bros.` and `Warner Bros. Pictures`); each group names the spelling to keep, and `metadata_rename` merges it |
 | `audit_unwatched` | the films, or series, no account on the server has watched, oldest additions first, optionally only those added more than some days ago: what to archive, or what to recommend |
 | `audit_language` | films and episodes by the language of their audio or subtitles: what has audio or subtitles in a language, what has no audio in it, or what cannot be watched in it at all; a track with no language tag is never taken as lacking one |
-| `audit_duplicate_titles` | one episode's content filed under two episode numbers: a season holding the same episode title twice, which neither other duplicate audit can see. Runtimes within 5% make it near certain; matching titles alone are a lead |
-| `audit_duplicate_series_folders` | shows held twice because two folders name the same series - a rename that changed only spacing, case, an accent or punctuation - which splits the episodes across two entries that each answer "no" to half the questions |
+| `audit_duplicate_episodes` | one episode's content filed under two episode numbers: a season holding the same episode title twice, which neither other duplicate audit can see. Runtimes within 5% make it near certain; matching titles alone are a lead |
+| `audit_duplicate_series` | shows held twice because two folders name the same series - a rename that changed only spacing, case, an accent or punctuation - which splits the episodes across two entries that each answer "no" to half the questions |
 | `audit_orphans` | items a renamed or removed library folder left behind: outside every library, so no library lists them but every sweep counts them. `item_orphans_delete` removes them once their folder is gone ([how](#cleaning-up-after-a-removed-library)) |
 | `audit_disc_folders` | a disc copied in as its own files: a Blu-ray's numbered streams or a DVD's VOBs in a film's folder, with no BDMV or VIDEO_TS structure, so the server makes a film of each stream and matches them separately - which files short clips under other films' names |
 | `audit_anime_ids` | anime held against Anime-Lists, the community mapping of AniDB entries to TVDB and TMDB: ids that disagree (a TMDB id that is the whole show beside an AniDB id that is one of its specials), specials that are an OVA or a film of their own and could be split out into a series, and series already kept apart, with the AniDB entry that justifies it |
-| `audit_movie_ids` | films whose ids disagree, asked of TMDB: a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, or an IMDb id that is a series or an episode rather than a film. Needs a TMDB key |
+| `audit_provider` | films against their metadata provider, one request a film: the ids the film holds agree with each other and exist there (a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, an IMDb id that is a series or an episode), and the file's runtime is the provider's (a truncated download, a wrong file, a wrong match). `provider` names which to ask, TMDB being the only one yet; paged with `offset`. Needs `EMBYFIN_TMDB_TOKEN` |
 
 The design principle: **detection is code, correction is judgment.** The server runs cheap
 deterministic checks over the whole library and produces worklists; the AI reasons only about
@@ -220,8 +220,8 @@ can find a library or open an item.
 | `admin` | 14 | 20 | 2,800 |
 | `watching` | 10 | 16 | 2,100 |
 | `organise` | 14 | 20 | 2,500 |
-| `curation` | 41 | 47 | 10,900 |
-| `all` | 89 | 89 | 15,900 |
+| `curation` | 41 | 47 | 11,100 |
+| `all` | 89 | 89 | 16,200 |
 
 Tokens are what the model sees: each tool's name, description and input schema, measured over
 a real `tools/list` at four bytes a token. Every tool also carries an output schema, another
@@ -273,10 +273,10 @@ tool.
 3. `audit_file_path` finds the wrong editions and the files named for something else; the same two tools fix them.
 4. `audit_missing_poster` and `item_artwork` / `item_artwork_set` fill the gaps.
 5. `audit_duplicates` and `audit_multiple_versions` show what to prune;
-   `audit_runtime` and `audit_quality` show what to re-download.
+   `audit_runtime`, `audit_provider` and `audit_quality` show what to re-download.
 6. `audit_spelling` finds the genres, tags and studios typed several ways; `metadata_rename`
    merges each group, and `item_edit` with many ids puts the right genre on a whole franchise.
-7. `audit_missing_episodes` lists the gaps in each series to fill.
+7. `audit_missing_episodes` lists the gaps in each series to fill, and with `provider: true` what each series lacks after its last file.
 
 ### Cleaning up after a removed library
 

@@ -82,7 +82,7 @@ var Toolsets = map[string][]string{
 	"curation": {
 		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
 		"audit_file_path", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_titles", "audit_duplicate_series_folders", "audit_disc_folders", "audit_anime_ids", "audit_movie_ids", "quality_compare", "plan_check",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_anime_ids", "audit_provider", "quality_compare", "plan_check",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes", "show_episodes_exist", "show_missing", "show_resolve",
@@ -251,12 +251,12 @@ func queueTools(r *registry) {
 	registerQualityTools(r)
 	registerAuditTools(r)
 	registerLanguageAudit(r)
-	registerTitleAudits(r)
+	registerDuplicateEpisodesAudit(r)
 	registerFilePathAudit(r)
-	registerFolderAudit(r)
+	registerDuplicateSeriesAudit(r)
 	registerDiscAudit(r)
 	registerAnimeAudit(r)
-	registerMovieIDAudit(r)
+	registerProviderCheckAudit(r)
 	registerExportTool(r)
 	registerPlanTools(r)
 	registerOrphanTools(r)

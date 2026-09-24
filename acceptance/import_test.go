@@ -79,10 +79,10 @@ func TestPlanCheck(t *testing.T) {
 
 // One episode's content under two episode numbers: the fixtures carry the
 // same Breaking Bad title on two episodes, at the same length.
-func TestAuditDuplicateTitles(t *testing.T) {
-	out := call(t, "audit_duplicate_titles", map[string]any{"library": "Shows"})
+func TestAuditDuplicateEpisodes(t *testing.T) {
+	out := call(t, "audit_duplicate_episodes", map[string]any{"library": "Shows"})
 	groups := rows(t, out["groups"], "groups")
-	if len(groups) != 1 || num(t, out["total_groups"], "total_groups") != 1 {
+	if len(groups) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
 		t.Fatalf("groups = %v", groups)
 	}
 	group := groups[0]
@@ -139,12 +139,12 @@ func TestAuditFilePathShows(t *testing.T) {
 // Two folders for one show. The fixtures hold no such pair, so what this
 // proves live is the sweep itself on both backends: every series read, and
 // nothing reported that does not collide.
-func TestAuditDuplicateSeriesFolders(t *testing.T) {
-	out := call(t, "audit_duplicate_series_folders", nil)
-	if n := num(t, out["series_scanned"], "series_scanned"); n < 5 {
-		t.Errorf("series_scanned = %d, want every series in the fixtures", n)
+func TestAuditDuplicateSeries(t *testing.T) {
+	out := call(t, "audit_duplicate_series", nil)
+	if n := num(t, out["items_scanned"], "items_scanned"); n < 5 {
+		t.Errorf("items_scanned = %d, want every series in the fixtures", n)
 	}
-	if n := num(t, out["total_groups"], "total_groups"); n != 0 {
+	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("the fixtures hold no colliding folders, but %d groups came back: %v", n, out["groups"])
 	}
 }

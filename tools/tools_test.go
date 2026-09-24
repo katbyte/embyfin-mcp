@@ -89,7 +89,7 @@ func TestSurfaceSize(t *testing.T) {
 	if len(list) != 89 || kinds["read"] != 62 || kinds["write"] != 24 || kinds["delete"] != 3 {
 		t.Errorf("surface = %d tools: %v, want 89 with 62 read, 24 write, 3 delete", len(list), kinds)
 	}
-	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed"} {
+	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids"} {
 		if slices.ContainsFunc(list, func(ti ToolInfo) bool { return ti.Name == gone }) {
 			t.Errorf("%s is still registered; its work moved elsewhere", gone)
 		}

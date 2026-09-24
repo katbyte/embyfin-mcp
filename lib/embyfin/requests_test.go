@@ -1139,6 +1139,7 @@ func TestPlaylistEdits(t *testing.T) {
 		"p1": {"a:5", "b:7"},
 		"p3": {"a:1", "b:3"}, // renumbered before the move lands, so it moves nothing
 		"p4": {"a:1", "b:2"}, // changed by someone else during the move
+		"p6": {"a:1", "b:2"}, // written back as it was by a scan's refresh after the first move
 	}
 	listing := func(id string) route {
 		return func(*http.Request, string) (int, string) {
@@ -1172,8 +1173,19 @@ func TestPlaylistEdits(t *testing.T) {
 		"POST /Playlists/p3/Items/2/Move/0": moved("p3", "b:1", "a:2"),
 		"GET /Playlists/p4/Items":           listing("p4"),
 		"POST /Playlists/p4/Items/2/Move/0": moved("p4", "c:1"),
-		"GET /Users/u1/Items/p1":            ok(`{"Id":"p1","Name":"Mix","Type":"Playlist"}`),
-		"POST /Items/p1":                    noContent,
+		"GET /Playlists/p6/Items":           listing("p6"),
+		"POST /Playlists/p6/Items/2/Move/0": func() route {
+			calls := 0
+			return func(*http.Request, string) (int, string) {
+				calls++
+				if calls > 1 {
+					playlists["p6"] = []string{"b:2", "a:1"}
+				}
+				return http.StatusNoContent, ""
+			}
+		}(),
+		"GET /Users/u1/Items/p1": ok(`{"Id":"p1","Name":"Mix","Type":"Playlist"}`),
+		"POST /Items/p1":         noContent,
 	})
 	if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "7", 0); err != nil {
 		t.Fatal(err)
@@ -1214,6 +1226,14 @@ func TestPlaylistEdits(t *testing.T) {
 	if err := c.MovePlaylistEntry(t.Context(), "p4", "u1", "2", 0); err == nil || !strings.Contains(err.Error(), "changed while entry 2") {
 		t.Errorf("a playlist changed during the move = %v", err)
 	}
+	// a move the server accepted and a scan's refresh then wrote back is
+	// sent once more
+	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "2", 0); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(f.all("POST /Playlists/p6/Items/2/Move/0")); n != 2 {
+		t.Errorf("the written-back move was sent %d times, want 2", n)
+	}
 	if err := c.RenamePlaylist(t.Context(), "p1", "u1", "Road Trip"); err != nil {
 		t.Fatal(err)
 	}
@@ -1224,7 +1244,7 @@ func TestPlaylistEdits(t *testing.T) {
 	// a Jellyfin playlist the routes below change: removes take entries out,
 	// adds append items with new entry ids, and one listing never changes
 	// however it is edited, like a scan re-reading the playlist file
-	jf := map[string][]string{"p2": {"a:ea", "b:eb", "c:ec"}, "p5": {"a:ea", "b:eb"}}
+	jf := map[string][]string{"p2": {"a:ea", "b:eb", "c:ec"}, "p5": {"a:ea", "b:eb"}, "p6": {"a:ea", "b:eb", "c:ec"}}
 	jfListing := func(id string) route {
 		return func(*http.Request, string) (int, string) {
 			items := make([]string, 0, len(jf[id]))
@@ -1262,6 +1282,21 @@ func TestPlaylistEdits(t *testing.T) {
 		"GET /Playlists/p5/Items":    ok(`{"Items":[{"Id":"a","PlaylistItemId":"ea"},{"Id":"b","PlaylistItemId":"eb"}],"TotalRecordCount":2}`),
 		"DELETE /Playlists/p5/Items": noContent,
 		"POST /Playlists/p5/Items":   noContent,
+		"GET /Playlists/p6/Items":    jfListing("p6"),
+		"DELETE /Playlists/p6/Items": jfRemove("p6"),
+		// the first put-back lands beside the old tail a refresh restored,
+		// the way a scan re-reading the playlist file leaves it
+		"POST /Playlists/p6/Items": func() route {
+			add := jfAdd("p6")
+			calls := 0
+			return func(r *http.Request, body string) (int, string) {
+				calls++
+				if calls == 1 {
+					jf["p6"] = append(jf["p6"], "b:eb", "c:ec")
+				}
+				return add(r, body)
+			}
+		}(),
 	})
 	// Jellyfin's move wants a user behind the request, so the entries from
 	// the lower of the two positions on come out and go back in the new
@@ -1285,6 +1320,17 @@ func TestPlaylistEdits(t *testing.T) {
 		t.Errorf("a move whose put-back is lost = %v", err)
 	}
 	if n := len(f.all("POST /Playlists/p5/Items")); n != 2 {
+		t.Errorf("the put-back was sent %d times, want 2", n)
+	}
+	// a refresh that restores the old tail beside the new one is not
+	// someone else's edit: the tail goes out and back once more
+	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "ec", 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := jf["p6"]; len(got) != 3 || !strings.HasPrefix(got[0], "a:") || !strings.HasPrefix(got[1], "c:") || !strings.HasPrefix(got[2], "b:") {
+		t.Errorf("after the second put-back the playlist holds %v, want a, c, b", got)
+	}
+	if n := len(f.all("POST /Playlists/p6/Items")); n != 2 {
 		t.Errorf("the put-back was sent %d times, want 2", n)
 	}
 	for entry, index := range map[string]int{"nope": 0, "ea": 3} {

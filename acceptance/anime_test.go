@@ -94,7 +94,7 @@ func TestAuditAnimeIDs(t *testing.T) {
 	}
 
 	out := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
-	if num(t, out["list_entries"], "list_entries") != 4 || num(t, out["series_scanned"], "series_scanned") != have+3 {
+	if num(t, out["list_entries"], "list_entries") != 4 || num(t, out["items_scanned"], "items_scanned") != have+3 {
 		t.Fatalf("out = %v", out)
 	}
 

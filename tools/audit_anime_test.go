@@ -111,7 +111,7 @@ func TestAuditAnimeIDs(t *testing.T) {
 	cs := session(t, f, Options{AnimeList: animeListFile(t)})
 
 	out := mustCall(t, cs, "audit_anime_ids", map[string]any{})
-	if number(t, out["list_entries"], "list_entries") != 5 || number(t, out["series_scanned"], "series_scanned") != len(series) {
+	if number(t, out["list_entries"], "list_entries") != 5 || number(t, out["items_scanned"], "items_scanned") != len(series) {
 		t.Fatalf("out = %v", out)
 	}
 

@@ -3,12 +3,15 @@ package tools
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -286,8 +289,18 @@ func seasonGaps(episodes map[int][]int) []string {
 }
 
 type episodesIn struct {
-	Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
-	Limit   int    `json:"limit,omitempty"   jsonschema:"maximum series to return, default 100"`
+	Library    string `json:"library,omitempty"     jsonschema:"restrict to one library by name or id"`
+	Limit      int    `json:"limit,omitempty"       jsonschema:"maximum series to return, default 100"`
+	Provider   bool   `json:"provider,omitempty"    jsonschema:"also read each series' whole run from the configured metadata providers (TMDB, by the series' tmdb id or the id TMDB knows it by from its tvdb or imdb one) and report the aired episodes it lists that have no file, which the gaps between files cannot see. One request a series, so paged: max_lookups and offset, and the findings are the series asked about in this call"`
+	MaxLookups int    `json:"max_lookups,omitempty" jsonschema:"provider: series to ask about in this call, default 250"`
+	Offset     int    `json:"offset,omitempty"      jsonschema:"provider: series to skip, from a previous call's next_offset"`
+}
+
+// unknownRun is a series the provider could not say the run of.
+type unknownRun struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
 }
 
 // missingEpisodesOut is the missing-episode sweep's worklist, with the field
@@ -295,14 +308,46 @@ type episodesIn struct {
 // keeps no record of a series' run reads as a library with nothing missing.
 type missingEpisodesOut struct {
 	auditOut
-	RunsKnown bool   `json:"runs_known"     jsonschema:"whether the server could say what any series' full run is. False means the findings are only the episode numbers skipped between the files on disk: a series absent from them is NOT known to be complete"`
-	Note      string `json:"note,omitempty"`
+	RunsKnown    bool         `json:"runs_known"              jsonschema:"whether any series' full run could be read, from the server's own records or, with provider, from the metadata provider. False means the findings are only the episode numbers skipped between the files on disk: a series absent from them is NOT known to be complete"`
+	Note         string       `json:"note,omitempty"`
+	TotalUnknown int          `json:"total_unknown,omitempty" jsonschema:"provider: series whose run could not be read"`
+	Unknown      []unknownRun `json:"unknown,omitempty"       jsonschema:"provider: series whose run could not be read, with why (no id a provider knows it by, or the provider could not be asked); capped at limit"`
+	NextOffset   int          `json:"next_offset,omitempty"   jsonschema:"provider: pass back as offset to go on; absent when every series was asked about"`
 }
 
-func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episodesIn) (missingEpisodesOut, error) {
+// guideMissing is what the provider's run lists past what a series holds,
+// aired episodes only, spelled for a finding: the first few and a count.
+func guideMissing(run []tmdb.Episode, held map[[2]int]bool) string {
+	now := time.Now()
+	var missing []string
+	for _, e := range run {
+		if held[[2]int{e.Season, e.Episode}] || !aired(e, now) {
+			continue
+		}
+		missing = append(missing, fmt.Sprintf("S%02dE%02d", e.Season, e.Episode))
+	}
+	if len(missing) == 0 {
+		return ""
+	}
+	const shown = 12
+	if len(missing) > shown {
+		return fmt.Sprintf("%s and %d more", strings.Join(missing[:shown], ", "), len(missing)-shown)
+	}
+
+	return strings.Join(missing, ", ")
+}
+
+func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide seriesGuide, in episodesIn) (missingEpisodesOut, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 100
+	}
+	if in.Provider && guide == nil {
+		return missingEpisodesOut{}, errors.New("reading the runs from the metadata provider needs a TMDB token: set EMBYFIN_TMDB_TOKEN (or --tmdb-token) and restart")
+	}
+	maxLookups := in.MaxLookups
+	if maxLookups <= 0 {
+		maxLookups = defaultTMDBLookups
 	}
 	opts, err := sweepOptions(ctx, client, in.Library, "", "Episode", "Path")
 	if err != nil {
@@ -312,7 +357,9 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 	type series struct {
 		name     string
 		onDisk   map[int][]int
-		provider []string // episodes the server lists without a file
+		held     map[[2]int]bool // every number a file covers, specials included
+		provider []string        // episodes the server lists without a file
+		guide    string          // what the metadata provider lists without a file
 	}
 	bySeries := map[string]*series{}
 	out := auditOut{Findings: []auditFinding{}}
@@ -324,7 +371,7 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 			}
 			s := bySeries[it.SeriesID]
 			if s == nil {
-				s = &series{name: it.SeriesName, onDisk: map[int][]int{}}
+				s = &series{name: it.SeriesName, onDisk: map[int][]int{}, held: map[[2]int]bool{}}
 				bySeries[it.SeriesID] = s
 			}
 			if !it.HasFile() {
@@ -335,6 +382,7 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 			// a file holding S01E01E02 is both, or E02 would be reported missing
 			for n := it.IndexNumber; n > 0 && n <= max(it.IndexNumber, it.IndexNumberEnd); n++ {
 				s.onDisk[it.ParentIndexNumber] = append(s.onDisk[it.ParentIndexNumber], n)
+				s.held[[2]int{it.ParentIndexNumber, n}] = true
 			}
 		}
 		return true
@@ -355,6 +403,51 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 		ids = append(ids, id)
 	}
 	slices.SortFunc(ids, func(a, b string) int { return strings.Compare(bySeries[a].name, bySeries[b].name) })
+
+	answer := missingEpisodesOut{auditOut: out}
+	if in.Provider {
+		// the series themselves, for the ids a provider knows them by; the
+		// window is the series asked about in this call
+		from := min(max(in.Offset, 0), len(ids))
+		to := min(from+maxLookups, len(ids))
+		if to < len(ids) {
+			answer.NextOffset = to
+		}
+		window := ids[from:to]
+		items := map[string]*embyfin.Item{}
+		for chunk := range slices.Chunk(window, 100) {
+			if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(chunk, ","), IncludeItemTypes: "Series", Fields: "ProviderIds"}, func(rows []embyfin.Item) bool {
+				for i := range rows {
+					items[rows[i].ID] = &rows[i]
+				}
+
+				return true
+			}); err != nil {
+				return missingEpisodesOut{}, err
+			}
+		}
+		answer.Unknown = []unknownRun{}
+		for _, id := range window {
+			s := bySeries[id]
+			item := items[id]
+			if item == nil {
+				item = &embyfin.Item{ID: id, Name: s.name}
+			}
+			run, reason := guideRun(ctx, guide, item)
+			if reason != "" {
+				answer.TotalUnknown++
+				if len(answer.Unknown) < limit {
+					answer.Unknown = append(answer.Unknown, unknownRun{ID: id, Name: s.name, Reason: reason})
+				}
+
+				continue
+			}
+			runs = true
+			s.guide = guideMissing(run, s.held)
+		}
+		ids = window
+	}
+
 	for _, id := range ids {
 		s := bySeries[id]
 		gaps := seasonGaps(s.onDisk)
@@ -364,20 +457,23 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 		}
 		if len(s.provider) > 0 {
 			slices.Sort(s.provider)
-			parts = append(parts, "listed by the metadata provider without a file: "+strings.Join(s.provider, ", "))
+			parts = append(parts, "listed by the server's own records without a file: "+strings.Join(s.provider, ", "))
+		}
+		if s.guide != "" {
+			parts = append(parts, "listed by TMDB without a file: "+s.guide)
 		}
 		if len(parts) == 0 {
 			continue
 		}
-		out.Found++
-		if len(out.Findings) < limit {
-			out.Findings = append(out.Findings, auditFinding{ID: id, Name: s.name, Detail: strings.Join(parts, "; ")})
+		answer.Found++
+		if len(answer.Findings) < limit {
+			answer.Findings = append(answer.Findings, auditFinding{ID: id, Name: s.name, Detail: strings.Join(parts, "; ")})
 		}
 	}
 
-	answer := missingEpisodesOut{auditOut: out, RunsKnown: runs}
+	answer.RunsKnown = runs
 	if !runs {
-		answer.Note = "the server keeps no record of an episode it has no file for (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 no longer imports them), so these findings are only what the files themselves show: the numbers skipped between them. A series not listed here is not known to be complete - show_missing reads one series' run from the metadata provider."
+		answer.Note = "the server keeps no record of an episode it has no file for (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 no longer imports them), so these findings are only what the files themselves show: the numbers skipped between them. A series not listed here is not known to be complete - provider: true reads every series' run from the metadata provider, and show_missing one series'."
 	}
 
 	return answer, nil
@@ -397,6 +493,10 @@ type unwatchedOut struct {
 
 func registerMediaAudits(r *registry) {
 	client := r.client
+	var guide seriesGuide
+	if facts := tmdbFacts(r.opts); facts != nil {
+		guide = facts
+	}
 
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_quality",
@@ -410,9 +510,10 @@ func registerMediaAudits(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_missing_episodes",
 		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). " +
-			"Read 'runs_known': when it is false this sweep can only see gaps between files, so a series it does not list is not known to be complete - show_missing reads one series' whole run from the metadata provider.",
+			"With provider true, each series' whole run is read from the configured metadata providers instead (TMDB, with EMBYFIN_TMDB_TOKEN set), one request a series and paged, so what a series lacks after its last file is seen too. " +
+			"Read 'runs_known': when it is false this sweep can only see gaps between files, so a series it does not list is not known to be complete.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, missingEpisodesOut, error) {
-		out, err := auditMissingEpisodes(ctx, client, in)
+		out, err := auditMissingEpisodes(ctx, client, guide, in)
 		return nil, out, err
 	})
 

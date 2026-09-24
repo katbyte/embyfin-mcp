@@ -9,19 +9,19 @@ import (
 	"testing"
 )
 
-// Films asked about at TMDB. The messy films' sidecars carry a TMDB and an
-// IMDb id that agree, so nothing is reported; a staged film whose sidecar
+// Films' ids asked about at TMDB. The messy films' sidecars carry a TMDB and
+// an IMDb id that agree, so nothing is reported; a staged film whose sidecar
 // pairs Alien's TMDB id with Blade Runner's IMDb id is. Every lookup here is
-// one audit_runtime already makes, so the recordings hold them.
+// one the runtime check already makes, so the recordings hold them.
 //
 // The film is staged and taken away again, like the disc audit's streams:
 // the messy library's count is read by tests that have nothing to do with it.
-func TestAuditMovieIDs(t *testing.T) {
+func TestAuditProviderIDs(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 
-	out := call(t, "audit_movie_ids", map[string]any{"library": "Messy Movies"})
+	out := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "ids"})
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 || num(t, out["items_scanned"], "items_scanned") != messyMovies() {
 		t.Errorf("the messy films' ids agree, and the audit says %v", out)
 	}
@@ -34,9 +34,7 @@ func TestAuditMovieIDs(t *testing.T) {
 	dir := filepath.Join(dataDir(), "messy-movies", "Zzyzx Crossed (1979)")
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
-		if _, err := invoke("library_scan", nil); err == nil {
-			_ = waitForItems("Messy Movies", have)
-		}
+		_ = scanUntil("Messy Movies", have)
 	})
 	mediaMkdir(t, dir)
 	mediaWrite(t, filepath.Join(dir, "Zzyzx Crossed (1979).mp4"), raw)
@@ -51,21 +49,17 @@ func TestAuditMovieIDs(t *testing.T) {
 </movie>
 `))
 
-	call(t, "library_scan", nil)
-	if err := waitForItems("Messy Movies", have+1); err != nil {
-		t.Fatal(err)
-	}
-	if err := waitForScan(); err != nil {
+	if err := scanUntil("Messy Movies", have+1); err != nil {
 		t.Fatal(err)
 	}
 
-	out = call(t, "audit_movie_ids", map[string]any{"library": "Messy Movies"})
+	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "ids"})
 	findings := rows(t, out["findings"], "findings")
 	if len(findings) != 1 || !strings.HasPrefix(str(findings[0]["name"]), "Zzyzx Crossed") {
 		t.Fatalf("findings = %v", findings)
 	}
-	if detail := str(findings[0]["detail"]); !strings.Contains(detail, "whose IMDb id is tt0078748, not the tt0083658 it holds") {
-		t.Errorf("detail = %q", detail)
+	if ps, _ := findings[0]["problems"].([]any); len(ps) != 1 || !strings.Contains(str(ps[0]), "ids: its TMDB id is 348") || !strings.Contains(str(ps[0]), "whose IMDb id is tt0078748, not the tt0083658 it holds") {
+		t.Errorf("problems = %v", findings[0]["problems"])
 	}
 	if holds := str(findings[0]["holds"]); holds != "tmdb:348 imdb:tt0083658" {
 		t.Errorf("holds = %q", holds)
