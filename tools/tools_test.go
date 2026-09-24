@@ -87,7 +87,7 @@ func TestRegisterAllKinds(t *testing.T) {
 	}
 }
 
-// The surface is 89 tools, 62 of them reads and 5 deletes, and the essential
+// The surface is 87 tools, 60 of them reads and 5 deletes, and the essential
 // preset is enough to find things, read them and keep watch state in sync. A
 // tool added, merged, removed or moved between kinds changes these on
 // purpose, and this is where that is said.
@@ -102,10 +102,10 @@ func TestSurfaceSize(t *testing.T) {
 	for _, ti := range list {
 		kinds[ti.Kind]++
 	}
-	if len(list) != 89 || kinds["read"] != 62 || kinds["write"] != 22 || kinds["delete"] != 5 {
-		t.Errorf("surface = %d tools: %v, want 89 with 62 read, 22 write, 5 delete", len(list), kinds)
+	if len(list) != 87 || kinds["read"] != 60 || kinds["write"] != 22 || kinds["delete"] != 5 {
+		t.Errorf("surface = %d tools: %v, want 87 with 60 read, 22 write, 5 delete", len(list), kinds)
 	}
-	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids"} {
+	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids", "user_in_progress", "show_episodes"} {
 		if slices.ContainsFunc(list, func(ti ToolInfo) bool { return ti.Name == gone }) {
 			t.Errorf("%s is still registered; its work moved elsewhere", gone)
 		}

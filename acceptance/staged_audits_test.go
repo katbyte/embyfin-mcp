@@ -129,7 +129,7 @@ func TestLibraryExport(t *testing.T) {
 
 	// the one episode saved since an edit is the one line
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	pilot := str(rows(t, call(t, "show_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"])
+	pilot := str(rows(t, call(t, "library_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"])
 	start := time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339)
 	call(t, "item_edit", map[string]any{"ids": []any{pilot}, "add_tags": []any{"zzyzx-export"}})
 	t.Cleanup(func() {

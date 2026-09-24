@@ -646,7 +646,7 @@ func TestAuditUnwatched(t *testing.T) {
 
 	// a series is watched once anyone has watched an episode of it
 	series := findItem(t, "Shows", "Series", "Severance")
-	eps := call(t, "show_episodes", map[string]any{"series_id": series})
+	eps := call(t, "library_episodes", map[string]any{"series_id": series})
 	first := str(rows(t, eps["episodes"], "episodes")[0]["id"])
 	call(t, "item_set_state", map[string]any{"id": first, "watched": true})
 	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": first, "watched": false}) })

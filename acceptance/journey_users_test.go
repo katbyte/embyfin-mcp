@@ -35,7 +35,7 @@ func TestARestrictedUsersPlaylists(t *testing.T) {
 	dune2 := findItem(t, "Movies", "Movie", "Dune: Part Two")
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	pilot := str(rows(t, call(t, "show_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"])
+	pilot := str(rows(t, call(t, "library_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"])
 	restrictAlice(t, "Movies", "Music")
 
 	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Alice Films", "user": "alice", "item_ids": []any{dune}, "media_type": "Video"})["id"])

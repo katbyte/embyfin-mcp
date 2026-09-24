@@ -168,10 +168,10 @@ func TestLibraryEpisodesCarryQualityFacts(t *testing.T) {
 
 	// the same facts reach a single series' listing, which is where A5 was
 	// found: series then episodes then a read per item
-	show := mustCall(t, cs, "show_episodes", map[string]any{"series_id": "sev"})
+	show := mustCall(t, cs, "library_episodes", map[string]any{"series": "Severance"})
 	first := objects(t, show["episodes"], "episodes")[0]
 	if number(t, first["width"], "width") != 1920 || first["video_codec"] != "h264" {
-		t.Errorf("show_episodes row lacks the quality facts: %v", first)
+		t.Errorf("a show's episode row lacks the quality facts: %v", first)
 	}
 
 	// asked for without them, the rows are the bare listing: no facts, and
@@ -975,7 +975,7 @@ func TestItemGetReportsAudioTheWayEpisodeRowsDo(t *testing.T) {
 	cs := session(t, tvServer(t, s), Options{})
 
 	item := mustCall(t, cs, "item_get", map[string]any{"id": "sev-1-1"})
-	row := objects(t, mustCall(t, cs, "show_episodes", map[string]any{"series_id": "sev"})["episodes"], "episodes")[0]
+	row := objects(t, mustCall(t, cs, "library_episodes", map[string]any{"series_id": "sev"})["episodes"], "episodes")[0]
 
 	fromItem := objects(t, item["audio"], "audio")
 	fromRow := objects(t, row["audio"], "audio")
@@ -1077,5 +1077,122 @@ func TestLibraryItemsCapsItsPage(t *testing.T) {
 	last := asked[len(asked)-1].Query
 	if !strings.Contains(last, "Limit="+strconv.Itoa(episodePageMax)) || strings.Contains(last, "Limit=50000") {
 		t.Errorf("a limit of 50000 reached the server as %s, want the %d cap", last, episodePageMax)
+	}
+}
+
+// library_episodes reads one show as readily as a library: by name or by id,
+// the whole of it or one season - the specials as season 0 - and a season the
+// show does not have is no episodes, not the show's others. The show comes
+// back named at the top, and a name says how it was matched.
+func TestLibraryEpisodesOfOneShow(t *testing.T) {
+	t.Parallel()
+
+	sev := severance()
+	sev.episodes = append(sev.episodes,
+		ep{season: 2, number: 1, name: "Hello, Ms. Cobel", path: "/media/shows/Severance/Season 02/S02E01.mkv"},
+		ep{season: 0, number: 1, name: "Welcome to Lumon", path: "/media/shows/Severance/Specials/S00E01.mkv"},
+	)
+	expanse := &fakeSeries{id: "exp", name: "The Expanse", year: 2015, episodes: []ep{{season: 1, number: 1, name: "Dulcinea", path: "/media/shows/The Expanse/S01E01.mkv"}}}
+	cs := session(t, tvServer(t, sev, expanse), Options{})
+
+	titles := func(out map[string]any) []string {
+		rows := objects(t, out["episodes"], "episodes")
+		got := make([]string, 0, len(rows))
+		for _, row := range rows {
+			got = append(got, text(row["title"]))
+		}
+		return got
+	}
+	whole := []string{"Welcome to Lumon", "Good News About Hell", "Half Loop", "Hello, Ms. Cobel"}
+	for _, args := range []map[string]any{{"series": "Severance"}, {"series": "sev"}, {"series_id": "sev"}} {
+		out := mustCall(t, cs, "library_episodes", args)
+		if out["series"] != "Severance" || out["series_id"] != "sev" || number(t, out["total"], "total") != 4 || !slices.Equal(titles(out), whole) {
+			t.Errorf("%v = %v %v, %v episodes %v, want Severance's four", args, out["series"], out["series_id"], out["total"], titles(out))
+		}
+		byName := args["series"] == "Severance"
+		if match, ok := out["matched"].(map[string]any); byName != ok || (ok && (match["series_id"] != "sev" || number(t, match["score"], "score") != 1)) {
+			t.Errorf("%v matched = %v, want the score for a name and nothing for an id", args, out["matched"])
+		}
+	}
+
+	for season, want := range map[int][]string{2: {"Hello, Ms. Cobel"}, 0: {"Welcome to Lumon"}, 9: nil} {
+		out := mustCall(t, cs, "library_episodes", map[string]any{"series": "Severance", "season": season})
+		if got := titles(out); !slices.Equal(got, want) || number(t, out["total"], "total") != len(want) || out["series_id"] != "sev" {
+			t.Errorf("season %d = %v (total %v), want %v", season, got, out["total"], want)
+		}
+	}
+
+	// a library read is every show's, and names none at the top
+	all := mustCall(t, cs, "library_episodes", map[string]any{})
+	if all["series"] != nil || all["series_id"] != nil || number(t, all["total"], "total") != 5 {
+		t.Errorf("a library read = %v episodes naming %v %v", all["total"], all["series"], all["series_id"])
+	}
+
+	for args, want := range map[string]map[string]any{
+		"series or series_id, not both":    {"series": "Severance", "series_id": "sev"},
+		"library or series_id, not both":   {"series_id": "sev", "library": "Shows"},
+		"season needs series or series_id": {"season": 1},
+		`no series named "Breaking Bad"`:   {"series": "Breaking Bad"},
+	} {
+		if msg := mustRefuse(t, cs, "library_episodes", want); !strings.Contains(msg, args) {
+			t.Errorf("%v = %s, want %q", want, msg, args)
+		}
+	}
+}
+
+// A show's name is matched the way show_episodes_exist matches it: a name
+// two shows answer to equally is refused naming both, a name that only
+// shares words with shows is refused naming the guesses, and neither is
+// read.
+func TestLibraryEpisodesRefusesAGuessOrATie(t *testing.T) {
+	t.Parallel()
+
+	tidy, messy := severance(), severance()
+	messy.id = "sev-messy"
+	messy.episodes = []ep{{season: 1, number: 1, name: "Good News About Hell", path: "/media/messy-shows/Severance/S01E01.mkv"}}
+	tng := &fakeSeries{id: "tng", name: "Star Trek: The Next Generation", year: 1987, episodes: []ep{{season: 1, number: 1, name: "Encounter at Farpoint", path: "/m/tng.mkv"}}}
+	ds9 := &fakeSeries{id: "ds9", name: "Star Trek: Deep Space Nine", year: 1993, episodes: []ep{{season: 1, number: 1, name: "Emissary", path: "/m/ds9.mkv"}}}
+	cs := session(t, tvServer(t, tidy, messy, tng, ds9), Options{})
+
+	tie := mustRefuse(t, cs, "library_episodes", map[string]any{"series": "Severance"})
+	for _, want := range []string{"matches 2 series", "id sev ", "id sev-messy", "give series_id"} {
+		if !strings.Contains(tie, want) {
+			t.Errorf("the tie's refusal lacks %q: %s", want, tie)
+		}
+	}
+	guess := mustRefuse(t, cs, "library_episodes", map[string]any{"series": "Star Trek Picard"})
+	for _, want := range []string{"nothing well enough", "the closest are", "The Next Generation", "Deep Space Nine"} {
+		if !strings.Contains(guess, want) {
+			t.Errorf("the guesses' refusal lacks %q: %s", want, guess)
+		}
+	}
+	// and either copy by its id is read
+	if out := mustCall(t, cs, "library_episodes", map[string]any{"series": "sev-messy"}); out["series_id"] != "sev-messy" || number(t, out["total"], "total") != 1 {
+		t.Errorf("the messy copy by id = %v", out)
+	}
+}
+
+// A name can be what another show's id is: Emby's ids are numbers, and 24 is
+// a show. Asked for "24" where one show has that id and another that name,
+// neither is read in the other's place.
+func TestLibraryEpisodesRefusesAnIDThatIsAnotherShowsName(t *testing.T) {
+	t.Parallel()
+
+	sev := severance()
+	sev.id = "24"
+	for i := range sev.episodes {
+		sev.episodes[i].path = "/media/shows/Severance/" + sev.episodes[i].name + ".mkv"
+	}
+	twentyFour := &fakeSeries{id: "2400", name: "24", year: 2001, episodes: []ep{{season: 1, number: 1, name: "12:00 a.m.-1:00 a.m.", path: "/media/shows/24/S01E01.mkv"}}}
+	cs := session(t, tvServer(t, sev, twentyFour), Options{})
+
+	msg := mustRefuse(t, cs, "library_episodes", map[string]any{"series": "24"})
+	for _, want := range []string{"is the id of Severance", "also names 24", "2400", "give series_id"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal lacks %q: %s", want, msg)
+		}
+	}
+	if out := mustCall(t, cs, "library_episodes", map[string]any{"series_id": "24"}); out["series"] != "Severance" {
+		t.Errorf("series_id 24 = %v, want Severance", out["series"])
 	}
 }

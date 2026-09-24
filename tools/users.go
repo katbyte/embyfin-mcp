@@ -142,16 +142,16 @@ func registerUserTools(r *registry) {
 
 	type nextUpIn struct {
 		User  string `json:"user,omitempty"  jsonschema:"user name or id; defaults to the first administrator"`
-		Limit int    `json:"limit,omitempty" jsonschema:"maximum items, default 15"`
+		Limit int    `json:"limit,omitempty" jsonschema:"maximum rows in each list, default 25"`
 	}
 	type nextUpOut struct {
-		User   string        `json:"user"`
-		NextUp []itemSummary `json:"next_up" jsonschema:"next unwatched episode per series"`
-		Resume []itemSummary `json:"resume"  jsonschema:"partially watched items"`
+		User       string          `json:"user"`
+		NextUp     []itemSummary   `json:"next_up"     jsonschema:"the next episode of each series the user is watching"`
+		InProgress []inProgressRow `json:"in_progress" jsonschema:"everything part way through (the continue watching row), most recently played first, with where each resumes"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_next_up",
-		Description: "What a user should continue watching: next episodes per series, plus partially-watched items.",
+		Description: "What a user should watch next - the next episode of each series they are watching - and everything they are part way through (the continue watching row), with where each resumes and how far through it is. item_set_state moves a resume point, or finishes or clears one.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in nextUpIn) (*mcp.CallToolResult, nextUpOut, error) {
 		user, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
@@ -160,7 +160,7 @@ func registerUserTools(r *registry) {
 
 		limit := in.Limit
 		if limit <= 0 {
-			limit = 15
+			limit = 25
 		}
 
 		nextUp, err := client.NextUp(ctx, user.ID, limit)
@@ -174,11 +174,35 @@ func registerUserTools(r *registry) {
 		}
 
 		return nil, nextUpOut{
-			User:   user.Name,
-			NextUp: summariseAll(nextUp),
-			Resume: summariseAll(resume),
+			User:       user.Name,
+			NextUp:     summariseAll(nextUp),
+			InProgress: inProgressRows(resume),
 		}, nil
 	})
+}
+
+// inProgressRow is a film or an episode part way through, with where it
+// resumes.
+type inProgressRow struct {
+	itemSummary
+	PositionS  int    `json:"position_s"            jsonschema:"where playback resumes, in seconds"`
+	Percent    int    `json:"percent"               jsonschema:"how far through, capped at 100"`
+	LastPlayed string `json:"last_played,omitempty"`
+}
+
+// inProgressRows are the rows for a user's resume list, in its order.
+func inProgressRows(items []embyfin.Item) []inProgressRow {
+	out := make([]inProgressRow, 0, len(items))
+	for i := range items {
+		seconds, percent := progressOf(&items[i])
+		row := inProgressRow{itemSummary: summarise(&items[i]), PositionS: seconds, Percent: percent}
+		if items[i].UserData != nil {
+			row.LastPlayed = items[i].UserData.LastPlayedDate
+		}
+		out = append(out, row)
+	}
+
+	return out
 }
 
 // playbackEvent reads an activity entry's type as a playback start or stop:

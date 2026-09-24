@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Changed**
+
+- `show_episodes` is gone: `library_episodes` takes the show by name or id (`series`) and a `season`, so one tool reads a show's episodes, a season's or a library's.
+- `user_in_progress` is gone: `user_next_up` answers what to watch next and everything part way through (`in_progress`, was `resume`), with where each resumes. 87 tools: 60 read, 22 write, 5 delete.
+
 **Fixed**
 
 - `audit_file_path` no longer flags a film Jellyfin could not match, which it names after its folder, year and all ("Cube (1997)").

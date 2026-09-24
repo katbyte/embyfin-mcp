@@ -194,7 +194,7 @@ func TestLibraryGenresReadOffTheItems(t *testing.T) {
 
 // Emby lists the next episode of a series among a user's resume items once
 // the one before is marked watched, at position zero: that is next up, not
-// in progress.
+// in progress, and user_next_up's in_progress leaves it out.
 func TestInProgressLeavesOutNextUp(t *testing.T) {
 	t.Parallel()
 
@@ -207,11 +207,17 @@ func TestInProgressLeavesOutNextUp(t *testing.T) {
 			{"Id":"e2","Name":"Cat's in the Bag...","Type":"Episode","UserData":{"PlaybackPositionTicks":0,"Played":false}},
 			{"Id":"m1","Name":"Arrival","Type":"Movie","UserData":{"PlaybackPositionTicks":600000000,"PlayedPercentage":42}}],"TotalRecordCount":2}`)
 	})
+	f.mux.HandleFunc("GET /Shows/NextUp", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"Items":[{"Id":"e2","Name":"Cat's in the Bag...","Type":"Episode"}],"TotalRecordCount":1}`)
+	})
 	cs := session(t, f, Options{})
 
-	out, msg := callTool(t, cs, "user_in_progress", nil)
-	if got, _ := json.Marshal(out["items"]); msg != "" || !strings.Contains(string(got), `"name":"Arrival"`) || strings.Contains(string(got), "Cat's in the Bag") {
-		t.Errorf("user_in_progress = %s %s", got, msg)
+	out, msg := callTool(t, cs, "user_next_up", nil)
+	if got, _ := json.Marshal(out["in_progress"]); msg != "" || !strings.Contains(string(got), `"name":"Arrival"`) || strings.Contains(string(got), "Cat's in the Bag") {
+		t.Errorf("user_next_up in_progress = %s %s", got, msg)
+	}
+	if got, _ := json.Marshal(out["next_up"]); !strings.Contains(string(got), "Cat's in the Bag") {
+		t.Errorf("user_next_up next_up = %s", got)
 	}
 }
 

@@ -116,50 +116,6 @@ func registerUserDetailTools(r *registry) {
 		return nil, out, nil
 	})
 
-	type inProgressIn struct {
-		userRef
-		Limit int `json:"limit,omitempty" jsonschema:"maximum items, default 25"`
-	}
-	type inProgressRow struct {
-		itemSummary
-		PositionS  int    `json:"position_s"            jsonschema:"where playback resumes, in seconds"`
-		Percent    int    `json:"percent"               jsonschema:"how far through, capped at 100"`
-		LastPlayed string `json:"last_played,omitempty"`
-	}
-	type inProgressOut struct {
-		User  string          `json:"user"`
-		Items []inProgressRow `json:"items" jsonschema:"most recently played first"`
-	}
-	add(r, readTool, &mcp.Tool{
-		Name:        "user_in_progress",
-		Description: "What a user is part way through (the continue watching row): each film and episode with where it resumes and how far through it is. item_set_state moves a resume point, or finishes or clears one.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in inProgressIn) (*mcp.CallToolResult, inProgressOut, error) {
-		u, err := client.ResolveUser(ctx, in.User)
-		if err != nil {
-			return nil, inProgressOut{}, err
-		}
-		limit := in.Limit
-		if limit <= 0 {
-			limit = 25
-		}
-		items, err := client.Resume(ctx, u.ID, limit)
-		if err != nil {
-			return nil, inProgressOut{}, err
-		}
-
-		out := inProgressOut{User: u.Name, Items: []inProgressRow{}}
-		for i := range items {
-			seconds, percent := progressOf(&items[i])
-			row := inProgressRow{itemSummary: summarise(&items[i]), PositionS: seconds, Percent: percent}
-			if items[i].UserData != nil {
-				row.LastPlayed = items[i].UserData.LastPlayedDate
-			}
-			out.Items = append(out.Items, row)
-		}
-
-		return nil, out, nil
-	})
-
 	type statsIn struct {
 		userRef
 		Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`

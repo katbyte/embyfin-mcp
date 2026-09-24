@@ -403,16 +403,6 @@ func sourceQuality(best *embyfin.MediaSource) qualityFacts {
 	return q
 }
 
-func episodeRows(items []embyfin.Item, quality bool, keep map[string]bool) []episodeRow {
-	out := make([]episodeRow, 0, len(items))
-	for i := range items {
-		out = append(out, episodeFacts(&items[i], quality, keep))
-	}
-	withRuntimeMultiples(out, keep)
-
-	return out
-}
-
 // runtimeMedianMin is how many episodes a season needs before its median
 // means anything. Two files tell you nothing about which is the odd one.
 const runtimeMedianMin = 3
@@ -672,9 +662,10 @@ func registerEpisodeTools(r *registry) {
 	client := r.client
 
 	type exportIn struct {
-		Library    string   `json:"library,omitempty"     jsonschema:"name or id; default every library"`
-		SeriesID   string   `json:"series_id,omitempty"   jsonschema:"one series, in place of a library"`
-		Season     *int     `json:"season,omitempty"      jsonschema:"one season, 0 for the specials; needs series_id"`
+		Series     string   `json:"series,omitempty"      jsonschema:"the show by name or id - every episode of it; with season, that season only"`
+		SeriesID   string   `json:"series_id,omitempty"   jsonschema:"the show by id alone"`
+		Season     *int     `json:"season,omitempty"      jsonschema:"one season of the show, 0 for the specials; needs series or series_id"`
+		Library    string   `json:"library,omitempty"     jsonschema:"every episode in one library, by name or id; with series, narrows a name lookup to that library. Default every library"`
 		Quality    *bool    `json:"quality,omitempty"     jsonschema:"the facts and the path on each row; default true"`
 		Fields     []string `json:"fields,omitempty"      jsonschema:"only these facts on each row: path, date_created, file_modified, runtime_s, container, size, bitrate, width, height, aspect_ratio, display_width, video_codec, frame_rate, hdr, audio, subtitles"`
 		WithFile   *bool    `json:"with_file,omitempty"   jsonschema:"only episodes with a file; default true"`
@@ -683,13 +674,17 @@ func registerEpisodeTools(r *registry) {
 		Offset     int      `json:"offset,omitempty"      jsonschema:"skip this many episodes, to page: the next page starts at offset + limit"`
 	}
 	type exportOut struct {
-		Total    int          `json:"total"    jsonschema:"episodes matching across every page"`
-		Offset   int          `json:"offset"   jsonschema:"where this page starts"`
-		Episodes []episodeRow `json:"episodes" jsonschema:"ordered by series, then season, then episode, so pages line up across calls"`
+		Series   string           `json:"series,omitempty"    jsonschema:"the show, when the call was scoped to one"`
+		SeriesID string           `json:"series_id,omitempty"`
+		Match    *seriesCandidate `json:"matched,omitempty"   jsonschema:"how the show's name was matched, when it was given by name: the score, what matched, and the runner-up"`
+		Total    int              `json:"total"               jsonschema:"episodes matching across every page"`
+		Offset   int              `json:"offset"              jsonschema:"where this page starts"`
+		Episodes []episodeRow     `json:"episodes"            jsonschema:"ordered by series, then season, then episode, so pages line up across calls"`
 	}
 	add(r, readTool, &mcp.Tool{
-		Name:        "library_episodes",
-		Description: "Every episode in a library or one series, paged by offset (the page walks the query, so a page whose rows were all filtered out still has pages after it), with each file's quality facts: resolution, codec, frame rate, HDR, bitrate, size, runtime and audio tracks. The bulk read for comparing a folder against the library.",
+		Name: "library_episodes",
+		Description: "Every episode of one show - or one season of it (season) - by name or id, or every episode in a library, with each file's quality facts: resolution, codec, frame rate, HDR, bitrate, size, runtime and audio tracks. " +
+			"A show's name is matched the way show_episodes_exist matches it: a guess or a tie is refused, naming the candidates. Paged by offset (the page walks the query, so a page whose rows were all filtered out still has pages after it); the bulk read for comparing a folder against the library.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in exportIn) (*mcp.CallToolResult, exportOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
@@ -719,18 +714,26 @@ func registerEpisodeTools(r *registry) {
 			opts.Fields = "Path,DateCreated,DateModified"
 		}
 
+		var series *embyfin.Item
+		var match *seriesCandidate
 		switch {
+		case in.Series != "" && in.SeriesID != "":
+			return nil, exportOut{}, errors.New("give series or series_id, not both")
+		case in.Series != "":
+			if series, match, err = resolveSeriesRef(ctx, r, in.Series, in.Library); err != nil {
+				return nil, exportOut{}, err
+			}
+			opts.ParentID = series.ID
 		case in.SeriesID != "":
 			if in.Library != "" {
 				return nil, exportOut{}, errors.New("give library or series_id, not both: a series is already in one library")
 			}
-			series, err := client.ItemByID(ctx, in.SeriesID)
-			if err != nil {
+			if series, err = client.ItemByID(ctx, in.SeriesID); err != nil {
 				return nil, exportOut{}, err
 			}
 			opts.ParentID = series.ID
 		case in.Season != nil:
-			return nil, exportOut{}, errors.New("season needs series_id: a season number means nothing across a library")
+			return nil, exportOut{}, errors.New("season needs series or series_id: a season number means nothing across a library")
 		default:
 			folder, err := resolveLibrary(ctx, client, in.Library)
 			if err != nil {
@@ -747,10 +750,13 @@ func registerEpisodeTools(r *registry) {
 		}
 
 		out := exportOut{Total: total, Offset: offset, Episodes: []episodeRow{}}
+		if series != nil {
+			out.Series, out.SeriesID, out.Match = series.Name, series.ID, match
+		}
 		// a season is only whole here when the call was scoped to one series;
 		// across a library the page boundary decides the median, which is not
 		// a fact about the season
-		scoped := in.SeriesID != ""
+		scoped := series != nil
 		for i := range items {
 			it := &items[i]
 			if in.Season != nil && it.ParentIndexNumber != *in.Season {

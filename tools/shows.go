@@ -268,6 +268,54 @@ func episodeOf(it *embyfin.Item) int {
 	return it.IndexNumber
 }
 
+// resolveSeriesRef finds a series given one string that may be its id or its
+// name, optionally within one library: the id of a series the library holds
+// is that series, and anything else is a name, matched and refused as
+// resolveSeriesMatch does. A name can be what another show's id is - Emby's
+// ids are numbers, and 24 and 1923 are shows - so an id that a confident name
+// match says is a different show is refused naming both rather than one
+// picked. An id the library's index has not caught up with (a show added a
+// moment ago) is still found when nothing is named it.
+func resolveSeriesRef(ctx context.Context, r *registry, ref, library string) (*embyfin.Item, *seriesCandidate, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return nil, nil, errors.New("a series is required: give it by name or id")
+	}
+	folder, err := resolveLibrary(ctx, r.client, library)
+	if err != nil {
+		return nil, nil, err
+	}
+	parent := ""
+	if folder != nil {
+		parent = folder.ItemID
+	}
+	idx, err := r.seriesCache().get(ctx, r.client, parent)
+	if err != nil {
+		return nil, nil, err
+	}
+	if i, ok := idx.byID[ref]; ok {
+		byID := idx.items[i]
+		if rows := idx.rank(parseRelease(ref)); len(rows) > 0 && rows[0].Score >= seriesConfident && rows[0].SeriesID != byID.ID {
+			return nil, nil, fmt.Errorf("%q is the id of %s (%d) at %s, and also names %s (%d) id %s at %s: give series_id for the one by id, or more of the name",
+				ref, byID.Name, byID.ProductionYear, byID.Path, rows[0].Name, rows[0].Year, rows[0].SeriesID, rows[0].Path)
+		}
+
+		return &byID, nil, nil
+	}
+
+	item, match, err := resolveSeriesMatch(ctx, r, "", ref, library)
+	if err == nil {
+		return item, match, nil
+	}
+	if folder == nil {
+		if it, ierr := r.client.ItemByID(ctx, ref); ierr == nil && it.Type == "Series" {
+			return it, nil, nil
+		}
+	}
+
+	return nil, nil, err
+}
+
 // resolveSeriesMatch finds the series a tool was pointed at: by id, or by
 // name when the caller has only that, optionally within one library. A name
 // that matches more than one series is refused with the matches rather than
@@ -433,7 +481,7 @@ func registerShowTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "show_seasons",
-		Description: "List a series' seasons.",
+		Description: "List a series' seasons, each with its number (0 for the specials). A season's episodes come from library_episodes, with series and season.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in seasonsIn) (*mcp.CallToolResult, seasonsOut, error) {
 		series, err := client.ItemByID(ctx, in.SeriesID)
 		if err != nil {
@@ -451,37 +499,6 @@ func registerShowTools(r *registry) {
 		}
 
 		return nil, out, nil
-	})
-
-	type episodesIn struct {
-		SeriesID string `json:"series_id"           jsonschema:"the series item id"`
-		SeasonID string `json:"season_id,omitempty" jsonschema:"restrict to one season (id from show_seasons)"`
-		Season   *int   `json:"season,omitempty"    jsonschema:"restrict to one season by number, 0 for the specials, when its id is not to hand"`
-	}
-	type episodesOut struct {
-		Series   string       `json:"series"`
-		SeriesID string       `json:"series_id"`
-		Episodes []episodeRow `json:"episodes"  jsonschema:"in broadcast order, each with its quality facts"`
-	}
-	add(r, readTool, &mcp.Tool{
-		Name:        "show_episodes",
-		Description: "List one series' episodes with the quality facts on each row - width, height, video codec, bitrate, size, container and runtime - optionally scoped to one season. For every episode in a library at once, rather than a call per series, use library_episodes.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, episodesOut, error) {
-		series, err := client.ItemByID(ctx, in.SeriesID)
-		if err != nil {
-			return nil, episodesOut{}, err
-		}
-
-		episodes, err := client.Episodes(ctx, in.SeriesID, embyfin.EpisodeOptions{SeasonID: in.SeasonID, Season: in.Season})
-		if err != nil {
-			return nil, episodesOut{}, err
-		}
-		if in.Season != nil {
-			// Emby answers the whole series for a season it cannot place
-			episodes = slices.DeleteFunc(episodes, func(e embyfin.Item) bool { return e.ParentIndexNumber != *in.Season })
-		}
-
-		return nil, episodesOut{Series: series.Name, SeriesID: series.ID, Episodes: episodeRows(episodes, true, nil)}, nil
 	})
 
 	type missingIn struct {

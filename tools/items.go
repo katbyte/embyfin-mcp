@@ -374,7 +374,7 @@ func registerItemTools(r *registry) {
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "item_set_state",
-		Description: "Set a user's state on an item: watched or not, favourite or not, and where it resumes from, any or all in one call, for a user who can see it. Emby keeps watch state and favourites by metadata provider id, so there every copy of the film (or episode) is marked with it. user_in_progress lists the resume points. Changes server state.",
+		Description: "Set a user's state on an item: watched or not, favourite or not, and where it resumes from, any or all in one call, for a user who can see it. Emby keeps watch state and favourites by metadata provider id, so there every copy of the film (or episode) is marked with it. user_next_up lists the resume points. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in setStateIn) (*mcp.CallToolResult, setStateOut, error) {
 		if in.Watched == nil && in.Favourite == nil && in.PositionS == nil {
 			return nil, setStateOut{}, errors.New("nothing to set: pass watched, favourite or position_s")

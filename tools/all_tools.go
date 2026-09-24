@@ -92,13 +92,13 @@ var Toolsets = map[string][]string{
 		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_anime_ids", "audit_provider", "quality_compare", "plan_check",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
-		"item_similar", "show_seasons", "show_episodes", "show_episodes_exist", "show_missing", "show_resolve",
+		"item_similar", "show_seasons", "show_episodes_exist", "show_missing", "show_resolve",
 		"library_episodes", "library_export", "library_recent", "library_genres", "library_filters", "person_get",
 	},
 	// who watched what, and keeping watch state right: the users, their
 	// history, what is next and in progress, favourites, played flags
 	"watching": {
-		"user_list", "user_get", "user_history", "user_next_up", "user_in_progress", "user_stats",
+		"user_list", "user_get", "user_history", "user_next_up", "user_stats",
 		"item_watch_history", "item_last_watched", "item_set_state",
 		"item_instant_mix",
 	},

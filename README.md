@@ -27,7 +27,7 @@ differences between them live in one package, and every tool is tested against b
 
 ### What else is in the box
 
-- **89 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
+- **87 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
 - **Three Go SDKs.** `lib/emby`, `lib/jf` and `lib/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents (each package's `APIVersion` says which), standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
@@ -185,7 +185,7 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 |---|---|
 | server | `server_info`, `server_stats`, `server_activity`, `server_devices`, `server_logs`, `server_log` |
 | tasks | `task_list`, `task_run` |
-| libraries | `library_list`, `library_get` (counts by type), `library_items` (a title search, a structured filter by genre, tag, studio, rating, year, person and watch state, or both, sorted and paged), `library_filters` (every genre, tag, studio, rating and year, with counts), `library_episodes` (every episode in a library, paged, with quality), `library_export` (a whole library to a new file on the machine embyfin-mcp runs on, never over an existing one), `library_recent`, `library_genres`, `library_scan` (every library, or one), `library_create`, `library_edit` (rename, add and remove folders, switch nfo saving), `library_delete` |
+| libraries | `library_list`, `library_get` (counts by type), `library_items` (a title search, a structured filter by genre, tag, studio, rating, year, person and watch state, or both, sorted and paged), `library_filters` (every genre, tag, studio, rating and year, with counts), `library_episodes` (every episode of a show, one season of it, or a whole library, paged, with quality), `library_export` (a whole library to a new file on the machine embyfin-mcp runs on, never over an existing one), `library_recent`, `library_genres`, `library_scan` (every library, or one), `library_create`, `library_edit` (rename, add and remove folders, switch nfo saving), `library_delete` |
 | audits | the 21 audits in [the table above](#the-audits) |
 | items | `item_get`, `item_find_by_metadata_id` (the definitive "do I already have this?"), `item_similar`, `item_refresh`, `item_edit` (one item's fields, or the same genres, tags, studios or rating across many; `add_*` and `remove_*` edit each item's own list), `item_instant_mix`, `item_last_watched`, `item_watch_history`, `item_set_state` (watched, favourite and resume point, any or all) |
 | metadata | `metadata_rename` (a genre, tag or studio, everywhere it is used; renaming onto an existing value merges, `remove` drops it) |
@@ -193,15 +193,15 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 | identify | `item_identify` (candidates from the server's providers) → `item_identify_apply` |
 | artwork | `item_artwork` (current images plus remote candidates) → `item_artwork_set` |
 | subtitles | `item_subtitle_search` → `item_subtitle_download` |
-| shows | `show_seasons`, `show_episodes` (with quality on each row), `show_episodes_exist` (does it have these episodes? up to 50 series a call, with the match score and any duplicate entries), `show_missing` (what a series is missing, and whether it could tell), `show_resolve` (a release name to a series, scored) |
-| users | `user_list`, `user_get` (permissions, libraries, playback preferences), `user_history`, `user_next_up`, `user_in_progress` (with positions), `user_stats` (films and episodes watched, in progress and favourited, hours, series finished, top genres and series, in one pass) |
+| shows | `show_seasons` (a show's episodes come from `library_episodes`), `show_episodes_exist` (does it have these episodes? up to 50 series a call, with the match score and any duplicate entries), `show_missing` (what a series is missing, and whether it could tell), `show_resolve` (a release name to a series, scored) |
+| users | `user_list`, `user_get` (permissions, libraries, playback preferences), `user_history`, `user_next_up` (the next episode of each series, and everything part way through, with positions), `user_stats` (films and episodes watched, in progress and favourited, hours, series finished, top genres and series, in one pass) |
 | quality | `quality_compare` (which of two copies is better, by how much, and why) |
 | plan | `plan_check` (before writing files: what is at each destination path now, which series it would join, which entries collide) |
 | sessions | `session_list`, `session_play`, `session_command`, `session_message` |
 | playlists | `playlist_list`, `playlist_get`, `playlist_create`, `playlist_edit` (rename, move an entry), `playlist_add`, `playlist_remove`, `playlist_delete` |
 | collections | `collection_list`, `collection_get`, `collection_create`, `collection_edit` (rename, sort name, overview), `collection_add`, `collection_remove`, `collection_delete` |
 
-`item_delete` (permanently removes the item's files - a film alone in its folder or a series goes with the whole folder - and without `confirm` says what it would remove), `item_orphans_delete` (what a removed library left behind, once its folder is gone), `library_delete`, `playlist_delete` and `collection_delete` are only registered when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set: none of them can be undone. `--read-only` registers the 62 read tools and nothing else, so a write tool is absent from `tools/list` rather than refused when called.
+`item_delete` (permanently removes the item's files - a film alone in its folder or a series goes with the whole folder - and without `confirm` says what it would remove), `item_orphans_delete` (what a removed library left behind, once its folder is gone), `library_delete`, `playlist_delete` and `collection_delete` are only registered when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set: none of them can be undone. `--read-only` registers the 60 read tools and nothing else, so a write tool is absent from `tools/list` rather than refused when called.
 
 ### Choosing which tools load
 

@@ -343,7 +343,7 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		if facts.Width <= 0 && facts.Height <= 0 {
 			// a series or a season holds episodes rather than a file: the
 			// id is one level up from the thing being compared
-			return copyFacts{}, nil, fmt.Errorf("copy %s: %q is a %s, which has no frame of its own - compare the episodes (show_episodes lists them with their ids)", side, item.Name, strings.ToLower(item.Type))
+			return copyFacts{}, nil, fmt.Errorf("copy %s: %q is a %s, which has no frame of its own - compare the episodes (library_episodes with series lists them with their ids)", side, item.Name, strings.ToLower(item.Type))
 		}
 	}
 

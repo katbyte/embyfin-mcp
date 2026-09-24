@@ -129,7 +129,7 @@ func TestImportingAMissingEpisode(t *testing.T) {
 
 	// the destination, beside the episodes the series holds
 	var first string
-	for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": tng})["episodes"], "episodes") {
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": tng})["episodes"], "episodes") {
 		if num(t, e["episode"], "episode") == 1 {
 			first = str(e["path"])
 		}
@@ -185,7 +185,7 @@ func TestImportingAMissingEpisode(t *testing.T) {
 // one in the library, plan_check shows the path taken and by how much the
 // file grows, the file is written over, and the library scanned. The one
 // episode saved since then is the upgraded one, audit_quality has let go of
-// it, and show_episodes reads the new picture.
+// it, and library_episodes reads the new picture.
 //
 // The episode is staged, 360p, beside the messy Severance's own, so the
 // upgrade leaves nothing behind: an episode written over in place stays
@@ -212,7 +212,7 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 
 	// the incoming file is the clean library's 720p encode, byte for byte
 	var better map[string]any
-	for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": clean, "season": 1})["episodes"], "episodes") {
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": clean, "season": 1})["episodes"], "episodes") {
 		if num(t, e["episode"], "episode") == 1 {
 			better = e
 		}
@@ -232,7 +232,7 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	var path string
-	for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
 		if str(e["id"]) == rip {
 			path = str(e["path"])
 		}
@@ -270,7 +270,7 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 	// the scan saves the item before it has probed the new file, so what
 	// settles it is the picture the server reads
 	height := func() int {
-		for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+		for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
 			if str(e["id"]) == rip {
 				return numOr0(e["height"])
 			}
@@ -303,9 +303,9 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 		// Emby read the new file's size and time, and the time says replaced
 		t.Errorf("audit_quality replaced = %v, want the upgraded episode at %d bytes", quality["replaced"], len(incoming))
 	}
-	for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
 		if str(e["id"]) == rip && (num(t, e["height"], "height") != 720 || num(t, e["size"], "size") != len(incoming)) {
-			t.Errorf("show_episodes reads the upgraded episode as %vx%v, %v bytes", e["width"], e["height"], e["size"])
+			t.Errorf("library_episodes reads the upgraded episode as %vx%v, %v bytes", e["width"], e["height"], e["size"])
 		}
 	}
 }
@@ -452,7 +452,7 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		series := func() []string {
 			var out []string
 			for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Shows", "types": "Series", "limit": 50})["items"], "items") {
-				n := len(rows(t, call(t, "show_episodes", map[string]any{"series_id": str(it["id"])})["episodes"], "episodes"))
+				n := len(rows(t, call(t, "library_episodes", map[string]any{"series_id": str(it["id"])})["episodes"], "episodes"))
 				out = append(out, fmt.Sprintf("%s %s at %s, %d episodes", str(it["id"]), str(it["name"]), str(it["path"]), n))
 			}
 			slices.Sort(out)
@@ -473,7 +473,7 @@ func TestHowFarADeleteReaches(t *testing.T) {
 			t.Fatal(err)
 		}
 		id := findItem(t, "Messy Shows", "Series", "DuckTales")
-		episodes := rows(t, call(t, "show_episodes", map[string]any{"series_id": id})["episodes"], "episodes")
+		episodes := rows(t, call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes")
 		if len(episodes) != 2 {
 			t.Fatalf("the staged series holds %v, want two episodes", episodes)
 		}
@@ -618,7 +618,7 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 		t.Errorf("after the merge audit_duplicate_series = %v", got)
 	}
 	var numbers []int
-	for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": str(keep["series_id"])})["episodes"], "episodes") {
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": str(keep["series_id"])})["episodes"], "episodes") {
 		numbers = append(numbers, num(t, e["episode"], "episode"))
 	}
 	slices.Sort(numbers)

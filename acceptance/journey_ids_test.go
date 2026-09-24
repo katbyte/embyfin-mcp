@@ -49,7 +49,7 @@ func TestIdentifyingAnUnmatchedShow(t *testing.T) {
 	// servers write nfos of their own for a library that saves them
 	numbers := func() []int {
 		var out []int
-		for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": tng})["episodes"], "episodes") {
+		for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": tng})["episodes"], "episodes") {
 			out = append(out, numOr0(e["episode"]))
 		}
 		slices.Sort(out)

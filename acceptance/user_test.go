@@ -34,7 +34,7 @@ func TestUserList(t *testing.T) {
 // up, then unmark it.
 func TestWatchState(t *testing.T) {
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	eps := call(t, "show_episodes", map[string]any{"series_id": series})
+	eps := call(t, "library_episodes", map[string]any{"series_id": series})
 	byNumber := map[int]string{}
 	for _, e := range rows(t, eps["episodes"], "episodes") {
 		byNumber[num(t, e["episode"], "episode")] = str(e["id"])
@@ -88,8 +88,9 @@ func TestWatchState(t *testing.T) {
 	if !found {
 		t.Errorf("episode two is not next up for alice: %v", next["next_up"])
 	}
-	if _, ok := next["resume"].([]any); !ok {
-		t.Errorf("resume = %v", next["resume"])
+	// and nothing is part way through: the pilot was marked, not started
+	if in := rows(t, next["in_progress"], "in_progress"); len(in) != 0 {
+		t.Errorf("in_progress = %v, want none", in)
 	}
 	// a limit caps the list
 	if capped := call(t, "user_next_up", map[string]any{"user": "alice", "limit": 1}); len(rows(t, capped["next_up"], "next_up")) != 1 {
@@ -247,9 +248,9 @@ func boolOf(v any) bool {
 	return b
 }
 
-// item_set_state with a position puts an item in progress; user_in_progress
-// lists it with its position, user_stats counts it; marking it unwatched
-// clears it.
+// item_set_state with a position puts an item in progress; user_next_up
+// lists it among in_progress with where it resumes, user_stats counts it;
+// marking it unwatched clears it.
 func TestProgress(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	before := call(t, "user_stats", map[string]any{"user": "alice"})
@@ -266,7 +267,7 @@ func TestProgress(t *testing.T) {
 
 	var row map[string]any
 	for range 10 {
-		for _, it := range rows(t, call(t, "user_in_progress", map[string]any{"user": "alice"})["items"], "items") {
+		for _, it := range rows(t, call(t, "user_next_up", map[string]any{"user": "alice"})["in_progress"], "in_progress") {
 			if str(it["id"]) == arrival {
 				row = it
 			}
@@ -279,8 +280,9 @@ func TestProgress(t *testing.T) {
 	if row == nil {
 		t.Fatal("Arrival is not in progress for alice")
 	}
-	// the file runs a second, so the position is past its end: the percent is capped
-	if num(t, row["position_s"], "position_s") != 2550 || num(t, row["percent"], "percent") != 100 {
+	// the file runs a second, so the position is past its end: the percent is
+	// capped. It was played a moment ago, by nothing but the call above
+	if num(t, row["position_s"], "position_s") != 2550 || num(t, row["percent"], "percent") != 100 || str(row["name"]) != "Arrival" || str(row["type"]) != "Movie" {
 		t.Errorf("in progress row = %v", row)
 	}
 	// the resume point reads back in the same unit through item_last_watched
@@ -294,17 +296,17 @@ func TestProgress(t *testing.T) {
 		t.Error("item_last_watched does not show alice's resume point at 2550 seconds")
 	}
 	// a limit caps the list
-	if capped := call(t, "user_in_progress", map[string]any{"user": "alice", "limit": 1}); len(rows(t, capped["items"], "items")) != 1 {
-		t.Errorf("limit 1 = %v", capped["items"])
+	if capped := call(t, "user_next_up", map[string]any{"user": "alice", "limit": 1}); len(rows(t, capped["in_progress"], "in_progress")) != 1 {
+		t.Errorf("limit 1 = %v", capped["in_progress"])
 	}
 	// root has nothing in progress
-	if n := len(rows(t, call(t, "user_in_progress", nil)["items"], "items")); n != 0 {
+	if n := len(rows(t, call(t, "user_next_up", nil)["in_progress"], "in_progress")); n != 0 {
 		t.Errorf("root has %d in progress", n)
 	}
 
 	// marking it unwatched clears the resume point
 	call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
-	for _, it := range rows(t, call(t, "user_in_progress", map[string]any{"user": "alice"})["items"], "items") {
+	for _, it := range rows(t, call(t, "user_next_up", map[string]any{"user": "alice"})["in_progress"], "in_progress") {
 		if str(it["id"]) == arrival {
 			t.Errorf("Arrival is still in progress after marking it unwatched: %v", it)
 		}
@@ -321,7 +323,7 @@ func TestProgress(t *testing.T) {
 func TestUserStats(t *testing.T) {
 	mononoke := findItem(t, "Movies", "Movie", "Princess Mononoke")
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	eps := rows(t, call(t, "show_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
+	eps := rows(t, call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
 	watch := []string{mononoke, str(eps[0]["id"]), str(eps[1]["id"])}
 	for _, id := range watch {
 		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true})
@@ -384,7 +386,7 @@ func TestUserFamilyIsComplete(t *testing.T) {
 			got = append(got, name)
 		}
 	}
-	want := []string{"user_get", "user_history", "user_in_progress", "user_list", "user_next_up", "user_stats"}
+	want := []string{"user_get", "user_history", "user_list", "user_next_up", "user_stats"}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {
 		t.Errorf("user tools = %v, want %v", got, want)

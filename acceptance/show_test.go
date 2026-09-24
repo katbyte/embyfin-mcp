@@ -31,61 +31,63 @@ func TestShowSeasons(t *testing.T) {
 	}
 }
 
-// The episode rows carry the quality facts as numbers, which is what deciding
-// "is my copy better than the library's" reads (A5).
-func TestShowEpisodes(t *testing.T) {
-	id := findItem(t, "Shows", "Series", "Breaking Bad")
-	out := call(t, "show_episodes", map[string]any{"series_id": id})
-	if str(out["series"]) != "Breaking Bad" {
-		t.Errorf("series = %v", out["series"])
+// A show's episodes through library_episodes: by name or by id, the whole
+// show or one season of it, each row carrying the quality facts as numbers,
+// which is what deciding "is my copy better than the library's" reads (A5).
+func TestLibraryEpisodesOfAShow(t *testing.T) {
+	bb := findItem(t, "Shows", "Series", "Breaking Bad")
+	numbers := func(out map[string]any) []int {
+		var got []int
+		for _, e := range rows(t, out["episodes"], "episodes") {
+			got = append(got, num(t, e["episode"], "episode"))
+		}
+		return got
+	}
+
+	// by name: the show is named at the top, with how the name matched
+	out := call(t, "library_episodes", map[string]any{"series": "Breaking Bad"})
+	if str(out["series"]) != "Breaking Bad" || str(out["series_id"]) != bb {
+		t.Errorf("series = %v %v, want Breaking Bad %s", out["series"], out["series_id"], bb)
+	}
+	if m := object(t, out["matched"], "matched"); str(m["series_id"]) != bb || decimal(t, m["score"], "score") != 1 {
+		t.Errorf("matched = %v", m)
 	}
 	eps := rows(t, out["episodes"], "episodes")
-	var numbers []int
 	for _, e := range eps {
-		numbers = append(numbers, num(t, e["episode"], "episode"))
 		if str(e["series"]) != "Breaking Bad" || num(t, e["season"], "season") != 1 {
 			t.Errorf("episode row = %v", e)
 		}
 		assertQualityFacts(t, e)
 	}
-	slices.Sort(numbers)
-	if !slices.Equal(numbers, []int{1, 2, 3}) {
-		t.Errorf("episodes = %v, want [1 2 3]", numbers)
+	if got := numbers(out); !slices.Equal(got, []int{1, 2, 3}) || num(t, out["total"], "total") != 3 {
+		t.Errorf("episodes = %v of %v, want [1 2 3]", got, out["total"])
 	}
 	// the nfo named them
-	var pilot bool
-	for _, e := range eps {
-		if str(e["title"]) == "Pilot" {
-			pilot = true
-		}
-	}
-	if !pilot {
+	if !slices.ContainsFunc(eps, func(e map[string]any) bool { return str(e["title"]) == "Pilot" }) {
 		t.Errorf("no episode titled Pilot among %v", eps)
 	}
+	// by id, the same show, and no matching to report
+	byID := call(t, "library_episodes", map[string]any{"series": bb})
+	if str(byID["series"]) != "Breaking Bad" || byID["matched"] != nil || !slices.Equal(numbers(byID), []int{1, 2, 3}) {
+		t.Errorf("by id = %v %v %v", byID["series"], byID["matched"], numbers(byID))
+	}
 
-	// scoped to one season of a two-season show
+	// Severance is held twice, a tidy copy and a messy one: its name alone is
+	// refused naming both, and a library says which
+	msg := callErr(t, "library_episodes", map[string]any{"series": "Severance"})
+	if !strings.Contains(msg, "matches 2 series") || strings.Count(msg, "Severance (2022)") != 2 || !strings.Contains(msg, "give series_id") {
+		t.Errorf("Severance by name alone = %s", msg)
+	}
 	sev := findItem(t, "Shows", "Series", "Severance")
-	seasons := call(t, "show_seasons", map[string]any{"series_id": sev})
-	var s2 string
-	for _, s := range rows(t, seasons["seasons"], "seasons") {
-		if num(t, s["season"], "season") == 2 {
-			s2 = str(s["id"])
+	for season, want := range map[int][]int{1: {1, 2}, 2: {1, 2}, 0: nil, 9: nil} {
+		out = call(t, "library_episodes", map[string]any{"series": "Severance", "library": "Shows", "season": season})
+		for _, e := range rows(t, out["episodes"], "episodes") {
+			if num(t, e["season"], "season") != season {
+				t.Errorf("season %d listing has %v", season, e)
+			}
 		}
-	}
-	out = call(t, "show_episodes", map[string]any{"series_id": sev, "season_id": s2})
-	for _, e := range rows(t, out["episodes"], "episodes") {
-		if num(t, e["season"], "season") != 2 {
-			t.Errorf("season 2 listing has %v", e)
-		}
-	}
-	if n := len(rows(t, out["episodes"], "episodes")); n != 2 {
-		t.Errorf("season 2 has %d episodes, want 2", n)
-	}
-	// and by season number, for a caller that has no season id
-	out = call(t, "show_episodes", map[string]any{"series_id": sev, "season": 1})
-	for _, e := range rows(t, out["episodes"], "episodes") {
-		if num(t, e["season"], "season") != 1 {
-			t.Errorf("season 1 listing has %v", e)
+		if got := numbers(out); !slices.Equal(got, want) || num(t, out["total"], "total") != len(want) || str(out["series_id"]) != sev {
+			t.Errorf("season %d of the tidy Severance = %v of %v (%v), want %v", season, got, out["total"], out["series_id"], want)
 		}
 	}
 }
@@ -353,7 +355,7 @@ func TestShowFamilyIsComplete(t *testing.T) {
 			got = append(got, name)
 		}
 	}
-	want := []string{"show_episodes", "show_episodes_exist", "show_missing", "show_resolve", "show_seasons"}
+	want := []string{"show_episodes_exist", "show_missing", "show_resolve", "show_seasons"}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {
 		t.Errorf("show tools = %v, want %v", got, want)

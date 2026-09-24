@@ -258,8 +258,8 @@ func TestTheBinary(t *testing.T) {
 			for _, tool := range listedTools(t, cs) {
 				kinds[kindOf(tool)] = append(kinds[kindOf(tool)], tool.Name)
 			}
-			if len(kinds["read"]) != 62 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
-				t.Errorf("read %d, write %d, delete %d, want 62, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
+			if len(kinds["read"]) != 60 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
+				t.Errorf("read %d, write %d, delete %d, want 60, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
 			}
 			if want := []string{"collection_delete", "item_delete", "item_orphans_delete", "library_delete", "playlist_delete"}; !slices.Equal(sorted(kinds["delete"]), want) {
 				t.Errorf("delete tools = %v, want %v", kinds["delete"], want)

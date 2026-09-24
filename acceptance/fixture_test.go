@@ -30,7 +30,7 @@ func TestFixturesAreWhatTheScriptLaidOut(t *testing.T) {
 		if num(t, got["year"], "year") != s.Year || str(ids["tmdb"]) != s.TMDB || str(ids["tvdb"]) != s.TVDB {
 			t.Errorf("%s = %v %v, want %d tmdb %s tvdb %s", s.Title, got["year"], ids, s.Year, s.TMDB, s.TVDB)
 		}
-		eps := call(t, "show_episodes", map[string]any{"series_id": id})
+		eps := call(t, "library_episodes", map[string]any{"series_id": id})
 		have := map[string]bool{}
 		for _, e := range rows(t, eps["episodes"], "episodes") {
 			have[fmt.Sprintf("S%02dE%02d", num(t, e["season"], "season"), num(t, e["episode"], "episode"))] = true

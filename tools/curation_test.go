@@ -435,7 +435,7 @@ func TestRuntimeMultipleOnRows(t *testing.T) {
 	}
 	cs := session(t, tvServer(t, s), Options{})
 
-	rows := objects(t, mustCall(t, cs, "show_episodes", map[string]any{"series_id": "sev"})["episodes"], "episodes")
+	rows := objects(t, mustCall(t, cs, "library_episodes", map[string]any{"series": "sev"})["episodes"], "episodes")
 	byNumber := map[int]map[string]any{}
 	for _, row := range rows {
 		byNumber[number(t, row["episode"], "episode")] = row

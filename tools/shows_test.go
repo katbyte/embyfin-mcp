@@ -254,6 +254,11 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		if term := param(q, "SearchTerm"); term != "" {
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !strings.Contains(searchFold(it.Name), searchFold(term)) })
 		}
+		// a season by number, as both servers take it on a search
+		if season := param(q, "ParentIndexNumber"); season != "" {
+			n, _ := strconv.Atoi(season)
+			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.Type != "Episode" || it.ParentIndexNumber != n })
+		}
 		// a series as the parent is its own episodes; the library is all of them
 		if parent := param(q, "ParentId"); parent != "" && parent != "lib" {
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.SeriesID != parent })

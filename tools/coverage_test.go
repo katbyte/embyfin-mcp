@@ -659,8 +659,9 @@ func TestTheHistoryToolsSayWhenThePeriodIsCutShort(t *testing.T) {
 	}
 }
 
-// user_next_up asks Emby's legacy next-up and its resume list, and drops
-// the resume rows Emby pads with never-started episodes.
+// user_next_up asks Emby's legacy next-up and its resume list, drops the
+// resume rows Emby pads with never-started episodes, and says where each of
+// the rest resumes.
 func TestUserNextUp(t *testing.T) {
 	t.Parallel()
 
@@ -670,17 +671,17 @@ func TestUserNextUp(t *testing.T) {
 	})
 	f.mux.HandleFunc("GET /Users/{user}/Items/Resume", func(w http.ResponseWriter, _ *http.Request) {
 		started, padded := film("9", "Zzyzx", 2001), film("8", "Xyzzy", 1999)
-		started["UserData"] = map[string]any{"PlaybackPositionTicks": 300_000_000}
+		started["UserData"] = map[string]any{"PlaybackPositionTicks": 300_000_000, "PlayedPercentage": 37.5, "LastPlayedDate": "2026-09-20T21:00:00Z"}
 		padded["UserData"] = map[string]any{"PlaybackPositionTicks": 0}
 		writeJSON(t, w, page(started, padded))
 	})
 	cs := session(t, f, Options{})
 
 	out := mustCall(t, cs, "user_next_up", map[string]any{})
-	if q := lastQuery(t, f, "/Shows/NextUp"); q.Get("UserId") != "u1" || q.Get("LegacyNextUp") != "true" || q.Get("Limit") != "15" {
+	if q := lastQuery(t, f, "/Shows/NextUp"); q.Get("UserId") != "u1" || q.Get("LegacyNextUp") != "true" || q.Get("Limit") != "25" {
 		t.Errorf("next up query = %v", q)
 	}
-	if q := lastQuery(t, f, "/Users/u1/Items/Resume"); q.Get("Recursive") != "true" || q.Get("MediaTypes") != "Video" || q.Get("EnableUserData") != "true" || q.Get("Limit") != "15" {
+	if q := lastQuery(t, f, "/Users/u1/Items/Resume"); q.Get("Recursive") != "true" || q.Get("MediaTypes") != "Video" || q.Get("EnableUserData") != "true" || q.Get("Limit") != "25" {
 		t.Errorf("resume query = %v", q)
 	}
 	if out["user"] != "Quux" {
@@ -690,8 +691,20 @@ func TestUserNextUp(t *testing.T) {
 	if len(next) != 1 || next[0]["series"] != "Zzyzx Files" || number(t, next[0]["season"], "season") != 1 || number(t, next[0]["episode"], "episode") != 2 {
 		t.Errorf("next_up = %v", next)
 	}
-	if resume := objects(t, out["resume"], "resume"); len(resume) != 1 || resume[0]["id"] != "9" {
-		t.Errorf("resume = %v, want only the item with a position", resume)
+	in := objects(t, out["in_progress"], "in_progress")
+	if len(in) != 1 || in[0]["id"] != "9" {
+		t.Fatalf("in_progress = %v, want only the item with a position", in)
+	}
+	if number(t, in[0]["position_s"], "position_s") != 30 || number(t, in[0]["percent"], "percent") != 37 || in[0]["last_played"] != "2026-09-20T21:00:00Z" {
+		t.Errorf("in_progress row = %v, want it resuming at 30s, 37%% through, last played 2026-09-20", in[0])
+	}
+	if out["resume"] != nil {
+		t.Errorf("the old resume list is still answered: %v", out["resume"])
+	}
+	// the limit is each list's
+	mustCall(t, cs, "user_next_up", map[string]any{"limit": 3})
+	if next, resume := lastQuery(t, f, "/Shows/NextUp"), lastQuery(t, f, "/Users/u1/Items/Resume"); next.Get("Limit") != "3" || resume.Get("Limit") != "3" {
+		t.Errorf("limit 3 asked next up for %s and the resume list for %s", next.Get("Limit"), resume.Get("Limit"))
 	}
 }
 

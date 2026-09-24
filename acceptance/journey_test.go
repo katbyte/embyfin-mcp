@@ -451,12 +451,11 @@ func TestLookupsChangeNothing(t *testing.T) {
 		{"person_get", map[string]any{"person": "Scott"}},
 		{"person_get", map[string]any{"person": "Ridley Scott"}},
 		{"show_missing", map[string]any{"series_id": severance}},
-		{"show_episodes", map[string]any{"series_id": severance}},
+		{"library_episodes", map[string]any{"series": severance}},
 		{"audit_all", nil},
 		{"audit_unwatched", map[string]any{"types": "Movie,Series"}},
 		{"user_stats", map[string]any{"user": "alice"}},
 		{"user_next_up", map[string]any{"user": "alice"}},
-		{"user_in_progress", map[string]any{"user": "alice"}},
 	} {
 		call(t, c.tool, c.args)
 	}
@@ -1387,7 +1386,7 @@ func playThrough(t *testing.T, token, id string) {
 func TestFinishingASeries(t *testing.T) {
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
 	byNumber := map[int]string{}
-	for _, e := range rows(t, call(t, "show_episodes", map[string]any{"series_id": series})["episodes"], "episodes") {
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes") {
 		byNumber[num(t, e["episode"], "episode")] = str(e["id"])
 	}
 	e1, e2, e3 := byNumber[1], byNumber[2], byNumber[3]
@@ -1417,7 +1416,7 @@ func TestFinishingASeries(t *testing.T) {
 		t.Errorf("after the pilot next up is %v, want episode two", next)
 	}
 	// Emby lists the next episode as resumable at zero; nothing is in progress
-	if in := ids("user_in_progress", "items"); len(in) != 0 {
+	if in := ids("user_next_up", "in_progress"); len(in) != 0 {
 		t.Errorf("after marking the pilot watched alice has %v in progress", in)
 	}
 	if bb := breakingBad(); bb == nil || num(t, bb["episodes_watched"], "episodes_watched") != 1 || boolOf(bb["finished"]) {
@@ -1428,16 +1427,16 @@ func TestFinishingASeries(t *testing.T) {
 	}
 
 	call(t, "item_set_state", map[string]any{"id": e2, "user": "alice", "position_s": 1})
-	if in := ids("user_in_progress", "items"); !slices.Equal(in, []string{e2}) {
+	if in := ids("user_next_up", "in_progress"); !slices.Equal(in, []string{e2}) {
 		t.Errorf("with episode two started alice has %v in progress", in)
 	}
 
 	_, token := signInPlayer(t)
 	playThrough(t, token, e2)
 	if !eventually(func() bool {
-		return slices.Contains(ids("user_next_up", "next_up"), e3) && len(ids("user_in_progress", "items")) == 0
+		return slices.Contains(ids("user_next_up", "next_up"), e3) && len(ids("user_next_up", "in_progress")) == 0
 	}) {
-		t.Errorf("after episode two was played next up is %v and in progress %v", ids("user_next_up", "next_up"), ids("user_in_progress", "items"))
+		t.Errorf("after episode two was played next up is %v and in progress %v", ids("user_next_up", "next_up"), ids("user_next_up", "in_progress"))
 	}
 
 	call(t, "item_set_state", map[string]any{"id": e3, "user": "alice", "watched": true})
@@ -1457,7 +1456,7 @@ func TestFinishingASeries(t *testing.T) {
 // and not changed.
 func TestRestrictedUserAcrossTools(t *testing.T) {
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	eps := rows(t, call(t, "show_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
+	eps := rows(t, call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
 	pilot, second := str(eps[0]["id"]), str(eps[1]["id"])
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	t.Cleanup(func() {
@@ -1477,10 +1476,8 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	if n := len(rows(t, next["next_up"], "next_up")); n != 0 {
 		t.Errorf("alice has %d episodes next up in a library she cannot see", n)
 	}
-	for tool, field := range map[string]string{"user_in_progress": "items", "user_next_up": "resume"} {
-		if got := names(t, call(t, tool, map[string]any{"user": "alice"})[field], field); !slices.Equal(got, []string{"Arrival"}) {
-			t.Errorf("%s %s = %v, want [Arrival]", tool, field, got)
-		}
+	if got := names(t, next["in_progress"], "in_progress"); !slices.Equal(got, []string{"Arrival"}) {
+		t.Errorf("user_next_up in_progress = %v, want [Arrival]", got)
 	}
 	if got := names(t, call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite"})["items"], "items"); len(got) != 0 {
 		t.Errorf("alice's favourites = %v, want none she can see", got)
