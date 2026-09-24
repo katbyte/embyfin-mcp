@@ -104,16 +104,21 @@ func TestAuditDuplicateTitles(t *testing.T) {
 }
 
 // A file named after a different episode than the one the server holds: the
-// fixture names The Expanse S01E02's file "Dulcinea", which is S01E01.
-func TestAuditTitleMismatch(t *testing.T) {
-	out := call(t, "audit_title_mismatch", map[string]any{"library": "Shows"})
+// fixture names The Expanse S01E02's file "Dulcinea", which is S01E01. Every
+// other path in the show library agrees with the server: the series
+// folders, the season and episode numbers, the files that claim no title.
+func TestAuditFilePathShows(t *testing.T) {
+	out := call(t, "audit_file_path", map[string]any{"library": "Shows"})
 	findings := rows(t, out["findings"], "findings")
 	if len(findings) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
 		t.Fatalf("findings = %v", findings)
 	}
 	f := findings[0]
-	if str(f["title_in_file"]) != "Dulcinea" || str(f["title_on_server"]) != "The Big Empty" {
+	if str(f["title_in_file"]) != "Dulcinea" || str(f["title_on_server"]) != "The Big Empty" || str(f["type"]) != "Episode" {
 		t.Errorf("finding = %v", f)
+	}
+	if problems, _ := f["problems"].([]any); len(problems) != 1 || !strings.HasPrefix(str(problems[0]), "title:") {
+		t.Errorf("problems = %v, want the title alone", f["problems"])
 	}
 	if num(t, f["episode"], "episode") != 2 || !strings.Contains(str(f["path"]), "Dulcinea") {
 		t.Errorf("finding names the wrong episode: %v", f)

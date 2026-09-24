@@ -281,7 +281,7 @@ func TestAuditRuntimeMoviesPages(t *testing.T) {
 	if names := findingNames(t, out); strings.Join(names, ",") != "Arrival,Interstellar" {
 		t.Errorf("findings = %v", names)
 	}
-	if _, ok := out["next_start_index"]; ok {
+	if _, ok := out["next_offset"]; ok {
 		t.Error("a finished sweep still points at a next page")
 	}
 	if q := f.requests("/Items")[0].Query; !strings.Contains(q, "ParentId=lib") || !strings.Contains(q, "IncludeItemTypes=Movie") {
@@ -293,11 +293,11 @@ func TestAuditRuntimeMoviesPages(t *testing.T) {
 	if got := number(t, out["total_findings"], "total_findings"); got != 1 {
 		t.Errorf("first page total_findings = %v, want 1 (Arrival)", got)
 	}
-	next := number(t, out["next_start_index"], "next_start_index")
+	next := number(t, out["next_offset"], "next_offset")
 	if next != 3 {
-		t.Fatalf("next_start_index = %v, want 3", next)
+		t.Fatalf("next_offset = %v, want 3", next)
 	}
-	out = runtimeAudit(t, cs, map[string]any{"library": "Movies", "types": "Movie", "start_index": next})
+	out = runtimeAudit(t, cs, map[string]any{"library": "Movies", "types": "Movie", "offset": next})
 	if got := number(t, out["total_findings"], "total_findings"); got != 1 {
 		t.Errorf("second page total_findings = %v, want 1 (Interstellar)", got)
 	}

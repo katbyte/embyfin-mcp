@@ -75,6 +75,43 @@ func libraryPaths(ctx context.Context, client *embyfin.Client) ([]libraryPath, e
 	return out, nil
 }
 
+func auditOrphans(ctx context.Context, client *embyfin.Client, in orphansIn) (orphansOut, error) {
+	limit := in.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	libs, err := libraryPaths(ctx, client)
+	if err != nil {
+		return orphansOut{}, err
+	}
+	orphans, scanned, err := sweepOrphans(ctx, client, libs, "")
+	if err != nil {
+		return orphansOut{}, err
+	}
+
+	byFolder := map[string][]embyfin.Item{}
+	for _, it := range orphans {
+		folder := orphanFolder(it.Path, libs)
+		byFolder[folder] = append(byFolder[folder], it)
+	}
+	folders := slices.SortedFunc(maps.Keys(byFolder), func(a, b string) int {
+		return cmp.Or(cmp.Compare(len(byFolder[b]), len(byFolder[a])), strings.Compare(a, b))
+	})
+
+	out := orphansOut{Scanned: scanned, Found: len(orphans), Folders: []orphanGroup{}}
+	for _, folder := range folders[:min(len(folders), limit)] {
+		items := byFolder[folder]
+		group := orphanGroup{Folder: folder, Items: len(items), ByType: map[string]int{}, Examples: orphanRows(items, 5)}
+		for _, it := range items {
+			group.ByType[it.Type]++
+		}
+		group.OnServer, group.Note = folderState(ctx, client, folder)
+		out.Folders = append(out.Folders, group)
+	}
+
+	return out, nil
+}
+
 func isSep(b byte) bool { return b == '/' || b == '\\' }
 
 // isTop is the top of a filesystem - /, C:\, or \\host\share - which is never
@@ -385,65 +422,37 @@ func settled(ctx context.Context, client *embyfin.Client, failures []orphanFailu
 // depth is how many folders deep a path is.
 func depth(p string) int { return strings.Count(trimSep(p), "/") + strings.Count(trimSep(p), `\`) }
 
+type orphanGroup struct {
+	Folder   string         `json:"folder"         jsonschema:"the highest folder above these items that holds no library folder: where a library's folder was"`
+	OnServer string         `json:"on_server"      jsonschema:"missing: the server cannot find the folder, so these are leftovers item_orphans_delete removes; present: the files are still there, held outside every library, and item_orphans_delete refuses them; unknown: the check failed, see note"`
+	Items    int            `json:"items"`
+	ByType   map[string]int `json:"by_type"        jsonschema:"how many of each kind of item"`
+	Examples []orphanRow    `json:"examples"       jsonschema:"the first few, by path"`
+	Note     string         `json:"note,omitempty"`
+}
+
+type orphansIn struct {
+	Limit int `json:"limit,omitempty" jsonschema:"maximum folders, default 50"`
+}
+
+type orphansOut struct {
+	Scanned int           `json:"items_scanned"`
+	Found   int           `json:"total_orphans" jsonschema:"items outside every library, under every folder"`
+	Folders []orphanGroup `json:"folders"       jsonschema:"one row per folder, most items first; capped at limit"`
+}
+
 func registerOrphanTools(r *registry) {
 	client := r.client
 
-	type orphanGroup struct {
-		Folder   string         `json:"folder"         jsonschema:"the highest folder above these items that holds no library folder: where a library's folder was"`
-		OnServer string         `json:"on_server"      jsonschema:"missing: the server cannot find the folder, so these are leftovers item_orphans_delete removes; present: the files are still there, held outside every library, and item_orphans_delete refuses them; unknown: the check failed, see note"`
-		Items    int            `json:"items"`
-		ByType   map[string]int `json:"by_type"        jsonschema:"how many of each kind of item"`
-		Examples []orphanRow    `json:"examples"       jsonschema:"the first few, by path"`
-		Note     string         `json:"note,omitempty"`
-	}
-	type orphansIn struct {
-		Limit int `json:"limit,omitempty" jsonschema:"maximum folders, default 50"`
-	}
-	type orphansOut struct {
-		Scanned int           `json:"items_scanned"`
-		Found   int           `json:"total_orphans" jsonschema:"items outside every library, under every folder"`
-		Folders []orphanGroup `json:"folders"       jsonschema:"one row per folder, most items first; capped at limit"`
-	}
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_orphans",
 		Description: "Find items the server still holds under a folder no library covers: what a renamed or removed library folder leaves behind. " +
 			"No library lists them and no scan revisits them, but every sweep of the server counts them. " +
 			"Grouped by the folder they were under, each saying whether the server can still see it; item_orphans_delete removes the items under a folder it cannot.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in orphansIn) (*mcp.CallToolResult, orphansOut, error) {
-		limit := in.Limit
-		if limit <= 0 {
-			limit = 50
-		}
-		libs, err := libraryPaths(ctx, client)
-		if err != nil {
-			return nil, orphansOut{}, err
-		}
-		orphans, scanned, err := sweepOrphans(ctx, client, libs, "")
-		if err != nil {
-			return nil, orphansOut{}, err
-		}
+		out, err := auditOrphans(ctx, client, in)
 
-		byFolder := map[string][]embyfin.Item{}
-		for _, it := range orphans {
-			folder := orphanFolder(it.Path, libs)
-			byFolder[folder] = append(byFolder[folder], it)
-		}
-		folders := slices.SortedFunc(maps.Keys(byFolder), func(a, b string) int {
-			return cmp.Or(cmp.Compare(len(byFolder[b]), len(byFolder[a])), strings.Compare(a, b))
-		})
-
-		out := orphansOut{Scanned: scanned, Found: len(orphans), Folders: []orphanGroup{}}
-		for _, folder := range folders[:min(len(folders), limit)] {
-			items := byFolder[folder]
-			group := orphanGroup{Folder: folder, Items: len(items), ByType: map[string]int{}, Examples: orphanRows(items, 5)}
-			for _, it := range items {
-				group.ByType[it.Type]++
-			}
-			group.OnServer, group.Note = folderState(ctx, client, folder)
-			out.Folders = append(out.Folders, group)
-		}
-
-		return nil, out, nil
+		return nil, out, err
 	})
 
 	type deleteIn struct {

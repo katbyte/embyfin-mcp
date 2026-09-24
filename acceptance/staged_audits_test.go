@@ -131,10 +131,10 @@ func TestLibraryExport(t *testing.T) {
 
 // The fixtures were probed at their scan and never rewritten, so the audit
 // proves its sweep: every file counted, nothing reported.
-func TestAuditMediaFacts(t *testing.T) {
-	out := call(t, "audit_media_facts", map[string]any{"library": "Shows"})
+func TestAuditQualityTrustsTheFixtures(t *testing.T) {
+	out := call(t, "audit_quality", map[string]any{"library": "Shows"})
 	if n := num(t, out["items_scanned"], "items_scanned"); n < 5 {
-		t.Errorf("items_scanned = %d, want every episode with a file", n)
+		t.Errorf("items_scanned = %d, want every episode", n)
 	}
 	if n := num(t, out["total_unprobed"], "total_unprobed"); n != 0 {
 		t.Errorf("%d files reported unprobed: %v", n, out["unprobed"])

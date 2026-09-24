@@ -75,7 +75,7 @@ func TestAuditMovieIDs(t *testing.T) {
 	cs := session(t, f, Options{TMDBKey: "k", ProviderTransport: tmdb})
 
 	out := mustCall(t, cs, "audit_movie_ids", map[string]any{})
-	if number(t, out["items_scanned"], "items_scanned") != len(films) || out["next_start_index"] != nil {
+	if number(t, out["items_scanned"], "items_scanned") != len(films) || out["next_offset"] != nil {
 		t.Fatalf("out = %v", out)
 	}
 	got := map[string]string{}
@@ -99,12 +99,12 @@ func TestAuditMovieIDs(t *testing.T) {
 	// a capped call stops at the film it could not look up, and the next
 	// call goes on from there; a film with no ids costs no lookup
 	first := mustCall(t, cs, "audit_movie_ids", map[string]any{"max_lookups": 3})
-	next := number(t, first["next_start_index"], "next_start_index")
+	next := number(t, first["next_offset"], "next_offset")
 	if next != 3 || number(t, first["total_findings"], "total_findings") != 2 {
 		t.Fatalf("first page = %v", first)
 	}
-	rest := mustCall(t, cs, "audit_movie_ids", map[string]any{"start_index": next})
-	if number(t, rest["total_findings"], "total_findings") != 2 || rest["next_start_index"] != nil {
+	rest := mustCall(t, cs, "audit_movie_ids", map[string]any{"offset": next})
+	if number(t, rest["total_findings"], "total_findings") != 2 || rest["next_offset"] != nil {
 		t.Errorf("the rest = %v", rest)
 	}
 

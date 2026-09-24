@@ -294,8 +294,8 @@ func TestTheBinary(t *testing.T) {
 		if got, want := listed(t, cs), toolsFor(t, tools.Options{Toolsets: []string{"curation"}}); !slices.Equal(got, want) {
 			t.Errorf("tools = %v\nwant %v", got, want)
 		}
-		if got := findings(t, callOn(t, cs, "audit_year_mismatch", map[string]any{"library": "Messy Movies"})); !slices.Equal(got, []string{"Dune"}) {
-			t.Errorf("audit_year_mismatch over HTTP = %v, want [Dune]", got)
+		if got := findings(t, callOn(t, cs, "audit_file_path", map[string]any{"library": "Messy Movies"})); !slices.Equal(got, []string{"Dune"}) {
+			t.Errorf("audit_file_path over HTTP = %v, want [Dune]", got)
 		}
 		_ = cs.Close()
 

@@ -27,7 +27,7 @@ type qualityIn struct {
 	MinHeight  int    `json:"min_height,omitempty"    jsonschema:"flag a picture below this class, default 720 (so 480p and 576p rips); a widescreen 1280x536 is 720p, judged by its width"`
 	MinBitrate int64  `json:"min_bitrate,omitempty"   jsonschema:"also flag video below this bitrate, in bits per second like every bitrate a tool answers with; off unless given"`
 	Codecs     *bool  `json:"legacy_codecs,omitempty" jsonschema:"flag legacy video codecs (MPEG-2, MPEG-4 part 2 such as XviD and DivX, WMV, VC-1, RealVideo...); default true"`
-	Limit      int    `json:"limit,omitempty"         jsonschema:"maximum findings to return, default 100"`
+	Limit      int    `json:"limit,omitempty"         jsonschema:"maximum rows in each list, default 100"`
 }
 
 // videoOf is a file's primary video stream, or nil.
@@ -95,11 +95,68 @@ func qualityDefaults(in qualityIn) qualityIn {
 	return in
 }
 
-func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (auditOut, error) {
+// qualityOut is audit_quality's answer: the files worth replacing, and the
+// files whose facts cannot be trusted to judge.
+//
+// Every quality question - resolution, codec, bitrate, runtime, audio - is
+// answered from what the server read off the file when it probed it. A file
+// it never probed (an import cut short, a scan that stopped) answers all of
+// them with nothing, which a caller reads as "a 0x0 file", and a file
+// written over in place keeps the facts of the file that was there before
+// until a scan re-reads it, which a caller reads as the old copy. Neither
+// server records when it last probed a file, so the second can only be
+// suspected: Emby gives the file's own modified time, and a file modified
+// after the item was made was replaced; whether the server has re-read it
+// since is for the caller with the file in front of it to settle, which is
+// why each row carries the size the server believes.
+type qualityOut struct {
+	auditOut
+	TotalUnprobed int           `json:"total_unprobed"`
+	TotalReplaced int           `json:"total_replaced"`
+	Unprobed      []unprobedRow `json:"unprobed"       jsonschema:"files the server holds no media facts for: never probed, so nothing about their picture or sound could be judged and they are not among the findings; capped at limit"`
+	Replaced      []unprobedRow `json:"replaced"       jsonschema:"files written after the server first saw them (Emby says when a file was last written; Jellyfin does not): the facts may be the old file's until a scan re-reads it, which the size tells. Judged as they stand; capped at limit"`
+	Note          string        `json:"note,omitempty"`
+}
+
+// unprobedRow is a file whose facts are not the file's own.
+type unprobedRow struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Path         string `json:"path,omitempty"`
+	Size         int64  `json:"size,omitempty"          jsonschema:"the file size the server believes, in bytes; compare it with the file's to tell whether the server has re-read a replaced file"`
+	DateCreated  string `json:"date_created,omitempty"  jsonschema:"when the server first saw the file"`
+	FileModified string `json:"file_modified,omitempty" jsonschema:"when the file was last written, as the server read it (Emby only)"`
+	Detail       string `json:"detail"`
+}
+
+// probed says whether the server has read anything off the file: a media
+// source with a size, or a stream. A record with neither is a file it has
+// not looked at, however it got there.
+func probed(it *embyfin.Item) bool {
+	for i := range it.MediaSources {
+		if it.MediaSources[i].Size > 0 || len(it.MediaSources[i].MediaStreams) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// episodeOrItemName names an item the way a worklist wants it: an episode
+// by its series and number, anything else by its name.
+func episodeOrItemName(it *embyfin.Item) string {
+	if it.Type == typeEpisode && it.SeriesName != "" {
+		return fmt.Sprintf("%s S%02dE%02d %s", it.SeriesName, it.ParentIndexNumber, it.IndexNumber, it.Name)
+	}
+
+	return it.Name
+}
+
+func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (qualityOut, error) {
 	in = qualityDefaults(in)
-	opts, err := sweepOptions(ctx, client, in.Library, in.Types, "Movie,Episode", "Path,ProductionYear,MediaSources")
+	opts, err := sweepOptions(ctx, client, in.Library, in.Types, "Movie,Episode", "Path,ProductionYear,MediaSources,DateCreated,DateModified")
 	if err != nil {
-		return auditOut{}, err
+		return qualityOut{}, err
 	}
 
 	type scored struct {
@@ -107,24 +164,50 @@ func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (au
 		height  int
 	}
 	var findings []scored
-	out := auditOut{Findings: []auditFinding{}}
+	var unprobed, replaced []unprobedRow
+	out := qualityOut{Findings: []auditFinding{}, Unprobed: []unprobedRow{}, Replaced: []unprobedRow{}}
 	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
 			out.Scanned++
+			if it.HasFile() {
+				row := unprobedRow{ID: it.ID, Name: episodeOrItemName(it), Path: it.Path, DateCreated: it.DateCreated, FileModified: it.DateModified}
+				if len(it.MediaSources) > 0 {
+					row.Size = it.MediaSources[0].Size
+				}
+				switch {
+				case !probed(it):
+					// no picture to judge, and left out in silence it would
+					// read as fine
+					row.Detail = "no media facts: the server has never probed the file, so nothing about its picture or sound is known"
+					unprobed = append(unprobed, row)
+
+					continue
+				case it.DateModified != "" && it.DateCreated != "" && it.DateModified > it.DateCreated:
+					row.Detail = fmt.Sprintf("the file was written on %s, after the server first saw it on %s: its facts are the earlier file's until a scan re-reads it", dateOf(it.DateModified), dateOf(it.DateCreated))
+					replaced = append(replaced, row)
+				}
+			}
 			detail, height, bad := checkQuality(it, in)
 			if !bad {
 				continue
 			}
-			name := it.Name
-			if it.SeriesName != "" {
-				name = fmt.Sprintf("%s S%02dE%02d %s", it.SeriesName, it.ParentIndexNumber, it.IndexNumber, it.Name)
-			}
-			findings = append(findings, scored{height: height, finding: auditFinding{ID: it.ID, Name: name, Year: it.ProductionYear, Path: it.Path, Detail: detail}})
+			findings = append(findings, scored{height: height, finding: auditFinding{ID: it.ID, Name: episodeOrItemName(it), Year: it.ProductionYear, Path: it.Path, Detail: detail}})
 		}
+
 		return true
 	}); err != nil {
-		return auditOut{}, err
+		return qualityOut{}, err
+	}
+
+	for _, list := range []*[]unprobedRow{&unprobed, &replaced} {
+		slices.SortFunc(*list, func(a, b unprobedRow) int { return strings.Compare(a.Path, b.Path) })
+	}
+	out.TotalUnprobed, out.TotalReplaced = len(unprobed), len(replaced)
+	out.Unprobed = append(out.Unprobed, unprobed[:min(len(unprobed), in.Limit)]...)
+	out.Replaced = append(out.Replaced, replaced[:min(len(replaced), in.Limit)]...)
+	if client.Backend() == embyfin.Jellyfin {
+		out.Note = "Jellyfin does not say when a file was last written, so replaced files cannot be told apart here; compare sizes against the files"
 	}
 
 	// the lowest resolution first, so a capped worklist starts with the worst
@@ -300,13 +383,26 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, in episod
 	return answer, nil
 }
 
+type unwatchedIn struct {
+	Library   string `json:"library,omitempty"    jsonschema:"restrict to one library by name or id"`
+	Types     string `json:"types,omitempty"      jsonschema:"Movie, Series or both, comma-separated; default Movie. A series counts as watched when anyone has watched any of its episodes"`
+	AddedDays int    `json:"added_days,omitempty" jsonschema:"only items added at least this many days ago, so what just arrived is left out"`
+	Limit     int    `json:"limit,omitempty"      jsonschema:"maximum findings to return, default 100"`
+}
+
+type unwatchedOut struct {
+	auditOut
+	Users []string `json:"users" jsonschema:"whose watch state was read: every account on the server, each in its own view, so what an account cannot see it has not watched"`
+}
+
 func registerMediaAudits(r *registry) {
 	client := r.client
 
 	add(r, readTool, &mcp.Tool{
-		Name:        "audit_quality",
-		Description: "Find the films and episodes worth replacing with a better copy: video below a resolution (default 720 lines, so 480p and 576p rips), in a legacy codec (MPEG-2, XviD and DivX, WMV, VC-1...), or below a bitrate when one is given. An item is judged by its best file, so a 4K version beside a DVD rip is not reported. Lowest resolution first.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in qualityIn) (*mcp.CallToolResult, auditOut, error) {
+		Name: "audit_quality",
+		Description: "Find the films and episodes worth replacing with a better copy: video below a resolution (default 720 lines, so 480p and 576p rips), in a legacy codec (MPEG-2, XviD and DivX, WMV, VC-1...), or below a bitrate when one is given. An item is judged by its best file, so a 4K version beside a DVD rip is not reported. Lowest resolution first. " +
+			"Two more lists say which facts cannot be trusted: files the server holds no media facts for (never probed, so resolution, codec, bitrate and audio all read as nothing rather than as a measurement, and they are not judged) and, on Emby, files written over after the server first saw them, whose facts may still be the old file's until a scan re-reads them. Each of those rows carries the size the server believes, so a caller with the file in front of it can tell a re-read from a stale one; a scan of the library re-probes both.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in qualityIn) (*mcp.CallToolResult, qualityOut, error) {
 		out, err := auditQuality(ctx, client, in)
 		return nil, out, err
 	})
@@ -320,126 +416,122 @@ func registerMediaAudits(r *registry) {
 		return nil, out, err
 	})
 
-	type unwatchedIn struct {
-		Library   string `json:"library,omitempty"    jsonschema:"restrict to one library by name or id"`
-		Types     string `json:"types,omitempty"      jsonschema:"Movie, Series or both, comma-separated; default Movie. A series counts as watched when anyone has watched any of its episodes"`
-		AddedDays int    `json:"added_days,omitempty" jsonschema:"only items added at least this many days ago, so what just arrived is left out"`
-		Limit     int    `json:"limit,omitempty"      jsonschema:"maximum findings to return, default 100"`
-	}
-	type unwatchedOut struct {
-		auditOut
-		Users []string `json:"users" jsonschema:"whose watch state was read: every account on the server, each in its own view, so what an account cannot see it has not watched"`
-	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "audit_unwatched",
 		Description: "Find what nobody has watched: the films (or series) no account on the server has played, oldest additions first, optionally only those added more than some days ago. A copy of a film watched anywhere on the server counts for every copy. What to archive or delete to free space, or what to recommend.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in unwatchedIn) (*mcp.CallToolResult, unwatchedOut, error) {
-		limit := in.Limit
-		if limit <= 0 {
-			limit = 100
-		}
-		types := map[string]bool{}
-		for t := range strings.SplitSeq(cmp.Or(in.Types, typeMovie), ",") {
-			switch t = strings.TrimSpace(t); t {
-			case typeMovie, "Series":
-				types[t] = true
-			default:
-				return nil, unwatchedOut{}, fmt.Errorf("types must be Movie, Series or both, not %q", t)
-			}
-		}
-		folder, err := resolveLibrary(ctx, client, in.Library)
-		if err != nil {
-			return nil, unwatchedOut{}, err
-		}
-		parent := ""
-		if folder != nil {
-			parent = folder.ItemID
-		}
-		users, err := client.Users(ctx)
-		if err != nil {
-			return nil, unwatchedOut{}, err
-		}
+		out, err := auditUnwatched(ctx, client, in)
 
-		// what anyone has watched, by title (a copy watched in another library
-		// counts for this one's) and across the server: films played, and the
-		// series of any episode played. Not scoped to the library: Jellyfin
-		// lists what a user played in a library they cannot see when the
-		// library is named as the parent, where Emby leaves it out
-		watched := titles{}
-		series := map[string]bool{}
-		out := unwatchedOut{
-			Users:    []string{},
-			Findings: []auditFinding{},
-		}
-		playedTypes := []string{}
-		if types[typeMovie] {
-			playedTypes = append(playedTypes, typeMovie)
-		}
-		if types["Series"] {
-			playedTypes = append(playedTypes, "Episode")
-		}
-		for _, u := range users {
-			out.Users = append(out.Users, u.Name)
-			if err := client.SearchAll(ctx, embyfin.SearchOptions{
-				IncludeItemTypes: strings.Join(playedTypes, ","), Filters: "IsPlayed", UserID: u.ID, EnableUserData: true, Fields: "Path,ProviderIds",
-			}, func(items []embyfin.Item) bool {
-				for i := range items {
-					if items[i].Type == "Episode" {
-						series[items[i].SeriesID] = true
-						continue
-					}
-					watched.add(&items[i])
-				}
-				return true
-			}); err != nil {
-				return nil, unwatchedOut{}, err
-			}
-		}
-		delete(series, "")
-		for ids := range slices.Chunk(slices.Collect(maps.Keys(series)), 100) {
-			if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(ids, ","), IncludeItemTypes: "Series", Fields: "Path,ProviderIds"}, func(items []embyfin.Item) bool {
-				for i := range items {
-					watched.add(&items[i])
-				}
-				return true
-			}); err != nil {
-				return nil, unwatchedOut{}, err
-			}
-		}
+		return nil, out, err
+	})
+}
 
-		kinds := make([]string, 0, len(types))
-		for t := range types {
-			kinds = append(kinds, t)
+func auditUnwatched(ctx context.Context, client *embyfin.Client, in unwatchedIn) (unwatchedOut, error) {
+	limit := in.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	types := map[string]bool{}
+	for t := range strings.SplitSeq(cmp.Or(in.Types, typeMovie), ",") {
+		switch t = strings.TrimSpace(t); t {
+		case typeMovie, "Series":
+			types[t] = true
+		default:
+			return unwatchedOut{}, fmt.Errorf("types must be Movie, Series or both, not %q", t)
 		}
-		var findings []auditFinding
-		if err := client.SearchAll(ctx, embyfin.SearchOptions{IncludeItemTypes: strings.Join(kinds, ","), ParentID: parent, Fields: embyfin.FieldsLean}, func(items []embyfin.Item) bool {
+	}
+	folder, err := resolveLibrary(ctx, client, in.Library)
+	if err != nil {
+		return unwatchedOut{}, err
+	}
+	parent := ""
+	if folder != nil {
+		parent = folder.ItemID
+	}
+	users, err := client.Users(ctx)
+	if err != nil {
+		return unwatchedOut{}, err
+	}
+
+	// what anyone has watched, by title (a copy watched in another library
+	// counts for this one's) and across the server: films played, and the
+	// series of any episode played. Not scoped to the library: Jellyfin
+	// lists what a user played in a library they cannot see when the
+	// library is named as the parent, where Emby leaves it out
+	watched := titles{}
+	series := map[string]bool{}
+	out := unwatchedOut{
+		Users:    []string{},
+		Findings: []auditFinding{},
+	}
+	playedTypes := []string{}
+	if types[typeMovie] {
+		playedTypes = append(playedTypes, typeMovie)
+	}
+	if types["Series"] {
+		playedTypes = append(playedTypes, "Episode")
+	}
+	for _, u := range users {
+		out.Users = append(out.Users, u.Name)
+		if err := client.SearchAll(ctx, embyfin.SearchOptions{
+			IncludeItemTypes: strings.Join(playedTypes, ","), Filters: "IsPlayed", UserID: u.ID, EnableUserData: true, Fields: "Path,ProviderIds",
+		}, func(items []embyfin.Item) bool {
 			for i := range items {
-				it := &items[i]
-				out.Scanned++
-				if watched.has(it) {
+				if items[i].Type == "Episode" {
+					series[items[i].SeriesID] = true
 					continue
 				}
-				if in.AddedDays > 0 && afterCutoff(it.DateCreated, daysCutoff(in.AddedDays)) {
-					continue
-				}
-				findings = append(findings, auditFinding{ID: it.ID, Name: it.Name, Year: it.ProductionYear, Path: it.Path, Detail: "never watched, added " + dateOf(it.DateCreated)})
+				watched.add(&items[i])
 			}
 			return true
 		}); err != nil {
-			return nil, unwatchedOut{}, err
+			return unwatchedOut{}, err
 		}
-
-		slices.SortStableFunc(findings, func(a, b auditFinding) int {
-			if c := strings.Compare(a.Detail, b.Detail); c != 0 {
-				return c
+	}
+	delete(series, "")
+	for ids := range slices.Chunk(slices.Collect(maps.Keys(series)), 100) {
+		if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(ids, ","), IncludeItemTypes: "Series", Fields: "Path,ProviderIds"}, func(items []embyfin.Item) bool {
+			for i := range items {
+				watched.add(&items[i])
 			}
-			return strings.Compare(a.Name, b.Name)
-		})
-		out.Found = len(findings)
-		out.Findings = append(out.Findings, findings[:min(len(findings), limit)]...)
+			return true
+		}); err != nil {
+			return unwatchedOut{}, err
+		}
+	}
 
-		return nil, out, nil
+	kinds := make([]string, 0, len(types))
+	for t := range types {
+		kinds = append(kinds, t)
+	}
+	var findings []auditFinding
+	if err := client.SearchAll(ctx, embyfin.SearchOptions{IncludeItemTypes: strings.Join(kinds, ","), ParentID: parent, Fields: embyfin.FieldsLean}, func(items []embyfin.Item) bool {
+		for i := range items {
+			it := &items[i]
+			out.Scanned++
+			if watched.has(it) {
+				continue
+			}
+			if in.AddedDays > 0 && afterCutoff(it.DateCreated, daysCutoff(in.AddedDays)) {
+				continue
+			}
+			findings = append(findings, auditFinding{ID: it.ID, Name: it.Name, Year: it.ProductionYear, Path: it.Path, Detail: "never watched, added " + dateOf(it.DateCreated)})
+		}
+		return true
+	}); err != nil {
+		return unwatchedOut{}, err
+	}
+
+	slices.SortStableFunc(findings, func(a, b auditFinding) int {
+		if c := strings.Compare(a.Detail, b.Detail); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Name, b.Name)
 	})
+	out.Found = len(findings)
+	out.Findings = append(out.Findings, findings[:min(len(findings), limit)]...)
+
+	return out, nil
 }
 
 // dateOf is the date part of a server timestamp.

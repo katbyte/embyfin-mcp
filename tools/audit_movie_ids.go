@@ -61,7 +61,7 @@ func registerMovieIDAudit(r *registry) {
 		Library    string `json:"library,omitempty"     jsonschema:"one library by name or id; default every library"`
 		Limit      int    `json:"limit,omitempty"       jsonschema:"maximum findings, default 50"`
 		MaxLookups int    `json:"max_lookups,omitempty" jsonschema:"TMDB lookups this call may make, one a film, default 250"`
-		StartIndex int    `json:"start_index,omitempty" jsonschema:"where to go on from: a previous call's next_start_index"`
+		Offset     int    `json:"offset,omitempty"      jsonschema:"where to go on from: a previous call's next_offset"`
 	}
 	type movieIDFinding struct {
 		ID     string `json:"id"`
@@ -72,14 +72,14 @@ func registerMovieIDAudit(r *registry) {
 		Detail string `json:"detail"`
 	}
 	type movieIDsOut struct {
-		Scanned        int              `json:"items_scanned"`
-		Found          int              `json:"total_findings"             jsonschema:"among the films this call looked up; the rest wait for next_start_index"`
-		Findings       []movieIDFinding `json:"findings"                   jsonschema:"capped at limit"`
-		NextStartIndex int              `json:"next_start_index,omitempty" jsonschema:"pass back as start_index to go on; absent when the sweep finished"`
+		Scanned    int              `json:"items_scanned"`
+		Found      int              `json:"total_findings"        jsonschema:"among the films this call looked up; the rest wait for next_offset"`
+		Findings   []movieIDFinding `json:"findings"              jsonschema:"capped at limit"`
+		NextOffset int              `json:"next_offset,omitempty" jsonschema:"pass back as offset to go on; absent when the sweep finished"`
 	}
 
 	desc := "Find films whose ids disagree, by asking TMDB: a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, or an IMDb id that is a series or an episode rather than a film. " +
-		"The item reads as matched on the server either way. One TMDB request a film, so the sweep is paged: pass next_start_index back as start_index to go on."
+		"The item reads as matched on the server either way. One TMDB request a film, so the sweep is paged: pass next_offset back as offset to go on."
 	if provider == nil {
 		desc += " Disabled: set EMBYFIN_TMDB_TOKEN to enable."
 	}
@@ -109,7 +109,7 @@ func registerMovieIDAudit(r *registry) {
 
 		out := movieIDsOut{Findings: []movieIDFinding{}}
 		lookups := 0
-		for start := max(in.StartIndex, 0); ; start += moviePage {
+		for start := max(in.Offset, 0); ; start += moviePage {
 			items, total, err := client.Search(ctx, embyfin.SearchOptions{
 				IncludeItemTypes: "Movie", ParentID: parent, Fields: "Path,ProviderIds,ProductionYear",
 				SortBy: "SortName", SortOrder: "Ascending", StartIndex: start, Limit: moviePage,
@@ -122,7 +122,7 @@ func registerMovieIDAudit(r *registry) {
 				tmdbID, imdbID := providerID(it, "tmdb"), providerID(it, "imdb")
 				if tmdbID != "" || imdbID != "" {
 					if lookups >= maxLookups {
-						out.NextStartIndex = start + i
+						out.NextOffset = start + i
 
 						return nil, out, nil
 					}

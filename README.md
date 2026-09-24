@@ -27,7 +27,7 @@ differences between them live in one package, and every tool is tested against b
 
 ### What else is in the box
 
-- **91 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
+- **89 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about a thousand tokens of context by default rather than sixteen thousand.
 - **Three Go SDKs.** `lib/emby`, `lib/jf` and `lib/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents (each package's `APIVersion` says which), standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
@@ -35,22 +35,20 @@ differences between them live in one package, and every tool is tested against b
 
 | audit | what it catches |
 |---|---|
-| `audit_all` | every audit in one call, counts only, so one call says where a library needs work - start here after a scan |
+| `audit_all` | every audit in one call, counts only, so one call says where a library needs work - start here after a scan. Every audit has a row; the three that need more than the server (a language, TMDB, the Anime-Lists file) are rows marked skipped, with why |
 | `audit_missing_metadata_provider` | items with no provider id of any kind (a link to a show's website or Facebook page is not one): never matched, so nothing else can be filled in automatically; `item_identify` fixes them. `missing` drills down to the providers named: `missing=tmdb` also finds a show matched on TVDB or IMDB but not on TMDB, and `ignore` leaves out libraries whose items never carry an id, such as YouTube |
 | `audit_missing_poster` | items with no primary image; `item_artwork` and `item_artwork_set` fix them |
 | `audit_missing_overview` | items with no plot text, usually a failed match; `item_refresh` or `item_identify` fix them |
-| `audit_year_mismatch` | items whose folder says `(2021)` while the matched metadata says 1984: the wrong edition, or the wrong film |
+| `audit_file_path` | items whose path disagrees with their metadata: a folder saying `(2021)` under a film matched to 1984 (the wrong edition, or the wrong film), a folder or file named for a different title, and for episodes the series, season and episode number the file name claims against the ones the server holds - a file holding two episodes (`S01E01E02`) where the server lists one has the second's content on disk while the server calls it missing, and a file named after one episode where the server holds another is a file from another series, or, with a TMDB token, one numbered in another provider's order (each such row says which TMDB episode the file's title is). `checks` narrows to any of title, year, series, season, episode |
 | `audit_duplicates` | separate entries sharing one tmdb/imdb id, in one library or across libraries, each group listing every copy with its path and quality |
 | `audit_multiple_versions` | one entry the server has merged from several files - a 4K and a 1080p copy - which is what `audit_duplicates` cannot see (Jellyfin merges same-folder versions at scan time; Emby only when merged in its web client, so there the pair shows up in `audit_duplicates`) |
-| `audit_runtime` | files whose runtime disagrees with what it should be: truncated downloads, wrong files, wrong matches. Episodes against the median of their season; movies against TMDB's runtime (needs `EMBYFIN_TMDB_TOKEN`, paged with `start_index`) |
-| `audit_quality` | films and episodes worth replacing with a better copy: below a resolution (720 lines by default, so 480p and 576p rips), in a legacy codec (MPEG-2, XviD and DivX, WMV, VC-1), or below a bitrate when one is given; an item is judged by its best version, lowest resolution first |
+| `audit_runtime` | files whose runtime disagrees with what it should be: truncated downloads, wrong files, wrong matches. Episodes against the median of their season; movies against TMDB's runtime (needs `EMBYFIN_TMDB_TOKEN`, paged with `offset`) |
+| `audit_quality` | films and episodes worth replacing with a better copy: below a resolution (720 lines by default, so 480p and 576p rips), in a legacy codec (MPEG-2, XviD and DivX, WMV, VC-1), or below a bitrate when one is given; an item is judged by its best version, lowest resolution first. Two more lists say which facts cannot be trusted: files the server never probed (every quality question reads as nothing, so they are not judged) and, on Emby, files written over after the server first saw them, whose facts may be the old file's until a scan re-reads them; each such row carries the size the server believes |
 | `audit_missing_episodes` | series with episodes missing: the numbers a season skips between the episodes on disk, whole seasons skipped, and, when the server records them, the episodes its provider lists without a file |
 | `audit_spelling` | genres, tags and studios that mean the same thing spelled differently: `Sci-Fi` and `Sci Fi`, `Science-Fiction` and `Science Fiction`, a letter apart, or a studio cut short (`Warner Bros.` and `Warner Bros. Pictures`); each group names the spelling to keep, and `metadata_rename` merges it |
 | `audit_unwatched` | the films, or series, no account on the server has watched, oldest additions first, optionally only those added more than some days ago: what to archive, or what to recommend |
 | `audit_language` | films and episodes by the language of their audio or subtitles: what has audio or subtitles in a language, what has no audio in it, or what cannot be watched in it at all; a track with no language tag is never taken as lacking one |
 | `audit_duplicate_titles` | one episode's content filed under two episode numbers: a season holding the same episode title twice, which neither other duplicate audit can see. Runtimes within 5% make it near certain; matching titles alone are a lead |
-| `audit_title_mismatch` | episodes whose file name claims a different title from the one the server holds, both strings side by side: the tell that a file from another series was written to this path, or, with a TMDB token, that the file is numbered in another provider's order (each row says which TMDB episode the file's title is) |
-| `audit_media_facts` | files the server holds no media facts for (never probed, so every quality question reads as nothing) and, on Emby, files written over after the server first saw them, whose facts may be the old file's until a scan re-reads them; each row carries the size the server believes |
 | `audit_duplicate_series_folders` | shows held twice because two folders name the same series - a rename that changed only spacing, case, an accent or punctuation - which splits the episodes across two entries that each answer "no" to half the questions |
 | `audit_orphans` | items a renamed or removed library folder left behind: outside every library, so no library lists them but every sweep counts them. `item_orphans_delete` removes them once their folder is gone ([how](#cleaning-up-after-a-removed-library)) |
 | `audit_disc_folders` | a disc copied in as its own files: a Blu-ray's numbered streams or a DVD's VOBs in a film's folder, with no BDMV or VIDEO_TS structure, so the server makes a film of each stream and matches them separately - which files short clips under other films' names |
@@ -203,7 +201,7 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 | playlists | `playlist_list`, `playlist_get`, `playlist_create`, `playlist_edit` (rename, move an entry), `playlist_add`, `playlist_remove`, `playlist_delete` |
 | collections | `collection_list`, `collection_get`, `collection_create`, `collection_edit` (rename, sort name, overview), `collection_add`, `collection_remove`, `collection_delete` |
 
-`item_delete` (permanently removes the media file), `item_orphans_delete` (what a removed library left behind, once its folder is gone) and `library_delete` are only registered when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set. `--read-only` registers the 64 read tools and nothing else, so a write tool is absent from `tools/list` rather than refused when called.
+`item_delete` (permanently removes the media file), `item_orphans_delete` (what a removed library left behind, once its folder is gone) and `library_delete` are only registered when `--enable-delete` / `EMBYFIN_ENABLE_DELETE` is set. `--read-only` registers the 62 read tools and nothing else, so a write tool is absent from `tools/list` rather than refused when called.
 
 ### Choosing which tools load
 
@@ -222,8 +220,8 @@ can find a library or open an item.
 | `admin` | 14 | 20 | 2,800 |
 | `watching` | 10 | 16 | 2,100 |
 | `organise` | 14 | 20 | 2,500 |
-| `curation` | 43 | 49 | 11,000 |
-| `all` | 91 | 91 | 15,800 |
+| `curation` | 41 | 47 | 10,900 |
+| `all` | 89 | 89 | 15,900 |
 
 Tokens are what the model sees: each tool's name, description and input schema, measured over
 a real `tools/list` at four bytes a token. Every tool also carries an output schema, another
@@ -272,7 +270,7 @@ tool.
    the films never matched to a provider.
 2. For each, `item_identify` returns candidates with year and ids; compare them with the
    file and `item_identify_apply candidate=N`.
-3. `audit_year_mismatch` finds the wrong editions; the same two tools fix them.
+3. `audit_file_path` finds the wrong editions and the files named for something else; the same two tools fix them.
 4. `audit_missing_poster` and `item_artwork` / `item_artwork_set` fill the gaps.
 5. `audit_duplicates` and `audit_multiple_versions` show what to prune;
    `audit_runtime` and `audit_quality` show what to re-download.

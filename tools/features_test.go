@@ -151,10 +151,11 @@ func TestLibraryExport(t *testing.T) {
 	}
 }
 
-// audit_media_facts: a file the server never probed answers every quality
-// question with nothing, and on Emby a file written after the server first
-// saw it may still carry the earlier file's facts.
-func TestAuditMediaFacts(t *testing.T) {
+// audit_quality lists the files it cannot trust: a file the server never
+// probed answers every quality question with nothing, and on Emby a file
+// written after the server first saw it may still carry the earlier file's
+// facts.
+func TestAuditQualityListsUnprobedAndReplaced(t *testing.T) {
 	t.Parallel()
 
 	f := newFakeServer(t)
@@ -178,9 +179,9 @@ func TestAuditMediaFacts(t *testing.T) {
 			{"Id": "4", "Name": "Zzyzx Virtual", "Type": "Movie", "Path": "/m/d.mkv", "LocationType": "Virtual"},
 		}})
 	})
-	out := mustCall(t, session(t, f, Options{}), "audit_media_facts", map[string]any{"library": "Films"})
-	if number(t, out["items_scanned"], "items_scanned") != 3 {
-		t.Errorf("scanned = %v, want the three with a file", out["items_scanned"])
+	out := mustCall(t, session(t, f, Options{}), "audit_quality", map[string]any{"library": "Films"})
+	if number(t, out["items_scanned"], "items_scanned") != 4 {
+		t.Errorf("scanned = %v, want every item", out["items_scanned"])
 	}
 	unprobed := objects(t, out["unprobed"], "unprobed")
 	if len(unprobed) != 1 || text(unprobed[0]["name"]) != "Zzyzx Unprobed" || !strings.Contains(text(unprobed[0]["detail"]), "never probed") {
@@ -195,7 +196,7 @@ func TestAuditMediaFacts(t *testing.T) {
 	}
 }
 
-// With a TMDB token, audit_title_mismatch says where TMDB puts the file's
+// With a TMDB token, audit_file_path says where TMDB puts the file's
 // title: another number is a file numbered in another provider's order,
 // the same number a reworded title, none a title TMDB never heard of.
 func TestAuditTitleMismatchDiagnosesByTMDB(t *testing.T) {
@@ -210,7 +211,7 @@ func TestAuditTitleMismatchDiagnosesByTMDB(t *testing.T) {
 	}
 	run := map[int][]string{1: {"Good News About Hell", "Half Loop", "In Perpetuity"}}
 	cs := session(t, tvServer(t, s), Options{TMDBKey: "k", ProviderTransport: guideServer(t, run, aired2022)})
-	out := mustCall(t, cs, "audit_title_mismatch", map[string]any{"library": "Shows"})
+	out := mustCall(t, cs, "audit_file_path", map[string]any{"library": "Shows"})
 	rows := objects(t, out["findings"], "findings")
 	if len(rows) != 2 {
 		t.Fatalf("findings = %v", rows)
@@ -227,7 +228,7 @@ func TestAuditTitleMismatchDiagnosesByTMDB(t *testing.T) {
 	}
 
 	// without a token, nothing is said
-	plain := mustCall(t, session(t, tvServer(t, s), Options{}), "audit_title_mismatch", map[string]any{"library": "Shows"})
+	plain := mustCall(t, session(t, tvServer(t, s), Options{}), "audit_file_path", map[string]any{"library": "Shows"})
 	if r := objects(t, plain["findings"], "findings")[0]; r["diagnosis"] != nil {
 		t.Errorf("a diagnosis with no TMDB token: %v", r)
 	}

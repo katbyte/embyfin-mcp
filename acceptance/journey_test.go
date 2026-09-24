@@ -201,13 +201,13 @@ func TestAuditsAreFixable(t *testing.T) {
 	})
 
 	t.Run("year mismatch", func(t *testing.T) {
-		if got := findings(t, call(t, "audit_year_mismatch", messy)); !slices.Equal(got, []string{"Dune"}) {
-			t.Fatalf("audit_year_mismatch = %v, want [Dune]", got)
+		if got := findings(t, call(t, "audit_file_path", messy)); !slices.Equal(got, []string{"Dune"}) {
+			t.Fatalf("audit_file_path = %v, want [Dune]", got)
 		}
 		call(t, "item_edit", map[string]any{"ids": []any{dune}, "year": 2021})
 		t.Cleanup(func() { _, _ = invoke("item_edit", map[string]any{"ids": []any{dune}, "year": 1984}) })
-		if n := num(t, call(t, "audit_year_mismatch", messy)["total_findings"], "total_findings"); n != 0 {
-			t.Errorf("after item_edit audit_year_mismatch found %d", n)
+		if n := num(t, call(t, "audit_file_path", messy)["total_findings"], "total_findings"); n != 0 {
+			t.Errorf("after item_edit audit_file_path found %d", n)
 		}
 	})
 
@@ -368,13 +368,30 @@ func TestAuditAllMatchesEachAudit(t *testing.T) {
 		}
 		for _, row := range rows(t, call(t, "audit_all", args)["audits"], "audits") {
 			name := str(row["audit"])
-			out := call(t, name, args)
-			count := out["total_findings"]
-			if name == "audit_duplicates" {
-				count = out["total_groups"]
+			if s, _ := row["skipped"].(bool); s {
+				continue
 			}
-			if num(t, count, name) != num(t, row["findings"], "findings") || num(t, out["items_scanned"], name) != num(t, row["items_scanned"], "items_scanned") {
-				t.Errorf("%q %s: audit_all counted %v of %v, the audit %v of %v", library, name, row["findings"], row["items_scanned"], count, out["items_scanned"])
+			// audit_orphans takes no library and runs in audit_all only
+			// without one; the rest take the same arguments
+			own := args
+			if name == "audit_orphans" {
+				own = nil
+			}
+			out := call(t, name, own)
+			// each audit names its count and its sweep by what they are
+			count, scanned := out["total_findings"], out["items_scanned"]
+			switch name {
+			case "audit_duplicates", "audit_duplicate_titles":
+				count = out["total_groups"]
+			case "audit_duplicate_series_folders":
+				count, scanned = out["total_groups"], out["series_scanned"]
+			case "audit_disc_folders":
+				count = out["total_folders"]
+			case "audit_orphans":
+				count = out["total_orphans"]
+			}
+			if num(t, count, name) != num(t, row["findings"], "findings") || num(t, scanned, name) != num(t, row["items_scanned"], "items_scanned") {
+				t.Errorf("%q %s: audit_all counted %v of %v, the audit %v of %v", library, name, row["findings"], row["items_scanned"], count, scanned)
 			}
 		}
 	}
@@ -1112,8 +1129,8 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 		// matched to David Lynch's film, which the messy Dune's nfo names too
 		updateItem(t, dune, map[string]any{"ProviderIds": map[string]any{"Tmdb": "841", "Imdb": "tt0087182"}, "ProductionYear": 1984})
 		counts := auditCounts(t, nil)
-		if got := findings(t, call(t, "audit_year_mismatch", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Dune"}) {
-			t.Fatalf("audit_year_mismatch = %v, want [Dune]", got)
+		if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Dune"}) {
+			t.Fatalf("audit_file_path = %v, want [Dune]", got)
 		}
 		if n := len(rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841"})["items"], "items")); n != 2 {
 			t.Fatalf("tmdb 841 matches %d films, want the clean and the messy Dune", n)
@@ -1134,14 +1151,14 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 			t.Errorf("item_identify_apply = %v", applied)
 		}
 
-		if got := findings(t, call(t, "audit_year_mismatch", map[string]any{"library": "Movies"})); len(got) != 0 {
-			t.Errorf("after the re-match audit_year_mismatch = %v", got)
+		if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Movies"})); len(got) != 0 {
+			t.Errorf("after the re-match audit_file_path = %v", got)
 		}
 		if n := len(rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841"})["items"], "items")); n != 1 {
 			t.Errorf("after the re-match tmdb 841 matches %d films, want the messy Dune alone", n)
 		}
 		after := auditCounts(t, nil)
-		for _, audit := range []string{"audit_year_mismatch", "audit_duplicates"} {
+		for _, audit := range []string{"audit_file_path", "audit_duplicates"} {
 			if after[audit] != counts[audit]-1 {
 				t.Errorf("%s counted %d before the re-match and %d after, want one fewer", audit, counts[audit], after[audit])
 			}

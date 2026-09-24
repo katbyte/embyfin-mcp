@@ -35,10 +35,13 @@ func title(name string) string {
 
 // The clean libraries are clean: every audit leaves them alone.
 func TestAuditsLeaveTheCleanLibrariesAlone(t *testing.T) {
-	for _, audit := range []string{"audit_missing_metadata_provider", "audit_missing_overview", "audit_year_mismatch", "audit_multiple_versions"} {
+	for _, audit := range []string{"audit_missing_metadata_provider", "audit_missing_overview", "audit_file_path", "audit_multiple_versions"} {
 		for _, lib := range []string{"Movies", "Shows"} {
 			if audit == "audit_multiple_versions" && lib == "Shows" {
 				continue // the show library has no versions and, with the provider on, virtual episodes
+			}
+			if audit == "audit_file_path" && lib == "Shows" {
+				continue // the show library holds the one file named after another episode, which TestAuditFilePathShows reads
 			}
 			out := call(t, audit, map[string]any{"library": lib})
 			if n := num(t, out["total_findings"], "total_findings"); n != 0 {
@@ -141,14 +144,29 @@ func TestAuditMissingPoster(t *testing.T) {
 	}
 }
 
-func TestAuditYearMismatch(t *testing.T) {
-	out := call(t, "audit_year_mismatch", map[string]any{"library": "Messy Movies"})
+// The messy Dune's folder says (2021) and its nfo 1984; every other messy
+// film's folder names it as the server does, edition words after the year
+// included ("Alien (1979) Directors Cut" is Alien).
+func TestAuditFilePath(t *testing.T) {
+	out := call(t, "audit_file_path", map[string]any{"library": "Messy Movies"})
 	if got := findings(t, out); !slices.Equal(got, []string{"Dune"}) {
-		t.Errorf("year mismatch = %v, want [Dune]", got)
+		t.Errorf("file path = %v, want [Dune]", got)
 	}
 	f := rows(t, out["findings"], "findings")[0]
-	if !strings.Contains(str(f["detail"]), "2021") || !strings.Contains(str(f["detail"]), "1984") || num(t, f["year"], "year") != 1984 {
+	problems, _ := f["problems"].([]any)
+	if len(problems) != 1 || !strings.Contains(str(problems[0]), "year: path says 2021, metadata says 1984") || str(f["type"]) != "Movie" {
 		t.Errorf("finding = %v", f)
+	}
+	byCheck, _ := out["by_check"].(map[string]any)
+	if num(t, byCheck["year"], "year") != 1 || byCheck["title"] != nil {
+		t.Errorf("by_check = %v", byCheck)
+	}
+	// the year check alone, and the title check alone
+	if n := num(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "year"})["total_findings"], "total_findings"); n != 1 {
+		t.Errorf("checks=year found %d", n)
+	}
+	if n := num(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title"})["total_findings"], "total_findings"); n != 0 {
+		t.Errorf("checks=title found %d", n)
 	}
 }
 
@@ -247,7 +265,7 @@ func TestAuditRuntimeEpisodes(t *testing.T) {
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("findings = %v", out["findings"])
 	}
-	if _, ok := out["next_start_index"]; ok {
+	if _, ok := out["next_offset"]; ok {
 		t.Error("episode mode paged")
 	}
 	if msg := callErr(t, "audit_runtime", map[string]any{"types": "Album"}); !strings.Contains(msg, "Episode or Movie") {
@@ -280,16 +298,16 @@ func TestAuditRuntimeMovies(t *testing.T) {
 		}
 	}
 
-	// paging: two lookups per call, then continue from next_start_index
+	// paging: two lookups per call, then continue from next_offset
 	out = call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "types": "Movie", "max_lookups": 2})
 	if len(rows(t, out["findings"], "findings")) != 2 {
 		t.Errorf("max_lookups 2 = %v", out["findings"])
 	}
-	next, ok := out["next_start_index"]
+	next, ok := out["next_offset"]
 	if !ok {
-		t.Fatal("no next_start_index after a partial sweep")
+		t.Fatal("no next_offset after a partial sweep")
 	}
-	rest := call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "types": "Movie", "start_index": next})
+	rest := call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "types": "Movie", "offset": next})
 	if n, want := num(t, rest["total_findings"], "total_findings"), len(want)-2; n != want {
 		t.Errorf("the rest = %d findings, want %d", n, want)
 	}
@@ -320,20 +338,34 @@ func needsTMDBCassette(t *testing.T) {
 }
 
 // audit_all is the overview: one row per audit with the counts the audits
-// themselves report, across the whole server.
+// themselves report, across the whole server. Every audit has a row: the
+// ones that need more than the server (a language, TMDB, the Anime-Lists
+// file) and the server-wide orphans check when a library is given are
+// rows marked skipped, with why.
 func TestAuditAll(t *testing.T) {
 	out := call(t, "audit_all", map[string]any{"library": "Messy Movies"})
 	counts := map[string]int{}
+	skipped := map[string]bool{}
 	for _, row := range rows(t, out["audits"], "audits") {
-		counts[str(row["audit"])] = num(t, row["findings"], "findings")
+		name := str(row["audit"])
+		counts[name] = num(t, row["findings"], "findings")
+		if s, _ := row["skipped"].(bool); s {
+			skipped[name] = true
+			if str(row["note"]) == "" {
+				t.Errorf("%s is skipped without a note", name)
+			}
+		}
 	}
 	want := map[string]int{
 		"audit_missing_metadata_provider": 1,
 		"audit_missing_poster":            2,
 		"audit_missing_overview":          2,
-		"audit_year_mismatch":             1,
+		"audit_file_path":                 1,
 		"audit_multiple_versions":         1,
 		"audit_duplicates":                1,
+		"audit_duplicate_titles":          0,
+		"audit_duplicate_series_folders":  0,
+		"audit_disc_folders":              0,
 		"audit_runtime":                   0,
 		"audit_quality":                   6,
 		"audit_missing_episodes":          0,
@@ -347,15 +379,33 @@ func TestAuditAll(t *testing.T) {
 			t.Errorf("%s = %d, want %d", audit, counts[audit], n)
 		}
 	}
-	if len(counts) != len(want) {
-		t.Errorf("audits = %v, want %d rows", counts, len(want))
+	// what nobody has watched depends on what the other tests played, so
+	// its row is checked for being there rather than for its count
+	if _, ok := counts["audit_unwatched"]; !ok {
+		t.Error("no audit_unwatched row")
 	}
+	for _, audit := range []string{"audit_orphans", "audit_language", "audit_movie_ids", "audit_anime_ids"} {
+		if !skipped[audit] {
+			t.Errorf("%s is not marked skipped for one library: %v", audit, out["audits"])
+		}
+	}
+	if len(counts) != len(want)+5 {
+		t.Errorf("audits = %v, want %d rows", counts, len(want)+5)
+	}
+	// the total is the defects: what nobody has watched is a row, not a fault
 	total := 0
 	for _, n := range want {
 		total += n
 	}
 	if num(t, out["total_findings"], "total_findings") != total {
 		t.Errorf("total_findings = %v, want %d", out["total_findings"], total)
+	}
+	// across the server, the orphans check runs
+	whole := call(t, "audit_all", nil)
+	for _, row := range rows(t, whole["audits"], "audits") {
+		if s, _ := row["skipped"].(bool); str(row["audit"]) == "audit_orphans" && s {
+			t.Errorf("audit_orphans skipped with no library given: %v", row)
+		}
 	}
 
 	// the clean libraries are clean
@@ -381,10 +431,10 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 		}
 	}
 	want := []string{
-		"audit_all", "audit_anime_ids", "audit_disc_folders", "audit_duplicate_series_folders", "audit_duplicate_titles", "audit_duplicates", "audit_language",
-		"audit_media_facts", "audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
+		"audit_all", "audit_anime_ids", "audit_disc_folders", "audit_duplicate_series_folders", "audit_duplicate_titles", "audit_duplicates", "audit_file_path", "audit_language",
+		"audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
 		"audit_missing_poster", "audit_movie_ids", "audit_multiple_versions", "audit_orphans", "audit_quality", "audit_runtime", "audit_spelling",
-		"audit_title_mismatch", "audit_unwatched", "audit_year_mismatch",
+		"audit_unwatched",
 	}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {
