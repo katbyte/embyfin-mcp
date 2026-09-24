@@ -143,9 +143,17 @@ func TestShowEpisodesExistMatching(t *testing.T) {
 	if msg := callErr(t, "show_episodes_exist", map[string]any{"series": "Breaking Bad Insider", "library": "Shows", "episodes": ep}); !strings.Contains(msg, "nothing well enough") {
 		t.Errorf("a spin-off name was not refused: %s", msg)
 	}
-	// and a name sharing words with the only show that answers is not that show
-	if msg := callErr(t, "show_episodes_exist", map[string]any{"series": "Star Trek Picard", "library": "Messy Shows", "episodes": ep}); !strings.Contains(msg, "nothing well enough") {
-		t.Errorf("a name sharing two words with the only candidate was not refused: %s", msg)
+	// and a name sharing words with the shows that answer is none of them: the
+	// two Star Treks share its first two words, and neither is Picard, so both
+	// are offered back as guesses, not as a choice to narrow
+	msg := callErr(t, "show_episodes_exist", map[string]any{"series": "Star Trek Picard", "library": "Messy Shows", "episodes": ep})
+	for _, want := range []string{"nothing well enough", "the closest are", "Star Trek The Next Generation", "Star Trek: Deep Space Nine"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("a name sharing two words with two shows = %s, want it refused saying %q", msg, want)
+		}
+	}
+	if strings.Contains(msg, "narrow it with library") {
+		t.Errorf("two guesses were refused as a choice to narrow: %s", msg)
 	}
 }
 

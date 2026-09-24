@@ -143,9 +143,10 @@ func TestAuditFilePathShows(t *testing.T) {
 }
 
 // Two folders for one show, a space and a letter's case apart: the messy
-// Zzyzx Twins pair, and the only collision across every series the server
-// holds. The two Severances are one show in two libraries, which is not
-// this audit's business (audit_duplicates groups them by their ids).
+// A Knight of the Seven Kingdoms pair, and the only collision across every
+// series the server holds. The two Severances are one show in two
+// libraries, which is not this audit's business (audit_duplicates groups
+// them by their ids).
 func TestAuditDuplicateSeries(t *testing.T) {
 	out := call(t, "audit_duplicate_series", nil)
 	if n := num(t, out["items_scanned"], "items_scanned"); n != 3+messySeries {
@@ -153,16 +154,16 @@ func TestAuditDuplicateSeries(t *testing.T) {
 	}
 	groups := rows(t, out["groups"], "groups")
 	if len(groups) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
-		t.Fatalf("groups = %v, want the Twins pair alone", groups)
+		t.Fatalf("groups = %v, want the A Knight of the Seven Kingdoms pair alone", groups)
 	}
 	var folders []string
 	for _, s := range rows(t, groups[0]["series"], "series") {
 		folders = append(folders, str(s["folder"]))
-		if str(s["series_id"]) == "" || num(t, s["year"], "year") != 2005 || !strings.HasPrefix(str(s["path"]), "/media/messy-shows/") {
+		if str(s["series_id"]) == "" || num(t, s["year"], "year") != 2026 || !strings.HasPrefix(str(s["path"]), "/media/messy-shows/") {
 			t.Errorf("series = %v", s)
 		}
 	}
-	if !slices.Equal(sorted(folders), []string{"Zzyzx  twins (2005)", "Zzyzx Twins (2005)"}) {
+	if !slices.Equal(sorted(folders), []string{"A Knight of the Seven  kingdoms (2026)", "A Knight of the Seven Kingdoms (2026)"}) {
 		t.Errorf("the pair = %v", folders)
 	}
 	// one library at a time finds it in its own, and a limit caps the rows

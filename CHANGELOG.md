@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+
+- `audit_file_path` no longer flags a film Jellyfin could not match, which it names after its folder, year and all ("Cube (1997)").
+- A series name that only half-matches several shows is refused as a guess, rather than as a tie to narrow with `library`.
+
 ## 0.2.0 (2026-09-23)
 
 **New**

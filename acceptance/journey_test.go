@@ -1050,7 +1050,7 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 	t.Run("a duplicate pruned", func(t *testing.T) {
 		have := movieCount(t, "Messy Movies")
 		copies, group := alienCopies(), alienGroup()
-		dst := filepath.Join(dataDir(), "messy-movies", "Alien (1979) Zzyzx Copy")
+		dst := filepath.Join(dataDir(), "messy-movies", "Alien (1979) Copy")
 		copyFixture(t, filepath.Join(dataDir(), "messy-movies", messyAlien), dst)
 		t.Cleanup(func() { _ = os.RemoveAll(dst) })
 		call(t, "library_scan", nil)
@@ -1062,7 +1062,7 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		}
 		var id string
 		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Alien", "limit": 50})["items"], "items") {
-			if strings.Contains(str(it["path"]), "Zzyzx Copy") {
+			if strings.Contains(str(it["path"]), "/Alien (1979) Copy/") {
 				id = str(it["id"])
 			}
 		}
@@ -1094,9 +1094,9 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		dir := filepath.Join(dataDir(), "ripple", "Zzyzx Three (2003)")
+		dir := filepath.Join(dataDir(), "ripple", "The Lord of the Rings The Return of the King (2003)")
 		mediaMkdir(t, dir)
-		mediaWrite(t, filepath.Join(dir, "Zzyzx Three (2003).mp4"), raw)
+		mediaWrite(t, filepath.Join(dir, "The Lord of the Rings The Return of the King (2003).mp4"), raw)
 		t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), "ripple")) })
 		t.Cleanup(func() {
 			_, _ = invoke("library_delete", map[string]any{"library": "Ripple", "confirm": true})

@@ -576,20 +576,6 @@
       "body": "{\"status\":\"success\",\"data\":[{\"objectID\":\"movie-3826\",\"country\":\"usa\",\"director\":\"Josef Rusnak\",\"extended_title\":\"The Thirteenth Floor (1999)\",\"genres\":[\"Science Fiction\",\"Thriller\"],\"studios\":[\"Columbia Pictures\"],\"id\":\"movie-3826\",\"image_url\":\"https://artworks.thetvdb.com/banners/movies/3826/posters/3826.jpg\",\"name\":\"The Thirteenth Floor\",\"first_air_time\":\"1999-04-16\",\"overview\":\"In late 1990s Los Angeles, Hannon Fuller was the inventor of a newly completed VR simulation of 1937 Los Angeles, filled with AI, unaware they are computer programs. When Fuller is murdered just as he begins testing of the VR system, his friend and protégé, Douglas Hall, becomes the primary suspect.\",\"primary_language\":\"eng\",\"primary_type\":\"movie\",\"status\":\"Released\",\"type\":\"movie\",\"tvdb_id\":\"3826\",\"year\":\"1999\",\"slug\":\"the-thirteenth-floor\",\"overviews\":{\"eng\":\"In late 1990s Los Angeles, Hannon Fuller was the inventor of a newly completed VR simulation of 1937 Los Angeles, filled with AI, unaware they are computer programs. When Fuller is murdered just as he begins testing of the VR system, his friend and protégé, Douglas Hall, becomes the primary suspect.\",\"rus\":\"На тринадцатом этаже компьютерной корпорации была разработана совершенная модель виртуальной реальности, создание которой повлекло за собой цепь таинственных убийств. Разгадать загадку можно, лишь погрузившись в иное измерение, где может быть ответ на многие вопросы, а может быть - страшная нереальность...\"},\"translations\":{\"ces\":\"Třinácté patro\",\"deu\":\"The 13th Floor - Bist du was du denkst?\",\"eng\":\"The Thirteenth Floor\",\"fin\":\"13. kerros\",\"fra\":\"Passé virtuel\",\"heb\":\"הקומה השלוש עשרה\",\"hun\":\"13. emelet\",\"ita\":\"Il tredicesimo piano\",\"jpn\":\"13F\",\"kor\":\"13층\",\"pol\":\"Trzynaste piętro\",\"por\":\"13º Andar\",\"rus\":\"Тринадцатый этаж\",\"spa\":\"Nivel 13\",\"swe\":\"13:e Våningen\",\"tur\":\"13'üncü Kat\",\"zho\":\"异次元骇客\"},\"remote_ids\":[{\"id\":\"tt0139809\",\"type\":2,\"sourceName\":\"IMDB\"},{\"id\":\"1090\",\"type\":10,\"sourceName\":\"TheMovieDB.com\"}],\"thumbnail\":\"https://artworks.thetvdb.com/banners/movies/3826/posters/3826_t.jpg\"}],\"links\":{\"prev\":null,\"self\":\"https://api4.thetvdb.com/v4/search?query=The Thirteenth Floor\\u0026type=movie\\u0026year=1999\\u0026limit=50\\u0026page=0\",\"next\":null,\"total_items\":1,\"page_size\":50}}\n"
     },
     {
-      "key": "GET api4.thetvdb.com/v4/search?q=Zzyzx+Scan+Fixture\u0026type=movie\u0026year=1999",
-      "method": "GET",
-      "host": "api4.thetvdb.com",
-      "path": "/v4/search",
-      "query": "type=movie\u0026q=Zzyzx+Scan+Fixture\u0026year=1999",
-      "status": 200,
-      "headers": {
-        "Content-Type": "application/json; charset=UTF-8",
-        "Vary": "Origin",
-        "Via": "1.1 73b0c4a85645a8031ba157e0b3e28ffc.cloudfront.net (CloudFront)"
-      },
-      "body": "{\"status\":\"success\",\"data\":[],\"links\":{\"prev\":null,\"self\":\"https://api4.thetvdb.com/v4/search?query=Zzyzx Scan Fixture\\u0026type=movie\\u0026year=1999\\u0026limit=50\\u0026page=0\",\"next\":null,\"total_items\":0,\"page_size\":50}}\n"
-    },
-    {
       "key": "GET api4.thetvdb.com/v4/search?q=tt0078748\u0026remote_id=tt0078748\u0026type=movie",
       "method": "GET",
       "host": "api4.thetvdb.com",
@@ -630,6 +616,20 @@
         "Via": "1.1 b3ccaedda78c63d5967b57382ceb4cbe.cloudfront.net (CloudFront)"
       },
       "body": "{\"status\":\"success\",\"data\":[],\"links\":{\"prev\":null,\"self\":\"https://api4.thetvdb.com/v4/search?query=tt0090605\\u0026type=movie\\u0026remote_id=tt0090605\\u0026limit=50\\u0026page=0\",\"next\":null,\"total_items\":0,\"page_size\":50}}\n"
+    },
+    {
+      "key": "GET api4.thetvdb.com/v4/search?q=tt0119081\u0026remote_id=tt0119081\u0026type=movie",
+      "method": "GET",
+      "host": "api4.thetvdb.com",
+      "path": "/v4/search",
+      "query": "type=movie\u0026q=tt0119081\u0026remote_id=tt0119081",
+      "status": 401,
+      "headers": {
+        "Content-Type": "application/json; charset=UTF-8",
+        "Vary": "Origin",
+        "Via": "1.1 21caa6ddeea167501523139c019e1448.cloudfront.net (CloudFront)"
+      },
+      "body": "{\"message\":\"Unauthorized\"}\n"
     },
     {
       "key": "GET api4.thetvdb.com/v4/search?q=tt0119698\u0026remote_id=tt0119698\u0026type=movie",

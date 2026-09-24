@@ -31,13 +31,13 @@ func TestAuditDiscFolders(t *testing.T) {
 	}
 	dvd := folders[0]
 	entries := rows(t, dvd["entries"], "entries")
-	if str(dvd["folder"]) != "/media/messy-movies/"+messyNightFerry || str(dvd["kind"]) != "flattened dvd" || num(t, dvd["items"], "items") != 1 || len(entries) != 1 {
+	if str(dvd["folder"]) != "/media/messy-movies/"+messyLooseDVD || str(dvd["kind"]) != "flattened dvd" || num(t, dvd["items"], "items") != 1 || len(entries) != 1 {
 		t.Errorf("the loose DVD = %v", dvd)
-	} else if e := entries[0]; str(e["file"]) != "VTS_01_1.VOB" || title(str(e["name"])) != "Zzyzx Night Ferry" || num(t, e["size"], "size") <= 0 || str(e["matched_to"]) != "" {
+	} else if e := entries[0]; str(e["file"]) != "VTS_01_1.VOB" || title(str(e["name"])) != "Coyote vs. Acme" || num(t, e["size"], "size") <= 0 || str(e["matched_to"]) != "" {
 		t.Errorf("the loose DVD's entry = %v", e)
 	}
 	for _, f := range folders {
-		if strings.Contains(str(f["folder"]), messyKeepCase) {
+		if strings.Contains(str(f["folder"]), messyKeptBluRay) {
 			t.Errorf("the Blu-ray kept whole was reported: %v", f)
 		}
 	}

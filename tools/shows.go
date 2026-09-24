@@ -373,8 +373,14 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 		rest = fmt.Sprintf(", showing %d (%d more not listed)", shown, more)
 	}
 
-	if len(rows) == 1 {
+	// several weak candidates are not an ambiguity: "narrow it with library"
+	// told a caller that one of two good matches would do, when neither was
+	// one ("Star Trek Picard" beside two other Star Treks)
+	switch {
+	case len(rows) == 1:
 		return nil, nil, fmt.Errorf("%q matches nothing well enough to act on%s: the closest is %s, which is a guess rather than a match - give series_id if it is the one you meant", name, where, names[0])
+	case rows[0].Score < seriesConfident:
+		return nil, nil, fmt.Errorf("%q matches nothing well enough to act on%s: the closest are %s%s, guesses rather than matches - give series_id if one of them is the one you meant", name, where, strings.Join(names, "; "), rest)
 	}
 
 	return nil, nil, fmt.Errorf("%q matches %d series%s%s: %s - give series_id, or narrow it with library", name, len(rows), where, rest, strings.Join(names, "; "))

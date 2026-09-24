@@ -863,6 +863,32 @@ func TestShowEpisodesExistWarnsWhenAShowIsSplit(t *testing.T) {
 // word "Sentai" - and the answer was handed over with nothing on it to say
 // so. The caller went on to ask what that series was missing, and believed
 // the answer.
+// Several weak candidates are guesses, not an ambiguity: the refusal says
+// nothing matched well enough and lists them, rather than "matches 2
+// series ... narrow it with library", which read as two good matches of
+// which either would do.
+func TestSeriesByNameRefusesSeveralGuesses(t *testing.T) {
+	t.Parallel()
+
+	shows := []*fakeSeries{
+		{id: "tng", name: "Star Trek: The Next Generation", year: 1987, episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/tng.mkv"}}},
+		{id: "ds9", name: "Star Trek: Deep Space Nine", year: 1993, episodes: []ep{{season: 1, number: 1, name: "One", path: "/m/ds9.mkv"}}},
+	}
+	cs := session(t, tvServer(t, shows...), Options{})
+
+	msg := mustRefuse(t, cs, "show_episodes_exist", map[string]any{
+		"series": "Star Trek Picard", "episodes": []map[string]any{{"season": 1, "episode": 1}},
+	})
+	for _, want := range []string{"nothing well enough", "the closest are", "Next Generation", "Deep Space Nine", "guesses"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("the refusal does not carry %q: %s", want, msg)
+		}
+	}
+	if strings.Contains(msg, "narrow it with library") {
+		t.Errorf("two guesses were refused as an ambiguity: %s", msg)
+	}
+}
+
 func TestSeriesByNameRefusesALoneGuess(t *testing.T) {
 	t.Parallel()
 

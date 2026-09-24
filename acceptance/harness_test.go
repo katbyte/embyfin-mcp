@@ -77,12 +77,13 @@ func messyMovies() int {
 	return 12
 }
 
-// The messy show library: Severance, Star Trek The Next Generation, Zzyzx
-// Paths, the Zzyzx Twins pair and Zzyzx Gaiden, holding seventeen episode files
-// between them (scripts/testenv.sh says what is wrong with each).
+// The messy show library: Severance, Star Trek The Next Generation, Star Trek:
+// Deep Space Nine, Andor, the A Knight of the Seven Kingdoms pair and
+// .hack//Liminality, holding eighteen episode files between them
+// (scripts/testenv.sh says what is wrong with each).
 const (
-	messySeries   = 6
-	messyEpisodes = 17
+	messySeries   = 7
+	messyEpisodes = 18
 )
 
 // versionsMerged reports whether the server stores the two Blade Runner
@@ -180,15 +181,18 @@ const (
 	messyAlienCut     = "Alien (1979) Directors Cut" // tmdb 348, twice
 	messyBladeRunner  = "Blade Runner (1982)"        // two files: 1080p and 2160p
 	messyInterstellar = "Interstellar (2014)"        // nfo says 169 minutes, the file runs one second
-	messyNightFerry   = "Zzyzx Night Ferry (1999)"   // a DVD's VOB loose in the folder, no nfo
-	messyKeepCase     = "Zzyzx Keep Case (2000)"     // a Blu-ray kept whole, BDMV/STREAM, no nfo
-	messyCrossed      = "Zzyzx Crossed Wires (2008)" // Breaking Bad's IMDb id and no TMDB one
-	messyTakenDown    = "Zzyzx Taken Down (2010)"    // a TMDB id TMDB has no film for; genre Science-Fiction
+	messyLooseDVD     = "Coyote vs. Acme (2026)"     // a DVD's VOB loose in the folder, no nfo
+	messyKeptBluRay   = "Cube (1997)"                // a Blu-ray kept whole, BDMV/STREAM, no nfo
+	messyCrossed      = "Memento (2000)"             // Breaking Bad's IMDb id and no TMDB one
+
+	// a fan restoration of Star Wars: a TMDB id TMDB has no film for, and the
+	// genre spelled Science-Fiction
+	messyDespecialized = "Star Wars Episode IV - A New Hope Despecialized Edition (1977)"
 )
 
 // messyUnmatched are the messy films no nfo names: the one with none, and the
 // two discs, whose folders hold nothing but the disc.
-var messyUnmatched = []string{"Princess Mononoke", "Zzyzx Keep Case", "Zzyzx Night Ferry"}
+var messyUnmatched = []string{"Coyote vs. Acme", "Cube", "Princess Mononoke"}
 
 var (
 	ctx     context.Context
@@ -427,8 +431,8 @@ func tmdbKey() string {
 	return "replay"
 }
 
-// animeList is the list audit_anime_ids reads here: a few invented entries
-// in Anime-Lists' shape, so the suite never fetches the real one.
+// animeList is the list audit_anime_ids reads here: a few entries in
+// Anime-Lists' shape, so the suite never fetches the real one.
 var animeList = filepath.Join("testdata", "anime-list.xml")
 
 func start() error {

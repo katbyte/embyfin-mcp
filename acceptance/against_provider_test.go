@@ -13,9 +13,10 @@ import (
 
 // Films' ids asked about at TMDB. Most of the messy films' sidecars carry a
 // TMDB and an IMDb id that agree, so nothing is reported for them; two carry
-// ids that do not hold up - Crossed Wires an IMDb id that is Breaking Bad, a
-// series, and Taken Down a TMDB id TMDB has no film for - and a staged film
-// whose sidecar pairs Alien's TMDB id with Blade Runner's IMDb id is a third.
+// ids that do not hold up - Memento an IMDb id that is Breaking Bad, a
+// series, and the Despecialized Edition of Star Wars a TMDB id TMDB has no
+// film for - and a staged film whose sidecar pairs The Machinist's TMDB id
+// with Blade Runner's IMDb id is a third.
 //
 // The film is staged and taken away again, like the disc audit's streams:
 // the messy library's count is read by tests that have nothing to do with it.
@@ -38,8 +39,8 @@ func TestAuditProviderIDs(t *testing.T) {
 		return got
 	}
 	lasting := map[string]string{
-		"Zzyzx Crossed Wires": "ids: its IMDb id tt0903747 is a series, not a film: Breaking Bad, TMDB tv 1396 | holds imdb:tt0903747",
-		"Zzyzx Taken Down":    "ids: TMDB has no film 99999999: the id is wrong, or the film was taken down | holds tmdb:99999999",
+		"Memento": "ids: its IMDb id tt0903747 is a series, not a film: Breaking Bad, TMDB tv 1396 | holds imdb:tt0903747",
+		"Star Wars: Episode IV - A New Hope (Despecialized Edition)": "ids: TMDB has no film 99999999: the id is wrong, or the film was taken down | holds tmdb:99999999",
 	}
 	out := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "ids", "types": "Movie"})
 	if got := problems(out); !reflect.DeepEqual(got, lasting) || num(t, out["items_scanned"], "items_scanned") != messyMovies() {
@@ -58,19 +59,19 @@ func TestAuditProviderIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	have := movieCount(t, "Messy Movies")
-	dir := filepath.Join(dataDir(), "messy-movies", "Zzyzx Crossed (1979)")
+	dir := filepath.Join(dataDir(), "messy-movies", "The Machinist (2004)")
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
 		_ = scanUntil("Messy Movies", have)
 	})
 	mediaMkdir(t, dir)
-	mediaWrite(t, filepath.Join(dir, "Zzyzx Crossed (1979).mp4"), raw)
+	mediaWrite(t, filepath.Join(dir, "The Machinist (2004).mp4"), raw)
 	mediaWrite(t, filepath.Join(dir, "movie.nfo"), []byte(`<?xml version="1.0" encoding="utf-8"?>
 <movie>
-  <title>Zzyzx Crossed</title>
-  <year>1979</year>
-  <tmdbid>348</tmdbid>
-  <uniqueid type="tmdb" default="true">348</uniqueid>
+  <title>The Machinist</title>
+  <year>2004</year>
+  <tmdbid>4553</tmdbid>
+  <uniqueid type="tmdb" default="true">4553</uniqueid>
   <imdbid>tt0083658</imdbid>
   <uniqueid type="imdb">tt0083658</uniqueid>
 </movie>
@@ -82,7 +83,7 @@ func TestAuditProviderIDs(t *testing.T) {
 
 	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "ids"})
 	got := problems(out)
-	want := map[string]string{"Zzyzx Crossed": "ids: its TMDB id is 348, Alien (1979), whose IMDb id is tt0078748, not the tt0083658 it holds: one of the two is wrong | holds tmdb:348 imdb:tt0083658"}
+	want := map[string]string{"The Machinist": "ids: its TMDB id is 4553, The Machinist (2004), whose IMDb id is tt0361862, not the tt0083658 it holds: one of the two is wrong | holds tmdb:4553 imdb:tt0083658"}
 	maps.Copy(want, lasting)
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("with the crossed film staged = %v, want %v", got, want)

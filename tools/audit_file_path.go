@@ -229,7 +229,15 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 
 	// a film or a series: the path's own segment names it, with its year
 	if want["title"] && it.Name != "" {
-		claimed, score := titleFromPath(it.Path, it.Name)
+		// a server names a film it could not match after its folder, year
+		// and all ("Cube (1997)"), and the path's title is read cut at its
+		// year, so the year comes off the held name too: left on, a short
+		// title scored under the bar against its own folder
+		held := strings.TrimSpace(seriesNameYear.ReplaceAllString(it.Name, ""))
+		if held == "" {
+			held = it.Name
+		}
+		claimed, score := titleFromPath(it.Path, held)
 		if claimed != "" && score < seriesConfident {
 			problem("title", fmt.Sprintf("the path is named %q, the server holds %q: named by hand or in another language, or the wrong match", claimed, it.Name))
 			row.TitleInFile, row.TitleOnServer, row.Score = claimed, it.Name, score

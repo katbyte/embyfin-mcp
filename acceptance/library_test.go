@@ -300,11 +300,10 @@ func TestLibraryScanPicksUpNewFiles(t *testing.T) {
 		t.Error("the new film has no id")
 	}
 
-	// and a scan of the one library picks up another, under a title no
-	// provider has, so the lookups it makes are empty ones
-	dir2 := filepath.Join(dataDir(), "movies", "Zzyzx Scan Fixture (1999)")
+	// and a scan of the one library alone picks up another
+	dir2 := filepath.Join(dataDir(), "movies", "Event Horizon (1997)")
 	mediaMkdir(t, dir2)
-	mediaWrite(t, filepath.Join(dir2, "Zzyzx Scan Fixture (1999).mp4"), raw)
+	mediaWrite(t, filepath.Join(dir2, "Event Horizon (1997).mp4"), raw)
 	t.Cleanup(func() { _ = os.RemoveAll(dir2) })
 	out = call(t, "library_scan", map[string]any{"library": "movies"})
 	if b, _ := out["started"].(bool); !b || str(out["library"]) != "Movies" {
@@ -320,8 +319,8 @@ func TestLibraryScanPicksUpNewFiles(t *testing.T) {
 
 // A library through its whole life, checking what it holds at each step:
 // created over one folder and scanned, moved to another folder and scanned
-// again, renamed, deleted. Its folders are its own, laid out here with titles
-// no provider knows and the fetchers off, so nothing else is disturbed.
+// again, renamed, deleted. Its folders are its own, laid out here, and its
+// fetchers are off, so nothing else is disturbed and no provider is asked.
 func TestLibraryLifecycle(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
@@ -338,8 +337,8 @@ func TestLibraryLifecycle(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), folder)) })
 	}
-	lay("lifecycle-a", "Zzyzx One (2001)")
-	lay("lifecycle-b", "Zzyzx Two (2002)", "Zzyzx Three (2003)")
+	lay("lifecycle-a", "The Lord of the Rings The Fellowship of the Ring (2001)")
+	lay("lifecycle-b", "The Lord of the Rings The Two Towers (2002)", "The Lord of the Rings The Return of the King (2003)")
 
 	name := "Lifecycle"
 	t.Cleanup(func() {
@@ -374,7 +373,7 @@ func TestLibraryLifecycle(t *testing.T) {
 		}
 		t.Fatalf("%s holds %v, want %v (last error: %v)", name, got, want, lastErr)
 	}
-	holds("Zzyzx One")
+	holds("The Lord of the Rings The Fellowship of the Ring")
 
 	out := call(t, "library_edit", map[string]any{"library": name, "add_paths": []any{"/media/lifecycle-b"}, "remove_paths": []any{"/media/lifecycle-a"}})
 	if locs := strs(t, out["locations"], "locations"); !slices.Equal(locs, []string{"/media/lifecycle-b"}) {
@@ -383,7 +382,7 @@ func TestLibraryLifecycle(t *testing.T) {
 	if scan := call(t, "library_scan", map[string]any{"library": name}); !boolOf(scan["started"]) {
 		t.Errorf("library_scan = %v", scan)
 	}
-	holds("Zzyzx Three", "Zzyzx Two")
+	holds("The Lord of the Rings The Return of the King", "The Lord of the Rings The Two Towers")
 	if got := call(t, "library_get", map[string]any{"library": name}); num(t, got["item_count"], "item_count") < 2 {
 		t.Errorf("library_get = %v", got)
 	}
@@ -487,9 +486,9 @@ func TestLibraryNfoSaving(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join(dataDir(), "nfo-saving", "Zzyzx Nfo (2005)")
+	dir := filepath.Join(dataDir(), "nfo-saving", "Triangle (2009)")
 	mediaMkdir(t, dir)
-	mediaWrite(t, filepath.Join(dir, "Zzyzx Nfo (2005).mp4"), raw)
+	mediaWrite(t, filepath.Join(dir, "Triangle (2009).mp4"), raw)
 	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), "nfo-saving")) })
 	const name = "Nfo Saving"
 	t.Cleanup(func() {

@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 )
 
 // audit_file_path over episodes: a number the file and the server read
@@ -242,5 +244,28 @@ func TestTitleFromPathReadsADiscByItsFolder(t *testing.T) {
 	// a film named like a number is still its own title
 	if claimed, _ := titleFromPath("/m/1917 (2019)/1917 (2019).mkv", "1917"); claimed != "1917" {
 		t.Errorf("1917 claims %q", claimed)
+	}
+}
+
+// A server names a film it could not match after its folder, year and all,
+// and the path is read cut at its year: the year comes off both, or a short
+// title ("Cube") scored under the bar against its own folder and a film was
+// reported for a title nothing gets wrong.
+func TestAuditFilePathReadsAnUnmatchedFilmNamedAfterItsFolder(t *testing.T) {
+	t.Parallel()
+
+	want := map[string]bool{"title": true}
+	for _, it := range []embyfin.Item{
+		{Type: typeMovie, Name: "Cube (1997)", Path: "/m/Cube (1997)"},
+		{Type: typeMovie, Name: "Cube (1997)", Path: "/m/Cube (1997)/Cube (1997).mkv"},
+		{Type: typeMovie, Name: "Cube", ProductionYear: 1997, Path: "/m/Cube (1997)/Cube (1997).mkv"},
+	} {
+		if row, _ := checkPath(&it, want); len(row.Problems) != 0 {
+			t.Errorf("%s at %s: %v", it.Name, it.Path, row.Problems)
+		}
+	}
+	// a film that really is another stays a finding
+	if row, _ := checkPath(new(embyfin.Item{Type: typeMovie, Name: "Hypercube (2002)", Path: "/m/Cube (1997)/Cube (1997).mkv"}), want); len(row.Problems) != 1 {
+		t.Errorf("Hypercube in Cube's folder: %v", row.Problems)
 	}
 }

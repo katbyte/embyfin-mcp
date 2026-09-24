@@ -59,10 +59,11 @@ func TestAuditsLeaveTheCleanLibrariesAlone(t *testing.T) {
 	}
 }
 
-// unmatchedShows are the messy series no nfo names: Star Trek has none, the
-// Twins pair have none, and Zzyzx Paths' names no id. Jellyfin keeps the
-// double space in the second Twins folder's name.
-var unmatchedShows = []string{"Star Trek The Next Generation", "Zzyzx  twins", "Zzyzx Paths", "Zzyzx Twins"}
+// unmatchedShows are the messy series no nfo names: Star Trek The Next
+// Generation has none, the A Knight of the Seven Kingdoms pair have none, and
+// Andor's and Deep Space Nine's name no id. Both servers keep the double space
+// in the second Knight folder's name. Sorted, as findings are.
+var unmatchedShows = []string{"A Knight of the Seven  kingdoms", "A Knight of the Seven Kingdoms", "Andor", "Star Trek The Next Generation", "Star Trek: Deep Space Nine"}
 
 func TestAuditMissingMetadataProvider(t *testing.T) {
 	out := call(t, "audit_missing_metadata_provider", map[string]any{"library": "Messy Movies"})
@@ -108,16 +109,16 @@ func TestAuditMissingMetadataProvider(t *testing.T) {
 		switch {
 		case unmatched && detail != "no tvdb id":
 			t.Errorf("a film matched nowhere has no ids to list: %v", f)
-		case name == "Zzyzx Crossed Wires" && detail != "no tvdb id; has imdb:tt0903747":
+		case name == "Memento" && detail != "no tvdb id; has imdb:tt0903747":
 			t.Errorf("the film holding an IMDb id alone does not list it: %v", f)
-		case !unmatched && name != "Zzyzx Crossed Wires" && !strings.HasPrefix(detail, "no tvdb id; has tmdb:"):
+		case !unmatched && name != "Memento" && !strings.HasPrefix(detail, "no tvdb id; has tmdb:"):
 			t.Errorf("a film matched on TMDB does not say so: %v", f)
 		}
 	}
 	// TMDB alone finds the films matched nowhere, and the one matched on its
 	// IMDb id alone
 	out = call(t, "audit_missing_metadata_provider", map[string]any{"library": "Messy Movies", "missing": "tmdb"})
-	if got, want := findings(t, out), sorted(append([]string{"Zzyzx Crossed Wires"}, messyUnmatched...)); !slices.Equal(got, want) {
+	if got, want := findings(t, out), sorted(append([]string{"Memento"}, messyUnmatched...)); !slices.Equal(got, want) {
 		t.Errorf("missing tmdb = %v, want %v", got, want)
 	}
 	// and a misspelling is refused rather than flagging every item
@@ -152,7 +153,7 @@ func TestAuditMissingOverview(t *testing.T) {
 	}
 	// the messy series with no tvshow.nfo to give them a plot
 	out = call(t, "audit_missing_overview", map[string]any{"library": "Messy Shows", "types": "Series"})
-	if got, want := findings(t, out), []string{"Star Trek The Next Generation", "Zzyzx  twins", "Zzyzx Twins"}; !slices.Equal(got, want) {
+	if got, want := findings(t, out), []string{"A Knight of the Seven  kingdoms", "A Knight of the Seven Kingdoms", "Star Trek The Next Generation"}; !slices.Equal(got, want) {
 		t.Errorf("series with no overview = %v, want %v", got, want)
 	}
 }
@@ -195,12 +196,12 @@ func TestAuditFilePath(t *testing.T) {
 	}
 }
 
-// Zzyzx Paths' files and nfos disagree the ways a bulk import leaves them,
-// and each is the check that says so. A file named without an episode marker
-// (07 - Night Shift) claims no series, and is left alone.
+// Andor's files and nfos disagree the ways a bulk import leaves them, and
+// each is the check that says so. A file named without an episode marker
+// (07 - Announcement) claims no series, and is left alone.
 //
-// The run is where the servers differ: the nfo beside Zzyzx Paths
-// S01E02E03.mp4 ends the run at episode 2, which Jellyfin reads over the
+// The run is where the servers differ: the nfo beside Andor S01E02E03.mp4
+// ends the run at episode 2, which Jellyfin reads over the
 // file name, so it holds E02 alone and the file's E03 reads as missing; Emby
 // takes the run from the file name and holds E02-E03, which the file agrees
 // with.
@@ -208,19 +209,19 @@ func TestAuditFilePathSeriesSeasonAndEpisode(t *testing.T) {
 	out := call(t, "audit_file_path", map[string]any{"library": "Messy Shows"})
 	got := map[string][]string{}
 	for _, f := range rows(t, out["findings"], "findings") {
-		if str(f["series"]) != "Zzyzx Paths" || str(f["type"]) != "Episode" {
-			t.Errorf("a finding outside Zzyzx Paths: %v", f)
+		if str(f["series"]) != "Andor" || str(f["type"]) != "Episode" {
+			t.Errorf("a finding outside Andor: %v", f)
 			continue
 		}
 		got[filepath.Base(str(f["path"]))] = strs(t, f["problems"], "problems")
 	}
 	want := map[string]string{
-		"Breaking Bad S01E06.mp4": `series: the file is named for "Breaking Bad", the server holds it under "Zzyzx Paths"`,
-		"Zzyzx Paths S01E04.mp4":  "episode: the file says E04, the server holds E05",
-		"Zzyzx Paths S02E08.mp4":  "season: the file says season 2, the server holds season 1",
+		"Breaking Bad S01E06.mp4": `series: the file is named for "Breaking Bad", the server holds it under "Andor"`,
+		"Andor S01E04.mp4":        "episode: the file says E04, the server holds E05",
+		"Andor S02E08.mp4":        "season: the file says season 2, the server holds season 1",
 	}
 	if isJellyfin() {
-		want["Zzyzx Paths S01E02E03.mp4"] = "episode: the file holds E02-E03, the server holds E02 alone"
+		want["Andor S01E02E03.mp4"] = "episode: the file holds E02-E03, the server holds E02 alone"
 	}
 	for file, problem := range want {
 		if ps := got[file]; len(ps) != 1 || !strings.HasPrefix(ps[0], problem) {
@@ -253,10 +254,10 @@ func TestAuditFilePathSeriesSeasonAndEpisode(t *testing.T) {
 		t.Errorf("limit 1 = %v of %v", found, capped["total_findings"])
 	}
 	// the episode held as a run is held whole: E03 is covered, not missing
-	paths := findItem(t, "Messy Shows", "Series", "Zzyzx Paths")
-	e03 := rows(t, call(t, "show_episodes_exist", map[string]any{"series_id": paths, "episodes": []map[string]any{{"season": 1, "episode": 3}}})["episodes"], "episodes")[0]
+	andor := findItem(t, "Messy Shows", "Series", "Andor")
+	e03 := rows(t, call(t, "show_episodes_exist", map[string]any{"series_id": andor, "episodes": []map[string]any{{"season": 1, "episode": 3}}})["episodes"], "episodes")[0]
 	if e03["exists"] != !isJellyfin() {
-		t.Errorf("S01E03 of Zzyzx Paths = %v, want held only where the server reads the run from the file (Emby)", e03)
+		t.Errorf("S01E03 of Andor = %v, want held only where the server reads the run from the file (Emby)", e03)
 	}
 }
 
@@ -344,7 +345,7 @@ func TestAuditDuplicates(t *testing.T) {
 		alien,
 		"Movie Arrival + Movie Arrival",
 		"Movie Blade Runner + Movie Blade Runner",
-		"Movie Zzyzx Crossed Wires + Series Breaking Bad",
+		"Movie Memento + Series Breaking Bad",
 		"Series Severance + Series Severance",
 	}
 	if !slices.Equal(sorted(got), want) {
@@ -394,7 +395,7 @@ func TestAuditMultipleVersions(t *testing.T) {
 	}
 }
 
-// Zzyzx Gaiden's episodes run three minutes but the last, cut to a second.
+// .hack//Liminality's episodes run three minutes but the last, cut to a second.
 // The messy Severance's five-second third episode among one-second ones is
 // not a finding: 0 minutes against a 0 minute median is under the two-minute
 // floor, which is what the floor is for.
@@ -407,7 +408,7 @@ func TestAuditRuntimeEpisodes(t *testing.T) {
 	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
 		t.Fatalf("findings = %v, want the one cut short", found)
 	}
-	if f := found[0]; str(f["name"]) != "Zzyzx Gaiden S01E03 Cut Short" || str(f["detail"]) != "0 min, season median 3 min (100% off)" || !strings.HasSuffix(str(f["path"]), "Zzyzx Gaiden S01E03.mp4") {
+	if f := found[0]; str(f["name"]) != ".hack//Liminality S01E03 In the Case of Kyoko Tohno" || str(f["detail"]) != "0 min, season median 3 min (100% off)" || !strings.HasSuffix(str(f["path"]), "/hack Liminality S01E03.mp4") {
 		t.Errorf("finding = %v", f)
 	}
 	// a tolerance of 100% forgives a file that runs none of its median
@@ -532,7 +533,7 @@ func TestAuditAll(t *testing.T) {
 		// which the server never probed and so is not judged
 		"audit_quality":          9,
 		"audit_missing_episodes": 0,
-		// Taken Down's Science-Fiction
+		// the Despecialized Edition's Science-Fiction
 		"audit_spelling": 1,
 	}
 	if !isJellyfin() {
@@ -584,7 +585,7 @@ func TestAuditAll(t *testing.T) {
 	for _, row := range rows(t, call(t, "audit_all", map[string]any{"library": "Messy Shows"})["audits"], "audits") {
 		shows[str(row["audit"])] = num(t, row["findings"], "findings")
 	}
-	pathRows := 3 // Zzyzx Paths' series, episode and season rows
+	pathRows := 3 // Andor's series, episode and season rows
 	if isJellyfin() {
 		pathRows = 4 // and the run Jellyfin reads from the nfo
 	}
@@ -597,7 +598,7 @@ func TestAuditAll(t *testing.T) {
 		"audit_duplicate_series":          1,
 		"audit_runtime":                   1,
 		"audit_quality":                   messyEpisodes,
-		"audit_missing_episodes":          2,
+		"audit_missing_episodes":          3, // Andor, Deep Space Nine and The Next Generation
 		"audit_spelling":                  1,
 	} {
 		if shows[audit] != n {

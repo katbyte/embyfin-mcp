@@ -190,25 +190,30 @@ SirensCeol|Afterworld|4|A Grand Illusion'
 #                                  Emby, which merges them only in a user's view of the item (so a
 #                                  duplicate there)
 #   Interstellar (2014)            nfo says 169 minutes, the file runs one second: runtime off
-#   Zzyzx Night Ferry (1999)       a DVD's VTS_01_1.VOB left loose in a film's folder: a flattened disc,
+#   Coyote vs. Acme (2026)         a DVD's VTS_01_1.VOB left loose in a film's folder: a flattened disc,
 #                                  and no nfo, so unmatched with no overview or poster
-#   Zzyzx Keep Case (2000)         a Blu-ray kept whole (BDMV/STREAM): both servers hold it as one film
+#   Cube (1997)                    a Blu-ray kept whole (BDMV/STREAM): both servers hold it as one film
 #                                  at its folder, which the disc audit must leave alone
-#   Zzyzx Crossed Wires (2008)     nfo carries Breaking Bad's IMDb id and no TMDB one: a series' id on a film
-#   Zzyzx Taken Down (2010)        nfo carries a TMDB id TMDB has no film for, and the genre spelled
-#                                  Science-Fiction where the rest say Science Fiction
+#   Memento (2000)                 nfo carries Breaking Bad's IMDb id and no TMDB one: a series' id on a film
+#   Star Wars Episode IV - A New Hope Despecialized Edition (1977)
+#                                  the fan restoration of Star Wars: nfo carries a TMDB id TMDB has no
+#                                  film for, and the genre spelled Science-Fiction where the rest say
+#                                  Science Fiction
 # messy-shows:
 #   Severance                      season one, three episodes, the third five seconds long
 #   Star Trek The Next Generation  no tvshow.nfo: unmatched; episodes 1 and 3, no 2
-#   Zzyzx Paths (2011)             no ids; files whose names disagree with their nfo: S01E04 held as
+#   Star Trek Deep Space Nine (1993)
+#                                  no ids; one episode of season 1 and one of season 3, no season 2
+#   Andor (2022)                   no ids; files whose names disagree with their nfo: S01E04 held as
 #                                  episode 5, another series' file (Breaking Bad S01E06), S02E08 held in
 #                                  season 1, a two-episode file (S01E02E03) whose nfo ends the run at 2,
-#                                  one named without a marker (07 - Night Shift), and a season 3 with
-#                                  no season 2; genre Science Fiction
-#   Zzyzx Twins (2005) twice       two folders a space and a letter's case apart: one show held twice
-#   Zzyzx Gaiden (2002)            an AniDB id alone, an OVA the anime list says TVDB and TMDB fold into
-#                                  another show's specials; genre Science-Fiction; two episodes of three
-#                                  minutes and a third of one second: a runtime outlier
+#                                  and one named without a marker (07 - Announcement); genre Science Fiction
+#   A Knight of the Seven Kingdoms (2026) twice
+#                                  two folders a space and a letter's case apart: one show held twice
+#   hack Liminality (2002)         .hack//Liminality, known by an AniDB id alone (222): an OVA the anime
+#                                  list says TVDB and TMDB fold into .hack//SIGN's specials; genre
+#                                  Science-Fiction; two episodes of three minutes and a third of one
+#                                  second: a runtime outlier
 
 # wipe_data removes the data directory. The container writes its config,
 # metadata and cache as its own user, and on Linux those land root-owned (or
@@ -452,20 +457,23 @@ fixtures() {
   poster "${m}/Interstellar (2014)/poster.jpg"
   # a disc copied in without its structure: one VOB loose in a film's folder,
   # and nothing beside it to say what film it is
-  vob "${m}/Zzyzx Night Ferry (1999)/VTS_01_1.VOB"
+  vob "${m}/Coyote vs. Acme (2026)/VTS_01_1.VOB"
   # the same done right: a Blu-ray kept as its BDMV tree, which both servers
   # hold as one film at the folder rather than reaching in for the streams
-  mkdir -p "${m}/Zzyzx Keep Case (2000)/BDMV/STREAM"
-  cp "${DATA}/media/disc-src/00000.m2ts" "${DATA}/media/disc-src/00001.m2ts" "${m}/Zzyzx Keep Case (2000)/BDMV/STREAM/"
-  # ids that do not hold up at TMDB: a series' IMDb id on a film, and a TMDB id
-  # TMDB has no film for. Each carries a plot and a poster, so the id is all
-  # that is wrong with it - bar the genre, spelled as no other film spells it
-  video "${m}/Zzyzx Crossed Wires (2008)/Zzyzx Crossed Wires (2008).mp4" 1 640x360
-  movie_nfo "${m}/Zzyzx Crossed Wires (2008)" "Zzyzx Crossed Wires" 2008 "" tt0903747 "" Drama "" "A film matched to a series' IMDb id, which the provider audit reads as a series."
-  poster "${m}/Zzyzx Crossed Wires (2008)/poster.jpg"
-  video "${m}/Zzyzx Taken Down (2010)/Zzyzx Taken Down (2010).mp4" 1 640x360
-  movie_nfo "${m}/Zzyzx Taken Down (2010)" "Zzyzx Taken Down" 2010 99999999 "" "" "Science-Fiction" "" "A film matched to a TMDB id that TMDB has no film for."
-  poster "${m}/Zzyzx Taken Down (2010)/poster.jpg"
+  mkdir -p "${m}/Cube (1997)/BDMV/STREAM"
+  cp "${DATA}/media/disc-src/00000.m2ts" "${DATA}/media/disc-src/00001.m2ts" "${m}/Cube (1997)/BDMV/STREAM/"
+  # ids that do not hold up at TMDB: a series' IMDb id on a film (Breaking
+  # Bad's, on Memento), and a TMDB id TMDB has no film for (a fan restoration
+  # of Star Wars, which TMDB does not list). Each carries a plot and a poster,
+  # so the id is all that is wrong with it - bar the restoration's genre,
+  # spelled as no other film spells it
+  video "${m}/Memento (2000)/Memento (2000).mp4" 1 640x360
+  movie_nfo "${m}/Memento (2000)" "Memento" 2000 "" tt0903747 "" Mystery "" "Leonard Shelby is tracking down the man who raped and murdered his wife. The difficulty of locating his wife's killer, however, is compounded by the fact that he suffers from a rare, untreatable form of short-term memory loss."
+  poster "${m}/Memento (2000)/poster.jpg"
+  sw="${m}/Star Wars Episode IV - A New Hope Despecialized Edition (1977)"
+  video "${sw}/Star Wars Episode IV - A New Hope Despecialized Edition (1977).mp4" 1 640x360
+  movie_nfo "$sw" "Star Wars: Episode IV - A New Hope (Despecialized Edition)" 1977 99999999 "" "" "Science-Fiction" "" "Princess Leia is captured and held hostage by the evil Imperial forces in their effort to take over the galactic Empire."
+  poster "${sw}/poster.jpg"
 
   # the messy shows
   s="${DATA}/media/messy-shows"
@@ -475,41 +483,48 @@ fixtures() {
   episode "${s}/Severance/Season 01/Severance S01E03" 1 3 "In Perpetuity" 5 640x360
   episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E01" 1 1 "Encounter at Farpoint" 1 640x360
   episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E03" 1 3 "Code of Honor" 1 640x360
+  # a show held with a whole season missing between two it has, and no ids,
+  # so the gap on disk is all anyone can say of it
+  d="${s}/Star Trek Deep Space Nine (1993)"
+  show_nfo "$d" "Star Trek: Deep Space Nine" 1993 "" "" "" "Science Fiction" "At Deep Space Nine, a space station located next to a wormhole in the vicinity of the liberated planet of Bajor, Commander Sisko and crew welcome alien visitors, root out evildoers and solve all types of unexpected problems that come their way."
+  episode "${d}/Season 01/Star Trek Deep Space Nine S01E01" 1 1 "Emissary" 1 640x360
+  episode "${d}/Season 03/Star Trek Deep Space Nine S03E01" 3 1 "The Search (1)" 1 640x360
   # a show whose file names and nfos disagree, the ways a bulk import leaves
   # them: each episode's nfo is what the server holds, the name what was placed
-  p="${s}/Zzyzx Paths (2011)"
-  show_nfo "$p" "Zzyzx Paths" 2011 "" "" "" "Science Fiction" "A show whose files were named by one hand and numbered by another."
-  episode "${p}/Season 01/Zzyzx Paths S01E01" 1 1 "Arrival Day" 1 640x360
-  episode "${p}/Season 01/Zzyzx Paths S01E02E03" 1 2 "Double Shift" 1 640x360 "" 2
-  episode "${p}/Season 01/Zzyzx Paths S01E04" 1 5 "Wrong Door" 1 640x360
-  episode "${p}/Season 01/Breaking Bad S01E06" 1 6 "Borrowed Name" 1 640x360
-  episode "${p}/Season 01/07 - Night Shift" 1 7 "Night Shift" 1 640x360
-  episode "${p}/Season 01/Zzyzx Paths S02E08" 1 8 "Misfiled" 1 640x360
-  episode "${p}/Season 03/Zzyzx Paths S03E01" 3 1 "Two Years Later" 1 640x360
+  p="${s}/Andor (2022)"
+  show_nfo "$p" "Andor" 2022 "" "" "" "Science Fiction" "In an era filled with danger, deception and intrigue, Cassian Andor will discover the difference he can make in the struggle against the tyrannical Galactic Empire."
+  episode "${p}/Season 01/Andor S01E01" 1 1 "Kassa" 1 640x360
+  episode "${p}/Season 01/Andor S01E02E03" 1 2 "That Would Be Me" 1 640x360 "" 2
+  episode "${p}/Season 01/Andor S01E04" 1 5 "The Axe Forgets" 1 640x360
+  episode "${p}/Season 01/Breaking Bad S01E06" 1 6 "The Eye" 1 640x360
+  episode "${p}/Season 01/07 - Announcement" 1 7 "Announcement" 1 640x360
+  episode "${p}/Season 01/Andor S02E08" 1 8 "Narkina 5" 1 640x360
   # one show in two folders a space and a letter's case apart, no nfo in either
-  video "${s}/Zzyzx Twins (2005)/Season 01/Zzyzx Twins S01E01.mp4" 1 640x360
-  video "${s}/Zzyzx  twins (2005)/Season 01/Zzyzx Twins S01E02.mp4" 1 640x360
+  video "${s}/A Knight of the Seven Kingdoms (2026)/Season 01/A Knight of the Seven Kingdoms S01E01.mp4" 1 640x360
+  video "${s}/A Knight of the Seven  kingdoms (2026)/Season 01/A Knight of the Seven Kingdoms S01E02.mp4" 1 640x360
   # an OVA held on its own, known by its AniDB id alone (testdata/anime-list.xml
-  # has TVDB and TMDB fold it into another show's specials)
-  g="${s}/Zzyzx Gaiden (2002)"
+  # has TVDB and TMDB fold it into .hack//SIGN's specials). Its names lose the
+  # title's slashes, which no file system holds, and its leading dot, which
+  # makes a file hidden and both servers pass over it
+  g="${s}/hack Liminality (2002)"
   mkdir -p "$g"
   {
     echo '<?xml version="1.0" encoding="utf-8"?>'
     echo '<tvshow>'
-    echo '  <title>Zzyzx Gaiden</title>'
+    echo '  <title>.hack//Liminality</title>'
     echo '  <year>2002</year>'
-    echo '  <plot>An OVA the providers fold into another show.</plot>'
+    echo '  <plot>.hack//Liminality is an OVA series directly related to the .hack video game series for the PlayStation 2, with the perspective of Liminality focused on the real world as opposed to the games'\'' MMORPG The World.</plot>'
     echo '  <genre>Science-Fiction</genre>'
-    echo '  <anidbid>9104</anidbid>'
-    echo '  <uniqueid type="anidb">9104</uniqueid>'
+    echo '  <anidbid>222</anidbid>'
+    echo '  <uniqueid type="anidb">222</uniqueid>'
     echo '</tvshow>'
   } > "${g}/tvshow.nfo"
   # its episodes run three minutes but the last, cut to a second: the shortest
   # spread that clears the runtime audit's two-minute floor, since a file of a
   # second rounds to 0 minutes like its median, and small, so cheap to make
-  episode "${g}/Season 01/Zzyzx Gaiden S01E01" 1 1 "Side Story" 180 160x90
-  episode "${g}/Season 01/Zzyzx Gaiden S01E02" 1 2 "Second Story" 180 160x90
-  episode "${g}/Season 01/Zzyzx Gaiden S01E03" 1 3 "Cut Short" 1 160x90
+  episode "${g}/Season 01/hack Liminality S01E01" 1 1 "In the Case of Mai Minase" 180 160x90
+  episode "${g}/Season 01/hack Liminality S01E02" 1 2 "In the Case of Yuki Aihara" 180 160x90
+  episode "${g}/Season 01/hack Liminality S01E03" 1 3 "In the Case of Kyoko Tohno" 1 160x90
 
   # the music: "<artist>/<album> (year)/NN - <title>.mp3", the shape a ripper
   # leaves behind. field looks a value up in one of the tables above.

@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"math"
@@ -339,7 +340,7 @@ func TestHowFarADeleteReaches(t *testing.T) {
 
 	t.Run("a film in two versions", func(t *testing.T) {
 		have := movieCount(t, "Messy Movies")
-		const name = "Zzyzx Two Cuts (2003)"
+		const name = "Dune (1984)"
 		folder := filepath.Join(dataDir(), "messy-movies", name)
 		t.Cleanup(func() {
 			_ = os.RemoveAll(folder)
@@ -360,9 +361,10 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		if err := scanUntil("Messy Movies", have+added); err != nil {
 			t.Fatal(err)
 		}
-		// Emby's search answers with every Zzyzx film, so the folder decides
+		// the search answers with the messy Dune as well, the film its nfo
+		// says is this one in a folder saying 2021, so the folder decides
 		var ids, paths []string
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Zzyzx Two Cuts"})["items"], "items") {
+		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Dune"})["items"], "items") {
 			if strings.Contains(str(it["path"]), "/"+name+"/") {
 				ids = append(ids, str(it["id"]))
 				paths = append(paths, str(it["path"]))
@@ -409,49 +411,86 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		if err := scanUntil("Messy Movies", have); err != nil {
 			t.Fatal(err)
 		}
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Zzyzx Two Cuts"})["items"], "items") {
+		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Dune"})["items"], "items") {
 			if strings.Contains(str(it["path"]), "/"+name+"/") {
 				t.Errorf("after a scan the library still holds %v", it["path"])
 			}
 		}
 	})
 
+	// a series staged beside the lasting ones: deleting it takes its folder,
+	// and every other series in the library - its item, its folder, every
+	// file in it - is left as it was
 	t.Run("a series", func(t *testing.T) {
 		have := seriesCount(t, "Messy Shows")
-		folder := filepath.Join(dataDir(), "messy-shows", "Zzyzx Doomed (2001)")
+		root := filepath.Join(dataDir(), "messy-shows")
+		folder := filepath.Join(root, "DuckTales (1987)")
 		t.Cleanup(func() {
 			_ = os.RemoveAll(folder)
 			if err := scanUntil("Messy Shows", have); err != nil {
 				t.Error(err)
 			}
 		})
+		// what the rest of the library holds, on disk and on the server, to
+		// hold it to after the delete
+		onDisk := func() map[string][]byte {
+			out := map[string][]byte{}
+			_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+				switch {
+				case err != nil:
+				case path == folder && d.IsDir():
+					return filepath.SkipDir
+				case d.IsDir():
+					out[path+"/"] = nil
+				default:
+					out[path], _ = os.ReadFile(path) //nolint:gosec // a fixture under the test data dir
+				}
+				return nil
+			})
+			return out
+		}
+		series := func() []string {
+			var out []string
+			for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Shows", "types": "Series", "limit": 50})["items"], "items") {
+				n := len(rows(t, call(t, "show_episodes", map[string]any{"series_id": str(it["id"])})["episodes"], "episodes"))
+				out = append(out, fmt.Sprintf("%s %s at %s, %d episodes", str(it["id"]), str(it["name"]), str(it["path"]), n))
+			}
+			slices.Sort(out)
+			return out
+		}
+		keptOnDisk, keptSeries := onDisk(), series()
+		if len(keptSeries) != have {
+			t.Fatalf("Messy Shows lists %d series, counts %d", len(keptSeries), have)
+		}
+
+		files := []string{"DuckTales S01E01 - Don't Give Up the Ship (1).mp4", "DuckTales S01E02 - Wronguay in Ronguay (2).mp4"}
 		ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
 		mediaMkdir(t, filepath.Join(folder, "Season 01"))
-		for _, n := range []int{1, 2} {
-			mediaWrite(t, filepath.Join(folder, "Season 01", fmt.Sprintf("Zzyzx Doomed S01E%02d.mp4", n)), ep)
+		for _, f := range files {
+			mediaWrite(t, filepath.Join(folder, "Season 01", f), ep)
 		}
 		if err := scanUntil("Messy Shows", have+1); err != nil {
 			t.Fatal(err)
 		}
-		id := findItem(t, "Messy Shows", "Series", "Zzyzx Doomed")
+		id := findItem(t, "Messy Shows", "Series", "DuckTales")
 		episodes := rows(t, call(t, "show_episodes", map[string]any{"series_id": id})["episodes"], "episodes")
 		if len(episodes) != 2 {
 			t.Fatalf("the staged series holds %v, want two episodes", episodes)
 		}
 
-		server := "/media/messy-shows/Zzyzx Doomed (2001)"
-		if msg := callErr(t, "item_delete", map[string]any{"id": id}); !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || !strings.Contains(msg, "Season 01/Zzyzx Doomed S01E02.mp4") {
+		server := "/media/messy-shows/DuckTales (1987)"
+		if msg := callErr(t, "item_delete", map[string]any{"id": id}); !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || !strings.Contains(msg, "Season 01/"+files[1]) {
 			t.Errorf("the refusal for a series: %s", msg)
 		}
 
 		// the answer names the series and its folder; every episode file in
 		// the folder goes with it
 		out := call(t, "item_delete", map[string]any{"id": id, "confirm": true})
-		if d := str(out["deleted"]); !strings.HasPrefix(d, "Zzyzx Doomed") || !strings.Contains(d, server) {
+		if d := str(out["deleted"]); !strings.HasPrefix(d, "DuckTales") || !strings.Contains(d, server) {
 			t.Errorf("item_delete of a series = %v", out)
 		}
 		got := removedPaths(t, out)
-		for _, want := range []string{server + "/", server + "/Season 01/", server + "/Season 01/Zzyzx Doomed S01E01.mp4", server + "/Season 01/Zzyzx Doomed S01E02.mp4"} {
+		for _, want := range []string{server + "/", server + "/Season 01/", server + "/Season 01/" + files[0], server + "/Season 01/" + files[1]} {
 			if !slices.Contains(got, want) {
 				t.Errorf("removed = %v, want %s among them", got, want)
 			}
@@ -465,16 +504,43 @@ func TestHowFarADeleteReaches(t *testing.T) {
 				t.Errorf("episode %v outlived its series", e["title"])
 			}
 		}
+
+		// and the rest of the library is untouched: nothing removed outside
+		// the series' folder, every other folder and file as it was, and the
+		// server holding every other series as it did
+		for _, p := range got {
+			if !strings.HasPrefix(p, server+"/") {
+				t.Errorf("removed names %s, outside the series' folder", p)
+			}
+		}
+		now := onDisk()
+		for path, raw := range keptOnDisk {
+			if on, ok := now[path]; !ok || !bytes.Equal(on, raw) {
+				t.Errorf("%s changed or went with the delete", strings.TrimPrefix(path, root))
+			}
+		}
+		for path := range now {
+			if _, ok := keptOnDisk[path]; !ok {
+				t.Errorf("%s appeared with the delete", strings.TrimPrefix(path, root))
+			}
+		}
+		if err := scanUntil("Messy Shows", have); err != nil {
+			t.Fatal(err)
+		}
+		if after := series(); !slices.Equal(after, keptSeries) {
+			t.Errorf("after the delete Messy Shows holds %v, want %v", after, keptSeries)
+		}
 	})
 }
 
-// One show held twice, put back together: audit_duplicate_series finds the
-// Zzyzx Twins in two folders a space and a letter's case apart, plan_check
-// places the second folder's episode under the first show, the file is moved
-// there and the empty folder removed, and after a scan the server holds one
-// show with both episodes and the audit has nothing to report. Neither show
-// carries an id, so the folder names are the only thing that says they are
-// one: the lookups that go by provider id cannot see the pair at all.
+// One show held twice, put back together: audit_duplicate_series finds A
+// Knight of the Seven Kingdoms in two folders a space and a letter's case
+// apart, plan_check places the second folder's episode under the first show,
+// the file is moved there and the empty folder removed, and after a scan the
+// server holds one show with both episodes and the audit has nothing to
+// report. Neither show carries an id, so the folder names are the only thing
+// that says they are one: the lookups that go by provider id cannot see the
+// pair at all.
 func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
@@ -484,11 +550,11 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	}
 	found := groups()
 	if len(found) != 1 {
-		t.Fatalf("audit_duplicate_series = %v, want the Twins pair", found)
+		t.Fatalf("audit_duplicate_series = %v, want the A Knight of the Seven Kingdoms pair", found)
 	}
 	var keep, drop map[string]any
 	for _, s := range rows(t, found[0]["series"], "series") {
-		if str(s["folder"]) == "Zzyzx Twins (2005)" {
+		if str(s["folder"]) == "A Knight of the Seven Kingdoms (2026)" {
 			keep = s
 		} else {
 			drop = s
@@ -505,8 +571,8 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 		t.Errorf("show_episodes_exist names duplicates of a show with no ids: %v", out["duplicate_entries"])
 	}
 
-	dest := "/media/messy-shows/Zzyzx Twins (2005)/Season 01/Zzyzx Twins S01E02.mp4"
-	plan := call(t, "plan_check", map[string]any{"library": "Messy Shows", "entries": []map[string]any{{"path": dest, "series": "Zzyzx Twins (2005)", "season": 1, "episode": 2}}})
+	dest := "/media/messy-shows/A Knight of the Seven Kingdoms (2026)/Season 01/A Knight of the Seven Kingdoms S01E02.mp4"
+	plan := call(t, "plan_check", map[string]any{"library": "Messy Shows", "entries": []map[string]any{{"path": dest, "series": "A Knight of the Seven Kingdoms (2026)", "season": 1, "episode": 2}}})
 	row := rows(t, plan["entries"], "entries")[0]
 	if join := object(t, row["would_join"], "would_join"); row["exists"] != false || str(join["series_id"]) != str(keep["series_id"]) || decimal(t, join["claim_similarity"], "claim_similarity") < 0.9 {
 		t.Fatalf("plan_check = %v", row)
@@ -537,7 +603,7 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	src := filepath.Join(folders[1], "Season 01", "Zzyzx Twins S01E02.mp4")
+	src := filepath.Join(folders[1], "Season 01", "A Knight of the Seven Kingdoms S01E02.mp4")
 	if err := os.Rename(src, hostPath(dest)); err != nil {
 		t.Fatal(err)
 	}

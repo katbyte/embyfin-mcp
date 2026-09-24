@@ -337,11 +337,12 @@ func TestShowMissing(t *testing.T) {
 		t.Errorf("gaps_on_disk = %v, want S01E02 alone", gaps)
 	}
 
-	// Zzyzx Paths skips its whole second season
-	paths := findItem(t, "Messy Shows", "Series", "Zzyzx Paths")
-	out = call(t, "show_missing", map[string]any{"series_id": paths})
-	if seasons := out["season_gaps_on_disk"]; fmt.Sprint(seasons) != "[2]" {
-		t.Errorf("season_gaps_on_disk = %v, want [2]", seasons)
+	// Star Trek: Deep Space Nine holds an episode of seasons 1 and 3 and
+	// skips the whole second season between them
+	ds9 := findItem(t, "Messy Shows", "Series", "Star Trek: Deep Space Nine")
+	out = call(t, "show_missing", map[string]any{"series_id": ds9})
+	if seasons := out["season_gaps_on_disk"]; fmt.Sprint(seasons) != "[2]" || out["gaps_on_disk"] != nil {
+		t.Errorf("season_gaps_on_disk = %v and gaps_on_disk %v, want season 2 alone", seasons, out["gaps_on_disk"])
 	}
 }
 
