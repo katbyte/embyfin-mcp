@@ -61,7 +61,7 @@ func configureFlags(root *cobra.Command) error {
 	pflags.StringP("server", "s", "", "the media server's url, e.g. http://nas:8096")
 	pflags.StringP("token", "t", "", "the media server API key (consider exporting to EMBYFIN_TOKEN instead)")
 	pflags.Bool("read-only", false, "register only tools that never change server state")
-	pflags.Bool("enable-delete", false, "register the tools that delete media files and libraries")
+	pflags.Bool("enable-delete", false, "register the tools that delete: media files, libraries, what a removed library left, playlists and collections")
 	pflags.StringSlice("toolsets", nil, "groups of tools to register: all, core (default), curation, watching, organise, remote, admin, or a resource family like item (core is always included)")
 	pflags.StringSlice("allow-tools", nil, "only register these tools: names, prefix globs like library_*, or the essential preset")
 	pflags.StringSlice("deny-tools", nil, "never register these tools: names or prefix globs like *_delete")

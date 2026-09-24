@@ -220,16 +220,18 @@ func registerCollectionTools(r *registry) {
 	type deleteOut struct {
 		Deleted string `json:"deleted"`
 	}
-	add(r, writeTool, &mcp.Tool{
+	add(r, deleteTool, &mcp.Tool{
 		Name:        "collection_delete",
-		Description: "Delete a collection. The items stay in the library; only the grouping goes. Changes server state.",
+		Description: "Delete a collection. The items stay in the library; only the grouping goes. Answers once the collection has stayed gone for a few seconds (Jellyfin can save one it is still refreshing back after a delete), deleting it again if it comes back. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
 		col, err := resolveByType(ctx, client, "BoxSet", in.Collection)
 		if err != nil {
 			return nil, deleteOut{}, err
 		}
 
-		if err := client.DeleteItem(ctx, col.ID); err != nil {
+		// read back until it stays gone: Jellyfin saves a collection it is
+		// still refreshing back after the delete answered
+		if err := client.DeleteCollection(ctx, col.ID); err != nil {
 			return nil, deleteOut{}, err
 		}
 

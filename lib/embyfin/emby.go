@@ -2,10 +2,12 @@ package embyfin
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 
 	"github.com/katbyte/go-kt/pointer"
 
+	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 )
 
@@ -14,6 +16,26 @@ import (
 
 // locationVirtual is how both servers mark an episode the library lacks.
 const locationVirtual = "Virtual"
+
+// orEmpty is an Emby answer's model, or an empty one for Emby's null result:
+// Emby answers 204 with no body for a lookup that finds nothing, which the
+// typed client hands back as a nil model and no error
+// (emby-null-result-no-content). A list read that way is empty. A single
+// item cannot be read as an empty one, so each single-item lookup checks for
+// nil itself and answers noResult.
+func orEmpty[T any](model *T) *T {
+	if model == nil {
+		return new(T)
+	}
+
+	return model
+}
+
+// noResult is the error for a single-item lookup Emby answered with its null
+// result, which apiclient.IsNotFound reads as not found, as it does a 404.
+func noResult(format string, args ...any) error {
+	return fmt.Errorf(format+": %w", append(args, apiclient.ErrNoResult)...)
+}
 
 func itemsFromEmby(dtos []emby.BaseItemDto) []Item {
 	items := make([]Item, 0, len(dtos))
@@ -45,6 +67,7 @@ func itemFromEmby(d *emby.BaseItemDto) Item {
 		CommunityRating:   float64(d.CommunityRating),
 		RunTimeTicks:      d.RunTimeTicks,
 		ProviderIDs:       d.ProviderIds,
+		Etag:              d.Etag,
 		ImageTags:         d.ImageTags,
 		SeriesName:        d.SeriesName,
 		SeriesID:          d.SeriesId,
@@ -53,6 +76,7 @@ func itemFromEmby(d *emby.BaseItemDto) Item {
 		IndexNumberEnd:    d.IndexNumberEnd,
 		PlaylistItemID:    d.PlaylistItemId,
 		IsMissing:         d.LocationType == locationVirtual,
+		IsFolder:          pointer.From(d.IsFolder),
 		UserData:          userDataFromEmby(d.UserData),
 	}
 	if len(d.MediaSources) > 0 {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -48,6 +49,11 @@ type episodeRow struct {
 	FileModified    string  `json:"file_modified,omitempty"           jsonschema:"when the file itself last changed (Emby only; Jellyfin's item carries no such field). This is what moves when a download overwrites a path in place"`
 	RuntimeS        int     `json:"runtime_s,omitempty"               jsonschema:"runtime in seconds"`
 
+	// runtime is the runtime whether or not runtime_s was asked for: the
+	// multiple is worked out from it, and a caller asking for the multiple
+	// alone got none, because the runtime it needed had been dropped first
+	runtime int
+
 	qualityFacts
 }
 
@@ -67,6 +73,7 @@ func episodeFacts(it *embyfin.Item, quality bool, keep map[string]bool) episodeR
 		Title:    it.Name,
 		Missing:  !it.HasFile(),
 		RuntimeS: int(it.RunTimeTicks / 10_000_000),
+		runtime:  int(it.RunTimeTicks / 10_000_000),
 	}
 	if it.IndexNumberEnd > it.IndexNumber {
 		row.EpisodeEnd = it.IndexNumberEnd
@@ -309,8 +316,19 @@ func (q *qualityFacts) keepOnly(keep map[string]bool) {
 // beside a DVD rip is what the library can play, the same rule audit_quality
 // judges by. An item the server holds no file for has none of them.
 func qualityOf(it *embyfin.Item) qualityFacts {
-	if len(it.MediaSources) == 0 {
+	best := bestSource(it)
+	if best == nil {
 		return qualityFacts{}
+	}
+
+	return sourceQuality(best)
+}
+
+// bestSource is the file that speaks for an item: the tallest of its
+// versions, or nil when it has none.
+func bestSource(it *embyfin.Item) *embyfin.MediaSource {
+	if len(it.MediaSources) == 0 {
+		return nil
 	}
 
 	best := &it.MediaSources[0]
@@ -325,6 +343,36 @@ func qualityOf(it *embyfin.Item) qualityFacts {
 		}
 	}
 
+	return best
+}
+
+// sourceAt is the version of an item held at one path, or nil when none of
+// them is. A server that finds two files of one episode in a folder merges
+// them into one item, so a path can be the second version of something whose
+// own path is the first.
+func sourceAt(it *embyfin.Item, path string) *embyfin.MediaSource {
+	for i := range it.MediaSources {
+		if src := &it.MediaSources[i]; src.Path != "" && filepath.Clean(src.Path) == filepath.Clean(path) {
+			return src
+		}
+	}
+
+	return nil
+}
+
+// qualityAt reads the facts off the file at a path rather than off the best
+// of an item's versions: what writing to that path would replace. An item
+// whose versions do not list the path falls back to its best file.
+func qualityAt(it *embyfin.Item, path string) qualityFacts {
+	if src := sourceAt(it, path); src != nil {
+		return sourceQuality(src)
+	}
+
+	return qualityOf(it)
+}
+
+// sourceQuality reads the facts off one file.
+func sourceQuality(best *embyfin.MediaSource) qualityFacts {
 	q := qualityFacts{Container: best.Container, Size: best.Size, Bitrate: best.Bitrate}
 	for _, st := range best.MediaStreams {
 		switch st.Type {
@@ -386,9 +434,9 @@ func withRuntimeMultiples(rows []episodeRow, keep map[string]bool) {
 
 	seasons := map[[2]string][]int{}
 	for _, row := range rows {
-		if row.RuntimeS > 0 && row.RuntimeS < absurdRuntimeS {
+		if row.runtime > 0 && row.runtime < absurdRuntimeS {
 			key := [2]string{row.SeriesID, strconv.Itoa(row.Season)}
-			seasons[key] = append(seasons[key], row.RuntimeS)
+			seasons[key] = append(seasons[key], row.runtime)
 		}
 	}
 	for key, runtimes := range seasons {
@@ -403,11 +451,11 @@ func withRuntimeMultiples(rows []episodeRow, keep map[string]bool) {
 
 	for i := range rows {
 		median := seasons[[2]string{rows[i].SeriesID, strconv.Itoa(rows[i].Season)}]
-		if len(median) == 0 || median[0] <= 0 || rows[i].RuntimeS <= 0 || rows[i].RuntimeS >= absurdRuntimeS {
+		if len(median) == 0 || median[0] <= 0 || rows[i].runtime <= 0 || rows[i].runtime >= absurdRuntimeS {
 			continue
 		}
 		rows[i].SeasonMedian = median[0]
-		rows[i].RuntimeMultiple = math.Round(float64(rows[i].RuntimeS)/float64(median[0])*100) / 100
+		rows[i].RuntimeMultiple = math.Round(float64(rows[i].runtime)/float64(median[0])*100) / 100
 	}
 }
 
@@ -478,7 +526,7 @@ type existsGroup struct {
 	Absent   int              `json:"absent"                      jsonschema:"how many of them the library holds no file for"`
 	Match    *seriesCandidate `json:"matched,omitempty"           jsonschema:"how the series name was matched, when one was given: the score, what matched, and the runner-up. Below about 0.9 is a guess - a caller acting unattended should stop and ask. Absent when the series was given by id, which needs no matching"`
 	Others   []string         `json:"duplicate_entries,omitempty" jsonschema:"other library entries for this same show, by id. The episodes are split across them, so an absence here is not proof the library lacks the episode: ask these too. audit_duplicates lists every show in this state"`
-	Warning  string           `json:"warning,omitempty"           jsonschema:"set when the library holds this show under more than one entry and something was absent. The episodes are split across them, so an absence here is NOT proof the library lacks the episode - ask the other entry too. Only raised when something was absent"`
+	Warning  string           `json:"warning,omitempty"           jsonschema:"set when the library holds this show under more than one entry and something was absent, or when whether it does could not be checked. The episodes may be split across entries, so an absence here is NOT proof the library lacks the episode - ask the other entry too"`
 	Error    string           `json:"error,omitempty"             jsonschema:"why this series could not be answered for: nothing matched the name, or more than one thing did. Episodes is then empty and absent is 0 - which is NOT the same as the library holding none of them. The rest of the batch is answered regardless"`
 }
 
@@ -600,7 +648,12 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 	// the episodes may be split across the entries, and where they are not,
 	// the two entries are often the same episodes at different quality, so
 	// the one asked may not be the one to compare against
-	if others := r.otherEntriesFor(ctx, series); len(others) > 0 {
+	others, oerr := r.otherEntriesFor(ctx, series)
+	if oerr != nil {
+		// not checked is not "held once": say so, or an absence reads as proof
+		out.Warning = fmt.Sprintf("whether the library holds %q under another entry could not be checked (the library's series could not be read: %v), so an absence above is not proof the library lacks the episode", series.Name, oerr)
+	}
+	if len(others) > 0 {
 		where := make([]string, 0, len(others))
 		for _, it := range others {
 			out.Others = append(out.Others, it.ID)
@@ -730,7 +783,7 @@ func registerEpisodeTools(r *registry) {
 		Absent   int              `json:"absent"                      jsonschema:"how many of the episodes asked after the library holds no file for, across the whole call"`
 		Match    *seriesCandidate `json:"matched,omitempty"           jsonschema:"how the series name was matched, when one was given: the score, what matched, and the runner-up. Below about 0.9 is a guess a caller should stop on"`
 		Others   []string         `json:"duplicate_entries,omitempty" jsonschema:"other library entries for this same show, by id: the episodes may be split across them"`
-		Warning  string           `json:"warning,omitempty"           jsonschema:"set when the library holds this show under more than one entry, so an absence is not proof the library lacks the episode"`
+		Warning  string           `json:"warning,omitempty"           jsonschema:"set when the library holds this show under more than one entry, or when that could not be checked, so an absence is not proof the library lacks the episode"`
 		Results  []existsGroup    `json:"results,omitempty"           jsonschema:"one group per entry in queries, in the order asked; a batch answers here"`
 	}
 	add(r, readTool, &mcp.Tool{

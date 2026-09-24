@@ -259,7 +259,7 @@ func TestVisibleUserItem(t *testing.T) {
 
 	// Emby's single-item read answers with an item the user may not see, and
 	// only its list query in the user's view leaves it out, so that is asked
-	// first; the read follows only when the list holds the item
+	// too, for the item's own kind
 	visible := true
 	c, f := newFake(t, Emby, map[string]route{
 		"GET /Users/u1/Items": func(*http.Request, string) (int, string) {
@@ -268,13 +268,13 @@ func TestVisibleUserItem(t *testing.T) {
 			}
 			return http.StatusOK, `{"Items":[],"TotalRecordCount":0}`
 		},
-		"GET /Users/u1/Items/42": ok(`{"Id":"42","Name":"Zzyzx","UserData":{"Played":true,"PlayCount":2}}`),
+		"GET /Users/u1/Items/42": ok(`{"Id":"42","Name":"Zzyzx","Type":"Movie","UserData":{"Played":true,"PlayCount":2}}`),
 	})
 	it, seen, err := c.VisibleUserItem(t.Context(), "u1", "42")
 	if err != nil || !seen || it == nil || it.Name != "Zzyzx" || it.UserData == nil || it.UserData.PlayCount != 2 {
 		t.Fatalf("VisibleUserItem = %+v, %v, %v", it, seen, err)
 	}
-	if q := f.only("GET /Users/u1/Items").query; q.Get("Ids") != "42" || q.Get("Fields") != "Path" || q.Get("Limit") != "1" {
+	if q := f.only("GET /Users/u1/Items").query; q.Get("Ids") != "42" || q.Get("IncludeItemTypes") != "Movie" || q.Get("Fields") != "Path" || q.Get("Limit") != "1" {
 		t.Errorf("Emby list query = %v", q)
 	}
 	f.only("GET /Users/u1/Items/42")
@@ -282,9 +282,6 @@ func TestVisibleUserItem(t *testing.T) {
 	visible = false
 	if it, seen, err := c.VisibleUserItem(t.Context(), "u1", "42"); err != nil || seen || it != nil {
 		t.Errorf("an item the user may not see = %+v, %v, %v", it, seen, err)
-	}
-	if n := len(f.all("GET /Users/u1/Items/42")); n != 1 {
-		t.Errorf("the single-item read was made %d times, want only the one for the visible item", n)
 	}
 
 	// Jellyfin's single-item read answers 404 for such an item
@@ -302,6 +299,29 @@ func TestVisibleUserItem(t *testing.T) {
 	// anything but a 404 is still an error
 	if _, _, err := c.VisibleUserItem(t.Context(), "u1", "44"); client.StatusCode(err) != http.StatusForbidden {
 		t.Errorf("a 403 = %v", err)
+	}
+}
+
+// Emby's list in a user's view leaves out a music album unless its kind is
+// asked for, even for an administrator (seen live on Emby 4.10: an album the
+// user could see read as hidden from her and from root), so the visibility
+// check asks for the item's own kind.
+func TestVisibleUserItemFindsAnEmbyAlbum(t *testing.T) {
+	t.Parallel()
+
+	album := `{"Id":"152","Name":"Zzyzx Tapes","Type":"MusicAlbum","IsFolder":true}`
+	c, _ := newFake(t, Emby, map[string]route{
+		"GET /Users/u2/Items": func(r *http.Request, _ string) (int, string) {
+			if r.URL.Query().Get("IncludeItemTypes") != "MusicAlbum" {
+				return http.StatusOK, `{"Items":[],"TotalRecordCount":0}`
+			}
+			return http.StatusOK, `{"Items":[` + album + `],"TotalRecordCount":1}`
+		},
+		"GET /Users/u2/Items/152": ok(album),
+	})
+	it, seen, err := c.VisibleUserItem(t.Context(), "u2", "152")
+	if err != nil || !seen || it == nil || it.Name != "Zzyzx Tapes" {
+		t.Errorf("VisibleUserItem = %+v, %v, %v; want the album, seen", it, seen, err)
 	}
 }
 
@@ -329,14 +349,23 @@ func TestFolderOfAndFetchersOff(t *testing.T) {
 		{Name: "Films", Locations: []string{"/media/films/"}},
 		{Name: "Nested", Locations: []string{"/media/films/imports"}},
 		{Name: "Shows", Locations: []string{"/media/shows", ""}},
+		// a server on Windows names its folders with backslashes
+		{Name: "Windows Films", Locations: []string{`D:\Media\Films\`}},
+		{Name: "Windows Nested", Locations: []string{`D:\Media\Films\Imports`}},
+		{Name: "Windows Share", Locations: []string{`\\nas\video`}},
 	}
 	for path, want := range map[string]string{
-		"/media/films/Zzyzx (2001)/Zzyzx.mkv":         "Films",
-		"/media/films/imports/Zzyzx (2001)/Zzyzx.mkv": "Nested", // the deepest library wins
-		"/media/shows/Zzyzx/Season 01/s01e01.mkv":     "Shows",
-		"/media/filmstrip/Zzyzx.mkv":                  "", // a prefix is not a folder
-		"/media/films":                                "", // the folder itself is not in it
-		"/collections/Zzyzx":                          "",
+		"/media/films/Zzyzx (2001)/Zzyzx.mkv":           "Films",
+		"/media/films/imports/Zzyzx (2001)/Zzyzx.mkv":   "Nested", // the deepest library wins
+		"/media/shows/Zzyzx/Season 01/s01e01.mkv":       "Shows",
+		"/media/filmstrip/Zzyzx.mkv":                    "", // a prefix is not a folder
+		"/media/films":                                  "", // the folder itself is not in it
+		"/collections/Zzyzx":                            "",
+		`D:\Media\Films\Zzyzx (2001)\Zzyzx.mkv`:         "Windows Films",
+		`D:\Media\Films\Imports\Zzyzx (2001)\Zzyzx.mkv`: "Windows Nested",
+		`\\nas\video\Zzyzx (2001)\Zzyzx.mkv`:            "Windows Share",
+		`D:\Media\Filmstrip\Zzyzx.mkv`:                  "",
+		`D:\Media\Films`:                                "",
 	} {
 		got := FolderOf(folders, path)
 		switch {

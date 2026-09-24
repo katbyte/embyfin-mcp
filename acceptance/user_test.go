@@ -91,10 +91,14 @@ func TestWatchState(t *testing.T) {
 	if _, ok := next["resume"].([]any); !ok {
 		t.Errorf("resume = %v", next["resume"])
 	}
+	// a limit caps the list
+	if capped := call(t, "user_next_up", map[string]any{"user": "alice", "limit": 1}); len(rows(t, capped["next_up"], "next_up")) != 1 {
+		t.Errorf("limit 1 = %v", capped["next_up"])
+	}
 	// and root, who has watched nothing, has nothing next
 	next = call(t, "user_next_up", nil)
-	if str(next["user"]) != "root" {
-		t.Errorf("the default user = %v", next["user"])
+	if str(next["user"]) != "root" || len(rows(t, next["next_up"], "next_up")) != 0 {
+		t.Errorf("the default user = %v, next up %v", next["user"], next["next_up"])
 	}
 
 	// unmark
@@ -165,9 +169,10 @@ func TestFavourites(t *testing.T) {
 	}
 }
 
-// History comes from the activity log's playback events. Nothing in this
-// suite plays anything, so the histories are empty; what is asserted is the
-// shape and the user resolution, and that marking played is not playback.
+// History comes from the activity log's playback events. Only the player the
+// journeys sign in as alice plays anything, so root's history is empty and
+// alice's holds what those played; what is asserted here is the shape, the
+// paging, the user resolution, and that marking played is not playback.
 func TestHistory(t *testing.T) {
 	out := call(t, "user_history", map[string]any{"user": "alice", "days": 7})
 	if str(out["user"]) != "alice" {
@@ -176,29 +181,38 @@ func TestHistory(t *testing.T) {
 	if _, ok := out["items"].([]any); !ok {
 		t.Errorf("items = %v", out["items"])
 	}
-	if num(t, out["total"], "total") < len(rows(t, out["items"], "items")) || num(t, out["offset"], "offset") != 0 {
+	total := num(t, out["total"], "total")
+	if total < len(rows(t, out["items"], "items")) || num(t, out["offset"], "offset") != 0 {
 		t.Errorf("total %v offset %v for %d items", out["total"], out["offset"], len(rows(t, out["items"], "items")))
+	}
+	// the whole week was read, which the answer says
+	if complete, ok := out["complete"].(bool); !ok || !complete || out["note"] != nil {
+		t.Errorf("complete = %v, note %v: a week of a test server's log is read whole", out["complete"], out["note"])
+	}
+	// a page of one is one, and the total is still the whole
+	if page := call(t, "user_history", map[string]any{"user": "alice", "days": 7, "limit": 1}); len(rows(t, page["items"], "items")) != min(total, 1) || num(t, page["total"], "total") != total {
+		t.Errorf("limit 1 = %v", page)
 	}
 	// a page past the end is empty, and says where it starts
 	out = call(t, "user_history", map[string]any{"user": "alice", "days": 7, "offset": 1000})
 	if n := len(rows(t, out["items"], "items")); n != 0 || num(t, out["offset"], "offset") != 1000 {
 		t.Errorf("past the end = %d items at offset %v", n, out["offset"])
 	}
+	// root has played nothing
 	out = call(t, "user_history", nil)
-	if str(out["user"]) != "root" {
-		t.Errorf("the default user = %v", out["user"])
+	if str(out["user"]) != "root" || num(t, out["total"], "total") != 0 || len(rows(t, out["items"], "items")) != 0 {
+		t.Errorf("the default user's history = %v", out)
 	}
 	if msg := callErr(t, "user_history", map[string]any{"user": "nobody"}); !strings.Contains(msg, "nobody") {
 		t.Errorf("an unknown user: %s", msg)
 	}
 
+	// Princess Mononoke has been marked watched by other tests and never
+	// played, and a mark is not a play
 	id := findItem(t, "Movies", "Movie", "Princess Mononoke")
 	hist := call(t, "item_watch_history", map[string]any{"id": id, "days": 7})
-	if str(hist["item"]) != "Princess Mononoke" {
-		t.Errorf("item_watch_history item = %v", hist["item"])
-	}
-	if _, ok := hist["entries"].([]any); !ok {
-		t.Errorf("entries = %v", hist["entries"])
+	if str(hist["item"]) != "Princess Mononoke" || len(strs(t, hist["entries"], "entries")) != 0 || hist["complete"] != true {
+		t.Errorf("item_watch_history Princess Mononoke = %v", hist)
 	}
 }
 
@@ -278,6 +292,10 @@ func TestProgress(t *testing.T) {
 	}
 	if !resumed {
 		t.Error("item_last_watched does not show alice's resume point at 2550 seconds")
+	}
+	// a limit caps the list
+	if capped := call(t, "user_in_progress", map[string]any{"user": "alice", "limit": 1}); len(rows(t, capped["items"], "items")) != 1 {
+		t.Errorf("limit 1 = %v", capped["items"])
 	}
 	// root has nothing in progress
 	if n := len(rows(t, call(t, "user_in_progress", nil)["items"], "items")); n != 0 {

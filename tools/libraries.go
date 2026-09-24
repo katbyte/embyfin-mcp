@@ -27,8 +27,6 @@ func summariseLibrary(f *embyfin.VirtualFolder) librarySummary {
 // saveNfoSchema describes save_nfo for library_create and library_edit.
 const saveNfoSchema = "write each edit to an item back to an nfo beside its media file (the library's Nfo metadata saver): Emby names it after the media file, Jellyfin movie.nfo or tvshow.nfo"
 
-// resolveLibrary finds a library by name (case-insensitive) or id; empty input
-// returns nil meaning "all libraries".
 // containerTypes are the item types that hold other items rather than being
 // media: left out of a library's item count.
 const containerTypes = "Folder,CollectionFolder,UserRootFolder,AggregateFolder,BoxSet,Playlist"
@@ -66,7 +64,35 @@ func defaultSearchTypes(folder *embyfin.VirtualFolder) string {
 	}
 }
 
+// resolveLibrary finds the library a tool reads or filters by, by id or name
+// (see findLibrary); empty input returns nil meaning "all libraries".
+//
+// It refuses a library the server lists without an id - which Jellyfin 12.1
+// and Emby never do, giving a library its id when it is made, but an older
+// Jellyfin did until a library's first scan - because every caller narrows
+// to a library by its id, and an
+// empty id narrows to nothing: the tool would quietly answer for, or change,
+// every library on the server instead of the one named. The tools that act on
+// the library itself (library_get, library_scan, library_edit,
+// library_delete) use findLibrary, which takes it as it is.
 func resolveLibrary(ctx context.Context, client *embyfin.Client, nameOrID string) (*embyfin.VirtualFolder, error) {
+	folder, err := findLibrary(ctx, client, nameOrID)
+	if err != nil || folder == nil {
+		return folder, err
+	}
+	if folder.ItemID == "" {
+		return nil, fmt.Errorf("the server lists the %s library without an id, so there is nothing to narrow to; run library_scan, which gives it one", folder.Name)
+	}
+
+	return folder, nil
+}
+
+// findLibrary finds a library by id or name, id or not; empty input returns
+// nil meaning "all libraries". An exact name wins, then a name that differs
+// only in case, but only when one library has it: Jellyfin on Linux can hold
+// both "Movies" and "movies", and taking whichever is listed first would
+// point a delete at the wrong one.
+func findLibrary(ctx context.Context, client *embyfin.Client, nameOrID string) (*embyfin.VirtualFolder, error) {
 	if nameOrID == "" {
 		return nil, nil //nolint:nilnil // nil folder means all libraries by design
 	}
@@ -77,14 +103,32 @@ func resolveLibrary(ctx context.Context, client *embyfin.Client, nameOrID string
 	}
 
 	names := make([]string, 0, len(folders))
+	var folded []*embyfin.VirtualFolder
 	for i := range folders {
-		if strings.EqualFold(folders[i].Name, nameOrID) || folders[i].ItemID == nameOrID {
+		if folders[i].ItemID == nameOrID || folders[i].Name == nameOrID {
 			return &folders[i], nil
+		}
+		if strings.EqualFold(folders[i].Name, nameOrID) {
+			folded = append(folded, &folders[i])
 		}
 		names = append(names, folders[i].Name)
 	}
+	switch len(folded) {
+	case 0:
+		return nil, fmt.Errorf("no library named %q (have: %s)", nameOrID, strings.Join(names, ", "))
+	case 1:
+		return folded[0], nil
+	}
+	candidates := make([]string, 0, len(folded))
+	for _, f := range folded {
+		id := "no id yet"
+		if f.ItemID != "" {
+			id = "id " + f.ItemID
+		}
+		candidates = append(candidates, fmt.Sprintf("%q (%s)", f.Name, id))
+	}
 
-	return nil, fmt.Errorf("no library named %q (have: %s)", nameOrID, strings.Join(names, ", "))
+	return nil, fmt.Errorf("%d libraries are named %q apart from case: %s; pass the exact name or an id", len(folded), nameOrID, strings.Join(candidates, ", "))
 }
 
 func registerLibraryTools(r *registry) {
@@ -120,12 +164,13 @@ func registerLibraryTools(r *registry) {
 		SavesNfo       bool           `json:"saves_nfo"                 jsonschema:"an edit to an item is written back to an nfo beside its media file"`
 		ItemCount      int            `json:"item_count"                jsonschema:"total items in the library, recursive, not counting folders and collections"`
 		TypeCounts     map[string]int `json:"type_counts,omitempty"     jsonschema:"item counts by primary type: Movie, Series and Episode, or MusicArtist, MusicAlbum and Audio in a music library"`
+		Note           string         `json:"note,omitempty"            jsonschema:"set when the server lists the library without an id, so it has no items to count until a scan gives it one"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "library_get",
 		Description: "Get information about one library: type, filesystem locations, and item counts.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in libraryGetIn) (*mcp.CallToolResult, libraryGetOut, error) {
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := findLibrary(ctx, client, in.Library)
 		if err != nil {
 			return nil, libraryGetOut{}, err
 		}
@@ -140,6 +185,11 @@ func registerLibraryTools(r *registry) {
 			Locations:      folder.Locations,
 			SavesNfo:       folder.SavesNfo,
 			TypeCounts:     map[string]int{},
+		}
+		// counted by its id, and a count under no id is the whole server's
+		if folder.ItemID == "" {
+			out.Note = "listed without an id: nothing to count until library_scan gives it one"
+			return nil, out, nil
 		}
 
 		// the recursive listing includes the library's own folders and, on
@@ -167,7 +217,7 @@ func registerLibraryTools(r *registry) {
 		Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
 		Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types; defaults to Movie,Series,Episode"`
 		Days    int    `json:"days,omitempty"    jsonschema:"how many days back, default 60"`
-		Limit   int    `json:"limit,omitempty"   jsonschema:"maximum results, default 25"`
+		Limit   int    `json:"limit,omitempty"   jsonschema:"maximum results, default 25, max 1000"`
 	}
 	type recentOut struct {
 		Items []itemSummary `json:"items" jsonschema:"newest additions first"`
@@ -184,6 +234,8 @@ func registerLibraryTools(r *registry) {
 		if limit <= 0 {
 			limit = 25
 		}
+		// one answer a client can hold, as the bulk reads cap theirs
+		limit = min(limit, episodePageMax)
 
 		opts := embyfin.SearchOptions{
 			IncludeItemTypes: types,
@@ -260,12 +312,13 @@ func registerLibraryTools(r *registry) {
 	type scanOut struct {
 		Started bool   `json:"started"`
 		Library string `json:"library,omitempty" jsonschema:"the library scanned, when one was named"`
+		Note    string `json:"note,omitempty"    jsonschema:"set when every library was scanned in place of the one named"`
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "library_scan",
-		Description: "Scan the libraries' folders so new, changed and removed files are picked up: every library, or one. Every library runs as the server's scan task (task_list shows when it has finished); one library is a refresh of its folder, which is not a task and fills in metadata only where it is missing. Changes server state.",
+		Description: "Scan the libraries' folders so new, changed and removed files are picked up: every library, or one. Every library runs as the server's scan task (task_list shows when it has finished); one library is a refresh of its folder, which is not a task and fills in metadata only where it is missing. A Jellyfin library not yet scanned has no folder to refresh, so naming one scans every library, which is what gives it its id. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in scanIn) (*mcp.CallToolResult, scanOut, error) {
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := findLibrary(ctx, client, in.Library)
 		if err != nil {
 			return nil, scanOut{}, err
 		}
@@ -274,6 +327,14 @@ func registerLibraryTools(r *registry) {
 				return nil, scanOut{}, err
 			}
 			return nil, scanOut{Started: true}, nil
+		}
+		// a library with no id has no folder of its own to refresh yet; the
+		// scan of every library is what gives it one
+		if folder.ItemID == "" {
+			if err := client.RefreshLibrary(ctx); err != nil {
+				return nil, scanOut{}, err
+			}
+			return nil, scanOut{Started: true, Library: folder.Name, Note: folder.Name + " is listed without an id, so every library is being scanned: that gives it one"}, nil
 		}
 		if err := client.ScanLibrary(ctx, folder); err != nil {
 			return nil, scanOut{}, err
@@ -294,10 +355,23 @@ func registerLibraryTools(r *registry) {
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "library_create",
-		Description: "Create a library over folders on the server. Emby assigns its id at once, Jellyfin on the first scan (pass scan=true, or library_scan). save_nfo: " + saveNfoSchema + ". Changes server state.",
+		Description: "Create a library over folders on the server; it has its id at once. scan=true (or library_scan afterwards) reads what the folders hold. save_nfo: " + saveNfoSchema + ". Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, librarySummary, error) {
 		if in.Name == "" || len(in.Paths) == 0 {
 			return nil, librarySummary{}, errors.New("name and at least one path are required")
+		}
+		// a name another library has, apart from case, is refused before
+		// anything is made: Jellyfin makes "SCRATCH" beside "Scratch" as
+		// "SCRATCH2", and a read-back by the name asked for then answered
+		// with the other library
+		existing, err := client.VirtualFolders(ctx)
+		if err != nil {
+			return nil, librarySummary{}, err
+		}
+		for i := range existing {
+			if strings.EqualFold(existing[i].Name, in.Name) {
+				return nil, librarySummary{}, fmt.Errorf("a library named %q already exists: choose a name no library has, apart from case too", existing[i].Name)
+			}
 		}
 		if err := client.CreateLibrary(ctx, embyfin.LibrarySpec{
 			Name: in.Name, CollectionType: in.Type, Paths: in.Paths, Providers: in.Providers, Refresh: in.Scan, SaveNfo: in.SaveNfo,
@@ -305,12 +379,19 @@ func registerLibraryTools(r *registry) {
 			return nil, librarySummary{}, err
 		}
 
-		folder, err := resolveLibrary(ctx, client, in.Name)
+		// read back by the exact name asked for: the library made, and no
+		// other
+		folders, err := client.VirtualFolders(ctx)
 		if err != nil {
 			return nil, librarySummary{}, err
 		}
+		for i := range folders {
+			if folders[i].Name == in.Name {
+				return nil, summariseLibrary(&folders[i]), nil
+			}
+		}
 
-		return nil, summariseLibrary(folder), nil
+		return nil, librarySummary{}, fmt.Errorf("the server answered the creation of %q, but lists no library of that name", in.Name)
 	})
 
 	type editIn struct {
@@ -334,16 +415,50 @@ func registerLibraryTools(r *registry) {
 		if in.Name == "" && len(in.AddPaths) == 0 && len(in.RemovePaths) == 0 && in.SaveNfo == nil {
 			return nil, editOut{}, errors.New("nothing to change: pass name, add_paths, remove_paths or save_nfo")
 		}
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		// the folders and the rename go by name on Jellyfin, so a library not
+		// yet scanned can still be edited; only nfo saving needs its id
+		folder, err := findLibrary(ctx, client, in.Library)
 		if err != nil {
 			return nil, editOut{}, err
 		}
 
+		// everything that can be checked is checked before anything changes,
+		// so a refusal leaves the library as it was rather than half edited
+		if in.SaveNfo != nil && folder.ItemID == "" {
+			return nil, editOut{}, fmt.Errorf("the server lists the %s library without an id, and nfo saving is switched by id; run library_scan, which gives it one", folder.Name)
+		}
+		named := map[string]bool{}
+		for _, p := range slices.Concat(in.AddPaths, in.RemovePaths) {
+			if named[p] {
+				return nil, editOut{}, fmt.Errorf("%s is named more than once in add_paths and remove_paths", p)
+			}
+			named[p] = true
+		}
+		for _, p := range in.AddPaths {
+			if slices.Contains(folder.Locations, p) {
+				return nil, editOut{}, fmt.Errorf("%s already holds %s", folder.Name, p)
+			}
+		}
+		for _, p := range in.RemovePaths {
+			if !slices.Contains(folder.Locations, p) {
+				return nil, editOut{}, fmt.Errorf("%s has no folder %s (have: %s)", folder.Name, p, strings.Join(folder.Locations, ", "))
+			}
+		}
+
 		out := editOut{Changed: []string{}}
+		// a step the server refuses after others have landed says what they
+		// were, so the caller knows what state the library is in
+		failed := func(step string, err error) error {
+			if len(out.Changed) == 0 {
+				return fmt.Errorf("%s: %w", step, err)
+			}
+
+			return fmt.Errorf("%s: %w; already done before it failed: %s", step, err, strings.Join(out.Changed, ", "))
+		}
 		// before a rename, which gives a Jellyfin library a new id on its next scan
 		if in.SaveNfo != nil {
 			if err := client.SetLibraryNfo(ctx, folder, *in.SaveNfo); err != nil {
-				return nil, editOut{}, fmt.Errorf("switching nfo saving: %w", err)
+				return nil, editOut{}, failed("switching nfo saving", err)
 			}
 			if *in.SaveNfo {
 				out.Changed = append(out.Changed, "nfo saving on")
@@ -352,35 +467,29 @@ func registerLibraryTools(r *registry) {
 			}
 		}
 		for _, p := range in.AddPaths {
-			if slices.Contains(folder.Locations, p) {
-				return nil, editOut{}, fmt.Errorf("%s already holds %s", folder.Name, p)
-			}
 			if err := client.AddLibraryPath(ctx, folder, p); err != nil {
-				return nil, editOut{}, fmt.Errorf("adding %s: %w", p, err)
+				return nil, editOut{}, failed("adding "+p, err)
 			}
 			out.Changed = append(out.Changed, "added "+p)
 		}
 		for _, p := range in.RemovePaths {
-			if !slices.Contains(folder.Locations, p) {
-				return nil, editOut{}, fmt.Errorf("%s has no folder %s (have: %s)", folder.Name, p, strings.Join(folder.Locations, ", "))
-			}
 			if err := client.RemoveLibraryPath(ctx, folder, p); err != nil {
-				return nil, editOut{}, fmt.Errorf("removing %s: %w", p, err)
+				return nil, editOut{}, failed("removing "+p, err)
 			}
 			out.Changed = append(out.Changed, "removed "+p)
 		}
 		name := folder.Name
 		if in.Name != "" && in.Name != folder.Name {
 			if err := client.RenameLibrary(ctx, folder, in.Name); err != nil {
-				return nil, editOut{}, err
+				return nil, editOut{}, failed("renaming to "+in.Name, err)
 			}
 			out.Changed = append(out.Changed, "renamed "+folder.Name+" to "+in.Name)
 			name = in.Name
 		}
 
-		updated, err := resolveLibrary(ctx, client, name)
+		updated, err := findLibrary(ctx, client, name)
 		if err != nil {
-			return nil, editOut{}, err
+			return nil, editOut{}, failed("reading the library back", err)
 		}
 		out.librarySummary = summariseLibrary(updated)
 
@@ -401,7 +510,8 @@ func registerLibraryTools(r *registry) {
 		if !in.Confirm {
 			return nil, deleteLibraryOut{}, errors.New("refusing to delete without confirm=true")
 		}
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		// Jellyfin removes a library by name, so one not yet scanned can go too
+		folder, err := findLibrary(ctx, client, in.Library)
 		if err != nil {
 			return nil, deleteLibraryOut{}, err
 		}

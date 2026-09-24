@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -70,11 +72,16 @@ func TestCheckLanguage(t *testing.T) {
 		{"untagged audio cannot be called lacking", item(tracks(audioIn(""))), "jpn", findNoAudio, false, true},
 		{"und is untagged", item(tracks(audioIn("und"))), "jpn", findNoAudio, false, true},
 		{"a tagged match beside an untagged track is still a match", item(tracks(audioIn("jpn"), audioIn(""))), "jpn", findAudio, true, false},
-		{"no audio tracks at all lacks every language", item(tracks(embyfin.MediaStream{Type: "Video"})), "eng", findNoAudio, true, false},
+		// a file with no audio track at all is as often one the server never
+		// probed as a silent one, so it is not called lacking the language
+		{"no audio track at all is not judged", item(tracks(embyfin.MediaStream{Type: "Video"})), "eng", findNoAudio, false, true},
+		{"no streams at all is not judged", item(embyfin.MediaSource{}), "eng", findNoAudio, false, true},
 
 		{"japanese audio with no english anywhere cannot be watched in english", item(tracks(audioIn("jpn"))), "eng", findUnwatchable, true, false},
 		{"english subtitles make it watchable", item(tracks(audioIn("jpn"), subsIn("en"))), "eng", findUnwatchable, false, false},
 		{"untagged subtitles might be english", item(tracks(audioIn("jpn"), subsIn(""))), "eng", findUnwatchable, false, true},
+		{"nothing known is not unwatchable", item(), "eng", findUnwatchable, false, true},
+		{"subtitles in it make even a file with no audio watchable", item(tracks(subsIn("eng"))), "eng", findUnwatchable, false, false},
 	} {
 		detail, match, unknown := checkLanguage(tc.it, tc.lang, tc.find)
 		if match != tc.match || unknown != tc.unknown {
@@ -121,6 +128,51 @@ func TestAuditLanguage(t *testing.T) {
 	} {
 		if msg := mustRefuse(t, cs, "audit_language", want); !strings.Contains(msg, args) {
 			t.Errorf("%v said: %s", want, msg)
+		}
+	}
+}
+
+// Records with no file, and files whose streams say nothing about audio,
+// are not reported as lacking a language: the audit never judges on facts
+// it does not have. The files with no audio track are counted instead.
+func TestAuditLanguageLeavesOutWhatItKnowsNothingAbout(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"Items":[{"Name":"Shows","ItemId":"lib","CollectionType":"tvshows","Locations":["/tv"]}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"TotalRecordCount": 4, "Items": []map[string]any{
+			{
+				"Id": "1", "Name": "English", "Type": "Episode", "SeriesName": "Zzyzx Show", "Path": "/tv/z/1.mkv", "LocationType": "FileSystem",
+				"MediaSources": []map[string]any{{"Size": 5, "MediaStreams": []map[string]any{{"Type": "Audio", "Language": "eng"}}}},
+			},
+			// never probed: a file with no streams
+			{"Id": "2", "Name": "Unprobed", "Type": "Episode", "SeriesName": "Zzyzx Show", "Path": "/tv/z/2.mkv", "LocationType": "FileSystem", "MediaSources": []map[string]any{{"Size": 0}}},
+			// a picture with no sound track
+			{
+				"Id": "3", "Name": "Silent", "Type": "Episode", "SeriesName": "Zzyzx Show", "Path": "/tv/z/3.mkv", "LocationType": "FileSystem",
+				"MediaSources": []map[string]any{{"Size": 5, "MediaStreams": []map[string]any{{"Type": "Video", "Codec": "h264"}}}},
+			},
+			// the record a server keeps of an episode it has no file for
+			{"Id": "4", "Name": "Not Held", "Type": "Episode", "SeriesName": "Zzyzx Show", "LocationType": "Virtual"},
+		}})
+	})
+	cs := session(t, f, Options{})
+
+	for _, find := range []string{findNoAudio, findUnwatchable} {
+		out := mustCall(t, cs, "audit_language", map[string]any{"language": "jpn", "find": find})
+		rows := objects(t, out["findings"], "findings")
+		if len(rows) != 1 || text(rows[0]["id"]) != "1" || number(t, out["total_findings"], "total_findings") != 1 {
+			t.Errorf("%s: findings = %v, want only the file with English audio", find, rows)
+		}
+		if number(t, out["no_audio_track"], "no_audio_track") != 2 || number(t, out["untagged"], "untagged") != 0 {
+			t.Errorf("%s: %v, want the two files with no audio track counted apart", find, out)
+		}
+		// the record with no file is not an item the audit looked at
+		if number(t, out["items_scanned"], "items_scanned") != 3 {
+			t.Errorf("%s: items_scanned = %v, want the three files", find, out["items_scanned"])
 		}
 	}
 }

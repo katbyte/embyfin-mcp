@@ -305,6 +305,12 @@ func TestLibraryRecentKeepsTheWindow(t *testing.T) {
 	if items = objects(t, out["items"], "items"); len(items) != 2 {
 		t.Errorf("items = %v, want both inside 200 days", items)
 	}
+
+	// a page is capped where the bulk reads cap theirs
+	mustCall(t, cs, "library_recent", map[string]any{"limit": 50000})
+	if q = lastQuery(t, f, "/Items"); q.Get("Limit") != "1000" {
+		t.Errorf("limit 50000 asked for %s, want the cap of 1000", q.Get("Limit"))
+	}
 }
 
 // library_filters counts every value the items carry, most used first,
@@ -453,6 +459,206 @@ func TestUserHistory(t *testing.T) {
 	}
 }
 
+// itemsByID answers an /Items lookup by id with the films asked for, however
+// the server spells the ids: Emby joins them, Jellyfin repeats the parameter.
+func itemsByID(t *testing.T, films map[string]string) http.HandlerFunc {
+	t.Helper()
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		asked := q["ids"]
+		if ids := q.Get("Ids"); ids != "" {
+			asked = strings.Split(ids, ",")
+		}
+		var items []map[string]any
+		for _, id := range asked {
+			if name, ok := films[id]; ok {
+				items = append(items, film(id, name, 2001))
+			}
+		}
+		writeJSON(t, w, page(items...))
+	}
+}
+
+// user_history puts each play down to the user who played it. Emby's entries
+// say who only in their text, so a name that starts another's ("Bob" and
+// "Bob Smith") goes to the longest name that fits; Jellyfin's carry the
+// user's id, which decides whatever the text says, and an entry with the
+// empty id falls back to the text.
+func TestUserHistoryPutsEachPlayDownToWhoPlayedIt(t *testing.T) {
+	t.Parallel()
+
+	for _, jellyfin := range []bool{false, true} {
+		f := newFakeServer(t)
+		f.jellyfin = jellyfin
+		users := []map[string]any{
+			{"Id": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a01", "Name": "Bob", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}},
+			{"Id": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a02", "Name": "Bob Smith", "Policy": map[string]any{"EnableAllFolders": true}},
+		}
+		entries := []map[string]any{
+			{"Name": "Bob Smith has finished playing Zzyzx", "Type": "playback.stop", "Date": "2026-09-20T10:00:00Z", "ItemId": "9", "UserId": "7"},
+			{"Name": "Bob has finished playing Xyzzy", "Type": "playback.stop", "Date": "2026-09-19T10:00:00Z", "ItemId": "8", "UserId": "6"},
+		}
+		if jellyfin {
+			entries = []map[string]any{
+				// a server writing its log in another language: the id decides
+				{"Name": "Lecture de Zzyzx par Bob Smith", "Type": "VideoPlaybackStopped", "Date": "2026-09-20T10:00:00Z", "ItemId": "9", "UserId": "0a0a0a0a-0a0a-0a0a-0a0a-0a0a0a0a0a02"},
+				{"Name": "Bob is playing Xyzzy", "Type": "VideoPlayback", "Date": "2026-09-19T10:00:00Z", "ItemId": "8", "UserId": "00000000-0000-0000-0000-000000000000"},
+			}
+			f.mux.HandleFunc("GET /Users", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, users) })
+		} else {
+			f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+				writeJSON(t, w, map[string]any{"Items": users, "TotalRecordCount": len(users)})
+			})
+		}
+		f.mux.HandleFunc("GET /System/ActivityLog/Entries", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(t, w, map[string]any{"Items": entries, "TotalRecordCount": len(entries)})
+		})
+		f.mux.HandleFunc("GET /Items", itemsByID(t, map[string]string{"9": "Zzyzx", "8": "Xyzzy"}))
+		cs := session(t, f, Options{})
+
+		for user, want := range map[string]string{"Bob": "8", "Bob Smith": "9"} {
+			out := mustCall(t, cs, "user_history", map[string]any{"user": user})
+			items := objects(t, out["items"], "items")
+			if len(items) != 1 || items[0]["id"] != want {
+				t.Errorf("jellyfin %v: %s's history = %v, want only item %s", jellyfin, user, items, want)
+			}
+		}
+	}
+}
+
+// activityLog is a canned activity log of n entries, newest first, answered
+// a page at a time the way both servers page it. entry says what the i-th
+// newest is, and entryDate when it was written.
+func activityLog(t *testing.T, newest time.Time, n int, entry func(i int) map[string]any) http.HandlerFunc {
+	t.Helper()
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		start, _ := strconv.Atoi(q.Get("StartIndex") + q.Get("startIndex"))
+		limit, _ := strconv.Atoi(q.Get("Limit") + q.Get("limit"))
+		items := []map[string]any{}
+		for i := start; i < n && i < start+limit; i++ {
+			e := entry(i)
+			e["Date"] = entryDate(newest, i)
+			items = append(items, e)
+		}
+		writeJSON(t, w, map[string]any{"Items": items, "TotalRecordCount": n})
+	}
+}
+
+// entryDate is when an activityLog's i-th newest entry was written: a minute
+// before the one after it.
+func entryDate(newest time.Time, i int) string {
+	return newest.Add(-time.Duration(i) * time.Minute).UTC().Format(time.RFC3339)
+}
+
+// The history tools read the whole period, however many pages of the log it
+// takes: one page of a thousand entries is a few days of a busy server, and
+// a film played before them was reported as never played.
+func TestTheHistoryToolsReadTheWholePeriod(t *testing.T) {
+	t.Parallel()
+
+	f, _ := zzyzxServer(t)
+	f.mux.HandleFunc("GET /System/ActivityLog/Entries", activityLog(t, time.Now().Add(-time.Hour), 2500, func(i int) map[string]any {
+		if i == 2499 { // the oldest in the period
+			return map[string]any{"Name": "Quux has finished playing Zzyzx", "Type": "playback.stop", "ItemId": "9"}
+		}
+		return map[string]any{"Name": "Plugh has finished playing Xyzzy", "Type": "playback.stop", "ItemId": "8"}
+	}))
+	f.mux.HandleFunc("GET /Items", itemsByID(t, map[string]string{"9": "Zzyzx", "8": "Xyzzy"}))
+	cs := session(t, f, Options{})
+
+	out := mustCall(t, cs, "item_watch_history", map[string]any{"id": "9"})
+	if got := texts(out["entries"]); len(got) != 1 || !strings.HasSuffix(got[0], "Quux has finished playing Zzyzx") {
+		t.Errorf("entries = %v, want the play at the far end of the period", got)
+	}
+	if !boolean(t, out["complete"], "complete") || out["note"] != nil {
+		t.Errorf("complete = %v, note = %v, want the whole period read", out["complete"], out["note"])
+	}
+	reads := f.requests("/System/ActivityLog/Entries")
+	starts := make([]string, 0, len(reads))
+	for _, r := range reads {
+		q, _ := url.ParseQuery(r.Query)
+		starts = append(starts, q.Get("StartIndex"))
+	}
+	if !slices.Equal(starts, []string{"", "1000", "2000"}) {
+		t.Errorf("pages read from %v, want 0, 1000 and 2000", starts)
+	}
+
+	out = mustCall(t, cs, "user_history", map[string]any{"user": "Quux"})
+	if items := objects(t, out["items"], "items"); len(items) != 1 || items[0]["id"] != "9" || !boolean(t, out["complete"], "complete") {
+		t.Errorf("Quux's history = %v", out)
+	}
+}
+
+// user_history reads a page of its items back a batch at a time: a large
+// limit named every id in one request, which a server refuses past a few
+// hundred ids.
+func TestUserHistoryReadsItsItemsInBatches(t *testing.T) {
+	t.Parallel()
+
+	const played = 250
+	f, _ := zzyzxServer(t)
+	names := map[string]string{}
+	for i := range played {
+		names[strconv.Itoa(100+i)] = "Zzyzx " + strconv.Itoa(i)
+	}
+	f.mux.HandleFunc("GET /System/ActivityLog/Entries", activityLog(t, time.Now().Add(-time.Hour), played, func(i int) map[string]any {
+		return map[string]any{"Name": "Quux has finished playing Zzyzx", "Type": "playback.stop", "ItemId": strconv.Itoa(100 + i)}
+	}))
+	f.mux.HandleFunc("GET /Items", itemsByID(t, names))
+	cs := session(t, f, Options{})
+
+	out := mustCall(t, cs, "user_history", map[string]any{"user": "Quux", "limit": played})
+	if got := len(objects(t, out["items"], "items")); got != played {
+		t.Errorf("history has %d items, want all %d", got, played)
+	}
+	for _, r := range f.requests("/Items") {
+		q, _ := url.ParseQuery(r.Query)
+		if n := len(strings.Split(q.Get("Ids"), ",")); n > idsPerRequest {
+			t.Errorf("one request named %d items, want at most %d", n, idsPerRequest)
+		}
+	}
+}
+
+// A period holding more activity than one call reads is read to the ceiling
+// and no further, and the answer says so and how far back it got rather than
+// reading as a period with nothing older in it.
+func TestTheHistoryToolsSayWhenThePeriodIsCutShort(t *testing.T) {
+	t.Parallel()
+
+	const held = activityScanMax + 500
+	f, _ := zzyzxServer(t)
+	newest := time.Now().Add(-time.Hour)
+	f.mux.HandleFunc("GET /System/ActivityLog/Entries", activityLog(t, newest, held, func(i int) map[string]any {
+		if i == held-100 { // past the ceiling
+			return map[string]any{"Name": "Quux has finished playing Zzyzx", "Type": "playback.stop", "ItemId": "9"}
+		}
+		return map[string]any{"Name": "Plugh has finished playing Xyzzy", "Type": "playback.stop", "ItemId": "8"}
+	}))
+	f.mux.HandleFunc("GET /Items", itemsByID(t, map[string]string{"9": "Zzyzx", "8": "Xyzzy"}))
+	cs := session(t, f, Options{})
+
+	out := mustCall(t, cs, "item_watch_history", map[string]any{"id": "9"})
+	if got := texts(out["entries"]); len(got) != 0 {
+		t.Errorf("entries = %v, want nothing from past the ceiling", got)
+	}
+	if reqs := f.requests("/System/ActivityLog/Entries"); len(reqs) != activityScanMax/activityPage {
+		t.Errorf("%d pages read, want %d", len(reqs), activityScanMax/activityPage)
+	}
+	oldestRead := entryDate(newest, activityScanMax-1)
+	note := text(out["note"])
+	if boolean(t, out["complete"], "complete") || !strings.Contains(note, fmt.Sprintf("holds %d entries", held)) || !strings.Contains(note, "newest 20000") || !strings.Contains(note, oldestRead) {
+		t.Errorf("complete = %v, note = %q, want it cut short at the entry of %s", out["complete"], note, oldestRead)
+	}
+
+	out = mustCall(t, cs, "user_history", map[string]any{"user": "Quux"})
+	if items := objects(t, out["items"], "items"); len(items) != 0 || boolean(t, out["complete"], "complete") || !strings.Contains(text(out["note"]), oldestRead) {
+		t.Errorf("Quux's history = %v, want nothing, and the read said to be cut short", out)
+	}
+}
+
 // user_next_up asks Emby's legacy next-up and its resume list, and drops
 // the resume rows Emby pads with never-started episodes.
 func TestUserNextUp(t *testing.T) {
@@ -553,6 +759,63 @@ func TestUserStats(t *testing.T) {
 	plays := objects(t, out["most_played"], "most_played")
 	if len(plays) != 2 || plays[0]["name"] != "Zzyzx" || number(t, plays[0]["plays"], "plays") != 2 || plays[1]["name"] != "Zzyzx Files: Pilot" || plays[1]["type"] != "Episode" {
 		t.Errorf("most_played = %v", plays)
+	}
+}
+
+// user_stats reads the series a user has started back a hundred at a time:
+// Jellyfin takes each id as a parameter of its own, and a few hundred in one
+// request run past the length a server or proxy accepts.
+func TestUserStatsReadsTheSeriesInBatches(t *testing.T) {
+	t.Parallel()
+
+	const started = 250
+	f := newFakeServer(t)
+	f.jellyfin = true
+	f.mux.HandleFunc("GET /Users", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, []map[string]any{{"Id": "u1", "Name": "Quux", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}}})
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		var items []map[string]any
+		if slices.Equal(q["includeItemTypes"], []string{"Series"}) {
+			for _, id := range q["ids"] {
+				items = append(items, map[string]any{"Id": id, "Name": "Zzyzx " + id, "Type": "Series", "UserData": map[string]any{"UnplayedItemCount": 1}})
+			}
+			writeJSON(t, w, page(items...))
+			return
+		}
+		for i := range started {
+			id := strconv.Itoa(i)
+			items = append(items, map[string]any{"Id": "e" + id, "Name": "Pilot", "Type": "Episode", "SeriesId": "s" + id, "SeriesName": "Zzyzx s" + id, "UserData": map[string]any{"Played": true}})
+		}
+		writeJSON(t, w, page(items...))
+	})
+	cs := session(t, f, Options{})
+
+	out := mustCall(t, cs, "user_stats", map[string]any{})
+	if got := number(t, out["series_started"], "series_started"); got != started {
+		t.Errorf("series_started = %d, want %d", got, started)
+	}
+	if got := len(objects(t, out["top_series"], "top_series")); got != 10 {
+		t.Errorf("top_series has %d rows, want 10", got)
+	}
+	asked := map[string]bool{}
+	batches := 0
+	for _, r := range f.requests("/Items") {
+		q, _ := url.ParseQuery(r.Query)
+		if !slices.Equal(q["includeItemTypes"], []string{"Series"}) {
+			continue
+		}
+		batches++
+		if len(q["ids"]) > idsPerRequest {
+			t.Errorf("one request named %d series, want at most %d", len(q["ids"]), idsPerRequest)
+		}
+		for _, id := range q["ids"] {
+			asked[id] = true
+		}
+	}
+	if batches != 3 || len(asked) != started {
+		t.Errorf("%d requests asked for %d series, want 3 asking for all %d", batches, len(asked), started)
 	}
 }
 
@@ -747,7 +1010,7 @@ func TestCollectionFamily(t *testing.T) {
 	t.Parallel()
 
 	f, s := newCollectionServer(t)
-	cs := session(t, f, Options{})
+	cs := session(t, f, Options{EnableDelete: true})
 
 	if cols := objects(t, mustCall(t, cs, "collection_list", map[string]any{})["collections"], "collections"); len(cols) != 0 {
 		t.Errorf("collections before any = %v", cols)
@@ -931,6 +1194,17 @@ func newPlaylistServer(t *testing.T) (*fakeServer, *playlistState) {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+	// what a user sees: every item but 66, which is in a library Plugh (u2)
+	// was not given
+	f.mux.HandleFunc("GET /Users/{user}/Items", func(w http.ResponseWriter, r *http.Request) {
+		var items []map[string]any
+		for id := range strings.SplitSeq(r.URL.Query().Get("Ids"), ",") {
+			if id != "" && (id != "66" || r.PathValue("user") != "u2") {
+				items = append(items, film(id, "Film "+id, 2000))
+			}
+		}
+		writeJSON(t, w, page(items...))
+	})
 	f.mux.HandleFunc("GET /Users/{user}/Items/{id}", func(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -967,7 +1241,7 @@ func TestPlaylistFamily(t *testing.T) {
 	t.Parallel()
 
 	f, s := newPlaylistServer(t)
-	cs := session(t, f, Options{})
+	cs := session(t, f, Options{EnableDelete: true})
 
 	out := mustCall(t, cs, "playlist_create", map[string]any{"name": "Zzyzx Night", "item_ids": []string{"9", "11"}, "media_type": "Video"})
 	if out["id"] != "pl1" || out["name"] != "Zzyzx Night" {
@@ -987,6 +1261,27 @@ func TestPlaylistFamily(t *testing.T) {
 	entries := objects(t, out["entries"], "entries")
 	if out["name"] != "Zzyzx Night" || len(entries) != 2 || entries[0]["id"] != "9" || entries[0]["entry_id"] != "1" || entries[1]["entry_id"] != "2" {
 		t.Errorf("get = %v", out)
+	}
+
+	// a playlist takes only what its user can see: neither server checks,
+	// so a restricted account's playlist was a way into a library it was
+	// not given
+	f.reset()
+	for name, args := range map[string]map[string]any{
+		"playlist_add":    {"playlist": "pl1", "item_ids": []string{"13", "66"}, "user": "Plugh"},
+		"playlist_create": {"name": "Zzyzx Late", "item_ids": []string{"66"}, "user": "Plugh"},
+	} {
+		if msg := mustRefuse(t, cs, name, args); !strings.Contains(msg, "Plugh cannot see 66") {
+			t.Errorf("%s of an item Plugh cannot see = %q", name, msg)
+		}
+	}
+	for _, r := range f.requests("/Playlists/pl1/Items") {
+		if r.Method == http.MethodPost {
+			t.Errorf("an item was added for a user who cannot see it: %v", r)
+		}
+	}
+	if reqs := f.requests("/Playlists"); len(reqs) != 0 {
+		t.Errorf("a playlist was made of an item its user cannot see: %v", reqs)
 	}
 
 	// added is what the playlist gained: the entries are read before and after
@@ -1259,7 +1554,7 @@ func TestServerFamily(t *testing.T) {
 }
 
 // show_seasons names the series and lists its seasons by number, the
-// specials without one.
+// specials as 0 rather than without one.
 func TestShowSeasons(t *testing.T) {
 	t.Parallel()
 
@@ -1287,8 +1582,8 @@ func TestShowSeasons(t *testing.T) {
 	if len(seasons) != 2 || seasons[0]["id"] != "se1" || seasons[0]["name"] != "Season 1" || number(t, seasons[0]["season"], "season") != 1 {
 		t.Errorf("seasons = %v", seasons)
 	}
-	if _, ok := seasons[1]["season"]; ok {
-		t.Errorf("the specials carry a season number: %v", seasons[1])
+	if n, ok := seasons[1]["season"]; !ok || number(t, n, "season") != 0 {
+		t.Errorf("the specials do not say they are season 0: %v", seasons[1])
 	}
 	if len(f.requests("/Shows/s1/Seasons")) != 1 {
 		t.Errorf("seasons requests = %v", f.seen)
@@ -1531,8 +1826,40 @@ func TestItemSubtitles(t *testing.T) {
 	f.mux.HandleFunc("GET /Items/{id}/RemoteSearch/Subtitles/{lang}", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(t, w, []map[string]any{{"Id": "sub1", "Name": "Zzyzx." + r.PathValue("lang") + ".srt", "ProviderName": "Zzyzx Subs", "Format": "srt", "DownloadCount": 40, "CommunityRating": 4.5}})
 	})
-	f.mux.HandleFunc("POST /Items/{id}/RemoteSearch/Subtitles/{sub}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	cs := session(t, f, Options{})
+	// the server's refresh adds a downloaded subtitle to the item a few reads
+	// after the download answers; an id that names nothing is answered the
+	// same, and adds nothing
+	var (
+		mu        sync.Mutex
+		subtitles []map[string]any
+		due       int
+	)
+	f.mux.HandleFunc("POST /Items/{id}/RemoteSearch/Subtitles/{sub}", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if r.PathValue("sub") == "sub1" {
+			due = 3
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if due > 0 {
+			due--
+			if due == 0 {
+				subtitles = append(subtitles, map[string]any{"Type": "Subtitle", "Codec": "srt", "Language": "eng", "IsExternal": true})
+			}
+		}
+		it := film("9", "Zzyzx", 2001)
+		it["MediaSources"] = []map[string]any{{"Path": "/zz/films/Zzyzx.mkv", "MediaStreams": append([]map[string]any{
+			{"Type": "Video", "Codec": "h264"}, {"Type": "Subtitle", "Codec": "subrip", "Language": "fre"},
+		}, subtitles...)}}
+		writeJSON(t, w, page(it))
+	})
+	r := &registry{client: f.client(t), settle: time.Millisecond}
+	registerSubtitleTools(r)
+	cs := hostRegistry(t, r)
 
 	cands := objects(t, mustCall(t, cs, "item_subtitle_search", map[string]any{"id": "9"})["candidates"], "candidates")
 	if len(cands) != 1 || cands[0]["id"] != "sub1" || cands[0]["name"] != "Zzyzx.eng.srt" || cands[0]["provider"] != "Zzyzx Subs" || cands[0]["format"] != "srt" || number(t, cands[0]["downloads"], "downloads") != 40 || decimal(t, cands[0]["rating"], "rating") != 4.5 {
@@ -1541,6 +1868,15 @@ func TestItemSubtitles(t *testing.T) {
 	mustCall(t, cs, "item_subtitle_search", map[string]any{"id": "9", "language": "fre"})
 	if len(f.requests("/Items/9/RemoteSearch/Subtitles/fre")) != 1 {
 		t.Errorf("the language was not asked for: %v", f.seen)
+	}
+
+	// a made-up id is answered with the same empty success, and nothing comes
+	msg := mustRefuse(t, cs, "item_subtitle_download", map[string]any{"id": "9", "subtitle_id": "zzyzx-nothing"})
+	if !strings.Contains(msg, "the server answered the download of zzyzx-nothing, but no new subtitle reached Zzyzx") {
+		t.Errorf("a download that brought nothing = %q", msg)
+	}
+	if reqs := f.requests("/Items"); len(reqs) != 1+subtitlePolls {
+		t.Errorf("the item was read %d times, want once before and %d times after", len(reqs), subtitlePolls)
 	}
 
 	out := mustCall(t, cs, "item_subtitle_download", map[string]any{"id": "9", "subtitle_id": "sub1"})
@@ -1617,6 +1953,16 @@ func TestLibraryCreateAndEdit(t *testing.T) {
 	if msg := mustRefuse(t, cs, "library_create", map[string]any{"name": "Zzyzx Docs", "type": "movies", "paths": []string{}}); !strings.Contains(msg, "at least one path") {
 		t.Errorf("create without a path: %s", msg)
 	}
+	// a name another library has apart from case: Jellyfin makes it as
+	// "ZZYZX FILMS2", and the read-back by name answered with the old one
+	if msg := mustRefuse(t, cs, "library_create", map[string]any{"name": "ZZYZX FILMS", "type": "movies", "paths": []string{"/zz/more"}}); !strings.Contains(msg, `a library named "Zzyzx Films" already exists`) {
+		t.Errorf("create beside a library of the same name = %s", msg)
+	}
+	libs.mu.Lock()
+	if created != nil {
+		t.Errorf("a library was made under a name one already has: %v", created)
+	}
+	libs.mu.Unlock()
 	out := mustCall(t, cs, "library_create", map[string]any{"name": "Zzyzx Docs", "type": "movies", "paths": []string{"/zz/docs"}})
 	if out["id"] != "lib10" || out["name"] != "Zzyzx Docs" || out["collection_type"] != "movies" || strings.Join(texts(out["locations"]), ",") != "/zz/docs" || boolean(t, out["saves_nfo"], "saves_nfo") {
 		t.Errorf("create = %v", out)
@@ -1668,6 +2014,160 @@ func TestLibraryCreateAndEdit(t *testing.T) {
 	}
 	if options["Id"] != "lib9" || strings.Join(texts(object(t, options["LibraryOptions"], "LibraryOptions")["MetadataSavers"]), ",") != "Nfo" {
 		t.Errorf("options body = %v", options)
+	}
+}
+
+// library_edit checks every folder it is given before it changes anything,
+// so a folder the library does not have leaves nfo saving and the other
+// folders as they were; and when the server refuses a step after others
+// have landed, the refusal says which did.
+func TestLibraryEditChecksFirstAndSaysWhatLanded(t *testing.T) {
+	t.Parallel()
+
+	f, _ := zzyzxServer(t)
+	for _, route := range []string{"POST /Library/VirtualFolders/LibraryOptions", "POST /Library/VirtualFolders/Paths", "POST /Library/VirtualFolders/Paths/Delete"} {
+		f.mux.HandleFunc(route, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	}
+	f.mux.HandleFunc("POST /Library/VirtualFolders/Name", func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "a library by that name already exists", http.StatusBadRequest)
+	})
+	cs := session(t, f, Options{})
+	changes := func() int {
+		n := 0
+		for _, path := range []string{"/Library/VirtualFolders/LibraryOptions", "/Library/VirtualFolders/Paths", "/Library/VirtualFolders/Paths/Delete", "/Library/VirtualFolders/Name"} {
+			n += len(f.requests(path))
+		}
+		return n
+	}
+
+	for args, want := range map[*map[string]any]string{
+		{"save_nfo": true, "add_paths": []string{"/zz/more"}, "remove_paths": []string{"/zz/nope"}}: "has no folder /zz/nope",
+		{"save_nfo": true, "add_paths": []string{"/zz/more", "/zz/films"}}:                          "already holds /zz/films",
+		{"add_paths": []string{"/zz/more", "/zz/more"}}:                                             "/zz/more is named more than once",
+	} {
+		(*args)["library"] = "Zzyzx Films"
+		if msg := mustRefuse(t, cs, "library_edit", *args); !strings.Contains(msg, want) {
+			t.Errorf("%v = %q, want %q", *args, msg, want)
+		}
+	}
+	if n := changes(); n != 0 {
+		t.Errorf("%d changes were made before the edit was refused, want none", n)
+	}
+
+	msg := mustRefuse(t, cs, "library_edit", map[string]any{"library": "Zzyzx Films", "save_nfo": true, "add_paths": []string{"/zz/more"}, "name": "Zzyzx Cinema"})
+	if !strings.Contains(msg, "renaming to Zzyzx Cinema") || !strings.Contains(msg, "already done before it failed: nfo saving on, added /zz/more") {
+		t.Errorf("a refused rename = %q, want what landed before it named", msg)
+	}
+}
+
+// An older Jellyfin lists a new library without an id until its first scan
+// (12.1 gives one when it is made), and a tool narrowing to
+// it by that empty id would answer for, or change, the whole server: the
+// tools that read or filter by a library refuse it and say to scan, and the
+// tools that act on the library itself still work on it by name.
+func TestALibraryWithNoIDIsNeverTheWholeServer(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	f.jellyfin = true
+	f.mux.HandleFunc("GET /Library/VirtualFolders", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, []map[string]any{
+			{"Name": "Zzyzx Films", "CollectionType": "movies", "ItemId": "lib9", "Locations": []string{"/zz/films"}},
+			{"Name": "Zzyzx New", "CollectionType": "movies", "Locations": []string{"/zz/new"}},
+		})
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page(film("9", "Zzyzx", 2001))) })
+	f.mux.HandleFunc("GET /Users", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, []map[string]any{{"Id": "u1", "Name": "Quux", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}}})
+	})
+	for _, route := range []string{"POST /Library/Refresh", "POST /Library/VirtualFolders/Paths", "DELETE /Library/VirtualFolders"} {
+		f.mux.HandleFunc(route, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	}
+	cs := session(t, f, Options{EnableDelete: true})
+
+	for name, args := range map[string]map[string]any{
+		"library_recent":         {"library": "Zzyzx New"},
+		"library_items":          {"library": "zzyzx new"},
+		"audit_missing_overview": {"library": "Zzyzx New"},
+		"metadata_rename":        {"library": "Zzyzx New", "field": "genres", "from": "Scifi", "to": "Science Fiction"},
+		"user_stats":             {"library": "Zzyzx New"},
+	} {
+		if msg := mustRefuse(t, cs, name, args); !strings.Contains(msg, "the server lists the Zzyzx New library without an id, so there is nothing to narrow to; run library_scan") {
+			t.Errorf("%s = %q, want the library refused until a scan gives it an id", name, msg)
+		}
+	}
+	if reqs := f.requests("/Items"); len(reqs) != 0 {
+		t.Errorf("the whole server was read for one library: %v", reqs)
+	}
+
+	// leaving a library out goes by its folders, which it has before its id
+	out := mustCall(t, cs, "audit_missing_metadata_provider", map[string]any{"ignore": []string{"Zzyzx New"}})
+	if number(t, out["items_scanned"], "items_scanned") != 1 {
+		t.Errorf("audit_missing_metadata_provider ignoring the unscanned library = %v", out)
+	}
+	f.reset()
+
+	out = mustCall(t, cs, "library_get", map[string]any{"library": "Zzyzx New"})
+	if out["name"] != "Zzyzx New" || out["id"] != nil || number(t, out["item_count"], "item_count") != 0 || !strings.Contains(text(out["note"]), "listed without an id") {
+		t.Errorf("library_get = %v, want the library with no counts and a note", out)
+	}
+	if reqs := f.requests("/Items"); len(reqs) != 0 {
+		t.Errorf("library_get counted the whole server: %v", reqs)
+	}
+
+	out = mustCall(t, cs, "library_scan", map[string]any{"library": "Zzyzx New"})
+	if !boolean(t, out["started"], "started") || out["library"] != "Zzyzx New" || !strings.Contains(text(out["note"]), "every library") || len(f.requests("/Library/Refresh")) != 1 {
+		t.Errorf("library_scan = %v, want every library scanned to give it an id", out)
+	}
+
+	if msg := mustRefuse(t, cs, "library_edit", map[string]any{"library": "Zzyzx New", "save_nfo": true, "add_paths": []string{"/zz/more"}}); !strings.Contains(msg, "without an id, and nfo saving is switched by id") {
+		t.Errorf("nfo saving on a library with no id = %q", msg)
+	}
+	if reqs := f.requests("/Library/VirtualFolders/Paths"); len(reqs) != 0 {
+		t.Errorf("a folder was added to an edit that was refused: %v", reqs)
+	}
+	out = mustCall(t, cs, "library_edit", map[string]any{"library": "Zzyzx New", "add_paths": []string{"/zz/more"}})
+	if strings.Join(texts(out["changed"]), ";") != "added /zz/more" {
+		t.Errorf("library_edit = %v", out)
+	}
+
+	out = mustCall(t, cs, "library_delete", map[string]any{"library": "Zzyzx New", "confirm": true})
+	if out["deleted"] != "Zzyzx New" {
+		t.Errorf("library_delete = %v", out)
+	}
+	if q := lastQuery(t, f, "/Library/VirtualFolders"); q.Get("name") != "Zzyzx New" {
+		t.Errorf("delete query = %v", q)
+	}
+}
+
+// A library named apart from case is found when one library has the name,
+// an exact name wins over one that differs in case, and a name several
+// libraries share apart from case is refused naming them: Jellyfin on Linux
+// can hold "Movies" and "movies", and a delete must not guess.
+func TestLibraryNamesPreferTheExactOne(t *testing.T) {
+	t.Parallel()
+
+	f, libs := zzyzxServer(t)
+	libs.folders = []map[string]any{
+		{"Name": "Movies", "CollectionType": "movies", "ItemId": "m1", "Locations": []string{"/zz/a"}},
+		{"Name": "movies", "CollectionType": "movies", "ItemId": "m2", "Locations": []string{"/zz/b"}},
+		{"Name": "Zzyzx Shows", "CollectionType": "tvshows", "ItemId": "s1", "Locations": []string{"/zz/c"}},
+	}
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page()) })
+	f.mux.HandleFunc("POST /Library/VirtualFolders/Delete", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	cs := session(t, f, Options{EnableDelete: true})
+
+	for asked, want := range map[string]string{"Movies": "m1", "movies": "m2", "zzyzx shows": "s1", "m2": "m2"} {
+		if out := mustCall(t, cs, "library_get", map[string]any{"library": asked}); out["id"] != want {
+			t.Errorf("library %q = %v, want %s", asked, out["id"], want)
+		}
+	}
+	msg := mustRefuse(t, cs, "library_delete", map[string]any{"library": "MOVIES", "confirm": true})
+	if !strings.Contains(msg, `2 libraries are named "MOVIES" apart from case`) || !strings.Contains(msg, `"Movies" (id m1)`) || !strings.Contains(msg, `"movies" (id m2)`) {
+		t.Errorf("an ambiguous name = %q, want both named", msg)
+	}
+	if reqs := f.requests("/Library/VirtualFolders/Delete"); len(reqs) != 0 {
+		t.Errorf("a library was deleted on a guess: %v", reqs)
 	}
 }
 

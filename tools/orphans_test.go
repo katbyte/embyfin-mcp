@@ -101,13 +101,17 @@ type orphanServer struct {
 	onDelete func(n int)
 	// refuse is ids the server will not delete
 	refuse map[string]bool
+	// unanswered makes every path check fail, as a server that errors does
+	unanswered bool
 }
 
 func newOrphanServer(t *testing.T, jellyfin bool) *orphanServer {
 	t.Helper()
 
-	o := &orphanServer{fakeServer: newFakeServer(t), refuse: map[string]bool{}}
-	o.jellyfin = jellyfin
+	o := newOrphanServerOf(t, jellyfin, []map[string]any{
+		{"Name": "Movies", "CollectionType": "movies", "ItemId": "lib1", "Locations": []string{"/data/films"}},
+		{"Name": "Documentaries", "CollectionType": "movies", "ItemId": "lib2", "Locations": []string{"/data/docs/"}},
+	})
 	o.items = []orphanItem{
 		{ID: "lm", Name: "movies", Type: "Folder", Path: "/data/films"},
 		{ID: "m1", Name: "Alien", Type: "Movie", Path: "/data/films/Alien (1979)/Alien (1979).mkv", ParentID: "lm"},
@@ -126,10 +130,16 @@ func newOrphanServer(t *testing.T, jellyfin bool) *orphanServer {
 	o.dirs = map[string]bool{"/data/films": true, "/data/docs": true, "/srv": true, "/srv/recordings": true}
 	o.files = map[string]bool{"/srv/recordings/news.ts": true}
 
-	libraries := []map[string]any{
-		{"Name": "Movies", "CollectionType": "movies", "ItemId": "lib1", "Locations": []string{"/data/films"}},
-		{"Name": "Documentaries", "CollectionType": "movies", "ItemId": "lib2", "Locations": []string{"/data/docs/"}},
-	}
+	return o
+}
+
+// newOrphanServerOf is a canned server with the libraries given and nothing
+// else: the caller fills in the items and what is on disk.
+func newOrphanServerOf(t *testing.T, jellyfin bool, libraries []map[string]any) *orphanServer {
+	t.Helper()
+
+	o := &orphanServer{fakeServer: newFakeServer(t), refuse: map[string]bool{}, dirs: map[string]bool{}, files: map[string]bool{}}
+	o.jellyfin = jellyfin
 	o.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"Items": libraries, "TotalRecordCount": len(libraries)})
 	})
@@ -205,6 +215,11 @@ func (o *orphanServer) validate(w http.ResponseWriter, r *http.Request) {
 
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if o.unanswered {
+		http.Error(w, "boom", http.StatusInternalServerError)
+
+		return
+	}
 	if (body.IsFile && o.files[path]) || (!body.IsFile && o.dirs[path]) {
 		w.WriteHeader(http.StatusNoContent)
 
@@ -316,7 +331,8 @@ func TestAuditOrphans(t *testing.T) {
 	if ex := objects(t, docs["examples"], "examples"); len(ex) != 5 || text(ex[0]["path"]) != "/data/doc/Other Doc (2019)" {
 		t.Errorf("examples = %v", ex)
 	}
-	if text(srv["folder"]) != "/srv" || text(srv["on_server"]) != "present" {
+	// the folder holding what is still on disk, not the top of its tree
+	if text(srv["folder"]) != "/srv/recordings" || text(srv["on_server"]) != "present" {
 		t.Errorf("a folder the server can see = %v", srv)
 	}
 
@@ -477,5 +493,112 @@ func TestItemOrphansDeleteReadsBackWhatFailed(t *testing.T) {
 	}
 	if o.holds("o3") {
 		t.Error("o3 is still there")
+	}
+}
+
+// The folder an orphan is reported under is the deepest one holding it that
+// the server can no longer see. Climbing to just below the top named /mnt
+// for a disk that was mounted at /mnt/old, said the server could see it (it
+// can: /mnt is there), lumped an unrelated removed tree in with it, and
+// item_orphans_delete then refused the very folder the audit named.
+func TestAuditOrphansNamesTheFolderThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	o := newOrphanServerOf(t, false, []map[string]any{
+		{"Name": "Films", "CollectionType": "movies", "ItemId": "lib1", "Locations": []string{"/media/films"}},
+		{"Name": "TV", "CollectionType": "tvshows", "ItemId": "lib2", "Locations": []string{"/media/tv"}},
+	})
+	o.items = []orphanItem{
+		{ID: "m1", Name: "Zzyzx Kept", Type: "Movie", Path: "/media/films/Zzyzx Kept (2001)/Zzyzx Kept (2001).mkv"},
+		// a disk that was mounted at /mnt/old: the mount point is still
+		// there, the library's folder on it is not
+		{ID: "tv", Name: "tv", Type: "Folder", Path: "/mnt/old/tv", ParentID: "gone"},
+		{ID: "s1", Name: "Zzyzx Show", Type: "Series", Path: "/mnt/old/tv/Zzyzx Show", ParentID: "tv"},
+		{ID: "e1", Name: "Pilot", Type: "Episode", Path: "/mnt/old/tv/Zzyzx Show/Season 01/Zzyzx Show S01E01.mkv", ParentID: "s1"},
+		// an unrelated removed tree beside it
+		{ID: "f1", Name: "Zzyzx Film", Type: "Movie", Path: "/mnt/other/films/Zzyzx Film (2001)/Zzyzx Film (2001).mkv", ParentID: "gone"},
+		{ID: "f2", Name: "Zzyzx Other", Type: "Movie", Path: "/mnt/other/films/Zzyzx Other (2002)/Zzyzx Other (2002).mkv", ParentID: "gone"},
+		// and a recording still on disk, outside every library
+		{ID: "r1", Name: "News", Type: "Video", Path: "/mnt/rec/news.ts"},
+	}
+	o.dirs = map[string]bool{"/media": true, "/media/films": true, "/media/tv": true, "/mnt": true, "/mnt/old": true, "/mnt/other": true, "/mnt/rec": true}
+	o.files = map[string]bool{"/mnt/rec/news.ts": true}
+	cs := session(t, o.fakeServer, Options{EnableDelete: true})
+
+	out := mustCall(t, cs, "audit_orphans", nil)
+	got := map[string]string{}
+	items := map[string]int{}
+	for _, g := range objects(t, out["folders"], "folders") {
+		got[text(g["folder"])] = text(g["on_server"])
+		items[text(g["folder"])] = number(t, g["items"], "items")
+	}
+	want := map[string]string{"/mnt/old/tv": "missing", "/mnt/other/films": "missing", "/mnt/rec": "present"}
+	if len(got) != len(want) {
+		t.Fatalf("folders = %v, want %v", got, want)
+	}
+	for folder, state := range want {
+		if got[folder] != state {
+			t.Errorf("%s: on_server = %q, want %q (folders %v)", folder, got[folder], state, got)
+		}
+	}
+	if items["/mnt/old/tv"] != 3 || items["/mnt/other/films"] != 2 || items["/mnt/rec"] != 1 || number(t, out["total_findings"], "total_findings") != 6 {
+		t.Errorf("items = %v", items)
+	}
+
+	// every folder the audit says is gone, item_orphans_delete takes as named
+	for folder, state := range got {
+		if state != folderMissing {
+			continue
+		}
+		preview := mustCall(t, cs, "item_orphans_delete", map[string]any{"folder": folder})
+		if number(t, preview["found"], "found") != items[folder] {
+			t.Errorf("%s: the delete found %v, the audit %d", folder, preview["found"], items[folder])
+		}
+	}
+
+	// and it still refuses what it always did: a folder the server can see,
+	// one holding a library, one inside a library
+	for folder, want := range map[string]string{
+		"/mnt":                           "can still see",
+		"/mnt/old":                       "can still see",
+		"/mnt/rec":                       "can still see",
+		"/media":                         "holds the",
+		"/media/tv/Zzyzx Show":           "inside the TV library",
+		"/media/films/Zzyzx Kept (2001)": "inside the Films library",
+	} {
+		if msg := mustRefuse(t, cs, "item_orphans_delete", map[string]any{"folder": folder, "confirm": true}); !strings.Contains(msg, want) {
+			t.Errorf("folder %q: %s", folder, msg)
+		}
+	}
+
+	gone := mustCall(t, cs, "item_orphans_delete", map[string]any{"folder": "/mnt/old/tv", "confirm": true})
+	if number(t, gone["deleted"], "deleted") != 3 || number(t, gone["remaining"], "remaining") != 0 {
+		t.Errorf("delete = %v", gone)
+	}
+	for _, id := range []string{"m1", "f1", "f2", "r1"} {
+		if !o.holds(id) {
+			t.Errorf("%s is gone, and was never under /mnt/old/tv", id)
+		}
+	}
+}
+
+// A check the server cannot answer is taken for neither answer: the folder
+// is reported as unknown, with why, and nothing below it is guessed at.
+func TestAuditOrphansSaysWhenTheServerCannotBeAsked(t *testing.T) {
+	t.Parallel()
+
+	o := newOrphanServerOf(t, false, []map[string]any{
+		{"Name": "Films", "CollectionType": "movies", "ItemId": "lib1", "Locations": []string{"/media/films"}},
+	})
+	o.items = []orphanItem{
+		{ID: "f1", Name: "Zzyzx Film", Type: "Movie", Path: "/mnt/old/films/Zzyzx Film (2001)/Zzyzx Film (2001).mkv", ParentID: "gone"},
+		{ID: "f2", Name: "Zzyzx Other", Type: "Movie", Path: "/mnt/old/films/Zzyzx Other (2002)/Zzyzx Other (2002).mkv", ParentID: "gone"},
+	}
+	o.unanswered = true
+
+	out := mustCall(t, session(t, o.fakeServer, Options{}), "audit_orphans", nil)
+	folders := objects(t, out["folders"], "folders")
+	if len(folders) != 1 || text(folders[0]["folder"]) != "/mnt/old/films" || text(folders[0]["on_server"]) != folderUnknown || !strings.Contains(text(folders[0]["note"]), "could not ask") {
+		t.Errorf("folders = %v", folders)
 	}
 }

@@ -429,6 +429,17 @@
           }
         }
       ],
+      "Options": [
+        {
+          "Name": "SeekPositionTicks",
+          "Field": "SeekPositionTicks",
+          "In": "Query",
+          "Description": "The position to seek to, in ticks",
+          "Type": {
+            "Type": "Integer64"
+          }
+        }
+      ],
       "Request": {
         "ContentType": "application/json",
         "Type": {

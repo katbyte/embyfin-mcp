@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -26,13 +27,36 @@ import (
 // releaseMarkers are the shapes that end a title and begin the rest of a
 // release name, most specific first: the episode, then a season on its own.
 var releaseMarkers = []*regexp.Regexp{
-	// SxxExx, and the two ways a file says it holds a run of them: E01E02,
-	// and E01-05. The bare second number needs the hyphen, or "S02E01.1080p"
-	// would read as episodes 1 to 108.
-	regexp.MustCompile(`(?i)(^|[^a-z0-9])s(\d{1,2})[. _-]?e(\d{1,3})(?:[. _-]?e(\d{1,3})|-(\d{1,3}))?([^a-z0-9]|$)`),
+	// SxxExx, and every way a file says it holds a run of them: E01E02E03,
+	// E01-02-03, E01-E02-E03, and the whole marker again (S01E01.S01E02).
+	// The bare later numbers need the hyphen, or "S02E01.1080p" would read as
+	// episodes 1 to 108. The run is read by episodeRun.
+	regexp.MustCompile(`(?i)(^|[^a-z0-9])s(\d{1,2})[. _-]?e(\d{1,3})((?:(?:[. _-]?e|-|[. _-]?s\d{1,2}[. _-]?e)\d{1,3})*)([^a-z0-9]|$)`),
 	regexp.MustCompile(`(?i)(^|[^a-z0-9])(\d{1,2})x(\d{2})([^a-z0-9]|$)`),
 	regexp.MustCompile(`(?i)(^|[^a-z0-9])s(\d{1,2})([^a-z0-9]|$)`),
 	regexp.MustCompile(`(?i)(^|[^a-z0-9])season[. _-]+(\d{1,2})([^a-z0-9]|$)`),
+}
+
+// episodeRun reads the episodes after the first in a run the marker above
+// matched: each is a number after an E, a hyphen, or a repeat of the season.
+var episodeRun = regexp.MustCompile(`(?i)(?:[. _-]?e|-|[. _-]?s(\d{1,2})[. _-]?e)(\d{1,3})`)
+
+// runEnd is the last episode of a run, or 0 when the marker numbered one
+// episode. A repeat that names another season ends the run there: one file
+// spanning two seasons has no single last episode to give.
+func runEnd(season, first int, run string) int {
+	last := 0
+	for _, m := range episodeRun.FindAllStringSubmatch(run, -1) {
+		if m[1] != "" && atoi(m[1]) != season {
+			break
+		}
+		last = max(last, atoi(m[2]))
+	}
+	if last <= first {
+		return 0
+	}
+
+	return last
 }
 
 // releaseJunk are the words that only ever appear after a title: what the
@@ -86,7 +110,7 @@ var sitePrefix = []*regexp.Regexp{
 }
 
 var (
-	fileExtension = regexp.MustCompile(`(?i)\.(mkv|mp4|avi|m4v|ts|mov|wmv|mpg|mpeg|flv|webm|iso|nfo)$`)
+	fileExtension = regexp.MustCompile(`(?i)\.(mkv|mp4|avi|m4v|ts|m2ts|mts|vob|ssif|mov|wmv|mpg|mpeg|m2v|flv|webm|ogm|divx|iso|nfo)$`)
 	bracketedYear = regexp.MustCompile(`[(\[]((?:19|20)\d{2})[)\]]`)
 	bareYear      = regexp.MustCompile(`(^|[^a-z0-9])((?:19|20)\d{2})([^a-z0-9]|$)`)
 	spaceRun      = regexp.MustCompile(`\s+`)
@@ -101,9 +125,18 @@ var (
 // The title and year come from the last segment that names a show, and the
 // season and episode from the last that numbers one, so a file named only
 // "S01E01.mkv" still takes its title from the folder above it.
+//
+// A slash alone does not make a path, because titles have them: Sweet/Vicious,
+// Nip/Tuck, 20/20. Read as a path those were "Vicious", "Tuck" and "20", and
+// "Vicious" then matched a different show at 1.0. See looksLikePath.
 func parseRelease(name string) release {
+	segments := []string{name}
+	if looksLikePath(name) {
+		segments = splitPath(name)
+	}
+
 	var out release
-	for _, segment := range strings.FieldsFunc(name, func(r rune) bool { return r == '/' || r == '\\' }) {
+	for _, segment := range segments {
 		seg := parseSegment(segment)
 		if seg.Title != "" {
 			out.Title = seg.Title
@@ -127,6 +160,60 @@ func parseRelease(name string) release {
 	return out
 }
 
+var (
+	// seasonFolder is a folder that numbers a season and names nothing else
+	seasonFolder = regexp.MustCompile(`(?i)^(?:season[. _-]*\d{1,3}|s\d{1,2}|specials)$`)
+	// folderYear is how FileBot and Plex name a show's folder: the title and
+	// the year in brackets, with nothing after it
+	folderYear  = regexp.MustCompile(`[(\[](?:19|20)\d{2}[)\]]\s*$`)
+	driveLetter = regexp.MustCompile(`^[A-Za-z]:[\\/]`)
+)
+
+// looksLikePath says whether a name with a slash in it is a path rather than a
+// title that has one. A title is the safer reading when nothing says
+// otherwise: a path read as a title scores low and is refused, while a title
+// read as a path loses its first half and can match a different show outright.
+//
+// What does say otherwise is what no title carries: a backslash, a leading
+// separator or drive letter, a file extension, a season folder, or a folder
+// before the last that is named the way a show's folder is ("Severance
+// (2022)/...") or numbers an episode (a release folder over its file).
+func looksLikePath(name string) bool {
+	name = strings.TrimSpace(name)
+	switch {
+	case !strings.ContainsAny(name, `/\`):
+		return false
+	case strings.ContainsRune(name, '\\'), strings.HasPrefix(name, "/"), strings.HasPrefix(name, "./"),
+		strings.HasPrefix(name, "../"), strings.HasPrefix(name, "~/"), driveLetter.MatchString(name):
+		return true
+	case fileExtension.MatchString(name):
+		// a file's name cannot hold a slash, so everything before one is a folder
+		return true
+	}
+
+	segments := splitPath(name)
+	for i, seg := range segments {
+		if seasonFolder.MatchString(strings.TrimSpace(seg)) {
+			return true
+		}
+		if i == len(segments)-1 {
+			continue
+		}
+		if folderYear.MatchString(seg) {
+			return true
+		}
+		if p := parseSegment(seg); p.Season > 0 || p.Episode > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+func splitPath(name string) []string {
+	return strings.FieldsFunc(name, func(r rune) bool { return r == '/' || r == '\\' })
+}
+
 // parseSegment reads one path segment. Its title is empty when the segment
 // holds no show name - a "Season 01" folder, or a bare "S01E01.mkv".
 func parseSegment(name string) release {
@@ -143,7 +230,7 @@ func parseSegment(name string) release {
 
 	var out release
 	cut := len(s)
-	for _, re := range releaseMarkers {
+	for i, re := range releaseMarkers {
 		m := re.FindStringSubmatchIndex(s)
 		if m == nil {
 			continue
@@ -155,13 +242,13 @@ func parseSegment(name string) release {
 		}
 		cut = at
 		groups := re.FindStringSubmatch(s)
-		switch len(groups) {
-		case 7: // SxxExx, maybe a run of them: E01E02 or E01-05
+		switch i {
+		case 0: // SxxExx, maybe a run of them: E01E02, E01-05, S01E01.S01E02
 			out.Season, out.Episode = atoi(groups[2]), atoi(groups[3])
-			out.EpisodeEnd = max(atoi(groups[4]), atoi(groups[5]))
-		case 5: // 1x02
+			out.EpisodeEnd = runEnd(out.Season, out.Episode, groups[4])
+		case 1: // 1x02
 			out.Season, out.Episode = atoi(groups[2]), atoi(groups[3])
-		case 4: // Sxx or Season xx
+		default: // Sxx or Season xx
 			out.Season = atoi(groups[2])
 		}
 	}
@@ -223,7 +310,27 @@ func atoi(s string) int {
 	return n
 }
 
-var notAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
+// notAlphanumeric is everything in a title that is not a letter or a digit,
+// in any script. It used to be everything outside a-z and 0-9, which folded
+// every Japanese, Russian and Greek title to nothing - and nothing scores 0
+// against itself, so 千と千尋の神隠し could not be resolved even by its own name.
+var notAlphanumeric = regexp.MustCompile(`[^\p{L}\p{Nd}]+`)
+
+// combiningMarks are accents written as a letter of their own after the one
+// they sit on. They are dropped rather than turned into a space, or a title
+// spelled with them would split in two where the accent was.
+var combiningMarks = regexp.MustCompile(`\p{M}+`)
+
+// foldScript folds the accents of other scripts the way foldAccents folds
+// Latin ones, for the same reason: they are dropped more often than not. Greek
+// writes its accents only in lower case, so "ΟΔΥΣΣΕΙΑ" and "Οδύσσεια" are one
+// title, and Russian writes ё as е as often as not.
+var foldScript = map[rune]string{
+	'ά': "α", 'έ': "ε", 'ή': "η", 'ί': "ι", 'ϊ': "ι", 'ΐ': "ι", 'ό': "ο", 'ύ': "υ", 'ϋ': "υ", 'ΰ': "υ", 'ώ': "ω",
+	// the final sigma is the same letter as σ, written at the end of a word
+	'ς': "σ",
+	'ё': "е",
+}
 
 // initialism is a title's dotted acronym: the P.D. of "Chicago P.D.", the
 // S.W.A.T., the S.H.I.E.L.D. Scene naming drops those points as reliably as
@@ -266,6 +373,11 @@ func foldAccents(s string) string {
 
 			continue
 		}
+		if folded, ok := foldScript[r]; ok {
+			b.WriteString(folded)
+
+			continue
+		}
 		b.WriteRune(r) // not a letter we know: leave it for notAlphanumeric
 	}
 
@@ -284,13 +396,15 @@ func isASCII(s string) bool {
 
 // normaliseTitle folds a title to what two spellings of the same show have in
 // common: case, the ampersand written out, apostrophes, and every other mark
-// that a release name and a library differ on.
+// that a release name and a library differ on. Letters and digits of every
+// script survive it; only Latin and Greek letters have accents to lose.
 func normaliseTitle(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, "&", " and ")
 	s = strings.NewReplacer("'", "", "’", "", "`", "").Replace(s)
 	s = foldAccents(s)
 	s = initialism.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, ".", "") })
+	s = combiningMarks.ReplaceAllString(s, "")
 	s = notAlphanumeric.ReplaceAllString(s, " ")
 	s = strings.TrimSpace(spaceRun.ReplaceAllString(s, " "))
 	s = spacedInitialism.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, " ", "") })
@@ -337,7 +451,10 @@ func acronymScore(q, c string) (score float64, matchedOn string) {
 
 	var initials strings.Builder
 	for _, w := range long {
-		initials.WriteString(w[:1])
+		// the first letter, not the first byte: a Cyrillic word's first byte
+		// is half of one
+		first, _ := utf8.DecodeRuneInString(w)
+		initials.WriteRune(first)
 	}
 	if initials.String() != short[0] {
 		return 0, ""
@@ -491,7 +608,10 @@ func rankSeries(ctx context.Context, client *embyfin.Client, rel release, parent
 	for _, term := range resolveSearchTerms(rel.Title) {
 		items, _, err := client.Search(ctx, embyfin.SearchOptions{
 			SearchTerm: term, IncludeItemTypes: "Series", ParentID: parent, Limit: 50,
-			Fields: "Path,ProductionYear,OriginalTitle",
+			// the ids too, as the index reads them: a series resolved through
+			// this search is the one asked whether the library holds it under
+			// another entry, and without its ids that question answers "no"
+			Fields: "Path,ProductionYear,OriginalTitle,ProviderIds",
 		})
 		if err != nil {
 			return nil, nil, err

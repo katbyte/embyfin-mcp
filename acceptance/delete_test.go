@@ -5,6 +5,7 @@ package acceptance
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -42,7 +43,10 @@ func TestItemDelete(t *testing.T) {
 	}
 	id := findItem(t, "Messy Movies", "Movie", "Doomed")
 
-	if msg := callErr(t, "item_delete", map[string]any{"id": id}); !strings.Contains(msg, "confirm") {
+	// the film is alone in its folder, so the folder goes with it: the
+	// refusal says so, and the answer lists both
+	server := "/media/messy-movies/Doomed (2001)"
+	if msg := callErr(t, "item_delete", map[string]any{"id": id}); !strings.Contains(msg, "confirm=true") || !strings.Contains(msg, "would remove the folder "+server+" with everything in it (Doomed (2001).mp4") {
 		t.Errorf("delete without confirm: %s", msg)
 	}
 	if _, err := os.Stat(file); err != nil {
@@ -53,13 +57,20 @@ func TestItemDelete(t *testing.T) {
 	if d := str(out["deleted"]); !strings.HasPrefix(d, "Doomed") || !strings.Contains(d, "Doomed (2001).mp4") {
 		t.Errorf("item_delete = %v", out)
 	}
+	if got := removedPaths(t, out); !slices.Contains(got, server+"/") || !slices.Contains(got, server+"/Doomed (2001).mp4") {
+		t.Errorf("removed = %v, want the folder and the film", got)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("the film's folder is still on disk: %v", err)
+	}
 	if _, err := os.Stat(file); !os.IsNotExist(err) {
 		t.Errorf("the file is still on disk after item_delete: %v", err)
 	}
 	if err := waitForItems("Messy Movies", have); err != nil {
 		t.Error(err)
 	}
-	if msg := callErr(t, "item_delete", map[string]any{"id": id, "confirm": true}); msg == "" {
-		t.Error("deleting the same item twice succeeded")
+	// the second finds nothing to delete
+	if msg := callErr(t, "item_delete", map[string]any{"id": id, "confirm": true}); !strings.Contains(msg, "no item with id "+id) {
+		t.Errorf("deleting the same item twice: %s", msg)
 	}
 }

@@ -129,9 +129,35 @@ func New(baseURL string, authorizer Authorizer) (*Client, error) {
 
 	return &Client{
 		BaseURL:    strings.TrimRight(baseURL, "/"),
-		HTTPClient: &http.Client{Timeout: 120 * time.Second},
+		HTTPClient: &http.Client{Timeout: 120 * time.Second, CheckRedirect: keepCredentialsOnHost},
 		Authorizer: authorizer,
 	}, nil
+}
+
+// credentialHeaders are the headers the authorizers carry a token in.
+var credentialHeaders = []string{"Authorization", "X-Emby-Authorization", "X-Emby-Token"}
+
+// keepCredentialsOnHost is the redirect policy of every client this package
+// builds, and of one a caller swaps in without a policy of its own: a
+// redirect is followed (up to Go's usual ten), but one that leaves the
+// server's host, or goes from https down to http, reaches its target without
+// the credentials. Go drops only Authorization on the way to another domain
+// (and keeps it for a subdomain); the Emby token in X-Emby-Token and
+// X-Emby-Authorization it would hand to whatever host a redirect names.
+// Another port on the same host is the same machine, and is left alone.
+func keepCredentialsOnHost(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	first := via[0].URL
+	if strings.EqualFold(req.URL.Hostname(), first.Hostname()) && (first.Scheme != "https" || req.URL.Scheme == "https") {
+		return nil
+	}
+	for _, h := range credentialHeaders {
+		req.Header.Del(h)
+	}
+
+	return nil
 }
 
 // Options is what a generated options struct implements: the query and
@@ -283,9 +309,17 @@ func (r *Request) SetBody(body io.Reader, contentType string) error {
 // and body. Its body is buffered (and readable again) unless the request
 // streams a successful response.
 func (r *Request) Execute(_ context.Context) (*Response, error) {
-	httpResp, err := r.client.HTTPClient.Do(r.Request) //nolint:bodyclose // buffered and closed below, or a stream handed to the caller to close
+	hc := r.client.HTTPClient
+	if hc.CheckRedirect == nil {
+		// a client swapped in whole (a test server's, the TMDB facts' own)
+		// keeps the credentials on their host all the same
+		withPolicy := *hc
+		withPolicy.CheckRedirect = keepCredentialsOnHost
+		hc = &withPolicy
+	}
+	httpResp, err := hc.Do(r.Request) //nolint:bodyclose // buffered and closed below, or a stream handed to the caller to close
 	if err != nil {
-		return nil, err
+		return nil, redactTransportError(err)
 	}
 	resp := &Response{Response: httpResp}
 
@@ -320,8 +354,10 @@ func (r *Response) buffer() ([]byte, error) {
 	if r.Body == nil {
 		return nil, nil
 	}
-	defer func() { _ = r.Body.Close() }()
-	body, err := io.ReadAll(io.LimitReader(r.Body, MaxResponseBytes+1))
+	// the connection's body, closed once read: r.Body is the copy by then
+	conn := r.Body
+	defer func() { _ = conn.Close() }()
+	body, err := io.ReadAll(io.LimitReader(conn, MaxResponseBytes+1))
 	r.Body = io.NopCloser(bytes.NewReader(body))
 	if err != nil {
 		return body, err
@@ -389,8 +425,66 @@ func StatusCode(err error) int {
 	return 0
 }
 
-// IsNotFound reports whether err is a 404 from the server.
-func IsNotFound(err error) bool { return StatusCode(err) == http.StatusNotFound }
+// ErrNoResult is a lookup the server answered with nothing at all rather than
+// a 404: Emby answers 204 for a null result on any JSON operation (a lookup
+// that finds nothing among them), which the typed client hands back as a nil
+// model with no error. The neutral layer wraps it into the error it returns
+// for such a lookup, and IsNotFound reads it as not found.
+var ErrNoResult = errors.New("the server answered with nothing")
+
+// IsNotFound reports whether err is a 404 from the server, or a lookup it
+// answered with nothing (ErrNoResult).
+func IsNotFound(err error) bool {
+	return StatusCode(err) == http.StatusNotFound || errors.Is(err, ErrNoResult)
+}
+
+// credentialParams are the query parameters a credential can travel in,
+// lowercased: TMDB's older key (api_key, which Emby and Jellyfin also read),
+// OMDb's apikey, and the token names servers commonly take.
+var credentialParams = []string{"api_key", "apikey", "api_token", "access_token", "token", "x-emby-token", "x-mediabrowser-token"}
+
+// redactTransportError hides the credentials in the URL a failed request
+// names. A request that gets no answer (a timeout, a refused connection)
+// fails with a *url.Error that prints its whole URL, and a TMDB key sent the
+// older way is in that URL's query, so it would reach a tool's answer. The
+// error keeps its type and what it wraps; only the URL it prints changes.
+func redactTransportError(err error) error {
+	if ue, ok := errors.AsType[*url.Error](err); ok {
+		ue.URL = redactURL(ue.URL)
+	}
+
+	return err
+}
+
+// redactURL replaces the value of every credential query parameter in a URL
+// with REDACTED, and any password in it, leaving the rest as it was sent.
+func redactURL(raw string) string {
+	base, query, found := strings.Cut(raw, "?")
+	if u, err := url.Parse(base); err == nil && u.User != nil {
+		base = u.Redacted()
+	}
+	if !found {
+		return base
+	}
+	query, fragment, hasFragment := strings.Cut(query, "#")
+	parts := strings.Split(query, "&")
+	for i, p := range parts {
+		key, _, _ := strings.Cut(p, "=")
+		name, err := url.QueryUnescape(key)
+		if err != nil {
+			name = key
+		}
+		if slices.Contains(credentialParams, strings.ToLower(name)) {
+			parts[i] = key + "=REDACTED"
+		}
+	}
+	out := base + "?" + strings.Join(parts, "&")
+	if hasFragment {
+		out += "#" + fragment
+	}
+
+	return out
+}
 
 // WasNotFound reports whether a response is a 404.
 func WasNotFound(resp *http.Response) bool {

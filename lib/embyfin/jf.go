@@ -41,6 +41,7 @@ func itemFromJF(d *jf.BaseItemDto) Item {
 		CommunityRating:   float64(d.CommunityRating),
 		RunTimeTicks:      d.RunTimeTicks,
 		ProviderIDs:       d.ProviderIds,
+		Etag:              d.Etag,
 		ImageTags:         d.ImageTags,
 		SeriesName:        d.SeriesName,
 		SeriesID:          d.SeriesId,
@@ -49,6 +50,7 @@ func itemFromJF(d *jf.BaseItemDto) Item {
 		IndexNumberEnd:    d.IndexNumberEnd,
 		PlaylistItemID:    d.PlaylistItemId,
 		IsMissing:         d.LocationType == locationVirtual,
+		IsFolder:          pointer.From(d.IsFolder),
 		UserData:          userDataFromJF(d.UserData),
 	}
 	if len(d.MediaSources) > 0 {

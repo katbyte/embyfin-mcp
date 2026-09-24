@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/katbyte/embyfin-mcp/lib/client"
 )
@@ -16,16 +17,38 @@ type PostSessionsByIdPlayingByCommandOperationResponse struct {
 	HttpResponse *http.Response
 }
 
+// PostSessionsByIdPlayingByCommandOperationOptions holds the query and header parameters of PostSessionsByIdPlayingByCommand.
+type PostSessionsByIdPlayingByCommandOperationOptions struct {
+	// The position to seek to, in ticks
+	SeekPositionTicks *int64
+}
+
+// ToHeaders returns the header parameters the options set.
+func (o PostSessionsByIdPlayingByCommandOperationOptions) ToHeaders() *client.Headers {
+	out := client.Headers{}
+	return &out
+}
+
+// ToQuery returns the query parameters the options set.
+func (o PostSessionsByIdPlayingByCommandOperationOptions) ToQuery() *client.QueryParams {
+	out := client.QueryParams{}
+	if o.SeekPositionTicks != nil {
+		out.Append("SeekPositionTicks", strconv.FormatInt(*o.SeekPositionTicks, 10))
+	}
+	return &out
+}
+
 // PostSessionsByIdPlayingByCommand calls POST /Sessions/{Id}/Playing/{Command}. Issues a playstate command to a client.
-func (c Client) PostSessionsByIdPlayingByCommand(ctx context.Context, id string, command PlaystateCommand, input PlaystateRequest) (result PostSessionsByIdPlayingByCommandOperationResponse, err error) {
+func (c Client) PostSessionsByIdPlayingByCommand(ctx context.Context, id string, command PlaystateCommand, input PlaystateRequest, options PostSessionsByIdPlayingByCommandOperationOptions) (result PostSessionsByIdPlayingByCommandOperationResponse, err error) {
 	opts := client.RequestOptions{
 		ContentType: "application/json",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HTTPMethod: http.MethodPost,
-		Path:       fmt.Sprintf("/Sessions/%s/Playing/%s", url.PathEscape(id), url.PathEscape(string(command))),
+		HTTPMethod:    http.MethodPost,
+		OptionsObject: options,
+		Path:          fmt.Sprintf("/Sessions/%s/Playing/%s", url.PathEscape(id), url.PathEscape(string(command))),
 	}
 
 	req, err := c.Client.NewRequest(ctx, opts)

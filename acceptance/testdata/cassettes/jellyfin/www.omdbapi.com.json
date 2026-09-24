@@ -380,6 +380,24 @@
       "body_base64": "G3YBAMT/XDNlO09niaIKTH9LlBIIf0K4c4wDpE0H4vl804VHGDbG1nA0E4pPNDFKeOeJ6kKsCRwVutBxtJ0QGFo0OoJDV3X9//cHhsVmOk5FwSGEpumu6pgqGKr3PYFDCT8CQ3F3EnQEx1yI/YkrykYeOyCl0Wb02G3l8P87p+TqVrgdTVmtR3peiJZE7lG65++q2mrkN9lG6pZb1kQ+Gl7mlyGr1Sgvc4/YrbmK3Zur+GGSmATlQV0blLKONag1DVcdRMoqM5nhqsyy9YG83M/wZk9UF2JN4CgedxM6nRbbWaBCFzrSAp5ueLrIKyG8ewwXBcQync5rcQKHDoYyyfoNgaN6PBPe"
     },
     {
+      "key": "GET www.omdbapi.com/?plot=full\u0026r=json\u0026s=Star+Trek%3A+The+Next+Generation\u0026type=series",
+      "method": "GET",
+      "host": "www.omdbapi.com",
+      "path": "/",
+      "query": "plot=full\u0026r=json\u0026s=Star+Trek%3A+The+Next+Generation\u0026type=series",
+      "status": 200,
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600",
+        "Content-Encoding": "br",
+        "Content-Type": "application/json; charset=utf-8",
+        "Server": "cloudflare",
+        "Vary": "*",
+        "X-Aspnet-Version": "4.0.30319"
+      },
+      "body_base64": "GxMBAMT/mktlM0+HcNWVILyHsIED/CUQvkK4wgaciAXEGQ26LzZsjK3r04gPmBgx63+A17QWYMhpepT4UayYxCshReKVpIW3GtW7LWR0xfQIBiPwvf/fPyMIbMioN4vZ3SUYiHQ9MG3HgQz+thdgSMWfICPZnUgcwVAR7U9M0zbqCQJVppvp+26rQmE31MKWcx5uojriqdl971J8eb7svul6rx2+PPL1JmqH1G1fGRFPzR7vvvU24UtndfXWWV0f5jfzhjpuGeO8Y+m6utyX+BrKoB1N15k4Pa3pBAYDMjJx2u+2JwEGfnwS+AI="
+    },
+    {
       "key": "GET www.omdbapi.com/?plot=full\u0026r=json\u0026t=Zzyzx+Scan+Fixture\u0026type=movie\u0026y=1999",
       "method": "GET",
       "host": "www.omdbapi.com",

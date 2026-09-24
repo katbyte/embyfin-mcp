@@ -19,7 +19,7 @@ type itemSummary struct {
 	Type                string            `json:"type"`
 	Year                int               `json:"year,omitempty"`
 	Series              string            `json:"series,omitempty"`
-	Season              int               `json:"season,omitempty"`
+	Season              *int              `json:"season,omitempty"                jsonschema:"on a season or an episode only: its season's number, 0 for the specials"`
 	Episode             int               `json:"episode,omitempty"`
 	RuntimeS            int               `json:"runtime_s,omitempty"             jsonschema:"runtime in seconds"`
 	Path                string            `json:"path,omitempty"`
@@ -39,8 +39,8 @@ func summarise(it *embyfin.Item) itemSummary {
 		Type:                it.Type,
 		Year:                it.ProductionYear,
 		Series:              it.SeriesName,
-		Season:              it.ParentIndexNumber,
-		Episode:             it.IndexNumber,
+		Season:              seasonOf(it),
+		Episode:             episodeOf(it),
 		RuntimeS:            int(it.RunTimeTicks / ticksPerSecond),
 		Path:                it.Path,
 		MetadataProviderIDs: providerKeys(it.ProviderIDs),
@@ -170,7 +170,7 @@ func registerItemTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "item_find_by_metadata_id",
-		Description: "Find library items matching a metadata provider id (tmdb/imdb/tvdb). The definitive 'do I already have this movie?' check; returns every copy.",
+		Description: "Find the films and series in the library matching a metadata provider id (tmdb/imdb/tvdb). The definitive 'do I already have this movie?' check; returns every copy.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in lookupIn) (*mcp.CallToolResult, lookupOut, error) {
 		provider := strings.ToLower(strings.TrimSpace(in.Provider))
 		items, err := client.ItemsByProviderID(ctx, provider, strings.TrimSpace(in.ID))
@@ -323,8 +323,10 @@ func registerItemTools(r *registry) {
 		Days int    `json:"days,omitempty" jsonschema:"how many days back to search, default 60"`
 	}
 	type historyOut struct {
-		Item    string   `json:"item"`
-		Entries []string `json:"entries" jsonschema:"activity log lines mentioning this item, newest first"`
+		Item     string   `json:"item"`
+		Entries  []string `json:"entries"        jsonschema:"activity log lines mentioning this item, newest first"`
+		Complete bool     `json:"complete"       jsonschema:"false when the period holds more activity than one call reads: the answer then covers only the newest part of it, and note says how far back"`
+		Note     string   `json:"note,omitempty" jsonschema:"how far back the activity log was read, when that is short of the period"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "item_watch_history",
@@ -335,13 +337,13 @@ func registerItemTools(r *registry) {
 			return nil, historyOut{}, err
 		}
 
-		entries, _, err := client.ActivityLog(ctx, daysCutoff(in.Days), activityScanLimit, 0)
+		activity, err := readActivity(ctx, client, daysCutoff(in.Days))
 		if err != nil {
 			return nil, historyOut{}, err
 		}
 
-		out := historyOut{Item: it.Name}
-		for _, e := range entries {
+		out := historyOut{Item: it.Name, Complete: activity.complete, Note: activity.note()}
+		for _, e := range activity.entries {
 			// by id when the entry names its item: a title is a substring of
 			// others ("Dune" of "Dune: Part Two")
 			match := e.ItemID == in.ID
@@ -413,29 +415,49 @@ func registerItemTools(r *registry) {
 	})
 
 	type deleteIn struct {
-		ID      string `json:"id"      jsonschema:"the library item id"`
-		Confirm bool   `json:"confirm" jsonschema:"must be true; acknowledges the media FILE is permanently deleted from disk"`
+		ID      string `json:"id"                jsonschema:"the library item id"`
+		Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true to delete, and acknowledges the media FILES are permanently deleted from disk; without it the call is refused with what it would remove"`
 	}
 	type deleteOut struct {
-		Deleted string `json:"deleted"`
+		Deleted string        `json:"deleted"`
+		Removed []removedPath `json:"removed"        jsonschema:"every file and folder the delete took off the server's disk, read before and after it: a film alone in its folder takes the whole folder (its nfo, artwork, subtitles, extras and every version), as a series or season does; an episode, or a film sharing its folder, takes its files and the ones named after them"`
+		Note    string        `json:"note,omitempty"`
 	}
 	add(r, deleteTool, &mcp.Tool{
-		Name:        "item_delete",
-		Description: "PERMANENTLY delete an item AND its media file from disk. Irreversible. Requires confirm=true.",
+		Name: "item_delete",
+		Description: "PERMANENTLY delete an item AND its media from disk. Irreversible. The server takes more than the item's own file: a film alone in its folder goes with the whole folder (nfo, artwork, subtitles, extras, every version), a series or season with its folder, an episode or a film sharing its folder with the files named after it. " +
+			"Without confirm=true it refuses, saying what it would remove; with it, the answer lists every path removed.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
-		if !in.Confirm {
-			return nil, deleteOut{}, errors.New("refusing to delete without confirm=true")
-		}
-
 		it, err := client.ItemByID(ctx, in.ID)
 		if err != nil {
 			return nil, deleteOut{}, err
+		}
+		// every version the server holds for it, which on Emby only the
+		// item read in a user's view lists
+		versions := []string{}
+		if admin, aerr := client.ResolveUser(ctx, ""); aerr == nil {
+			if full, uerr := client.UserItem(ctx, admin.ID, in.ID); uerr == nil {
+				for _, s := range full.MediaSources {
+					versions = append(versions, s.Path)
+				}
+			}
+		}
+		plan, err := planDelete(ctx, client, it, versions)
+		if err != nil {
+			return nil, deleteOut{}, err
+		}
+		if !in.Confirm {
+			return nil, deleteOut{}, fmt.Errorf("refusing to delete %s without confirm=true: nothing was deleted. %s", it.Name, plan.would())
 		}
 
 		if err := client.DeleteItem(ctx, in.ID); err != nil {
 			return nil, deleteOut{}, err
 		}
+		removed, note, err := r.removedBy(ctx, plan, it.Path)
+		if err != nil {
+			return nil, deleteOut{}, fmt.Errorf("deleted %s, but reading back what went failed: %w", it.Name, err)
+		}
 
-		return nil, deleteOut{Deleted: it.Name + " (" + it.Path + ")"}, nil
+		return nil, deleteOut{Deleted: it.Name + " (" + it.Path + ")", Removed: removed, Note: note}, nil
 	})
 }

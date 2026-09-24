@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -11,29 +12,59 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// resolveSession finds a live session by id, device name, or client name
-// (case-insensitive substring).
+// resolveSession finds the live session target names: by its id first, then
+// by a device, app or user name matched whole (in any case), then by a part
+// of such a name that only one session has. The session tools drive a real
+// device, so a name more than one session answers to at the first of those
+// that matches any is refused with the candidates, rather than settled by
+// whichever the server happens to list first.
 func resolveSession(ctx context.Context, client *embyfin.Client, target string) (*embyfin.Session, error) {
-	// an empty name is a substring of every device's, which would drive
-	// whichever device the server lists first
-	if strings.TrimSpace(target) == "" {
-		return nil, errors.New("session is required: a session id, or part of the device or client name (session_list has them)")
+	// an empty name is a part of every device's, which would drive whichever
+	// device the server lists first
+	needle := strings.ToLower(strings.TrimSpace(target))
+	if needle == "" {
+		return nil, errors.New("session is required: a session id, or a device, app or user name, or part of one (session_list has them)")
 	}
 	sessions, err := client.Sessions(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	needle := strings.ToLower(target)
+	names := func(s *embyfin.Session) []string { return []string{s.DeviceName, s.Client, s.UserName} }
+	for _, matches := range []func(s *embyfin.Session) bool{
+		func(s *embyfin.Session) bool { return s.ID == strings.TrimSpace(target) },
+		func(s *embyfin.Session) bool {
+			return slices.ContainsFunc(names(s), func(n string) bool { return strings.EqualFold(n, needle) })
+		},
+		func(s *embyfin.Session) bool {
+			return slices.ContainsFunc(names(s), func(n string) bool { return strings.Contains(strings.ToLower(n), needle) })
+		},
+	} {
+		var found []string
+		var match *embyfin.Session
+		for i := range sessions {
+			if s := &sessions[i]; matches(s) {
+				match = s
+				who := s.Client
+				if s.UserName != "" {
+					who += ", " + s.UserName
+				}
+				found = append(found, fmt.Sprintf("%s (%s) id %s", s.DeviceName, who, s.ID))
+			}
+		}
+		switch len(found) {
+		case 0:
+			continue
+		case 1:
+			return match, nil
+		}
+
+		return nil, fmt.Errorf("%q matches %d sessions: %s; name one by its id", target, len(found), strings.Join(found, ", "))
+	}
+
 	descs := make([]string, 0, len(sessions))
 	for i := range sessions {
-		s := &sessions[i]
-		if s.ID == target ||
-			strings.Contains(strings.ToLower(s.DeviceName), needle) ||
-			strings.Contains(strings.ToLower(s.Client), needle) {
-			return s, nil
-		}
-		descs = append(descs, s.DeviceName+" ("+s.Client+")")
+		descs = append(descs, sessions[i].DeviceName+" ("+sessions[i].Client+")")
 	}
 
 	return nil, fmt.Errorf("no session matching %q (have: %s)", target, strings.Join(descs, ", "))
@@ -84,7 +115,7 @@ func registerSessionTools(r *registry) {
 	})
 
 	type playIn struct {
-		Session string   `json:"session"        jsonschema:"session id, device name, or app name from session_list"`
+		Session string   `json:"session"        jsonschema:"session id, or a device, app or user name from session_list (a part of one does when only one session has it)"`
 		ItemIDs []string `json:"item_ids"       jsonschema:"library item id(s) to play"`
 		Mode    string   `json:"mode,omitempty" jsonschema:"PlayNow (default), PlayNext, or PlayLast"`
 	}
@@ -113,7 +144,7 @@ func registerSessionTools(r *registry) {
 	})
 
 	type commandIn struct {
-		Session string `json:"session"          jsonschema:"session id, device name, or app name from session_list"`
+		Session string `json:"session"          jsonschema:"session id, or a device, app or user name from session_list (a part of one does when only one session has it)"`
 		Command string `json:"command"          jsonschema:"Pause, Unpause, PlayPause, Stop, Seek, NextTrack, PreviousTrack"`
 		SeekS   int    `json:"seek_s,omitempty" jsonschema:"target position for Seek, seconds from the start"`
 	}
@@ -138,7 +169,7 @@ func registerSessionTools(r *registry) {
 	})
 
 	type messageIn struct {
-		Session   string `json:"session"              jsonschema:"session id, device name, or app name from session_list"`
+		Session   string `json:"session"              jsonschema:"session id, or a device, app or user name from session_list (a part of one does when only one session has it)"`
 		Text      string `json:"text"                 jsonschema:"the message to display"`
 		Header    string `json:"header,omitempty"     jsonschema:"message title, default 'Message'"`
 		TimeoutMs int    `json:"timeout_ms,omitempty"`

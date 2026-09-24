@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -21,21 +23,58 @@ import (
 
 // norm lowercases a value, folds accented letters to plain ones, turns the
 // separators people type interchangeably into spaces, and drops the rest of
-// the punctuation: "Sci-Fi" and "sci fi" meet at "sci fi".
+// the punctuation: "Sci-Fi" and "sci fi" meet at "sci fi". A letter or digit
+// of any other script is kept as it is, lowercased.
 func norm(s string) string {
 	var b strings.Builder
+	latin := false // the last rune written was plain ASCII
 	for _, r := range strings.ToLower(s) {
 		switch {
 		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == ' ':
 			b.WriteRune(r)
+			latin = r != ' '
 		case r == '_' || r == '-' || r == '.' || r == '/':
 			b.WriteRune(' ')
+			latin = false
+		case r > 127 && unicode.IsSpace(r):
+			// an ideographic or a non-breaking space is still a space
+			b.WriteRune(' ')
+			latin = false
 		case r > 127:
-			b.WriteString(foldLetter(r)) // Amélie is Amelie, not Amlie
+			// Amélie is Amelie, not Amlie; 進撃の巨人 is itself, not nothing
+			if spelling, word := wordRune(r, latin); word && spelling != "" {
+				b.WriteString(spelling)
+				latin = spelling[0] < utf8.RuneSelf
+			}
 		}
 	}
 
 	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+// wordRune is how the folds for comparing names (norm here, folderKey for
+// folders) read a rune past ASCII. An accented Latin letter is its plain
+// spelling, and any other letter or digit is itself, whatever its script:
+// dropping those made every name written in Japanese, Greek or Cyrillic
+// fold to nothing, so unrelated ones all met. A combining mark belongs to
+// the letter before it: on a plain Latin letter it is an accent written
+// apart (e and U+0301 for é), folded away as the composed letter's is, and
+// in a script that writes its vowels as marks it is part of the word and
+// kept. word is false for punctuation, symbols and spaces.
+func wordRune(r rune, afterLatin bool) (spelling string, word bool) {
+	if folded := foldLetter(r); folded != "" {
+		return folded, true
+	}
+	switch {
+	case unicode.IsLetter(r), unicode.IsDigit(r):
+		return string(r), true
+	case unicode.IsMark(r) && afterLatin:
+		return "", true
+	case unicode.IsMark(r):
+		return string(r), true
+	}
+
+	return "", false
 }
 
 // foldLetter is the plain-ASCII spelling of an accented Latin letter, or
@@ -205,25 +244,31 @@ func (c spellingCounts) report(field string) []vocabGroup {
 // "warner bros pictures"): at least six letters, and whole words. Both are
 // normalised.
 func truncationOf(short, long string) bool {
-	if short == long || len(strings.ReplaceAll(short, " ", "")) < 6 {
+	if short == long || letters(strings.ReplaceAll(short, " ", "")) < 6 {
 		return false
 	}
 
 	return strings.HasPrefix(long, short+" ")
 }
 
+// letters is how long a normalised value is, in letters rather than bytes:
+// an ideograph takes three bytes, and counted that way a two-letter name
+// passed for a six-letter one and was judged a typo apart from every other
+// two-letter name sharing one of its letters.
+func letters(s string) int { return utf8.RuneCountInString(s) }
+
 // typoApart reports whether two normalised values differ by a slip of the
 // keyboard: one edit for anything six letters or longer, two for twelve or
 // longer when they start with the same word.
 func typoApart(a, b string) bool {
-	if a == b || len(a) < 6 || len(b) < 6 {
+	if a == b || letters(a) < 6 || letters(b) < 6 {
 		return false
 	}
 	switch typoDistance(a, b, 2) {
 	case 0, 1:
 		return true
 	case 2:
-		if len(a) < 12 || len(b) < 12 {
+		if letters(a) < 12 || letters(b) < 12 {
 			return false
 		}
 		return strings.Fields(a)[0] == strings.Fields(b)[0]

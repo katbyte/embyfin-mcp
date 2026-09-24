@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -188,11 +187,15 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 	}
 
 	if it.Type == typeEpisode {
-		file := parseSegment(filepath.Base(it.Path))
+		file := parseSegment(baseName(it.Path))
 		// the series and the numbers are only what the file itself says: a
 		// bare "S01E01.mkv" under a series folder claims nothing about the
-		// series, and the server took the folder's word too
-		if want["series"] && file.Title != "" && it.SeriesName != "" {
+		// series, and the server took the folder's word too. Nor does a name
+		// with no episode marker to end a title at: "01 - Pilot.mkv",
+		// "Episode 1.mkv" or a fansub's "[Grp] Show - 01 [1080p].mkv" is all
+		// title to the parser, and read as a series name every one of them
+		// was a file from another show.
+		if want["series"] && file.Title != "" && file.Episode > 0 && it.SeriesName != "" {
 			if score, _ := titleScore(file.Title, it.SeriesName); score < seriesConfident {
 				problem("series", fmt.Sprintf("the file is named for %q, the server holds it under %q: a file from another series written to this path", file.Title, it.SeriesName))
 				row.rank = 0
@@ -275,7 +278,16 @@ func episodeRunProblem(file release, it *embyfin.Item) string {
 // that is itself a year, or ends in one (2012, Blade Runner 2049), is tried
 // uncut too, and the closer reading wins.
 func titleFromPath(path, name string) (claimed string, score float64) {
-	base := fileExtension.ReplaceAllString(filepath.Base(path), "")
+	// the path is the server's, so split on either separator: one on Windows
+	// answers with backslashes, whatever this runs on
+	base := fileExtension.ReplaceAllString(baseName(path), "")
+	// a disc's own files name nothing, nor do the folders a disc keeps them
+	// in: the folder above those is the one named for the film. Read as a
+	// title, VTS_01_1.VOB was "VTS 01 1", and every loose DVD a mismatch.
+	for (discFile.MatchString(base) || isDiscFolder(base)) && parentDir(path) != "" {
+		path = parentDir(path)
+		base = baseName(path)
+	}
 	best, bestScore := "", -1.0
 	try := func(candidate string) {
 		candidate = strings.Trim(strings.TrimSpace(spaceRun.ReplaceAllString(strings.NewReplacer(".", " ", "_", " ").Replace(candidate), " ")), " -_([{")
@@ -303,6 +315,16 @@ func titleFromPath(path, name string) (claimed string, score float64) {
 	}
 
 	return best, bestScore
+}
+
+// discFile is a disc's own stream or title-set file, which names nothing:
+// VTS_01_1.VOB, VIDEO_TS.IFO, 00000.m2ts.
+var discFile = regexp.MustCompile(`(?i)^(vts_\d+_\d+|video_ts|\d{5})(\.(ifo|bup))?$`)
+
+// isDiscFolder is a folder a disc keeps its files in (see discStructures),
+// or a Blu-ray's STREAM folder inside BDMV.
+func isDiscFolder(name string) bool {
+	return strings.EqualFold(name, "STREAM") || slices.ContainsFunc(discStructures, func(s string) bool { return strings.EqualFold(name, s) })
 }
 
 // checkYearMismatch compares the (year) in an item's path with its metadata
@@ -336,8 +358,7 @@ func checkYearMismatch(it *embyfin.Item) (string, bool) {
 // words are off: "Show - 01x01 - The DVD.mkv" claims "The DVD". It returns ""
 // for a name that claims nothing, which is most of a tidy library.
 func episodeTitleFromFile(path string) string {
-	name := filepath.Base(path)
-	name = fileExtension.ReplaceAllString(name, "")
+	name := fileExtension.ReplaceAllString(baseName(path), "")
 
 	var after string
 	for _, re := range releaseMarkers {

@@ -1,10 +1,11 @@
 package tools
 
 import (
+	"cmp"
 	"context"
-	"path/filepath"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -25,24 +26,29 @@ import (
 
 // folderKey is what two folder names have in common when they are the same
 // name written differently: case, spacing, accents and the punctuation a
-// rename tends to move.
+// rename tends to move. Letters and digits of every script are kept (see
+// wordRune): folded away, 進撃の巨人 and 鬼滅の刃 were one name, and so was
+// every other folder named in Japanese beside them.
 func folderKey(name string) string {
-	folded := foldAccents(strings.ToLower(name))
-
 	var b strings.Builder
-	space := false
-	for _, r := range folded {
+	space, latin := false, false
+	for _, r := range strings.ToLower(name) {
+		spelling, word := string(r), r >= 'a' && r <= 'z' || r >= '0' && r <= '9'
+		if r >= utf8.RuneSelf {
+			spelling, word = wordRune(r, latin)
+		}
 		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+		case !word:
+			// every run of anything else is one separator: "A  - B", "A - B"
+			// and "A-B" are the same name
+			space = true
+		case spelling != "":
 			if space && b.Len() > 0 {
 				b.WriteByte(' ')
 			}
 			space = false
-			b.WriteRune(r)
-		default:
-			// every run of anything else is one separator: "A  - B", "A - B"
-			// and "A-B" are the same name
-			space = true
+			b.WriteString(spelling)
+			latin = spelling[0] < utf8.RuneSelf
 		}
 	}
 
@@ -106,15 +112,20 @@ func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folder
 			if it.Path == "" {
 				continue
 			}
-			folder := filepath.Base(it.Path)
+			// split on either separator: a server on Windows answers with
+			// backslashes, whatever this runs on
+			folder := baseName(it.Path)
+			name := folderKey(folder)
+			// a name that folds to nothing ("???") says nothing to compare,
+			// and would otherwise meet every other one like it
+			if name == "" {
+				continue
+			}
 			// the parent is part of the key: a clean library and a messy
 			// one holding the same show are two folders of the same name
 			// and nothing is wrong with that. A rename leaves its twin
 			// beside it.
-			key := folderKey(filepath.Dir(it.Path)) + "/" + folderKey(folder)
-			if key == "" {
-				continue
-			}
+			key := folderKey(parentDir(it.Path)) + "/" + name
 			byKey[key] = append(byKey[key], folderRow{
 				SeriesID: it.ID, Name: it.Name, Year: it.ProductionYear,
 				Folder: folder, Path: it.Path,
@@ -131,7 +142,9 @@ func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folder
 		if len(rows) < 2 {
 			continue
 		}
-		slices.SortFunc(rows, func(a, b folderRow) int { return strings.Compare(a.Folder, b.Folder) })
+		slices.SortFunc(rows, func(a, b folderRow) int {
+			return cmp.Or(strings.Compare(a.Folder, b.Folder), strings.Compare(a.SeriesID, b.SeriesID))
+		})
 		groups = append(groups, folderGroup{Key: key, Series: rows})
 	}
 	slices.SortFunc(groups, func(a, b folderGroup) int { return strings.Compare(a.Key, b.Key) })

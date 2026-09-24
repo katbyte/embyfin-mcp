@@ -186,12 +186,29 @@ SirensCeol|Afterworld|4|A Grand Illusion'
 #   Alien (1979) + Directors Cut   two folders, one tmdb id: duplicates (and a third copy sits in the clean library)
 #   Blade Runner (1982)            two files in one folder, really 1080p and 2160p (the only messy files
 #                                  audit_quality leaves alone): multiple versions on
-#                                  Jellyfin, which folds them into one entry; two films on Emby, which
-#                                  only merges versions from its web client (so a duplicate there)
+#                                  Jellyfin, which folds them into one entry; two films to a sweep on
+#                                  Emby, which merges them only in a user's view of the item (so a
+#                                  duplicate there)
 #   Interstellar (2014)            nfo says 169 minutes, the file runs one second: runtime off
+#   Zzyzx Night Ferry (1999)       a DVD's VTS_01_1.VOB left loose in a film's folder: a flattened disc,
+#                                  and no nfo, so unmatched with no overview or poster
+#   Zzyzx Keep Case (2000)         a Blu-ray kept whole (BDMV/STREAM): both servers hold it as one film
+#                                  at its folder, which the disc audit must leave alone
+#   Zzyzx Crossed Wires (2008)     nfo carries Breaking Bad's IMDb id and no TMDB one: a series' id on a film
+#   Zzyzx Taken Down (2010)        nfo carries a TMDB id TMDB has no film for, and the genre spelled
+#                                  Science-Fiction where the rest say Science Fiction
 # messy-shows:
-#   Severance                      season one, three episodes, the third five seconds long: runtime outlier
+#   Severance                      season one, three episodes, the third five seconds long
 #   Star Trek The Next Generation  no tvshow.nfo: unmatched; episodes 1 and 3, no 2
+#   Zzyzx Paths (2011)             no ids; files whose names disagree with their nfo: S01E04 held as
+#                                  episode 5, another series' file (Breaking Bad S01E06), S02E08 held in
+#                                  season 1, a two-episode file (S01E02E03) whose nfo ends the run at 2,
+#                                  one named without a marker (07 - Night Shift), and a season 3 with
+#                                  no season 2; genre Science Fiction
+#   Zzyzx Twins (2005) twice       two folders a space and a letter's case apart: one show held twice
+#   Zzyzx Gaiden (2002)            an AniDB id alone, an OVA the anime list says TVDB and TMDB fold into
+#                                  another show's specials; genre Science-Fiction; two episodes of three
+#                                  minutes and a third of one second: a runtime outlier
 
 # wipe_data removes the data directory. The container writes its config,
 # metadata and cache as its own user, and on Linux those land root-owned (or
@@ -341,23 +358,37 @@ show_nfo() {
   } > "${dir}/tvshow.nfo"
 }
 
-# episode FILE_BASE SEASON EPISODE TITLE [SECONDS] [SIZE] - one episode with its nfo.
+# episode FILE_BASE SEASON EPISODE TITLE [SECONDS] [SIZE] [FILETITLE] [END] - one
+# episode with its nfo. The season and episode are the nfo's: a FILE_BASE
+# numbered otherwise is a file named for one episode that holds another.
 episode() {
-  local base=$1 season=$2 ep=$3 title=$4 secs=${5:-1} size=${6:-1280x720} filetitle=${7:-}
+  local base=$1 season=$2 ep=$3 title=$4 secs=${5:-1} size=${6:-1280x720} filetitle=${7:-} end=${8:-}
   # a seventh argument names the FILE after something other than the episode,
   # which is what a file written from another series looks like: the nfo keeps
-  # the real title, and audit_title_mismatch has the two to compare
+  # the real title, and audit_file_path's title check has the two to compare
   [ -z "$filetitle" ] || base="${base} - ${filetitle}"
   video "${base}.mp4" "$secs" "$size"
+  # an eighth ends the episode run the nfo claims, which Jellyfin reads over a
+  # run in the file name and Emby does not
   {
     echo '<?xml version="1.0" encoding="utf-8"?>'
     echo '<episodedetails>'
     echo "  <title>$(xml_escape "$title")</title>"
     echo "  <season>${season}</season>"
     echo "  <episode>${ep}</episode>"
+    [ -z "$end" ] || echo "  <episodenumberend>${end}</episodenumberend>"
     echo "  <plot>Episode ${ep} of season ${season}: $(xml_escape "$title").</plot>"
     echo '</episodedetails>'
   } > "${base}.nfo"
+}
+
+# vob PATH - one second of a DVD's video: MPEG-2 in a program stream at the
+# DVD's own size, the file a disc's titleset parts are.
+vob() {
+  mkdir -p "$(dirname "$1")"
+  ffmpeg -nostdin -loglevel error -y \
+    -f lavfi -i "testsrc2=s=720x480:r=25" -f lavfi -i "anullsrc=r=48000:cl=stereo" \
+    -t 1 -c:v mpeg2video -c:a mp2 -f vob "$1"
 }
 
 fixtures() {
@@ -419,6 +450,22 @@ fixtures() {
   video "${m}/Interstellar (2014)/Interstellar (2014).mp4" 1 640x360
   movie_nfo "${m}/Interstellar (2014)" "Interstellar" 2014 157336 tt0816692 169 "Science Fiction" "Christopher Nolan" "The adventures of a group of explorers who make use of a newly discovered wormhole to surpass the limitations on human space travel."
   poster "${m}/Interstellar (2014)/poster.jpg"
+  # a disc copied in without its structure: one VOB loose in a film's folder,
+  # and nothing beside it to say what film it is
+  vob "${m}/Zzyzx Night Ferry (1999)/VTS_01_1.VOB"
+  # the same done right: a Blu-ray kept as its BDMV tree, which both servers
+  # hold as one film at the folder rather than reaching in for the streams
+  mkdir -p "${m}/Zzyzx Keep Case (2000)/BDMV/STREAM"
+  cp "${DATA}/media/disc-src/00000.m2ts" "${DATA}/media/disc-src/00001.m2ts" "${m}/Zzyzx Keep Case (2000)/BDMV/STREAM/"
+  # ids that do not hold up at TMDB: a series' IMDb id on a film, and a TMDB id
+  # TMDB has no film for. Each carries a plot and a poster, so the id is all
+  # that is wrong with it - bar the genre, spelled as no other film spells it
+  video "${m}/Zzyzx Crossed Wires (2008)/Zzyzx Crossed Wires (2008).mp4" 1 640x360
+  movie_nfo "${m}/Zzyzx Crossed Wires (2008)" "Zzyzx Crossed Wires" 2008 "" tt0903747 "" Drama "" "A film matched to a series' IMDb id, which the provider audit reads as a series."
+  poster "${m}/Zzyzx Crossed Wires (2008)/poster.jpg"
+  video "${m}/Zzyzx Taken Down (2010)/Zzyzx Taken Down (2010).mp4" 1 640x360
+  movie_nfo "${m}/Zzyzx Taken Down (2010)" "Zzyzx Taken Down" 2010 99999999 "" "" "Science-Fiction" "" "A film matched to a TMDB id that TMDB has no film for."
+  poster "${m}/Zzyzx Taken Down (2010)/poster.jpg"
 
   # the messy shows
   s="${DATA}/media/messy-shows"
@@ -428,6 +475,41 @@ fixtures() {
   episode "${s}/Severance/Season 01/Severance S01E03" 1 3 "In Perpetuity" 5 640x360
   episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E01" 1 1 "Encounter at Farpoint" 1 640x360
   episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E03" 1 3 "Code of Honor" 1 640x360
+  # a show whose file names and nfos disagree, the ways a bulk import leaves
+  # them: each episode's nfo is what the server holds, the name what was placed
+  p="${s}/Zzyzx Paths (2011)"
+  show_nfo "$p" "Zzyzx Paths" 2011 "" "" "" "Science Fiction" "A show whose files were named by one hand and numbered by another."
+  episode "${p}/Season 01/Zzyzx Paths S01E01" 1 1 "Arrival Day" 1 640x360
+  episode "${p}/Season 01/Zzyzx Paths S01E02E03" 1 2 "Double Shift" 1 640x360 "" 2
+  episode "${p}/Season 01/Zzyzx Paths S01E04" 1 5 "Wrong Door" 1 640x360
+  episode "${p}/Season 01/Breaking Bad S01E06" 1 6 "Borrowed Name" 1 640x360
+  episode "${p}/Season 01/07 - Night Shift" 1 7 "Night Shift" 1 640x360
+  episode "${p}/Season 01/Zzyzx Paths S02E08" 1 8 "Misfiled" 1 640x360
+  episode "${p}/Season 03/Zzyzx Paths S03E01" 3 1 "Two Years Later" 1 640x360
+  # one show in two folders a space and a letter's case apart, no nfo in either
+  video "${s}/Zzyzx Twins (2005)/Season 01/Zzyzx Twins S01E01.mp4" 1 640x360
+  video "${s}/Zzyzx  twins (2005)/Season 01/Zzyzx Twins S01E02.mp4" 1 640x360
+  # an OVA held on its own, known by its AniDB id alone (testdata/anime-list.xml
+  # has TVDB and TMDB fold it into another show's specials)
+  g="${s}/Zzyzx Gaiden (2002)"
+  mkdir -p "$g"
+  {
+    echo '<?xml version="1.0" encoding="utf-8"?>'
+    echo '<tvshow>'
+    echo '  <title>Zzyzx Gaiden</title>'
+    echo '  <year>2002</year>'
+    echo '  <plot>An OVA the providers fold into another show.</plot>'
+    echo '  <genre>Science-Fiction</genre>'
+    echo '  <anidbid>9104</anidbid>'
+    echo '  <uniqueid type="anidb">9104</uniqueid>'
+    echo '</tvshow>'
+  } > "${g}/tvshow.nfo"
+  # its episodes run three minutes but the last, cut to a second: the shortest
+  # spread that clears the runtime audit's two-minute floor, since a file of a
+  # second rounds to 0 minutes like its median, and small, so cheap to make
+  episode "${g}/Season 01/Zzyzx Gaiden S01E01" 1 1 "Side Story" 180 160x90
+  episode "${g}/Season 01/Zzyzx Gaiden S01E02" 1 2 "Second Story" 180 160x90
+  episode "${g}/Season 01/Zzyzx Gaiden S01E03" 1 3 "Cut Short" 1 160x90
 
   # the music: "<artist>/<album> (year)/NN - <title>.mp3", the shape a ripper
   # leaves behind. field looks a value up in one of the tables above.

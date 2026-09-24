@@ -271,6 +271,30 @@ func (embyNextUpLegacy) Apply(spec *openapi.Spec) error {
 		param{"LegacyNextUp", openapi.InQuery, openapi.TypeBoolean, "Use the per-series next unwatched episode mode"})
 }
 
+type embyPlaystateSeekQuery struct{}
+
+func (embyPlaystateSeekQuery) Name() string    { return "emby-playstate-seek-query" }
+func (embyPlaystateSeekQuery) Service() string { return emby }
+func (embyPlaystateSeekQuery) Bug() string {
+	return "POST /Sessions/{Id}/Playing/{Command} declares SeekPositionTicks only in its body, a number the typed model leaves out when it is 0, so a seek to the start cannot be sent; the server also reads it from the query, where Emby's own web client sends it and where a set option is sent even at 0"
+}
+
+func (embyPlaystateSeekQuery) Apply(spec *openapi.Spec) error {
+	op, err := operation(spec, http.MethodPost, "/Sessions/{Id}/Playing/{Command}")
+	if err != nil {
+		return err
+	}
+	if op.Parameter(openapi.InQuery, "SeekPositionTicks") != nil {
+		return errors.New("SeekPositionTicks is declared in the query")
+	}
+	op.Parameters = append(op.Parameters, &openapi.Parameter{
+		Name: "SeekPositionTicks", In: openapi.InQuery, Description: "The position to seek to, in ticks",
+		Schema: &openapi.Schema{Type: openapi.TypeInteger, Format: "int64"},
+	})
+
+	return nil
+}
+
 type embyLibraryDeleteID struct{}
 
 func (embyLibraryDeleteID) Name() string    { return "emby-library-delete-id" }

@@ -141,7 +141,7 @@ func (c *Client) remoteSearchJF(ctx context.Context, kind, itemID, name string, 
 // candidate's id (tmdb, else imdb, else tvdb), and ids that change to
 // something else and stay so are an error naming what the server kept.
 func (c *Client) ApplyRemoteSearchResult(ctx context.Context, itemID string, result RemoteSearchResult, replaceAllImages bool) (*Item, error) {
-	before, err := c.ItemByID(ctx, itemID)
+	before, err := c.appliedItem(ctx, itemID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,18 +164,42 @@ func (c *Client) ApplyRemoteSearchResult(ctx context.Context, itemID string, res
 		return c.ItemByID(ctx, itemID) // nothing to know it by
 	}
 	// at the settle interval, a minute for the refresh to run and a few
-	// seconds for other ids to show they are what the server settled on
-	const polls, settled = 240, 12
-	other := 0
+	// seconds for other ids to show they are what the server settled on.
+	//
+	// Emby answers the apply before the refresh it starts has run, so an
+	// item that already held the candidate's id reads as applied at once
+	// with everything else as it was - the IMDb id the refresh is about to
+	// correct, say. The item's etag moves when the server saves it, so a
+	// read counts once the etag has moved and then held for a few reads
+	// (Jellyfin has run the refresh by the time it answers, so its etag has
+	// moved by the first read). A server that sends no etag cannot be waited
+	// on this way, and is taken at its first matching read.
+	const polls, settled, steady = 240, 12, 4
+	other, held := 0, 0
+	moved := before.Etag == ""
+	last := before.Etag
+	var it *Item
 	for range polls {
-		it, readErr := c.ItemByID(ctx, itemID)
-		if readErr != nil {
+		var readErr error
+		if it, readErr = c.appliedItem(ctx, itemID); readErr != nil {
 			return nil, readErr
+		}
+		if it.Etag != before.Etag {
+			moved = true
 		}
 		have := providerIDOf(it.ProviderIDs, provider)
 		switch {
+		case have == want && moved:
+			if it.Etag == last {
+				held++
+			} else {
+				held = 0
+			}
+			if held >= steady || it.Etag == "" {
+				return it, nil
+			}
 		case have == want:
-			return it, nil
+			// the id is the candidate's, but the refresh has not saved yet
 		case maps.Equal(it.ProviderIDs, before.ProviderIDs):
 			other = 0 // not applied yet
 		default:
@@ -184,17 +208,65 @@ func (c *Client) ApplyRemoteSearchResult(ctx context.Context, itemID string, res
 				return it, c.notApplied(provider, want, have)
 			}
 		}
+		last = it.Etag
 		if err := c.pause(ctx); err != nil {
 			return nil, err
 		}
+	}
+
+	// the wait ran out: an item holding the candidate's id took it, whether
+	// or not a save of the refresh was seen
+	if have := providerIDOf(it.ProviderIDs, provider); have != want {
+		return it, c.notApplied(provider, want, have)
+	}
+
+	return it, nil
+}
+
+// appliedItem reads an item with its etag, which is what tells a read taken
+// after the server saved it from one taken before.
+func (c *Client) appliedItem(ctx context.Context, id string) (*Item, error) {
+	items, _, err := c.Search(ctx, SearchOptions{IDs: id, Fields: FieldsDetail + ",Etag", Limit: 2})
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 || items[0].ID != id {
+		return nil, fmt.Errorf("no item with id %s", id)
+	}
+
+	return &items[0], nil
+}
+
+// SetProviderIDs gives an item a candidate's identity by a plain edit of the
+// item: its metadata provider ids become ids, and nothing else changes or is
+// fetched. It is the apply for a library with its metadata fetchers off,
+// where the server's own apply has nothing to fetch and refreshes the item
+// all the same - which on Jellyfin wiped every episode number of a series.
+// The item is read back, and an id that did not take is an error.
+func (c *Client) SetProviderIDs(ctx context.Context, userID, itemID string, ids map[string]string) (*Item, error) {
+	if _, err := c.EditItem(ctx, userID, itemID, func(full map[string]any) (bool, error) {
+		set := make(map[string]any, len(ids))
+		for k, v := range ids {
+			set[k] = v
+		}
+		full["ProviderIds"] = set
+
+		return true, nil
+	}); err != nil {
+		return nil, err
 	}
 
 	it, err := c.ItemByID(ctx, itemID)
 	if err != nil {
 		return nil, err
 	}
+	if provider, want := primaryProviderID(ids); provider != "" {
+		if have := providerIDOf(it.ProviderIDs, provider); have != want {
+			return it, c.notApplied(provider, want, have)
+		}
+	}
 
-	return it, c.notApplied(provider, want, providerIDOf(it.ProviderIDs, provider))
+	return it, nil
 }
 
 // notApplied is the error for an identity the server did not take.

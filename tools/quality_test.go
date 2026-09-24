@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -255,10 +256,11 @@ func TestQualityCompareRefusesWhatItCannotAnswer(t *testing.T) {
 		t.Errorf("same class, one bitrate missing: %v", noBitrate)
 	}
 
-	// but size and runtime are a bitrate
+	// but size and runtime are a bitrate - the whole file's, so it is
+	// compared with another whole file's
 	derived := mustCall(t, cs, "quality_compare", map[string]any{
 		"a": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "size": 2000000000, "runtime_s": 2400},
-		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 1000000},
+		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "size": 300000000, "runtime_s": 2400},
 	})
 	if text(derived["verdict"]) != "a_better" {
 		t.Errorf("a bitrate worked out from size and runtime was not used: %v", derived)
@@ -446,5 +448,152 @@ func TestQualityCompareHDRCaveatNeedsTwoClaims(t *testing.T) {
 	}
 	if differs("unknown", "sdr") || differs("hdr10", "unknown") {
 		t.Error("an unknown dynamic range was read as a claim")
+	}
+	// and a claim is a claim however it is capitalised
+	if differs("SDR", "sdr") || differs("HDR10", "hdr10") || differs("Unknown", "hdr10") {
+		t.Error("two spellings of one dynamic range were read as two formats")
+	}
+}
+
+// libraryEpisode is a canned server holding one episode whose video stream
+// runs at 8.5 Mbps beside 0.5 Mbps of audio: a library item's bitrate is its
+// video stream's, not the whole file's.
+func libraryEpisode(t *testing.T) *fakeServer {
+	t.Helper()
+
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"Items": []map[string]any{{
+			"Id": "ep1", "Name": "Pilot", "Type": "Episode", "LocationType": "FileSystem", "Path": "/media/shows/Some Show/S01E01.mkv",
+			"RunTimeTicks": int64(2400) * 10_000_000,
+			"MediaSources": []map[string]any{{
+				"Path": "/media/shows/Some Show/S01E01.mkv", "Container": "mkv", "Size": int64(2_700_000_000), "Bitrate": 9_000_000,
+				"MediaStreams": []map[string]any{
+					{"Type": "Video", "Codec": "h264", "Width": 1920, "Height": 1080, "BitRate": 8_500_000},
+					{"Type": "Audio", "Codec": "eac3", "Language": "eng", "Channels": 6, "BitRate": 500_000},
+				},
+			}},
+		}}, "TotalRecordCount": 1})
+	})
+
+	return f
+}
+
+// A bitrate worked out from size and runtime is the whole file's, audio and
+// all; a library item's is its video stream's. Compared as one number, a
+// 1080p file of 8 Mbps of video and 6 of TrueHD - 14 all told - was called
+// 1.65x better than an item of 8.5 Mbps of video: the same picture, a verdict
+// that was the audio's. Like is compared with like, the answer says which,
+// and where it cannot be made like it says that instead of a verdict.
+func TestQualityCompareMeasuresLikeWithLike(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, libraryEpisode(t), Options{})
+	// 14 Mbps across 40 minutes
+	file := func(audio ...map[string]any) map[string]any {
+		return map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "size": 4_200_000_000, "runtime_s": 2400, "audio": audio}
+	}
+
+	// the audio's rates are known, so they come out of the whole file
+	out := mustCall(t, cs, "quality_compare", map[string]any{
+		"a": file(map[string]any{"language": "eng", "codec": "truehd", "channels": 8, "bitrate": 6_000_000}),
+		"b": map[string]any{"item_id": "ep1"},
+	})
+	if text(out["verdict"]) != "comparable" || text(out["bitrate_basis"]) != "video" {
+		t.Errorf("8 Mbps of video against 8.5 = %v on %v: %v", out["verdict"], out["bitrate_basis"], out["reasons"])
+	}
+	a := object(t, out["a"], "a")
+	if number(t, a["bitrate"], "bitrate") != 8_000_000 || !strings.Contains(text(a["bitrate_from"]), "less its audio") {
+		t.Errorf("a's video rate = %v from %q", a["bitrate"], a["bitrate_from"])
+	}
+	if b := object(t, out["b"], "b"); number(t, b["bitrate"], "bitrate") != 8_500_000 || !strings.Contains(text(b["bitrate_from"]), "video stream") {
+		t.Errorf("b's video rate = %v from %q", b["bitrate"], b["bitrate_from"])
+	}
+
+	// with nothing to take the audio out with and only a video rate on the
+	// other side, there is no like to compare: a caveat, and no verdict
+	blind := mustCall(t, cs, "quality_compare", map[string]any{
+		"a": file(),
+		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 8_500_000},
+	})
+	if text(blind["verdict"]) != "unknown" || blind["bitrate_basis"] != nil {
+		t.Errorf("a whole file against a video stream = %v on %v", blind["verdict"], blind["bitrate_basis"])
+	}
+	if caveats := strings.Join(texts(blind["caveats"]), " | "); !strings.Contains(caveats, "measure different things") {
+		t.Errorf("the caveat does not say why: %v", blind["caveats"])
+	}
+
+	// a library item has a whole-file rate too, so against one the two are
+	// compared as whole files - and the audio nobody gave is said to be in it
+	items := mustCall(t, cs, "quality_compare", map[string]any{"a": file(), "b": map[string]any{"item_id": "ep1"}})
+	if text(items["bitrate_basis"]) != "whole_file" {
+		t.Errorf("a whole file against an item = %v on %v", items["verdict"], items["bitrate_basis"])
+	}
+	if caveats := strings.Join(texts(items["caveats"]), " | "); !strings.Contains(caveats, "sound rather than picture") {
+		t.Errorf("whole files with unknown audio went uncaveated: %v", items["caveats"])
+	}
+
+	// two whole files are like, and are said to be
+	whole := mustCall(t, cs, "quality_compare", map[string]any{
+		"a": file(),
+		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "size": 1_200_000_000, "runtime_s": 2400},
+	})
+	if text(whole["verdict"]) != "a_better" || text(whole["bitrate_basis"]) != "whole_file" {
+		t.Errorf("two whole files = %v on %v", whole["verdict"], whole["bitrate_basis"])
+	}
+}
+
+// An unknown frame rate is not a slower master. Its 0 read as one, and every
+// 50p copy compared against a file whose rate was not given was called
+// interpolated.
+func TestQualityCompareDoesNotReadAnUnknownFrameRate(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t, severance()), Options{})
+
+	out := mustCall(t, cs, "quality_compare", map[string]any{
+		"a": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 8000000},
+		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 8000000, "frame_rate": 50},
+	})
+	if strings.Contains(strings.Join(texts(out["caveats"]), " "), "interpolated") {
+		t.Errorf("an unknown frame rate against 50p was called interpolated: %v", out["caveats"])
+	}
+}
+
+// A margin under 1 calls the worse copy better - identical copies measure
+// 1.00x, which clears it - so it is refused. 1 is allowed, and still leaves
+// two identical copies the same.
+func TestQualityCompareRefusesAMarginBelowOne(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t, severance()), Options{})
+	same := map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 8000000}
+
+	if msg := mustRefuse(t, cs, "quality_compare", map[string]any{"a": same, "b": same, "policy": map[string]any{"upgrade_margin": 0.5}}); !strings.Contains(msg, "below 1") {
+		t.Errorf("a margin of 0.5 said: %s", msg)
+	}
+	out := mustCall(t, cs, "quality_compare", map[string]any{"a": same, "b": same, "policy": map[string]any{"upgrade_margin": 1}})
+	if text(out["verdict"]) != "comparable" {
+		t.Errorf("identical copies at a margin of 1 = %v", out["verdict"])
+	}
+}
+
+// The working prints the ratio it decided on. At two significant figures
+// 1.65 printed as 1.6, and "1.6x, over the 1.6x margin" reads as a bug in the
+// verdict rather than in the printing.
+func TestQualityCompareShowsTheRatioItDecidedOn(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t, severance()), Options{})
+
+	out := mustCall(t, cs, "quality_compare", map[string]any{
+		"a": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 8250000},
+		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 5000000},
+	})
+	if decimal(t, out["margin"], "margin") != 1.65 {
+		t.Fatalf("margin = %v", out["margin"])
+	}
+	if reasons := strings.Join(texts(out["reasons"]), " | "); !strings.Contains(reasons, "1.65x, over the 1.60x margin") {
+		t.Errorf("the working does not show the ratio it decided on: %s", reasons)
 	}
 }

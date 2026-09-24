@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -67,6 +68,23 @@ func TestLibraryItems(t *testing.T) {
 	out = call(t, "library_items", map[string]any{"library": "Movies", "years": []any{1982, 1997}, "genres": []any{"Science Fiction"}})
 	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Blade Runner"}) {
 		t.Errorf("1982 and 1997 science fiction = %v", got)
+	}
+
+	// tags: none of the films carries one until one is put on two of them,
+	// and either of two tags matches
+	alien, arrival := findItem(t, "Movies", "Movie", "Alien"), findItem(t, "Movies", "Movie", "Arrival")
+	call(t, "item_edit", map[string]any{"ids": []any{alien}, "add_tags": []any{"zzyzx-tagged"}})
+	call(t, "item_edit", map[string]any{"ids": []any{arrival}, "add_tags": []any{"zzyzx-other"}})
+	t.Cleanup(func() {
+		_, _ = invoke("item_edit", map[string]any{"ids": []any{alien, arrival}, "remove_tags": []any{"zzyzx-tagged", "zzyzx-other"}})
+	})
+	out = call(t, "library_items", map[string]any{"library": "Movies", "tags": []any{"zzyzx-tagged"}})
+	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Alien"}) || num(t, out["total"], "total") != 1 {
+		t.Errorf("tag zzyzx-tagged = %v", got)
+	}
+	out = call(t, "library_items", map[string]any{"library": "Movies", "tags": []any{"zzyzx-tagged", "zzyzx-other"}})
+	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Alien", "Arrival"}) {
+		t.Errorf("either tag = %v, want [Alien Arrival]", got)
 	}
 
 	// a sort: newest first
@@ -161,10 +179,15 @@ func TestLibraryFilters(t *testing.T) {
 		t.Errorf("the provider filled no ratings or studios: %v %v", out["official_ratings"], out["studios"])
 	}
 
-	// the messy series carry only what their nfo says, and nothing else
+	// the messy series carry only what their nfo says, and nothing else:
+	// Severance's Drama, Zzyzx Paths' Science Fiction and Gaiden's
+	// Science-Fiction
 	out = call(t, "library_filters", map[string]any{"library": "Messy Shows", "types": "Series"})
-	if g := valueCounts(t, out["genres"], "genres"); len(g) != 1 || g["Drama"] != 1 {
-		t.Errorf("Messy Shows genres = %v, want Drama on one", g)
+	if g := valueCounts(t, out["genres"], "genres"); len(g) != 3 || g["Drama"] != 1 || g["Science Fiction"] != 1 || g["Science-Fiction"] != 1 {
+		t.Errorf("Messy Shows genres = %v, want Drama, Science Fiction and Science-Fiction on one each", g)
+	}
+	if n := num(t, out["items_scanned"], "items_scanned"); n != messySeries {
+		t.Errorf("Messy Shows filters read %d series, want %d", n, messySeries)
 	}
 	if len(rows(t, out["tags"], "tags")) != 0 || len(rows(t, out["studios"], "studios")) != 0 {
 		t.Errorf("Messy Shows tags %v studios %v, want none", out["tags"], out["studios"])
@@ -287,18 +310,35 @@ func TestItemEditMany(t *testing.T) {
 func TestAuditSpellingAndMetadataRename(t *testing.T) {
 	dune := findItem(t, "Messy Movies", "Movie", "Dune")
 	interstellar := findItem(t, "Messy Movies", "Movie", "Interstellar")
+	taken := findItem(t, "Messy Movies", "Movie", "Zzyzx Taken Down")
 	t.Cleanup(func() {
 		for _, id := range []string{dune, interstellar} {
 			_, _ = invoke("item_edit", map[string]any{
 				"ids": []any{id}, "remove_genres": []any{"Science-Fiction"}, "remove_tags": []any{"Sci-Fi", "Sci Fi"}, "remove_studios": []any{"Syncopy", "Syncopy Films"},
 			})
 		}
+		// the merge below takes Taken Down's spelling too: put it back
+		_, _ = invoke("item_edit", map[string]any{"ids": []any{taken}, "genres": []any{"Science-Fiction"}})
 	})
 
-	// clean to start with
+	// the one the fixtures carry to start with: Taken Down's nfo spells the
+	// genre Science-Fiction where the other films say Science Fiction
 	out := call(t, "audit_spelling", map[string]any{"library": "Messy Movies"})
-	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
-		t.Fatalf("Messy Movies already has %d spelling groups: %v", n, out["groups"])
+	lasting := rows(t, out["groups"], "groups")
+	if n := num(t, out["total_findings"], "total_findings"); n != 1 || len(lasting) != 1 || str(lasting[0]["field"]) != "genres" || str(lasting[0]["keep"]) != "Science Fiction" {
+		t.Fatalf("Messy Movies starts with %d spelling groups: %v, want Taken Down's genre alone", n, out["groups"])
+	}
+	counts := map[string]int{}
+	for _, s := range rows(t, lasting[0]["spellings"], "spellings") {
+		counts[str(s["value"])] = num(t, s["items"], "items")
+	}
+	// Blade Runner counts once where it is one film, twice on Emby
+	carriers := 3
+	if !versionsMerged() {
+		carriers = 4
+	}
+	if counts["Science Fiction"] != carriers || counts["Science-Fiction"] != 1 || len(counts) != 2 {
+		t.Errorf("the genre's spellings = %v, want Dune's, Interstellar's and Blade Runner's against Taken Down's", counts)
 	}
 
 	// both nfos say Science Fiction, and Dune gets it hyphenated as well
@@ -334,11 +374,15 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 	if n := num(t, call(t, "audit_spelling", map[string]any{"library": "Messy Movies", "field": "tag"})["total_findings"], "total_findings"); n != 1 {
 		t.Errorf("tags alone = %d groups", n)
 	}
+	// and a limit caps the groups, not the count
+	if capped := call(t, "audit_spelling", map[string]any{"library": "Messy Movies", "limit": 1}); len(rows(t, capped["groups"], "groups")) != 1 || num(t, capped["total_findings"], "total_findings") != 3 {
+		t.Errorf("limit 1 = %v", capped)
+	}
 
 	// merge each: a rename onto a spelling, a rename in place, a removal
 	out = call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Science-Fiction", "to": "Science Fiction", "library": "Messy Movies"})
-	if num(t, out["updated"], "updated") != 1 || !slices.Equal(strs(t, out["items"], "items"), []string{"Dune"}) {
-		t.Errorf("genre rename = %v", out)
+	if num(t, out["updated"], "updated") != 2 || !slices.Equal(sorted(strs(t, out["items"], "items")), []string{"Dune", "Zzyzx Taken Down"}) {
+		t.Errorf("genre rename = %v, want Dune and Taken Down", out)
 	}
 	out = call(t, "metadata_rename", map[string]any{"field": "tags", "from": "Sci Fi", "to": "Sci-Fi"})
 	if num(t, out["updated"], "updated") != 1 {
@@ -379,31 +423,50 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 }
 
 func TestAuditQuality(t *testing.T) {
-	// the messy films are 360p rips, Princess Mononoke's in MPEG-4 part 2, and the Blade
-	// Runner files really are 1080p and 2160p
+	// the messy films are 360p rips, Princess Mononoke's in MPEG-4 part 2,
+	// the loose DVD a 480p MPEG-2 VOB, and the Blade Runner files really are
+	// 1080p and 2160p
 	out := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
 	got := findings(t, out)
-	want := []string{"Alien", "Alien", "Arrival", "Dune", "Interstellar", "Princess Mononoke"}
+	want := []string{"Alien", "Alien", "Arrival", "Dune", "Interstellar", "Princess Mononoke", "Zzyzx Crossed Wires", "Zzyzx Night Ferry", "Zzyzx Taken Down"}
 	if !slices.Equal(got, want) {
 		t.Errorf("low quality = %v, want %v", got, want)
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
 		detail := str(f["detail"])
-		if !strings.Contains(detail, "640x360") || !strings.Contains(detail, "360p, below 720p") {
-			t.Errorf("finding = %v", f)
-		}
-		if title(str(f["name"])) == "Princess Mononoke" && !strings.Contains(detail, "legacy codec mpeg4") {
-			t.Errorf("Princess Mononoke's codec is not reported: %v", f)
+		switch title(str(f["name"])) {
+		case "Zzyzx Night Ferry":
+			if detail != "mpeg2video 720x480: 480p, below 720p; legacy codec mpeg2video" {
+				t.Errorf("the DVD = %q", detail)
+			}
+		case "Princess Mononoke":
+			if detail != "mpeg4 640x360: 360p, below 720p; legacy codec mpeg4" {
+				t.Errorf("Princess Mononoke = %q", detail)
+			}
+		default:
+			if detail != "h264 640x360: 360p, below 720p" {
+				t.Errorf("finding = %v", f)
+			}
 		}
 	}
 	if n := num(t, out["items_scanned"], "items_scanned"); n != messyMovies() {
 		t.Errorf("scanned %d, want %d", n, messyMovies())
 	}
+	// the Blu-ray kept whole was never probed, so it has no picture to judge,
+	// and it says so rather than passing for a good copy
+	unprobed := rows(t, out["unprobed"], "unprobed")
+	if len(unprobed) != 1 || num(t, out["total_unprobed"], "total_unprobed") != 1 || title(str(unprobed[0]["name"])) != "Zzyzx Keep Case" || !strings.Contains(str(unprobed[0]["detail"]), "never probed") {
+		t.Errorf("unprobed = %v, want the kept Blu-ray alone", unprobed)
+	}
+	// nothing was written over since the scan read it
+	if n := num(t, out["total_replaced"], "total_replaced"); n != 0 {
+		t.Errorf("replaced = %v", out["replaced"])
+	}
 
-	// a lower bar leaves only the codec
+	// a lower bar leaves only the codecs
 	out = call(t, "audit_quality", map[string]any{"library": "Messy Movies", "min_height": 360})
-	if got := findings(t, out); !slices.Equal(got, []string{"Princess Mononoke"}) {
-		t.Errorf("at 360 lines = %v, want [Princess Mononoke]", got)
+	if got := findings(t, out); !slices.Equal(got, []string{"Princess Mononoke", "Zzyzx Night Ferry"}) {
+		t.Errorf("at 360 lines = %v, want [Princess Mononoke Zzyzx Night Ferry]", got)
 	}
 	out = call(t, "audit_quality", map[string]any{"library": "Messy Movies", "min_height": 360, "legacy_codecs": false})
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
@@ -415,28 +478,54 @@ func TestAuditQuality(t *testing.T) {
 		t.Errorf("a bitrate floor flagged %d films, want all 8", n)
 	}
 
-	// episodes too, named by series and number
+	// episodes too, named by series and number, the lowest first: Gaiden's
+	// 160x90 before the 360p rest
 	out = call(t, "audit_quality", map[string]any{"library": "Messy Shows"})
-	if n := num(t, out["total_findings"], "total_findings"); n != 5 {
-		t.Errorf("messy episodes = %d, want 5", n)
+	if n := num(t, out["total_findings"], "total_findings"); n != messyEpisodes {
+		t.Errorf("messy episodes = %d, want %d", n, messyEpisodes)
 	}
-	for _, f := range rows(t, out["findings"], "findings") {
-		if name := str(f["name"]); !strings.Contains(name, "S01E0") {
+	episode := regexp.MustCompile(`^.+ S\d\dE\d\d `)
+	for i, f := range rows(t, out["findings"], "findings") {
+		if name := str(f["name"]); !episode.MatchString(name) {
 			t.Errorf("episode finding name = %q", name)
 		}
+		if i < 3 && !strings.HasPrefix(str(f["name"]), "Zzyzx Gaiden") {
+			t.Errorf("finding %d is %v, want Gaiden's three 90p files first", i, f["name"])
+		}
+	}
+	// and a limit caps each list, not the count
+	out = call(t, "audit_quality", map[string]any{"library": "Messy Shows", "types": "Episode", "limit": 2})
+	if len(rows(t, out["findings"], "findings")) != 2 || num(t, out["total_findings"], "total_findings") != messyEpisodes {
+		t.Errorf("limit 2 = %v of %v", len(rows(t, out["findings"], "findings")), out["total_findings"])
 	}
 }
 
 func TestAuditMissingEpisodes(t *testing.T) {
 	out := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})
-	if got := findings(t, out); !slices.Equal(got, []string{"Star Trek The Next Generation"}) {
-		t.Fatalf("series with gaps = %v, want [Star Trek The Next Generation]", got)
+	if got := findings(t, out); !slices.Equal(got, []string{"Star Trek The Next Generation", "Zzyzx Paths"}) {
+		t.Fatalf("series with gaps = %v, want Star Trek The Next Generation and Zzyzx Paths", got)
 	}
-	if f := rows(t, out["findings"], "findings")[0]; !strings.Contains(str(f["detail"]), "S01E02") || str(f["id"]) == "" {
-		t.Errorf("finding = %v", f)
+	// Zzyzx Paths holds seasons 1 and 3, and in season 1 has E04's file held
+	// as E05; Jellyfin also takes its E02E03 file for E02 alone (its nfo ends
+	// the run there), where Emby holds both
+	paths := "missing between the episodes on disk: S01E04, season 2"
+	if isJellyfin() {
+		paths = "missing between the episodes on disk: S01E03, S01E04, season 2"
 	}
-	if n := num(t, out["items_scanned"], "items_scanned"); n != 5 {
-		t.Errorf("scanned %d episodes, want 5", n)
+	for _, f := range rows(t, out["findings"], "findings") {
+		want := "missing between the episodes on disk: S01E02"
+		if title(str(f["name"])) == "Zzyzx Paths" {
+			want = paths
+		}
+		if str(f["detail"]) != want || str(f["id"]) == "" {
+			t.Errorf("finding = %v, want %q", f, want)
+		}
+	}
+	if n := num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes {
+		t.Errorf("scanned %d episodes, want %d", n, messyEpisodes)
+	}
+	if capped := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "limit": 1}); len(rows(t, capped["findings"], "findings")) != 1 || num(t, capped["total_findings"], "total_findings") != 2 {
+		t.Errorf("limit 1 = %v", capped)
 	}
 	// A2: the sweep says how much of the answer it could know. Neither server
 	// records a series' full run out of the box, so a series it does not list
@@ -478,9 +567,48 @@ func TestAuditMissingEpisodes(t *testing.T) {
 	if d := found["Star Trek The Next Generation"]; !strings.Contains(d, "between the episodes on disk: S01E02") || strings.Contains(d, "TMDB") {
 		t.Errorf("Star Trek = %q, want its gap alone", d)
 	}
-	unknown := rows(t, out["unknown"], "unknown")
-	if len(unknown) != 1 || title(str(unknown[0]["name"])) != "Star Trek The Next Generation" || !strings.Contains(str(unknown[0]["reason"]), "carries no tmdb, tvdb or imdb id") {
-		t.Errorf("unknown = %v, want the unidentified series alone", unknown)
+	// every messy series but Severance carries no id a provider knows it by
+	// (Gaiden's AniDB id is not one TMDB is asked by)
+	var unknown []string
+	for _, u := range rows(t, out["unknown"], "unknown") {
+		unknown = append(unknown, title(str(u["name"])))
+		if !strings.Contains(str(u["reason"]), "carries no tmdb, tvdb or imdb id") {
+			t.Errorf("unknown = %v", u)
+		}
+	}
+	slices.Sort(unknown)
+	wantUnknown := sorted(append([]string{"Zzyzx Gaiden"}, unmatchedShows...))
+	if !slices.Equal(unknown, wantUnknown) || num(t, out["total_unknown"], "total_unknown") != len(wantUnknown) {
+		t.Errorf("unknown = %v, want %v", unknown, wantUnknown)
+	}
+
+	// paged a series at a time, the walk to the end asks after every series
+	// once and finds what the one call found
+	var paged, pagedUnknown []string
+	offset, pages := 0, 0
+	for {
+		page := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true, "max_lookups": 2, "offset": offset})
+		pages++
+		paged = append(paged, findings(t, page)...)
+		for _, u := range rows(t, page["unknown"], "unknown") {
+			pagedUnknown = append(pagedUnknown, title(str(u["name"])))
+		}
+		next, more := page["next_offset"]
+		if !more {
+			break
+		}
+		if n := num(t, next, "next_offset"); n != offset+2 {
+			t.Fatalf("page at %d says go on from %d", offset, n)
+		}
+		offset += 2
+		if pages > messySeries {
+			t.Fatal("the pages never end")
+		}
+	}
+	slices.Sort(paged)
+	slices.Sort(pagedUnknown)
+	if pages != (messySeries+1)/2 || !slices.Equal(paged, findings(t, out)) || !slices.Equal(pagedUnknown, wantUnknown) {
+		t.Errorf("%d pages found %v and could not ask after %v, want %d pages, %v and %v", pages, paged, pagedUnknown, (messySeries+1)/2, findings(t, out), wantUnknown)
 	}
 }
 
@@ -491,6 +619,9 @@ func TestAuditUnwatched(t *testing.T) {
 	}
 	if users := strs(t, out["users"], "users"); !slices.Contains(users, "root") || !slices.Contains(users, "alice") {
 		t.Errorf("users = %v", users)
+	}
+	if capped := call(t, "audit_unwatched", map[string]any{"library": "Movies", "limit": 2}); len(rows(t, capped["findings"], "findings")) != 2 || num(t, capped["total_findings"], "total_findings") != 8 {
+		t.Errorf("limit 2 = %v", capped)
 	}
 
 	dune := findItem(t, "Movies", "Movie", "Dune")

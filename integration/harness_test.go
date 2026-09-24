@@ -154,8 +154,10 @@ var (
 	proxyDrifts                []providerproxy.Drift
 )
 
-// recording reports whether this run should call the real providers and
-// refresh the cassettes, rather than replay them.
+// recording reports whether this run should call the real providers for
+// what the cassettes lack, rather than replay them: EMBYFIN_TEST_RECORD=1
+// fills in only the missing answers, and =all (make record) fetches every
+// answer again (see providerproxy.Rerecord).
 func recording() bool { return os.Getenv("EMBYFIN_TEST_RECORD") != "" }
 
 // verifying reports whether to check the cassettes against the live

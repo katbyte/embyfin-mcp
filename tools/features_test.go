@@ -101,8 +101,8 @@ func TestUserGetPlaybackPreferences(t *testing.T) {
 }
 
 // library_export writes the library to a file, one row a line, and touches
-// nothing else: it refuses a file that exists unless told to write over it,
-// narrows the rows to the facts asked for, and leaves no half a file behind.
+// nothing else: it refuses a file that exists, narrows the rows to the facts
+// asked for, and leaves no half a file behind.
 func TestLibraryExport(t *testing.T) {
 	t.Parallel()
 
@@ -137,11 +137,13 @@ func TestLibraryExport(t *testing.T) {
 		t.Errorf("the file holds %d lines, want %d", lines, withFile)
 	}
 
-	// a file that exists is refused, unless overwrite says so
+	// a file that exists is refused, and there is no flag to write over it
 	if msg := mustRefuse(t, cs, "library_export", map[string]any{"path": path, "library": "Shows"}); !strings.Contains(msg, "exists") {
 		t.Errorf("writing over a file = %q", msg)
 	}
-	narrowed := mustCall(t, cs, "library_export", map[string]any{"path": path, "library": "Shows", "overwrite": true, "fields": []any{"path"}})
+	mustRefuse(t, cs, "library_export", map[string]any{"path": path, "library": "Shows", "overwrite": true})
+	path = filepath.Join(filepath.Dir(path), "narrowed.jsonl")
+	narrowed := mustCall(t, cs, "library_export", map[string]any{"path": path, "library": "Shows", "fields": []any{"path"}})
 	raw, _ = os.ReadFile(path) //nolint:gosec // a path this test chose
 	if number(t, narrowed["rows"], "rows") != withFile || strings.Contains(string(raw), `"width"`) || !strings.Contains(string(raw), `"path"`) {
 		t.Errorf("narrowed export = %v: %s", narrowed, raw)

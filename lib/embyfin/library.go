@@ -60,14 +60,18 @@ func (f *VirtualFolder) FetchersOff(itemType string) bool {
 
 // FolderOf returns the library whose folders hold path (the deepest, when
 // libraries nest), or nil when none does: a collection or playlist is not in
-// a library's folders.
+// a library's folders. A server on Windows names its folders and files with
+// backslashes, so either separator ends a folder.
 func FolderOf(folders []VirtualFolder, path string) *VirtualFolder {
 	var found *VirtualFolder
 	deepest := -1
 	for i := range folders {
 		for _, loc := range folders[i].Locations {
-			loc = strings.TrimRight(loc, "/")
-			if loc != "" && strings.HasPrefix(path, loc+"/") && len(loc) > deepest {
+			loc = strings.TrimRight(loc, `/\`)
+			if loc == "" || len(loc) <= deepest {
+				continue
+			}
+			if strings.HasPrefix(path, loc+"/") || strings.HasPrefix(path, loc+`\`) {
 				found, deepest = &folders[i], len(loc)
 			}
 		}
@@ -86,9 +90,10 @@ func (c *Client) VirtualFolders(ctx context.Context) ([]VirtualFolder, error) {
 		if err != nil {
 			return nil, err
 		}
-		folders := make([]VirtualFolder, 0, len(res.Model.Items))
-		for i := range res.Model.Items {
-			folders = append(folders, virtualFolderFromEmby(&res.Model.Items[i]))
+		listed := orEmpty(res.Model).Items
+		folders := make([]VirtualFolder, 0, len(listed))
+		for i := range listed {
+			folders = append(folders, virtualFolderFromEmby(&listed[i]))
 		}
 
 		return folders, nil
@@ -114,7 +119,7 @@ func (c *Client) Persons(ctx context.Context, searchTerm string, limit int) ([]I
 			return nil, err
 		}
 
-		return itemsFromEmby(res.Model.Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), nil
 	}
 
 	res, err := c.jf.GetPersons(ctx, jf.GetPersonsOperationOptions{SearchTerm: searchTerm, Limit: nz(limit)})
@@ -270,8 +275,9 @@ func (c *Client) embyDefaultTypeOptions(ctx context.Context, collectionType stri
 		}
 		return names
 	}
-	out := make([]emby.TypeOptions, 0, len(res.Model.TypeOptions))
-	for _, t := range res.Model.TypeOptions {
+	available := orEmpty(res.Model).TypeOptions
+	out := make([]emby.TypeOptions, 0, len(available))
+	for _, t := range available {
 		metadata, images := enabled(t.MetadataFetchers), enabled(t.ImageFetchers)
 		out = append(out, emby.TypeOptions{
 			Type: t.Type, MetadataFetchers: metadata, MetadataFetcherOrder: metadata,
@@ -313,7 +319,7 @@ func (c *Client) SetLibraryNfo(ctx context.Context, folder *VirtualFolder, on bo
 		if err != nil {
 			return err
 		}
-		for _, f := range res.Model.Items {
+		for _, f := range orEmpty(res.Model).Items {
 			if f.ItemId == folder.ItemID && f.LibraryOptions != nil {
 				f.LibraryOptions.MetadataSavers = savers(on)
 				_, err := c.emby.PostLibraryVirtualFoldersLibraryOptions(ctx, emby.LibraryUpdateLibraryOptions{Id: folder.ItemID, LibraryOptions: f.LibraryOptions})
@@ -341,9 +347,10 @@ func (c *Client) SetLibraryNfo(ctx context.Context, folder *VirtualFolder, on bo
 	return fmt.Errorf("the server lists no options for the %s library", folder.Name)
 }
 
-// errNoLibraryID is a Jellyfin library that has not been scanned yet: it
-// gets its id on its first scan, and every per-library call needs one.
-var errNoLibraryID = errors.New("the library has no id until its first scan; scan every library first")
+// errNoLibraryID is a library the server lists without an id, which every
+// per-library call needs: an older Jellyfin's before the library's first
+// scan (Jellyfin 12.1 and Emby give one when a library is made).
+var errNoLibraryID = errors.New("the server lists the library without an id; scan every library, which gives it one")
 
 // RenameLibrary renames a library. Emby takes its id, Jellyfin its name.
 func (c *Client) RenameLibrary(ctx context.Context, folder *VirtualFolder, newName string) error {
@@ -448,6 +455,9 @@ func (c *Client) Person(ctx context.Context, name, userID string) (*Item, error)
 		if err != nil {
 			return nil, err
 		}
+		if res.Model == nil {
+			return nil, noResult("no person named %q", name)
+		}
 		it := itemFromEmby(res.Model)
 
 		return &it, nil
@@ -460,4 +470,42 @@ func (c *Client) Person(ctx context.Context, name, userID string) (*Item, error)
 	it := itemFromJF(res.Model)
 
 	return &it, nil
+}
+
+// FolderEntry is one file or folder the server sees in a folder on its disk.
+type FolderEntry struct {
+	Name  string
+	Path  string
+	IsDir bool
+}
+
+// ListFolder lists a folder on the server's own disk, its files and folders,
+// as the server sees it. found is false for a folder the server cannot find,
+// which is not an error: it is how a delete that took the folder shows.
+func (c *Client) ListFolder(ctx context.Context, path string) (entries []FolderEntry, found bool, err error) {
+	yes := new(true)
+	if c.isEmby() {
+		res, lerr := c.emby.GetEnvironmentDirectoryContents(ctx, emby.GetEnvironmentDirectoryContentsOperationOptions{Path: path, IncludeFiles: yes, IncludeDirectories: yes})
+		err = lerr
+		for _, e := range res.Model {
+			entries = append(entries, FolderEntry{Name: e.Name, Path: e.Path, IsDir: e.Type == emby.IOFileSystemEntryTypeDirectory})
+		}
+	} else {
+		res, lerr := c.jf.GetDirectoryContents(ctx, jf.GetDirectoryContentsOperationOptions{Path: path, IncludeFiles: yes, IncludeDirectories: yes})
+		err = lerr
+		for _, e := range res.Model {
+			entries = append(entries, FolderEntry{Name: e.Name, Path: e.Path, IsDir: e.Type == jf.FileSystemEntryTypeDirectory})
+		}
+	}
+	if err == nil {
+		return entries, true, nil
+	}
+	// a folder that is not there is answered with an error whose status
+	// differs by server; whether the path is there settles it
+	exists, perr := c.PathExists(ctx, path)
+	if perr != nil || exists {
+		return nil, exists, err
+	}
+
+	return nil, false, nil
 }

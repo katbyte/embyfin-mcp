@@ -259,11 +259,19 @@ type Loader struct {
 	source string
 	http   *http.Client
 	ttl    time.Duration
-	now    func() time.Time
+	// retry is how long a failed read of the list waits for the next, while
+	// the list read before stands in
+	retry time.Duration
+	now   func() time.Time
 
 	mu   sync.Mutex
 	list *List
-	at   time.Time
+	// next is when the list held is read again: a day after it was read, an
+	// hour after a read of it failed
+	next time.Time
+	// reading is set while a list already held is being read again; calls
+	// meanwhile answer the one held rather than wait for the read
+	reading bool
 }
 
 // NewLoader reads from source, a URL or a file path; "" is DefaultSource. A
@@ -273,6 +281,7 @@ func NewLoader(source string, rt http.RoundTripper) *Loader {
 		source: cmp.Or(source, DefaultSource),
 		http:   &http.Client{Timeout: time.Minute, Transport: rt},
 		ttl:    24 * time.Hour,
+		retry:  time.Hour,
 		now:    time.Now,
 	}
 }
@@ -282,21 +291,46 @@ func (l *Loader) Source() string { return l.source }
 
 // Load is the list, read again once what it holds is a day old. A list that
 // cannot be read again gives way to the one read before: the mapping
-// changes slowly, and an old copy answers better than an error.
+// changes slowly, and an old copy answers better than an error. The failed
+// read is remembered and tried again only after an hour, and while a read is
+// under way every other call answers the list held at once: a source that is
+// down or hangs (the read waits a minute) costs one call a wait, not every
+// call after it.
+//
+// With no list read yet there is nothing to answer with, so a call waits for
+// the read, and one that fails is the error, tried again by the next call.
 func (l *Loader) Load(ctx context.Context) (*List, error) {
 	l.mu.Lock()
-	defer l.mu.Unlock()
+	if l.list == nil {
+		defer l.mu.Unlock()
 
-	if l.list != nil && l.now().Sub(l.at) < l.ttl {
+		list, err := l.read(ctx)
+		if err != nil {
+			return nil, err
+		}
+		l.list, l.next = list, l.now().Add(l.ttl)
+
 		return l.list, nil
 	}
-	list, err := l.read(ctx)
-	switch {
-	case err == nil:
-		l.list, l.at = list, l.now()
-	case l.list == nil:
-		return nil, err
+	if l.reading || l.now().Before(l.next) {
+		defer l.mu.Unlock()
+
+		return l.list, nil
 	}
+
+	// this call reads the list again, without holding the others up
+	l.reading = true
+	l.mu.Unlock()
+	list, err := l.read(ctx)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.reading = false
+	if err != nil {
+		l.next = l.now().Add(l.retry)
+
+		return l.list, nil
+	}
+	l.list, l.next = list, l.now().Add(l.ttl)
 
 	return l.list, nil
 }

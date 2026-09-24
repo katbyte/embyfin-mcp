@@ -35,5 +35,5 @@ services:
       - "EMBYFIN_LOG=INFO"
       # - "EMBYFIN_TOOLSETS=curation"  # the audits and everything that fixes what they find; default core
       # - "EMBYFIN_READ_ONLY=true"     # only register tools that never change server state
-      # - "EMBYFIN_ENABLE_DELETE=true" # opt in to item_delete and library_delete
-      # - "EMBYFIN_TMDB_TOKEN=..."       # or in .env: enables audit_runtime for movies
+      # - "EMBYFIN_ENABLE_DELETE=true" # opt in to the *_delete tools: files, libraries, playlists, collections
+      # - "EMBYFIN_TMDB_TOKEN=..."       # or in .env: enables audit_provider and the TMDB lookups in audit_missing_episodes, audit_file_path and show_missing

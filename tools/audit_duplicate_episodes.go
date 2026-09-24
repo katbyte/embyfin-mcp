@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"math"
 	"slices"
@@ -109,7 +110,9 @@ func auditDuplicateEpisodes(ctx context.Context, client *embyfin.Client, in dupT
 		if len(items) < 2 {
 			continue
 		}
-		slices.SortFunc(items, func(a, b embyfin.Item) int { return a.IndexNumber - b.IndexNumber })
+		slices.SortFunc(items, func(a, b embyfin.Item) int {
+			return cmp.Or(cmp.Compare(a.IndexNumber, b.IndexNumber), strings.Compare(a.ID, b.ID))
+		})
 		group := titleGroup{
 			Series: items[0].SeriesName, SeriesID: k.series, Season: k.season, Title: items[0].Name,
 		}
@@ -138,6 +141,10 @@ func auditDuplicateEpisodes(ctx context.Context, client *embyfin.Client, in dupT
 		groups = append(groups, group)
 	}
 
+	// a whole order, down to the season and the series id: sorted by series
+	// name and title alone, two groups of one title in different seasons (or
+	// under two series of one name) came out in the map's order, and which of
+	// them a limit kept changed from one call to the next
 	slices.SortFunc(groups, func(a, b titleGroup) int {
 		if (a.Confidence == "near_certain") != (b.Confidence == "near_certain") {
 			if a.Confidence == "near_certain" {
@@ -146,11 +153,13 @@ func auditDuplicateEpisodes(ctx context.Context, client *embyfin.Client, in dupT
 
 			return 1
 		}
-		if c := strings.Compare(a.Series, b.Series); c != 0 {
-			return c
-		}
 
-		return strings.Compare(a.Title, b.Title)
+		return cmp.Or(
+			strings.Compare(a.Series, b.Series),
+			strings.Compare(a.SeriesID, b.SeriesID),
+			cmp.Compare(a.Season, b.Season),
+			strings.Compare(a.Title, b.Title),
+		)
 	})
 	out.Found = len(groups)
 	out.Groups = append(out.Groups, groups[:min(len(groups), limit)]...)

@@ -111,10 +111,19 @@ func (l trackLanguages) String() string {
 	return "audio: " + list(l.audio, l.untaggedAudio) + "; subtitles: " + list(l.subtitles, l.untaggedSubtitles)
 }
 
-// checkLanguage answers one item. unknown is set when the answer turns on a
-// track that names no language: an untagged track may well be the language
-// asked about, so an item is never reported as lacking a language on the
-// strength of a track that does not say.
+// noAudio says the files carry no audio track at all. A file like that is as
+// often one the server never probed (an unprobed file answers every question
+// about its streams with nothing) as one that is silent, so there is no
+// track to judge a language by.
+func (l trackLanguages) noAudio() bool {
+	return len(l.audio) == 0 && !l.untaggedAudio
+}
+
+// checkLanguage answers one item. unknown is set when the answer turns on
+// something the files do not say: a track that names no language, which
+// may well be the language asked about, or no audio track at all. An item is
+// never reported as lacking a language on the strength of a fact it does not
+// have.
 func checkLanguage(it *embyfin.Item, language, find string) (detail string, match, unknown bool) {
 	l := languagesOf(it)
 	key := languageKey(language)
@@ -127,11 +136,12 @@ func checkLanguage(it *embyfin.Item, language, find string) (detail string, matc
 		match = hasSubtitles
 	case findNoAudio:
 		if !hasAudio {
-			unknown, match = l.untaggedAudio, !l.untaggedAudio
+			unknown = l.untaggedAudio || l.noAudio()
+			match = !unknown
 		}
 	case findUnwatchable:
 		if !hasAudio && !hasSubtitles {
-			unknown = l.untaggedAudio || l.untaggedSubtitles
+			unknown = l.untaggedAudio || l.untaggedSubtitles || l.noAudio()
 			match = !unknown
 		}
 	}
@@ -151,7 +161,8 @@ type languageIn struct {
 // languageOut is audit_language's answer.
 type languageOut struct {
 	auditOut
-	Untagged int `json:"untagged" jsonschema:"items not judged because the track the answer turns on names no language; counted in neither total_findings nor the rest"`
+	Untagged int `json:"untagged"       jsonschema:"items not judged because the track the answer turns on names no language; counted in neither total_findings nor the rest"`
+	NoAudio  int `json:"no_audio_track" jsonschema:"no_audio and unwatchable: files not judged because they carry no audio track at all, as often because the server never probed them as because they are silent; counted in neither total_findings nor untagged"`
 }
 
 func auditLanguage(ctx context.Context, client *embyfin.Client, in languageIn) (languageOut, error) {
@@ -183,9 +194,17 @@ func auditLanguage(ctx context.Context, client *embyfin.Client, in languageIn) (
 	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
+			// the record a server keeps of an episode it has no file for has
+			// no streams to read, and is not something the library can be
+			// watched in or not
+			if !it.HasFile() {
+				continue
+			}
 			out.Scanned++
 			detail, match, unknown := checkLanguage(it, in.Language, find)
 			switch {
+			case unknown && languagesOf(it).noAudio():
+				out.NoAudio++
 			case unknown:
 				out.Untagged++
 			case match:
@@ -215,7 +234,7 @@ func registerLanguageAudit(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_language",
 		Description: "Find films and episodes by the language of their audio or subtitles: what has audio or subtitles in a language, what has no audio in it, or what cannot be watched in it at all (neither audio nor subtitles). Any version of an item counts. " +
-			"A track with no language tag is never taken as lacking the language: an item whose answer turns on one is counted in untagged instead of reported.",
+			"A track with no language tag is never taken as lacking the language: an item whose answer turns on one is counted in untagged instead of reported. Nor is a file with no audio track at all, which as often means the server never probed it as that it is silent: those are counted in no_audio_track. A record of an episode with no file is left out.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in languageIn) (*mcp.CallToolResult, languageOut, error) {
 		out, err := auditLanguage(ctx, client, in)
 

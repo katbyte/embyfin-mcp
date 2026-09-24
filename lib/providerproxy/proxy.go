@@ -11,14 +11,16 @@
 // .NET honours HTTPS_PROXY, and on Linux it trusts whatever SSL_CERT_FILE
 // points at, so the container is started with both: the proxy address, and
 // a CA certificate the proxy signs its per-host certificates with (Options.CA;
-// scripts/testenv.sh mints it and mounts it into the container). In record
-// mode the real providers are called once and the responses are written to
-// cassettes; in replay mode - the default, and what CI uses - they are served
-// from disk and no network is touched.
+// scripts/testenv.sh mints it and mounts it into the container). In replay
+// mode - the default, and what CI uses - the responses are served from the
+// cassettes on disk and no network is touched. Record mode calls the real
+// provider for a request no cassette holds and writes what comes back, leaving
+// every recording already there alone; Rerecord mode (make record) refreshes
+// those too.
 //
-// The one call embyfin-mcp makes itself, the TMDB runtime lookup behind
-// audit_runtime, goes through the same proxy in the tests by giving the tmdb
-// client an http.Client that trusts the CA and uses the proxy.
+// The calls embyfin-mcp makes to a provider itself, when a tool checks the
+// library against TMDB, go through the same proxy in the tests: the tools are
+// handed a transport that trusts the CA and sends every request to the proxy.
 package providerproxy
 
 import (
@@ -54,14 +56,27 @@ const (
 	// Replay serves from the cassettes and never reaches the network. A
 	// request with no recording is a loud failure, not an empty response.
 	Replay Mode = iota
-	// Record calls the real provider and writes what comes back.
+	// Record calls the real provider for a request no cassette holds and
+	// writes what comes back; a request already recorded is served from its
+	// recording, so recording a new test's lookups (EMBYFIN_TEST_RECORD=1)
+	// leaves every other recording as it was.
 	Record
 	// Verify calls the real provider and compares the shape of what comes
 	// back against the cassette, without writing. The recorded response is
 	// still what gets served, so a test outcome never depends on what a
 	// provider happened to return today - drift is reported separately.
 	Verify
+	// Rerecord is Record refreshing what is recorded as well (make record):
+	// the first time the proxy sees a request it calls the real provider and
+	// the answer replaces the recording, and the same request again in that
+	// run is served the fresh answer without another call.
+	Rerecord
 )
+
+// RecordEnv is the variable the suites record with: set, they run the proxy
+// in Record mode, and set to "all" (as make record does) New makes that a
+// Rerecord.
+const RecordEnv = "EMBYFIN_TEST_RECORD"
 
 // Proxy is a MITM HTTP proxy backed by cassettes.
 type Proxy struct {
@@ -82,7 +97,7 @@ type Proxy struct {
 	certMu sync.Mutex
 	certs  map[string]*tls.Certificate
 
-	// upstream is used in Record mode only
+	// upstream reaches the real providers, in every mode but Replay
 	upstream *http.Transport
 
 	missMu sync.Mutex
@@ -90,6 +105,11 @@ type Proxy struct {
 
 	driftMu sync.Mutex
 	drifts  []Drift
+
+	// fresh is the requests recorded in this proxy's run, which Rerecord
+	// serves from their new recording rather than calling for again
+	freshMu sync.Mutex
+	fresh   map[string]bool
 }
 
 // Options configure a Proxy.
@@ -128,7 +148,7 @@ type Options struct {
 	IgnoreHosts []string
 }
 
-// New starts a proxy and returns it. Close stops it and, in Record mode,
+// New starts a proxy and returns it. Close stops it and, when it records,
 // flushes the cassettes.
 func New(opts Options) (*Proxy, error) {
 	if opts.CassetteDir == "" {
@@ -139,6 +159,10 @@ func New(opts Options) (*Proxy, error) {
 	}
 	if opts.Logger == nil {
 		opts.Logger = log.New(os.Stderr, "providerproxy: ", 0)
+	}
+	// the suites pick Record whenever the variable is set, whatever its value
+	if opts.Mode == Record && strings.EqualFold(os.Getenv(RecordEnv), "all") {
+		opts.Mode = Rerecord
 	}
 
 	st, err := newStore(opts.CassetteDir)
@@ -161,6 +185,7 @@ func New(opts Options) (*Proxy, error) {
 		ca:         ca,
 		caKey:      caKey,
 		certs:      map[string]*tls.Certificate{},
+		fresh:      map[string]bool{},
 		upstream: &http.Transport{
 			Proxy:                 nil, // go straight out; we are the proxy
 			ForceAttemptHTTP2:     false,
@@ -231,7 +256,7 @@ func (p *Proxy) Close() error {
 	defer cancel()
 	_ = p.srv.Shutdown(ctx)
 
-	if p.mode == Record {
+	if p.mode == Record || p.mode == Rerecord {
 		return p.store.flush()
 	}
 
@@ -331,7 +356,8 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 }
 
 // respond serves one request from the cassettes, recording it first when in
-// Record mode.
+// Record mode and it has no recording, or in Rerecord mode and this run has
+// not recorded it yet.
 func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 	if r.Body != nil {
 		defer func() { _ = r.Body.Close() }()
@@ -349,7 +375,7 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 	p.redactQuery(r)
 	k := key(r.Method, host, path, r.URL.Query())
 
-	if i, ok := p.store.lookup(k); ok {
+	if i, ok := p.store.lookup(k); ok && !p.stale(k) {
 		p.logger.Printf("replay %s -> %d", k, i.Status)
 		if p.mode == Verify {
 			live, err := p.fetch(r, host, k, path)
@@ -367,7 +393,7 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 		p.missMu.Lock()
 		p.misses = append(p.misses, k)
 		p.missMu.Unlock()
-		p.logger.Printf("REPLAY MISS %s (run `make record` to capture it)", k)
+		p.logger.Printf("REPLAY MISS %s (record it with %s=1, which records only what is missing)", k, RecordEnv)
 		http.Error(w, "providerproxy: no recording for "+k, http.StatusBadGateway)
 		return
 	}
@@ -521,16 +547,32 @@ func gunzip(b []byte) ([]byte, error) {
 	return io.ReadAll(zr)
 }
 
-// record fetches and stores. fetch alone is what Verify uses, so that a
-// verification run never writes to the cassettes.
+// record fetches and stores, replacing any recording of the same request.
+// fetch alone is what Verify uses, so that a verification run never writes to
+// the cassettes.
 func (p *Proxy) record(r *http.Request, host, k, path string) (*interaction, error) {
 	i, err := p.fetch(r, host, k, path)
 	if err != nil {
 		return nil, err
 	}
 	p.store.put(i.Host, i)
+	p.freshMu.Lock()
+	p.fresh[k] = true
+	p.freshMu.Unlock()
 
 	return i, nil
+}
+
+// stale reports whether a recorded request is to be called for again rather
+// than replayed: in Rerecord mode, until this run has recorded it.
+func (p *Proxy) stale(k string) bool {
+	if p.mode != Rerecord {
+		return false
+	}
+	p.freshMu.Lock()
+	defer p.freshMu.Unlock()
+
+	return !p.fresh[k]
 }
 
 func writeInteraction(w http.ResponseWriter, i *interaction) {

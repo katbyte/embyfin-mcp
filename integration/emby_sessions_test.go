@@ -60,11 +60,16 @@ func TestEmbySessions(t *testing.T) {
 	if _, err := embyc.PostSessionsByIdPlaying(ctx, own.Id, emby.PlayRequest{}, emby.PostSessionsByIdPlayingOperationOptions{PlayCommand: "PlayNow", ItemIds: []int64{int64(itemID)}}); err != nil {
 		t.Errorf("play: %v", err)
 	}
-	if _, err := embyc.PostSessionsByIdPlayingByCommand(ctx, own.Id, "Pause", emby.PlaystateRequest{}); err != nil {
+	if _, err := embyc.PostSessionsByIdPlayingByCommand(ctx, own.Id, "Pause", emby.PlaystateRequest{}, emby.PostSessionsByIdPlayingByCommandOperationOptions{}); err != nil {
 		t.Errorf("playstate Pause: %v", err)
 	}
-	if _, err := embyc.PostSessionsByIdPlayingByCommand(ctx, own.Id, "Seek", emby.PlaystateRequest{Command: "Seek", SeekPositionTicks: 10_000_000}); err != nil {
+	if _, err := embyc.PostSessionsByIdPlayingByCommand(ctx, own.Id, "Seek", emby.PlaystateRequest{Command: "Seek", SeekPositionTicks: 10_000_000}, emby.PostSessionsByIdPlayingByCommandOperationOptions{}); err != nil {
 		t.Errorf("playstate Seek: %v", err)
+	}
+	// the start: the body leaves a position of 0 out, so the query carries it
+	// (emby-playstate-seek-query), where Emby's own web client sends it
+	if _, err := embyc.PostSessionsByIdPlayingByCommand(ctx, own.Id, "Seek", emby.PlaystateRequest{Command: "Seek"}, emby.PostSessionsByIdPlayingByCommandOperationOptions{SeekPositionTicks: new(int64(0))}); err != nil {
+		t.Errorf("playstate Seek to the start: %v", err)
 	}
 	if _, err := embyc.PostSessionsByIdMessage(ctx, own.Id, emby.PostSessionsByIdMessageOperationOptions{Header: "SDK", Text: "hello from the integration suite", TimeoutMs: new(int64(1000))}); err != nil {
 		t.Errorf("message: %v", err)

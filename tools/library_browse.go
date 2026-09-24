@@ -186,7 +186,7 @@ func registerLibraryBrowseTools(r *registry) {
 		SavedSince      string   `json:"saved_since,omitempty"      jsonschema:"only items the server last SAVED at or after this time (RFC3339): the closest either server offers to 'what changed'. A file written over an existing path is re-read and saved, but so is an item somebody edited, and neither server can sort by it"`
 		Sort            string   `json:"sort,omitempty"             jsonschema:"name (default; relevance when there is a query), added, premiered, year, runtime, rating, played (needs a user) or random"`
 		Desc            bool     `json:"desc,omitempty"             jsonschema:"sort descending"`
-		Limit           int      `json:"limit,omitempty"            jsonschema:"page size, default 25"`
+		Limit           int      `json:"limit,omitempty"            jsonschema:"page size, default 25, max 1000"`
 		Offset          int      `json:"offset,omitempty"           jsonschema:"skip this many items, to page"`
 	}
 	type itemsOut struct {
@@ -198,10 +198,14 @@ func registerLibraryBrowseTools(r *registry) {
 		Name:        "library_items",
 		Description: "Find and browse library items: a title search, a structured filter, or both, sorted and paged: 'alien', 'every unwatched horror film, newest first', 'what is rated TV-MA', 'what came from A24', 'what has Sigourney Weaver in it'. Filters combine (an item must pass each one given); within one, any value matches. Returns trimmed summaries with metadata provider ids, runtime and stream quality facts.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in itemsIn) (*mcp.CallToolResult, itemsOut, error) {
+		// capped as library_episodes is: every summary carries its files'
+		// facts, so an uncapped limit was one call reading the whole library
+		// with its media sources, in one answer no client can hold
 		limit := in.Limit
 		if limit <= 0 {
 			limit = 25
 		}
+		limit = min(limit, episodePageMax)
 		offset := max(in.Offset, 0)
 
 		sort := strings.ToLower(strings.TrimSpace(in.Sort))

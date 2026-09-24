@@ -248,84 +248,100 @@ func TestShowResolve(t *testing.T) {
 	if msg := callErr(t, "show_resolve", map[string]any{"title": "   "}); !strings.Contains(msg, "title") {
 		t.Errorf("an empty title: %s", msg)
 	}
+
+	// a year the name does not carry: the right one is a match on the title
+	// and the year, a wrong one marks the match down
+	expanse := findItem(t, "Shows", "Series", "The Expanse")
+	for year, want := range map[int]struct {
+		score float64
+		on    string
+	}{2015: {1, "and year"}, 1999: {0.75, "but a different year"}} {
+		out := call(t, "show_resolve", map[string]any{"title": "The Expanse", "library": "Shows", "year": year})
+		cands := rows(t, out["candidates"], "candidates")
+		if num(t, out["parsed_year"], "parsed_year") != year || len(cands) == 0 || str(cands[0]["series_id"]) != expanse {
+			t.Errorf("The Expanse in %d resolved to %v (parsed year %v)", year, cands, out["parsed_year"])
+			continue
+		}
+		if decimal(t, cands[0]["score"], "score") != want.score || !strings.Contains(str(cands[0]["matched_on"]), want.on) {
+			t.Errorf("The Expanse in %d scored %v on %q, want %v on %q", year, cands[0]["score"], cands[0]["matched_on"], want.score, want.on)
+		}
+	}
+
+	// across libraries the name is both copies of Severance; a limit keeps
+	// the first
+	both := rows(t, call(t, "show_resolve", map[string]any{"title": "Severance"})["candidates"], "candidates")
+	if len(both) != 2 {
+		t.Fatalf("Severance across libraries = %v, want the tidy and the messy copy", both)
+	}
+	one := rows(t, call(t, "show_resolve", map[string]any{"title": "Severance", "limit": 1})["candidates"], "candidates")
+	if len(one) != 1 || str(one[0]["series_id"]) != str(both[0]["series_id"]) {
+		t.Errorf("limit 1 = %v, want the first of %v", one, both)
+	}
 }
 
 // A1 and A2, and C1 and C3: what a series is missing, and - when that cannot
 // be established - an answer that says so instead of an empty list.
 //
-// The fixture libraries run without a TMDB key in replay unless one is set,
-// and neither server records the provider's run out of the box, so what is
-// pinned unconditionally is the contract: supported is never true with a null
-// list, and never false with a list that reads as complete.
+// Neither server records a series' run out of the box (Emby 4.10 dropped the
+// import, stock Jellyfin needs the TheTVDB plugin), so the run comes from
+// TMDB, which the suite always has a key and recordings for. The clean
+// Severance holds the first two episodes of each of its two seasons; TMDB, as
+// recorded, lists nine and ten, and an empty third season.
 func TestShowMissing(t *testing.T) {
+	needsTMDBRecording(t, "GET api.themoviedb.org/3/tv/95396/season/2")
 	id := findItem(t, "Shows", "Series", "Severance")
 	out := call(t, "show_missing", map[string]any{"series_id": id})
-	if str(out["series"]) != "Severance" {
-		t.Errorf("series = %v", out["series"])
+	if str(out["series"]) != "Severance" || out["supported"] != true || str(out["source"]) != "tmdb" || str(out["reason"]) != "" {
+		t.Fatalf("show_missing Severance = series %v supported %v source %v reason %q", out["series"], out["supported"], out["source"], out["reason"])
+	}
+	var want []string
+	for _, season := range []struct{ number, from, to int }{{1, 3, 9}, {2, 3, 10}} {
+		for e := season.from; e <= season.to; e++ {
+			want = append(want, fmt.Sprintf("S%02dE%02d", season.number, e))
+		}
+	}
+	missing := func(out map[string]any) []string {
+		var got []string
+		for _, m := range rows(t, out["missing"], "missing") {
+			got = append(got, fmt.Sprintf("S%02dE%02d", num(t, m["season"], "season"), num(t, m["episode"], "episode")))
+		}
+		return got
+	}
+	if got := missing(out); !slices.Equal(got, want) {
+		t.Errorf("missing = %v, want %v", got, want)
+	}
+	if first := rows(t, out["missing"], "missing")[0]; str(first["name"]) != "In Perpetuity" || str(first["air_date"]) != "2022-02-24" {
+		t.Errorf("the first missing episode = %v, want TMDB's S01E03 In Perpetuity, aired 2022-02-24", first)
+	}
+	// nothing is skipped between the files it holds
+	if out["gaps_on_disk"] != nil || out["season_gaps_on_disk"] != nil {
+		t.Errorf("gaps on disk = %v and seasons %v, want none", out["gaps_on_disk"], out["season_gaps_on_disk"])
+	}
+	// every episode TMDB lists has aired, so asking for the unaired as well
+	// adds nothing: the empty third season has no episode to add
+	if got := missing(call(t, "show_missing", map[string]any{"series_id": id, "include_unaired": true})); !slices.Equal(got, want) {
+		t.Errorf("with include_unaired, missing = %v, want %v", got, want)
 	}
 
-	supported, ok := out["supported"].(bool)
-	if !ok {
-		t.Fatalf("supported is %T, want a bool: the field that tells complete from unknown", out["supported"])
-	}
-	missing, present := out["missing"]
-	if !present {
-		t.Fatal("the answer has no missing field")
-	}
-	switch {
-	case supported:
-		if missing == nil {
-			t.Error("supported with a null list: an answer that is both given and not")
-		}
-		for _, m := range rows(t, missing, "missing") {
-			if num(t, m["season"], "season") == 0 || num(t, m["episode"], "episode") == 0 {
-				t.Errorf("missing row = %v", m)
-			}
-			// nothing on disk may be reported missing
-			if num(t, m["season"], "season") == 1 && num(t, m["episode"], "episode") <= 2 {
-				t.Errorf("an episode on disk reported missing: %v", m)
-			}
-		}
-		if str(out["source"]) == "none" {
-			t.Errorf("supported from no source at all: %v", out)
-		}
-	default:
-		if missing != nil {
-			t.Errorf("unsupported with a list: %v - an empty list reads as complete", missing)
-		}
-		if str(out["reason"]) == "" {
-			t.Error("unsupported without a reason: nothing tells a caller what would make it knowable")
-		}
-		if str(out["source"]) != "none" {
-			t.Errorf("source = %v with nothing asked", out["source"])
-		}
-	}
-
-	// the gaps between the files are given either way, and are never the
-	// whole answer: Severance holds S01E01 and S01E02 with no gap between
-	if gaps := out["gaps_on_disk"]; gaps != nil {
-		for _, g := range rows(t, gaps, "gaps_on_disk") {
-			if num(t, g["season"], "season") == 1 && num(t, g["episode"], "episode") <= 2 {
-				t.Errorf("an episode on disk reported as a gap: %v", g)
-			}
-		}
-	}
-
-	// Star Trek The Next Generation holds E01 and E03 of season one with no
-	// provider at all, so the gap between its files is the fact that survives
+	// Star Trek The Next Generation holds E01 and E03 of season one and no
+	// ids at all: nothing can be asked, which the answer says rather than
+	// answering with an empty list, and the gap between its files is the fact
+	// that survives
 	tng := findItem(t, "Messy Shows", "Series", "Star Trek The Next Generation")
 	out = call(t, "show_missing", map[string]any{"series_id": tng})
-	if out["supported"] == true && out["missing"] == nil {
-		t.Error("supported with a null list")
+	if out["supported"] != false || out["missing"] != nil || str(out["source"]) != "none" || !strings.Contains(str(out["reason"]), "identify it first") {
+		t.Errorf("an unidentified series = supported %v missing %v source %v reason %q", out["supported"], out["missing"], out["source"], out["reason"])
 	}
-	var found bool
-	for _, g := range rows(t, out["gaps_on_disk"], "gaps_on_disk") {
-		if num(t, g["season"], "season") == 1 && num(t, g["episode"], "episode") == 2 {
-			found = true
-		}
+	gaps := rows(t, out["gaps_on_disk"], "gaps_on_disk")
+	if len(gaps) != 1 || num(t, gaps[0]["season"], "season") != 1 || num(t, gaps[0]["episode"], "episode") != 2 {
+		t.Errorf("gaps_on_disk = %v, want S01E02 alone", gaps)
 	}
-	if !found {
-		t.Errorf("S01E02 is skipped between the files on disk, and is not reported: %v", out)
+
+	// Zzyzx Paths skips its whole second season
+	paths := findItem(t, "Messy Shows", "Series", "Zzyzx Paths")
+	out = call(t, "show_missing", map[string]any{"series_id": paths})
+	if seasons := out["season_gaps_on_disk"]; fmt.Sprint(seasons) != "[2]" {
+		t.Errorf("season_gaps_on_disk = %v, want [2]", seasons)
 	}
 }
 

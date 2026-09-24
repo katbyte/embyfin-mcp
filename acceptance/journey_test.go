@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -201,19 +202,20 @@ func TestAuditsAreFixable(t *testing.T) {
 	})
 
 	t.Run("year mismatch", func(t *testing.T) {
-		if got := findings(t, call(t, "audit_file_path", messy)); !slices.Equal(got, []string{"Dune"}) {
+		years := map[string]any{"library": "Messy Movies", "checks": "year"}
+		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune"}) {
 			t.Fatalf("audit_file_path = %v, want [Dune]", got)
 		}
 		call(t, "item_edit", map[string]any{"ids": []any{dune}, "year": 2021})
 		t.Cleanup(func() { _, _ = invoke("item_edit", map[string]any{"ids": []any{dune}, "year": 1984}) })
-		if n := num(t, call(t, "audit_file_path", messy)["total_findings"], "total_findings"); n != 0 {
+		if n := num(t, call(t, "audit_file_path", years)["total_findings"], "total_findings"); n != 0 {
 			t.Errorf("after item_edit audit_file_path found %d", n)
 		}
 	})
 
 	t.Run("unmatched", func(t *testing.T) {
-		if got := findings(t, call(t, "audit_missing_metadata_provider", messy)); !slices.Equal(got, []string{"Princess Mononoke"}) {
-			t.Fatalf("audit_missing_metadata_provider = %v", got)
+		if got := findings(t, call(t, "audit_missing_metadata_provider", messy)); !slices.Equal(got, messyUnmatched) {
+			t.Fatalf("audit_missing_metadata_provider = %v, want %v", got, messyUnmatched)
 		}
 		// the messy library has its fetchers off, so the search runs without
 		// the item and the match still sets its ids
@@ -231,15 +233,16 @@ func TestAuditsAreFixable(t *testing.T) {
 		}
 		call(t, "item_identify_apply", map[string]any{"id": mononoke, "kind": "movie", "candidate": idx})
 		t.Cleanup(func() { updateItem(t, mononoke, map[string]any{"ProviderIds": map[string]any{}, "Overview": ""}) })
+		// the two discs are still unmatched; the film is not
 		ok := false
 		for range 20 {
-			if ok = num(t, call(t, "audit_missing_metadata_provider", messy)["total_findings"], "total_findings") == 0; ok {
+			if ok = !slices.Contains(findings(t, call(t, "audit_missing_metadata_provider", messy)), "Princess Mononoke"); ok {
 				break
 			}
 			time.Sleep(500 * time.Millisecond)
 		}
-		if !ok {
-			t.Error("after item_identify_apply Princess Mononoke is still unmatched")
+		if got := findings(t, call(t, "audit_missing_metadata_provider", messy)); !ok || len(got) != len(messyUnmatched)-1 {
+			t.Errorf("after item_identify_apply the unmatched are %v, want the two discs alone", got)
 		}
 	})
 
@@ -359,9 +362,13 @@ func TestPlaybackIsRecorded(t *testing.T) {
 }
 
 // audit_all's counts are the audits' own: each row equals what the audit it
-// names reports for the same library.
+// names reports for the same library. A row compared only where both say 0
+// proves nothing, so every audit must also be compared somewhere it finds
+// something, which the lasting defects in the messy libraries (and Breaking
+// Bad's twice-titled episode in Shows) make possible.
 func TestAuditAllMatchesEachAudit(t *testing.T) {
-	for _, library := range []string{"Messy Movies", "Messy Shows", ""} {
+	found := map[string]bool{}
+	for _, library := range []string{"Messy Movies", "Messy Shows", "Shows", ""} {
 		args := map[string]any{}
 		if library != "" {
 			args["library"] = library
@@ -383,6 +390,21 @@ func TestAuditAllMatchesEachAudit(t *testing.T) {
 			if num(t, count, name) != num(t, row["findings"], "findings") || num(t, scanned, name) != num(t, row["items_scanned"], "items_scanned") {
 				t.Errorf("%q %s: audit_all counted %v of %v, the audit %v of %v", library, name, row["findings"], row["items_scanned"], count, scanned)
 			}
+			found[name] = found[name] || num(t, row["findings"], "findings") > 0
+		}
+	}
+
+	// the one with nothing to find in any fixture, and where it is compared
+	// against something instead
+	never := map[string]bool{
+		// the fixtures leave nothing outside a library; TestOrphans compares
+		// the row against a removed library's leftovers on Jellyfin, and
+		// Emby 4.10 leaves none behind to compare
+		"audit_orphans": true,
+	}
+	for name, nonZero := range found {
+		if !nonZero && !never[name] {
+			t.Errorf("%s found nothing in any library compared, so its row was never checked against a count", name)
 		}
 	}
 }
@@ -699,10 +721,34 @@ func TestResolveByIDAndName(t *testing.T) {
 	if byName := call(t, "collection_get", map[string]any{"collection": "Zzyzx Twin"}); fmt.Sprint(names(t, byName["items"], "items")) != fmt.Sprint([]string{"Alien"}) {
 		t.Errorf("collection_get by name = %v", byName["items"])
 	}
+	// a collection with nothing in it: Emby cannot make one, and the tool says
+	// so; Jellyfin makes it, and it lists, holding nothing
 	if !isJellyfin() {
 		if msg := callErr(t, "collection_create", map[string]any{"name": "Zzyzx Empty"}); !strings.Contains(msg, "empty collection") {
 			t.Errorf("an empty collection on Emby: %s", msg)
 		}
+		return
+	}
+	empty := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Empty"})["id"])
+	// deleted at once, while the refresh Jellyfin starts on a new collection
+	// is still running: collection_delete answers only once it stays gone
+	t.Cleanup(func() {
+		if _, err := invoke("collection_delete", map[string]any{"collection": empty}); err != nil {
+			t.Errorf("deleting the empty collection: %v", err)
+		}
+		if _, err := invoke("collection_get", map[string]any{"collection": empty}); err == nil {
+			t.Error("the empty collection is back after collection_delete answered")
+		}
+	})
+	if got := call(t, "collection_get", map[string]any{"collection": empty}); len(rows(t, got["items"], "items")) != 0 {
+		t.Errorf("the empty collection holds %v", got["items"])
+	}
+	listed := false
+	for _, c := range rows(t, call(t, "collection_list", nil)["collections"], "collections") {
+		listed = listed || str(c["id"]) == empty
+	}
+	if !listed {
+		t.Error("the empty collection is not listed")
 	}
 }
 
@@ -722,7 +768,14 @@ func holds(check func() bool) bool {
 
 // eventually reports whether check comes true within about twenty seconds.
 func eventually(check func() bool) bool {
-	for range 40 {
+	return eventuallyWithin(20*time.Second, check)
+}
+
+// eventuallyWithin is eventually with its own patience, for work a server
+// queues behind whatever else it is doing: a refresh that asks the providers
+// can wait on a scan's.
+func eventuallyWithin(patience time.Duration, check func() bool) bool {
+	for range int(patience / (500 * time.Millisecond)) {
 		if check() {
 			return true
 		}
@@ -781,7 +834,7 @@ func TestEditsSurviveARefreshAndAScan(t *testing.T) {
 				return
 			}
 			call(t, "item_refresh", map[string]any{"id": id, "replace_all": true})
-			if !eventually(func() bool {
+			if !eventuallyWithin(2*time.Minute, func() bool {
 				got := call(t, "item_get", map[string]any{"id": id})
 				return str(got["overview"]) != overview && str(got["overview"]) != "" && !slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept")
 			}) {
@@ -939,7 +992,19 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 	alienCopies := func() int {
 		return len(rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348"})["items"], "items"))
 	}
+	// the messy Aliens as the server shows them: Jellyfin as separate
+	// entries, which audit_duplicates groups; Emby as one film's versions,
+	// merging every copy that shares the TMDB id
 	alienGroup := func() int {
+		if !isJellyfin() {
+			for _, f := range rowsOf(call(t, "audit_multiple_versions", map[string]any{"library": "Messy Movies"})["findings"]) {
+				if title(str(f["name"])) == "Alien" {
+					n, _ := strconv.Atoi(strings.SplitN(str(f["detail"]), " ", 2)[0])
+					return n
+				}
+			}
+			return 0
+		}
 		groups, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})["groups"].([]any)
 		for _, g := range groups {
 			if group := rowsOf(g); len(group) > 0 && str(group[0]["name"]) == "Alien" {
@@ -1113,9 +1178,10 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 	t.Run("identify re-matches a wrong edition", func(t *testing.T) {
 		dune := findItem(t, "Movies", "Movie", "Dune")
 		before := fullItem(t, dune)
-		t.Cleanup(func() {
-			updateItem(t, dune, map[string]any{"ProviderIds": before["ProviderIds"], "ProductionYear": before["ProductionYear"], "Overview": before["Overview"], "PremiereDate": before["PremiereDate"]})
-		})
+		// the whole item goes back: the re-match replaces what the nfo gave
+		// the film (its people, its genres) with TMDB's, and a later run's
+		// item_get would read TMDB's cast where the nfo put the director
+		t.Cleanup(func() { updateItem(t, dune, before) })
 		// matched to David Lynch's film, which the messy Dune's nfo names too
 		updateItem(t, dune, map[string]any{"ProviderIds": map[string]any{"Tmdb": "841", "Imdb": "tt0087182"}, "ProductionYear": 1984})
 		counts := auditCounts(t, nil)
@@ -1169,19 +1235,39 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 		if idx < 0 {
 			t.Fatal("the 2021 Dune is not a candidate")
 		}
-		args := map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021}
-		if isJellyfin() {
-			// the ids change and nothing is fetched, which the answer says
-			out := call(t, "item_identify_apply", args)
-			if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" || !strings.Contains(str(out["note"]), "metadata fetchers off") {
-				t.Errorf("item_identify_apply = %v", out)
-			}
-		} else if msg := callErr(t, "item_identify_apply", args); !strings.Contains(msg, "tmdb id is 841, not 438631") || !strings.Contains(msg, "nfo") {
-			// the nfo names Lynch's film, and Emby keeps what it says
-			t.Errorf("item_identify_apply over an nfo: %s", msg)
+		// the ids are set by a plain edit, on both servers: they change and
+		// nothing is fetched, which the answer says
+		out := call(t, "item_identify_apply", map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021})
+		note := str(out["note"])
+		if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" || !strings.Contains(note, "metadata fetchers off") {
+			t.Errorf("item_identify_apply = %v", out)
 		}
 		if msg := callErr(t, "item_refresh", map[string]any{"id": dune, "replace_all": true}); !strings.Contains(msg, "metadata fetchers off") {
 			t.Errorf("replace_all without fetchers: %s", msg)
+		}
+		tmdb := func() string {
+			ids, _ := call(t, "item_get", map[string]any{"id": dune})["metadata_provider_ids"].(map[string]any)
+			return str(ids["tmdb"])
+		}
+		if isJellyfin() {
+			// Jellyfin saves the new ids to the nfo, so a refresh keeps them
+			if strings.Contains(note, "does not save nfo") {
+				t.Errorf("the note warns of an nfo on a library that saves them: %q", note)
+			}
+			call(t, "item_refresh", map[string]any{"id": dune})
+			if !holds(func() bool { return tmdb() == "438631" }) {
+				t.Errorf("a refresh after the apply left tmdb %s", tmdb())
+			}
+			return
+		}
+		// Emby's messy library saves no nfo, and the one beside the file names
+		// Lynch's film: the note says so, and a refresh puts it back
+		if !strings.Contains(note, "does not save nfo files") {
+			t.Errorf("the note says nothing of the nfo a refresh reads: %q", note)
+		}
+		call(t, "item_refresh", map[string]any{"id": dune})
+		if !eventually(func() bool { return tmdb() == "841" }) {
+			t.Errorf("after a refresh the nfo's id did not come back: tmdb %s", tmdb())
 		}
 	})
 }

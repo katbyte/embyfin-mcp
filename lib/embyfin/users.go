@@ -70,9 +70,10 @@ func (c *Client) Users(ctx context.Context) ([]User, error) {
 		if err != nil {
 			return nil, err
 		}
-		users := make([]User, 0, len(res.Model.Items))
-		for i := range res.Model.Items {
-			users = append(users, userFromEmby(&res.Model.Items[i]))
+		listed := orEmpty(res.Model).Items
+		users := make([]User, 0, len(listed))
+		for i := range listed {
+			users = append(users, userFromEmby(&listed[i]))
 		}
 
 		return users, nil
@@ -192,7 +193,7 @@ func (c *Client) NextUp(ctx context.Context, userID string, limit int) ([]Item, 
 			return nil, err
 		}
 
-		return itemsFromEmby(res.Model.Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), nil
 	}
 
 	res, err := c.jf.GetNextUp(ctx, jf.GetNextUpOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault), Limit: nz(limit)})
@@ -218,7 +219,7 @@ func (c *Client) Resume(ctx context.Context, userID string, limit int) ([]Item, 
 			return nil, err
 		}
 
-		return slices.DeleteFunc(itemsFromEmby(res.Model.Items), func(it Item) bool {
+		return slices.DeleteFunc(itemsFromEmby(orEmpty(res.Model).Items), func(it Item) bool {
 			return it.UserData == nil || it.UserData.PlaybackPositionTicks <= 0
 		}), nil
 	}

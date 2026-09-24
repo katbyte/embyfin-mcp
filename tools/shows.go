@@ -131,10 +131,11 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 	out := missingOut{Series: series.Name, Source: sourceNone}
 	onDisk := map[int][]int{}
 	held := map[[2]int]bool{}
-	var known []missingRow
-	for _, e := range episodes {
+	var records []*embyfin.Item
+	for i := range episodes {
+		e := &episodes[i]
 		if !e.HasFile() {
-			known = append(known, missingRow{Season: e.ParentIndexNumber, Episode: e.IndexNumber, Name: e.Name, AirDate: e.PremiereDate})
+			records = append(records, e)
 			continue
 		}
 		last := max(e.IndexNumberEnd, e.IndexNumber)
@@ -157,7 +158,23 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 		out.Gaps = append(out.Gaps, missingRow{Season: h.Season, Episode: h.Episode})
 	}
 
-	if len(known) > 0 {
+	// a server that keeps records of the run answers from them, by the same
+	// rules the provider's run is read by: an episode another file already
+	// holds (one file covering E01-E02 beside a record for E02) is not
+	// missing, and one not yet broadcast - dated in the future, or not dated
+	// at all (see recordAired) - is only listed when asked for
+	if len(records) > 0 {
+		now := time.Now()
+		known := []missingRow{}
+		for _, e := range records {
+			if held[[2]int{e.ParentIndexNumber, e.IndexNumber}] {
+				continue
+			}
+			if !unaired && !recordAired(e, now) {
+				continue
+			}
+			known = append(known, missingRow{Season: e.ParentIndexNumber, Episode: e.IndexNumber, Name: e.Name, AirDate: e.PremiereDate})
+		}
 		out.Supported, out.Source = true, sourceServer
 		out.Missing = new(sortMissing(known))
 
@@ -226,6 +243,31 @@ func missingFromGuide(ctx context.Context, guide seriesGuide, series *embyfin.It
 	return out
 }
 
+// seasonOf is the season an item belongs to, for the summaries that give one:
+// a season's own number, or an episode's season. 0 is the specials, so it has
+// to be said rather than left out, and a film or a series has no season at all
+// - which is what nil says, rather than a 0 that would read as the specials.
+func seasonOf(it *embyfin.Item) *int {
+	switch it.Type {
+	case "Season":
+		return new(it.IndexNumber)
+	case typeEpisode:
+		return new(it.ParentIndexNumber)
+	}
+
+	return nil
+}
+
+// episodeOf is an item's own number, except on a season, whose number is its
+// season's and is given as that instead of as an episode.
+func episodeOf(it *embyfin.Item) int {
+	if it.Type == "Season" {
+		return 0
+	}
+
+	return it.IndexNumber
+}
+
 // resolveSeriesMatch finds the series a tool was pointed at: by id, or by
 // name when the caller has only that, optionally within one library. A name
 // that matches more than one series is refused with the matches rather than
@@ -277,14 +319,19 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 
 		return client.ItemByID(ctx, id)
 	}
+	where := ""
+	if folder != nil {
+		where = " in " + folder.Name
+	}
 	switch {
 	case len(rows) == 0 && len(seen) == 1:
-		// nothing scored, but the library holds exactly one thing answering
-		// to that search: a partial name, and no other reading of it
-		return &seen[0], &seriesCandidate{
-			SeriesID: seen[0].ID, Name: seen[0].Name, Year: seen[0].ProductionYear,
-			MatchedOn: "the only series the search found - the title itself did not match",
-		}, nil
+		// nothing scored, and the search found exactly one thing. That used to
+		// be the answer, and it is the rule below broken at its weakest: the
+		// servers' search matches inside words, so "Andor" in a library
+		// without it finds Pandora, alone, and a lone hit whose title matched
+		// nothing is not a match at all
+		return nil, nil, fmt.Errorf("%q matches nothing%s: the search found only %s (%d) id %s at %s, and its title did not match the name - give series_id if it is the one you meant",
+			name, where, seen[0].Name, seen[0].ProductionYear, seen[0].ID, seen[0].Path)
 	case len(rows) == 0:
 		return nil, nil, fmt.Errorf("no series named %q", name)
 	}
@@ -298,8 +345,7 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 	// different show entirely - and answering with it silently was worse than
 	// refusing, because the caller went on to ask what that series was
 	// missing and believed the answer.
-	decisive := len(rows) == 1 || rows[0].Score-rows[1].Score >= seriesMargin
-	if rows[0].Score >= seriesConfident && decisive {
+	if rows[0].Score >= seriesConfident && clearWinner(rows) {
 		item, err := byID(rows[0].SeriesID)
 		if err != nil {
 			return nil, nil, err
@@ -313,10 +359,6 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 		return item, &match, nil
 	}
 
-	where := ""
-	if folder != nil {
-		where = " in " + folder.Name
-	}
 	// a loose name can match most of a library, and the refusal is read by a
 	// caller working through a batch: the first few are what it needs to
 	// choose between, and the long tail is pure cost. A hundred matches
@@ -344,7 +386,19 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 const (
 	seriesConfident = 0.9
 	seriesMargin    = 0.02
+	// scoreTolerance is how far apart two scores can be and still be the
+	// same number. Scores are hundredths, and the difference of two of them
+	// is not: 0.95-0.93 comes out a hair under 0.02 and 0.92-0.90 a hair
+	// over, so the same margin was decisive or not depending on the digits.
+	scoreTolerance = 1e-9
 )
+
+// clearWinner says whether the best candidate stands clear of the next one
+// by the margin. A single candidate does by definition; whether it scored
+// enough to act on is the caller's other question.
+func clearWinner(rows []seriesCandidate) bool {
+	return len(rows) == 1 || rows[0].Score-rows[1].Score >= seriesMargin-scoreTolerance
+}
 
 // ambiguousShown is how many of the matches a refusal spells out.
 const ambiguousShown = 5
@@ -361,9 +415,11 @@ func registerShowTools(r *registry) {
 		SeriesID string `json:"series_id" jsonschema:"the series item id (find it with library_items types=Series)"`
 	}
 	type seasonRow struct {
-		ID     string `json:"id"`
-		Name   string `json:"name"`
-		Season int    `json:"season,omitempty"`
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		// always given: 0 is the specials, and an omitted 0 left the one
+		// season a caller most needs to tell apart with no number at all
+		Season int `json:"season" jsonschema:"the season's number, 0 for the specials"`
 	}
 	type seasonsOut struct {
 		Series  string      `json:"series"`

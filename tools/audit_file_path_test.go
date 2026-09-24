@@ -162,3 +162,85 @@ func TestAuditQualityCountsUnprobed(t *testing.T) {
 		t.Errorf("findings = %v", rows)
 	}
 }
+
+// A file name says which series it is from only when it separates a title
+// from an episode marker. A name with no marker - an episode number and a
+// title, a bare "Episode 1", a fansub's absolute number - is not a claim
+// about the series, and reading its words as one reported every such file
+// as from another show. A marked name for another show still is.
+func TestAuditFilePathJudgesTheSeriesOnlyByAMarkedName(t *testing.T) {
+	t.Parallel()
+
+	s := &fakeSeries{id: "s1", name: "Zzyzx Show", episodes: []ep{
+		{season: 1, number: 1, name: "Pilot", path: "/media/shows/Zzyzx Show/Season 01/01 - Pilot.mkv"},
+		{season: 1, number: 2, name: "Second", path: "/media/shows/Zzyzx Show/Season 01/Episode 2.mkv"},
+		{season: 1, number: 3, name: "Third", path: "/media/shows/Zzyzx Show/Season 01/[Grp] Zzyzx Show - 03 [1080p].mkv"},
+		{season: 1, number: 4, name: "Cancer Man", path: "/media/shows/Zzyzx Show/Season 01/Breaking Bad S01E04.mkv"},
+	}}
+	out := mustCall(t, session(t, tvServer(t, s), Options{}), "audit_file_path", map[string]any{"library": "Shows", "checks": "series"})
+	rows := objects(t, out["findings"], "findings")
+	if len(rows) != 1 || !strings.Contains(text(rows[0]["path"]), "Breaking Bad S01E04") {
+		t.Fatalf("findings = %v, want only the file named for another series", rows)
+	}
+	if ps := texts(rows[0]["problems"]); len(ps) != 1 || !strings.Contains(ps[0], `the file is named for "Breaking Bad", the server holds it under "Zzyzx Show"`) {
+		t.Errorf("problems = %v", ps)
+	}
+}
+
+// A server on Windows answers with backslashes, whatever the machine this
+// runs on splits paths by: the file name is read the same either way, or
+// every film and episode on it reports a folder path as its title.
+func TestAuditFilePathReadsWindowsServerPaths(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"Items":[{"Name":"Media","ItemId":"lib","Locations":["D:\\Media"]}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"TotalRecordCount": 4, "Items": []map[string]any{
+			{"Id": "1", "Name": "Heat", "Type": "Movie", "ProductionYear": 1995, "Path": `D:\Movies\Heat (1995)\Heat (1995).mkv`},
+			{"Id": "2", "Name": "Zzyzx Show", "Type": "Series", "ProductionYear": 2020, "Path": `D:\TV\Zzyzx Show (2020)`},
+			{
+				"Id": "3", "Name": "Pilot", "Type": "Episode", "SeriesName": "Zzyzx Show", "SeriesId": "2", "ParentIndexNumber": 1, "IndexNumber": 1,
+				"Path": `D:\TV\Zzyzx Show (2020)\Season 01\Zzyzx Show S01E01 - Pilot.mkv`,
+			},
+			// and the real mismatch still shows through
+			{
+				"Id": "4", "Name": "Second", "Type": "Episode", "SeriesName": "Zzyzx Show", "SeriesId": "2", "ParentIndexNumber": 1, "IndexNumber": 2,
+				"Path": `D:\TV\Zzyzx Show (2020)\Season 01\Zzyzx Show S01E03 - Second.mkv`,
+			},
+		}})
+	})
+	out := mustCall(t, session(t, f, Options{}), "audit_file_path", map[string]any{"library": "Media"})
+	rows := objects(t, out["findings"], "findings")
+	if len(rows) != 1 || text(rows[0]["id"]) != "4" {
+		t.Fatalf("findings = %v, want only the episode numbered differently", rows)
+	}
+	if ps := texts(rows[0]["problems"]); len(ps) != 1 || !strings.HasPrefix(ps[0], "episode: the file says E03, the server holds E02") {
+		t.Errorf("problems = %v", ps)
+	}
+}
+
+// A disc's own files name nothing, so a film held as one is named by the
+// folder above them: a loose DVD's VTS_01_1.VOB read as the title "VTS 01 1
+// VOB" and every one was a mismatch.
+func TestTitleFromPathReadsADiscByItsFolder(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"/m/Zzyzx Road (1999)/VTS_01_1.VOB",
+		"/m/Zzyzx Road (1999)/VIDEO_TS/VTS_01_1.VOB",
+		"/m/Zzyzx Road (1999)/00000.m2ts",
+		"/m/Zzyzx Road (1999)/BDMV/STREAM/00001.m2ts",
+		`D:\Films\Zzyzx Road (1999)\VIDEO_TS\VTS_02_1.vob`,
+	} {
+		if claimed, score := titleFromPath(path, "Zzyzx Road"); claimed != "Zzyzx Road" || score < seriesConfident {
+			t.Errorf("%s claims %q (%.2f), want the folder's Zzyzx Road", path, claimed, score)
+		}
+	}
+	// a film named like a number is still its own title
+	if claimed, _ := titleFromPath("/m/1917 (2019)/1917 (2019).mkv", "1917"); claimed != "1917" {
+		t.Errorf("1917 claims %q", claimed)
+	}
+}

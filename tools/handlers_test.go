@@ -85,6 +85,19 @@ func (f *fakeServer) requests(path string) []request {
 func session(t *testing.T, f *fakeServer, opts Options) *mcp.ClientSession {
 	t.Helper()
 
+	srv := mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
+	opts.Toolsets = []string{"all"}
+	if _, err := RegisterAll(srv, f.client(t), opts); err != nil {
+		t.Fatal(err)
+	}
+
+	return connect(t, srv)
+}
+
+// client is an embyfin client for the fake, Emby or Jellyfin as it is set.
+func (f *fakeServer) client(t *testing.T) *embyfin.Client {
+	t.Helper()
+
 	backend := embyfin.Emby
 	if f.jellyfin {
 		backend = embyfin.Jellyfin
@@ -93,11 +106,28 @@ func session(t *testing.T, f *fakeServer, opts Options) *mcp.ClientSession {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
-	opts.Toolsets = []string{"all"}
-	if _, err := RegisterAll(srv, client, opts); err != nil {
-		t.Fatal(err)
+
+	return client
+}
+
+// hostRegistry registers the tools queued on a registry the test built by
+// hand, for what RegisterAll does not reach: a tool of the test's own, or a
+// shorter wait than a real server needs.
+func hostRegistry(t *testing.T, r *registry) *mcp.ClientSession {
+	t.Helper()
+
+	r.server = mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
+	for _, p := range r.pending {
+		p.register()
 	}
+
+	return connect(t, r.server)
+}
+
+// connect opens an in-memory MCP client on a server.
+func connect(t *testing.T, srv *mcp.Server) *mcp.ClientSession {
+	t.Helper()
+
 	st, ct := mcp.NewInMemoryTransports()
 	ctx := context.Background()
 	if _, err := srv.Connect(ctx, st, nil); err != nil {

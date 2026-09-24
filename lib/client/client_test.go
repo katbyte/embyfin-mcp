@@ -2,10 +2,13 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -374,5 +377,233 @@ func TestTMDBToken(t *testing.T) {
 		if bearer != tc.bearer || key != tc.key || query != "alien" {
 			t.Errorf("%s: bearer %q, api_key %q, query %q", tc.token[:6], bearer, key, query)
 		}
+	}
+}
+
+// failingTransport fails every request the way a timeout does, before any
+// answer.
+type failingTransport struct{}
+
+func (failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("i/o timeout")
+}
+
+// A request that never gets an answer fails with the URL it was sending to,
+// and the older TMDB key rides in that URL's query: the error a tool answers
+// with must not carry it, nor any other credential a query can hold.
+func TestTransportErrorsHideCredentials(t *testing.T) {
+	t.Parallel()
+
+	const secret = "0123456789abcdef0123456789abcdef"
+	c, err := New("https://api.themoviedb.org", TMDBToken(secret))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.HTTPClient = &http.Client{Transport: failingTransport{}}
+	opts := RequestOptions{
+		HTTPMethod: http.MethodGet, Path: "/3/search/movie", ExpectedStatusCodes: []int{http.StatusOK},
+		OptionsObject: options{query: map[string][]string{
+			"query": {"alien"}, "apikey": {secret}, "API_TOKEN": {secret}, "access_token": {secret}, "token": {secret}, "X-Emby-Token": {secret},
+		}},
+	}
+	_, err = execute(t, c, opts, nil)
+	if err == nil {
+		t.Fatal("a request the transport failed succeeded")
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Errorf("the error carries the key: %v", err)
+	}
+	// what is left says where the request went and why it failed
+	for _, want := range []string{"api.themoviedb.org/3/search/movie", "query=alien", "api_key=REDACTED", "i/o timeout"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %v, want it to say %q", err, want)
+		}
+	}
+	if _, ok := errors.AsType[*url.Error](err); !ok {
+		t.Errorf("error = %T, want it still a *url.Error", err)
+	}
+}
+
+// Only a credential's value goes: the parameters around it, their order, a
+// fragment, and a URL with nothing to hide stay as they were sent.
+func TestRedactURL(t *testing.T) {
+	t.Parallel()
+
+	for raw, want := range map[string]string{ //nolint:gosec // invented credentials, the point of the test
+		"https://api.themoviedb.org/3/movie/348?api_key=s3cret&language=en": "https://api.themoviedb.org/3/movie/348?api_key=REDACTED&language=en",
+		"http://nas:8096/Items?Ids=1&X-Emby-Token=s3cret#top":               "http://nas:8096/Items?Ids=1&X-Emby-Token=REDACTED#top",
+		"http://kt:s3cret@nas:8096/Items?api%5Fkey=s3cret":                  "http://kt:xxxxx@nas:8096/Items?api%5Fkey=REDACTED",
+		"http://nas:8096/Items?Fields=Path&keyword=token":                   "http://nas:8096/Items?Fields=Path&keyword=token",
+		"http://nas:8096/System/Info":                                       "http://nas:8096/System/Info",
+	} {
+		if got := redactURL(raw); got != want {
+			t.Errorf("redactURL(%s) = %s, want %s", raw, got, want)
+		}
+	}
+}
+
+// startServer starts h over plain http or TLS.
+func startServer(t *testing.T, tls bool, h http.HandlerFunc) *httptest.Server {
+	t.Helper()
+
+	srv := httptest.NewUnstartedServer(h)
+	if tls {
+		srv.StartTLS()
+	} else {
+		srv.Start()
+	}
+	t.Cleanup(srv.Close)
+
+	return srv
+}
+
+// The Emby token travels in X-Emby-Token and X-Emby-Authorization, which Go
+// copies onto a redirect to another host (it drops only Authorization and
+// cookies, and keeps even those for a subdomain). A redirect off the server's
+// host, or from https down to http, must reach its target with none of the
+// credentials this package sets; one that stays on the host keeps them.
+func TestRedirectsKeepCredentialsOnTheServer(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		auth Authorizer
+		// fromTLS and toTLS say which ends speak https; otherHost sends the
+		// redirect to the same listener under another name
+		fromTLS, toTLS, otherHost bool
+		kept                      bool
+	}{
+		{name: "emby to another host", auth: EmbyToken(testToken), otherHost: true},
+		{name: "jellyfin to another host", auth: JellyfinToken(testToken), otherHost: true},
+		{name: "https down to http", auth: EmbyToken(testToken), fromTLS: true},
+		{name: "the same host", auth: EmbyToken(testToken), kept: true},
+		{name: "http up to https on the same host", auth: EmbyToken(testToken), toTLS: true, kept: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got http.Header
+			to := startServer(t, tc.toTLS, func(w http.ResponseWriter, r *http.Request) {
+				got = r.Header.Clone()
+				w.WriteHeader(http.StatusOK)
+			})
+			location := to.URL + "/web/index.html"
+			if tc.otherHost {
+				location = strings.Replace(location, "127.0.0.1", "localhost", 1)
+			}
+			from := startServer(t, tc.fromTLS, func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, location, http.StatusFound)
+			})
+			// a transport that trusts whichever end speaks https
+			transport := http.DefaultTransport
+			if tc.fromTLS {
+				transport = from.Client().Transport
+			} else if tc.toTLS {
+				transport = to.Client().Transport
+			}
+
+			// the client New builds, and one a caller swapped in whole
+			// without a redirect policy of its own
+			for _, swapped := range []bool{false, true} {
+				got = nil
+				c, err := New(from.URL, tc.auth)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if swapped {
+					c.HTTPClient = &http.Client{Transport: transport}
+				} else {
+					c.HTTPClient.Transport = transport
+				}
+				if _, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodGet, Path: "/System/Info", ExpectedStatusCodes: []int{http.StatusOK}}, nil); err != nil {
+					t.Fatal(err)
+				}
+				if got == nil {
+					t.Fatal("the redirect never reached its target")
+				}
+				for _, h := range []string{"X-Emby-Token", "X-Emby-Authorization", "Authorization"} {
+					want := ""
+					if tc.kept {
+						want = authorized(tc.auth).Get(h)
+					}
+					if v := got.Get(h); v != want {
+						t.Errorf("swapped client %v: the target saw %s = %q, want %q", swapped, h, v, want)
+					}
+				}
+				if got.Get("User-Agent") != UserAgent {
+					t.Errorf("swapped client %v: the redirect lost the other headers: %v", swapped, got)
+				}
+			}
+		})
+	}
+}
+
+// authorized is the headers an authorizer sets on a request.
+func authorized(auth Authorizer) http.Header {
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://nas", http.NoBody)
+	auth.Authorize(req)
+
+	return req.Header
+}
+
+// closeRecorder is a response body that says whether it was closed.
+type closeRecorder struct {
+	io.Reader
+	closed bool
+}
+
+func (c *closeRecorder) Close() error {
+	c.closed = true
+	return nil
+}
+
+// bodyTransport answers every request with one status and a recorded body.
+type bodyTransport struct {
+	status int
+	body   *closeRecorder
+}
+
+func (b bodyTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	return &http.Response{StatusCode: b.status, Header: http.Header{}, Body: b.body, Request: r}, nil
+}
+
+// A buffered answer's connection body is closed once it has been read, on a
+// success and on a status error alike; otherwise a body past the size cap
+// holds its connection open.
+func TestExecuteClosesTheConnectionBody(t *testing.T) {
+	t.Parallel()
+
+	for _, status := range []int{http.StatusOK, http.StatusInternalServerError} {
+		body := &closeRecorder{Reader: strings.NewReader(`{"Id":"1"}`)}
+		c, err := New("http://nas:8096", EmbyToken(testToken))
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.HTTPClient = &http.Client{Transport: bodyTransport{status: status, body: body}}
+		resp, err := execute(t, c, RequestOptions{HTTPMethod: http.MethodGet, Path: "/Items", ExpectedStatusCodes: []int{http.StatusOK}}, nil)
+		if (err != nil) != (status != http.StatusOK) {
+			t.Fatalf("%d: err = %v", status, err)
+		}
+		if !body.closed {
+			t.Errorf("%d: the connection's body was left open", status)
+		}
+		// and the buffered copy still reads
+		if b, _ := io.ReadAll(resp.Body); string(b) != `{"Id":"1"}` {
+			t.Errorf("%d: body = %q", status, b)
+		}
+	}
+}
+
+// Emby answers a lookup that finds nothing with a 204, which the typed client
+// hands back as a nil model; the neutral layer turns that into ErrNoResult,
+// which reads as not found the way a 404 does.
+func TestNoResultIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	if err := fmt.Errorf("no item with id 7: %w", ErrNoResult); !IsNotFound(err) {
+		t.Errorf("IsNotFound(%v) = false", err)
+	}
+	if IsNotFound(errors.New("no item with id 7")) {
+		t.Error("an unrelated error reads as not found")
 	}
 }

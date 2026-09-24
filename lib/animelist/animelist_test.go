@@ -2,12 +2,14 @@ package animelist
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -188,5 +190,138 @@ func TestLoaderKeepsTheListForADay(t *testing.T) {
 	// and with no old copy, the failure is the answer
 	if _, err := NewLoader(srv.URL, nil).Load(ctx); err == nil || !strings.Contains(err.Error(), "502") {
 		t.Errorf("a failed first fetch = %v", err)
+	}
+}
+
+// clock is a time a test moves on by hand, safe to read from any goroutine.
+type clock struct {
+	mu sync.Mutex
+	at time.Time
+}
+
+func (c *clock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.at
+}
+
+func (c *clock) add(d time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.at = c.at.Add(d)
+}
+
+// A read that fails is remembered: until a retry is due, calls answer the
+// list read before at once rather than each waiting on the source again (a
+// minute apiece when it hangs).
+func TestLoaderBacksOffAfterAFailedRead(t *testing.T) {
+	t.Parallel()
+
+	var fetches atomic.Int32
+	var failing atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fetches.Add(1)
+		if failing.Load() {
+			http.Error(w, "down", http.StatusBadGateway)
+
+			return
+		}
+		_, _ = w.Write([]byte(sample))
+	}))
+	t.Cleanup(srv.Close)
+
+	clk := &clock{at: time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)}
+	l := NewLoader(srv.URL, nil)
+	l.now = clk.now
+	ctx := context.Background()
+	load := func(wantFetches int32) {
+		t.Helper()
+		if list, err := l.Load(ctx); err != nil || list.Len() != 6 {
+			t.Fatalf("load: %v", err)
+		}
+		if n := fetches.Load(); n != wantFetches {
+			t.Errorf("fetched %d times, want %d", n, wantFetches)
+		}
+	}
+
+	load(1)
+	// a day on, the source is down: one try, then the old list meanwhile
+	clk.add(25 * time.Hour)
+	failing.Store(true)
+	load(2)
+	load(2)
+	clk.add(30 * time.Minute)
+	load(2)
+	// the retry comes due, fails again, and waits again
+	clk.add(31 * time.Minute)
+	load(3)
+	load(3)
+	// the source back, the next retry reads the new list, which then lasts a day
+	failing.Store(false)
+	clk.add(61 * time.Minute)
+	load(4)
+	clk.add(23 * time.Hour)
+	load(4)
+}
+
+// While a list already held is read again, calls meanwhile answer it rather
+// than queue behind the read.
+func TestLoaderServesTheOldListDuringARead(t *testing.T) {
+	t.Parallel()
+
+	var fetches atomic.Int32
+	var slow atomic.Bool
+	entered, release := make(chan struct{}), make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fetches.Add(1)
+		if slow.Load() {
+			close(entered)
+			<-release
+		}
+		_, _ = w.Write([]byte(sample))
+	}))
+	t.Cleanup(srv.Close)
+
+	clk := &clock{at: time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)}
+	l := NewLoader(srv.URL, nil)
+	l.now = clk.now
+	ctx := context.Background()
+	if _, err := l.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	clk.add(25 * time.Hour)
+	slow.Store(true)
+	reading := make(chan error, 1)
+	go func() {
+		_, err := l.Load(ctx)
+		reading <- err
+	}()
+	<-entered
+
+	meanwhile := make(chan error, 1)
+	go func() {
+		list, err := l.Load(ctx)
+		if err == nil && list.Len() != 6 {
+			err = errors.New("not the old list")
+		}
+		meanwhile <- err
+	}()
+	select {
+	case err := <-meanwhile:
+		if err != nil {
+			t.Errorf("a call during the read = %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("a call during the read waited on it")
+	}
+	close(release)
+	if err := <-reading; err != nil {
+		t.Errorf("the read = %v", err)
+	}
+	if n := fetches.Load(); n != 2 {
+		t.Errorf("fetched %d times, want the one read again only", n)
 	}
 }

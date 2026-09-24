@@ -12,6 +12,7 @@
     "emby-playlist-create-user-id",
     "emby-library-available-options-query",
     "emby-next-up-legacy",
+    "emby-playstate-seek-query",
     "emby-library-delete-id",
     "emby-comma-separated-arrays",
     "emby-null-result-no-content",

@@ -113,3 +113,135 @@ func TestPlanCheck(t *testing.T) {
 		t.Errorf("an empty batch: %s", msg)
 	}
 }
+
+// A server that finds two files of one episode in a folder merges them into
+// one item, and only the first is the item's own path. The second was read as
+// free - a write there would have replaced it silently - and what was said to
+// be at a path was the tallest version, not the file there.
+func TestPlanCheckKnowsEveryVersionOfAnEpisode(t *testing.T) {
+	t.Parallel()
+
+	for _, jellyfin := range []bool{false, true} {
+		s := severance()
+		s.episodes[0].alt = "/media/shows/Severance/Season 01/S01E01 - 720p.mkv"
+		cs := session(t, tvServerFor(t, jellyfin, s), Options{})
+
+		out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
+			{"path": "/media/shows/Severance/Season 01/S01E01 - 720p.mkv", "size": 700 << 20},
+		}})
+		row := objects(t, out["entries"], "entries")[0]
+		if !boolean(t, row["checked"], "checked") || !boolean(t, row["exists"], "exists") {
+			t.Fatalf("jellyfin %v: the second version's path read as free: %v", jellyfin, row)
+		}
+		// the 720p file at that path, not the 1080p one beside it
+		current := object(t, row["current"], "current")
+		if number(t, current["height"], "height") != 720 || number(t, current["size"], "size") != 350<<20 {
+			t.Errorf("jellyfin %v: current describes another version: %v", jellyfin, current)
+		}
+		if ratio := decimal(t, current["size_ratio"], "size_ratio"); ratio != 2 {
+			t.Errorf("jellyfin %v: size_ratio = %v, want 2 against the file at the path", jellyfin, ratio)
+		}
+	}
+}
+
+// Jellyfin cannot be asked what is at a path, so a path under no series folder
+// - a film - read exists: false on every one, with nothing to say it had not
+// been checked. It is asked by the title the path names instead, and where
+// that cannot settle it the row says so rather than answering false.
+func TestPlanCheckOnJellyfinSaysWhatItCouldNotCheck(t *testing.T) {
+	t.Parallel()
+
+	film := &fakeSeries{id: "alien", name: "Alien", year: 1979, film: true, path: "/media/films/Alien (1979)/Alien (1979).mkv"}
+	for _, jellyfin := range []bool{false, true} {
+		cs := session(t, tvServerFor(t, jellyfin, severance(), film), Options{})
+
+		out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
+			{"path": "/media/films/Alien (1979)/Alien (1979).mkv"},
+			{"path": "/media/films/Aliens (1986)/Aliens (1986).mkv"},
+			{"path": "/staging/incoming/Some Film (2020).mkv"},
+		}})
+		rows := objects(t, out["entries"], "entries")
+
+		// the film is found, on both servers, and it has no season
+		held := rows[0]
+		if !boolean(t, held["checked"], "checked") || !boolean(t, held["exists"], "exists") {
+			t.Errorf("jellyfin %v: a film's own path = %v", jellyfin, held)
+		} else if current := object(t, held["current"], "current"); text(current["item_id"]) != "alien" || current["season"] != nil {
+			t.Errorf("jellyfin %v: current = %v", jellyfin, current)
+		}
+
+		// outside every library folder, nothing can be there on either
+		outside := rows[2]
+		if !boolean(t, outside["checked"], "checked") || boolean(t, outside["exists"], "exists") {
+			t.Errorf("jellyfin %v: a path outside the library = %v", jellyfin, outside)
+		}
+
+		// inside the library, where only a path lookup could settle it
+		free := rows[1]
+		if !jellyfin {
+			// Emby was asked by the path itself, and it is free
+			if !boolean(t, free["checked"], "checked") || boolean(t, free["exists"], "exists") || number(t, out["unchecked"], "unchecked") != 0 {
+				t.Errorf("Emby: a free path = %v, unchecked %v", free, out["unchecked"])
+			}
+
+			continue
+		}
+		if boolean(t, free["checked"], "checked") || free["exists"] != nil {
+			t.Errorf("Jellyfin: a path it could not look up answered as though it had: %v", free)
+		}
+		if note := text(free["note"]); !strings.Contains(note, "not known") || !strings.Contains(note, "Jellyfin") {
+			t.Errorf("Jellyfin: the note does not say it could not tell: %q", note)
+		}
+		if number(t, out["unchecked"], "unchecked") != 1 {
+			t.Errorf("Jellyfin: unchecked = %v, want 1", out["unchecked"])
+		}
+	}
+}
+
+// The claim is scored the way a name is resolved: its title and its year
+// against the series' own. Scoring bare titles called "Severance (2022)" a
+// different show from Severance under its own folder, and put a claim of
+// plain "Doctor Who" under a series the library names "Doctor Who (1963)"
+// no higher than a guess.
+func TestPlanCheckScoresAClaimByTitleAndYear(t *testing.T) {
+	t.Parallel()
+
+	sev := &fakeSeries{id: "sev", name: "Severance", year: 2022, path: "/media/shows/Severance (2022)"}
+	who := &fakeSeries{id: "who63", name: "Doctor Who (1963)", year: 1963, path: "/media/shows/Doctor Who (1963)"}
+	cs := session(t, tvServer(t, sev, who), Options{})
+
+	out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
+		{"path": "/media/shows/Severance (2022)/Season 01/S01E01.mkv", "series": "Severance (2022)"},
+		{"path": "/media/shows/Doctor Who (1963)/Season 01/S01E01.mkv", "series": "Doctor Who"},
+		{"path": "/media/shows/Doctor Who (1963)/Season 01/S01E02.mkv", "series": "Doctor Who (2005)"},
+	}})
+	rows := objects(t, out["entries"], "entries")
+	claim := func(i int) float64 {
+		return decimal(t, object(t, rows[i]["would_join"], "would_join")["claim_similarity"], "claim_similarity")
+	}
+	if got := claim(0); got < 0.95 {
+		t.Errorf("Severance (2022) under Severance's own folder scored %v", got)
+	}
+	if got := claim(1); got < 0.95 {
+		t.Errorf("Doctor Who under Doctor Who (1963) scored %v", got)
+	}
+	if got := claim(2); got >= seriesConfident {
+		t.Errorf("Doctor Who (2005) under the 1963 series scored %v: the year is what says it is the wrong show", got)
+	}
+}
+
+// A special is season 0, and says so: an omitted 0 left the one season a
+// caller most needs to tell apart with no number at all.
+func TestPlanCheckSaysASpecialIsSeasonZero(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = append(s.episodes, ep{season: 0, number: 1, name: "Lumon Orientation", path: "/media/shows/Severance/Specials/S00E01.mkv"})
+	cs := session(t, tvServer(t, s), Options{})
+
+	out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{{"path": "/media/shows/Severance/Specials/S00E01.mkv"}}})
+	current := object(t, objects(t, out["entries"], "entries")[0]["current"], "current")
+	if season, ok := current["season"]; !ok || number(t, season, "season") != 0 {
+		t.Errorf("a special's current = %v, want season 0", current)
+	}
+}

@@ -178,6 +178,13 @@ func TestSessions(t *testing.T) {
 	if !strings.Contains(str(out["sent"]), "Seek") {
 		t.Errorf("session_command Seek = %v", out)
 	}
+	// back to the start: a position of 0 is a position, and both servers take
+	// it (no player is listening, so that the server took it is all a test
+	// server can show)
+	out = call(t, "session_command", map[string]any{"session": device, "command": "Seek", "seek_s": 0})
+	if !strings.Contains(str(out["sent"]), "Seek") || !strings.Contains(str(out["sent"]), device) {
+		t.Errorf("session_command Seek to 0 = %v", out)
+	}
 
 	if e := callErr(t, "session_message", map[string]any{"session": "no such device", "text": "x"}); !strings.Contains(e, "no such device") || !strings.Contains(e, device) {
 		t.Errorf("an unknown session should list the real ones: %s", e)

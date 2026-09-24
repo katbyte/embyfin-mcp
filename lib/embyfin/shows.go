@@ -16,7 +16,7 @@ func (c *Client) Seasons(ctx context.Context, seriesID, userID string) ([]Item, 
 			return nil, err
 		}
 
-		return itemsFromEmby(res.Model.Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), nil
 	}
 
 	res, err := c.jf.GetSeasons(ctx, seriesID, jf.GetSeasonsOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault)})
@@ -62,7 +62,7 @@ func (c *Client) Episodes(ctx context.Context, seriesID string, opts EpisodeOpti
 			return nil, err
 		}
 
-		return itemsFromEmby(res.Model.Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), nil
 	}
 
 	var isMissing *bool

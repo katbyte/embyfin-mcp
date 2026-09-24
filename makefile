@@ -287,13 +287,15 @@ cover-acceptance-%:
 cover-html: cover ## Run every suite with coverage and open the HTML report
 	@go tool cover -html=$(COVERDIR)/coverage.out
 
-record: ## Re-record the provider cassettes against the real TMDB/TheTVDB/OMDb, for each backend (needs EMBYFIN_TMDB_TOKEN)
+record: ## Re-record every provider cassette against the real TMDB/TheTVDB/OMDb, for each backend (needs EMBYFIN_TMDB_TOKEN; EMBYFIN_TEST_RECORD=1 on a testacc target records only what they lack)
 	@for b in $(BACKENDS); do $(MAKE) --no-print-directory record-$$b || exit 1; done
 
+# EMBYFIN_TEST_RECORD=all refreshes every recording a run touches;
+# EMBYFIN_TEST_RECORD=1 records only the requests no cassette holds
 record-%:
-	@echo "==> recording against the real providers (this hits the network)..."
-	$(call live,acceptance,$*,EMBYFIN_TEST_RECORD=1)
-	$(call live,integration,$*,EMBYFIN_TEST_RECORD=1)
+	@echo "==> re-recording against the real providers (this hits the network)..."
+	$(call live,acceptance,$*,EMBYFIN_TEST_RECORD=all)
+	$(call live,integration,$*,EMBYFIN_TEST_RECORD=all)
 
 record-check: ## Check the provider cassettes still match the real APIs, without rewriting them
 	@for b in $(BACKENDS); do \

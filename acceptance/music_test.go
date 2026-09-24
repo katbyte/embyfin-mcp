@@ -183,3 +183,76 @@ func TestMusicItemGet(t *testing.T) {
 		t.Errorf("genres = %v, want Electronic", genres)
 	}
 }
+
+// A genre spelled two ways across a music library, merged: audit_spelling
+// pairs Electronica with Electronic, metadata_rename moves SirensCeol's album
+// and tracks onto Electronic, and the audit comes back clean - and stays
+// clean through a library scan, which re-reads a file's tags only when the
+// file has changed, and these have not.
+func TestAMusicRenameSurvivesAScan(t *testing.T) {
+	carriers := func(genre string) []string {
+		var ids []string
+		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Music", "types": "MusicArtist,MusicAlbum,Audio", "genres": []any{genre}, "limit": 50})["items"], "items") {
+			ids = append(ids, str(it["id"]))
+		}
+		slices.Sort(ids)
+		return ids
+	}
+	// Afterworld and its four tracks, and on Emby the artist too: Emby gives
+	// an artist the genres of its albums, Jellyfin leaves an artist's empty
+	want := 5
+	if !isJellyfin() {
+		want = 6
+	}
+	sirens := carriers("Electronica")
+	if len(sirens) != want {
+		t.Fatalf("Electronica is on %d items, want %d", len(sirens), want)
+	}
+	t.Cleanup(func() {
+		for _, id := range sirens {
+			_, _ = invoke("item_edit", map[string]any{"ids": []any{id}, "genres": []any{"Electronica"}})
+		}
+	})
+	paired := func() bool {
+		for _, g := range rows(t, call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum", "field": "genres"})["groups"], "groups") {
+			var spellings []string
+			for _, s := range rows(t, g["spellings"], "spellings") {
+				spellings = append(spellings, str(s["value"]))
+			}
+			if slices.Contains(spellings, "Electronica") {
+				return true
+			}
+		}
+		return false
+	}
+	if !paired() {
+		t.Fatal("audit_spelling does not pair Electronica with Electronic to start with")
+	}
+
+	out := call(t, "metadata_rename", map[string]any{"field": "genre", "from": "Electronica", "to": "Electronic", "library": "Music"})
+	if num(t, out["updated"], "updated") != len(sirens) || str(out["field"]) != "genres" {
+		t.Errorf("metadata_rename = %v, want the %d items that carried it", out, len(sirens))
+	}
+	if got := carriers("Electronica"); len(got) != 0 {
+		t.Errorf("after the rename Electronica is still on %v", got)
+	}
+	if paired() {
+		t.Error("after the rename audit_spelling still pairs Electronica")
+	}
+	electronic := func() int {
+		return valueCounts(t, call(t, "library_filters", map[string]any{"library": "Music", "types": "MusicAlbum"})["genres"], "genres")["Electronic"]
+	}
+	if n := electronic(); n != 3 {
+		t.Errorf("library_filters counts Electronic on %d albums, want the three electronic acts'", n)
+	}
+
+	if scan := call(t, "library_scan", map[string]any{"library": "Music"}); !boolOf(scan["started"]) {
+		t.Fatalf("library_scan = %v", scan)
+	}
+	if err := waitForScan(); err != nil {
+		t.Fatal(err)
+	}
+	if !holds(func() bool { return !paired() && electronic() == 3 }) {
+		t.Errorf("a scan undid the rename: Electronic on %d albums, the pair back %v", electronic(), paired())
+	}
+}

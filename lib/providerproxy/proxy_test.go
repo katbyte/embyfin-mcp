@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -351,6 +352,133 @@ func TestRecordDecodesGzipAndElidesBinaries(t *testing.T) {
 	if !strings.Contains(string(body), `"success":true`) || len(replay.Misses()) != 0 {
 		t.Errorf("replayed = %s, misses %v", body, replay.Misses())
 	}
+}
+
+// Record fills in only what the cassettes lack, so recording a new test's
+// lookups leaves every other recording as it was; Rerecord (make record)
+// refreshes what is recorded too: a request is fetched live the first time
+// the proxy sees it, its recording replaced, and repeats in the same run are
+// served that fresh answer without another fetch.
+func TestRecordFillsInAndRerecordRefreshes(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	fetched := map[string]int{}
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		fetched[r.URL.Path]++
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"runtime":118}`)
+	}))
+	t.Cleanup(upstream.Close)
+	host := strings.TrimPrefix(upstream.URL, "http://")
+	fetches := func(path string) int {
+		mu.Lock()
+		defer mu.Unlock()
+		return fetched[path]
+	}
+
+	dir := t.TempDir()
+	writeCassette(t, dir, cassette{Host: host, Interactions: []*interaction{{
+		Key: "GET " + host + "/3/movie/348", Method: "GET", Host: host, Path: "/3/movie/348",
+		Status: 200, Headers: map[string]string{"Content-Type": "application/json"}, Body: `{"runtime":117}`,
+	}}})
+	get := func(p *Proxy, path string) string {
+		t.Helper()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL+path, http.NoBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := clientThrough(t, p).Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(resp.Body)
+		return string(body)
+	}
+	recorded := func() map[string][]string {
+		t.Helper()
+		raw, err := os.ReadFile(filepath.Join(dir, hostFile(host))) //nolint:gosec // a path this test wrote
+		if err != nil {
+			t.Fatal(err)
+		}
+		var c cassette
+		if err := json.Unmarshal(raw, &c); err != nil {
+			t.Fatal(err)
+		}
+		bodies := map[string][]string{}
+		for _, i := range c.Interactions {
+			bodies[i.Path] = append(bodies[i.Path], i.Body)
+		}
+		return bodies
+	}
+
+	// Record: the recording answers, and only the request it lacks goes out
+	p, err := New(Options{Mode: Record, CassetteDir: dir, Logger: log.New(io.Discard, "", 0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := get(p, "/3/movie/348"); got != `{"runtime":117}` || fetches("/3/movie/348") != 0 {
+		t.Errorf("Record answered a recorded request with %s after %d fetches, want the recording", got, fetches("/3/movie/348"))
+	}
+	if got := get(p, "/3/movie/78"); !strings.Contains(got, `"runtime":118`) || fetches("/3/movie/78") != 1 {
+		t.Errorf("Record answered a new request with %s", got)
+	}
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := recorded(); !slices.Equal(got["/3/movie/348"], []string{`{"runtime":117}`}) || len(got["/3/movie/78"]) != 1 {
+		t.Errorf("after Record the cassette holds %v", got)
+	}
+
+	// Rerecord: each request fetched once, the recording replaced in place
+	p, err = New(Options{Mode: Rerecord, CassetteDir: dir, Logger: log.New(io.Discard, "", 0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if got := get(p, "/3/movie/348"); !strings.Contains(got, `"runtime":118`) {
+			t.Errorf("Rerecord answered %s, want the fresh answer", got)
+		}
+	}
+	if n := fetches("/3/movie/348"); n != 1 {
+		t.Errorf("Rerecord fetched a request %d times in one run, want once", n)
+	}
+	if err := p.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := recorded(); len(got["/3/movie/348"]) != 1 || !strings.Contains(got["/3/movie/348"][0], `"runtime":118`) || len(got["/3/movie/78"]) != 1 {
+		t.Errorf("after Rerecord the cassette holds %v, want each request once, refreshed", got)
+	}
+}
+
+// The suites run the proxy in Record mode whenever EMBYFIN_TEST_RECORD is
+// set; set to all, as make record sets it, that is a full refresh. (Not
+// parallel: it sets the environment.)
+func TestRecordAllInTheEnvironmentRerecords(t *testing.T) {
+	for value, want := range map[string]Mode{"all": Rerecord, "ALL": Rerecord, "1": Record} {
+		t.Setenv("EMBYFIN_TEST_RECORD", value)
+		p, err := New(Options{Mode: Record, CassetteDir: t.TempDir(), Addr: "127.0.0.1:0", Logger: log.New(io.Discard, "", 0)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.mode != want {
+			t.Errorf("EMBYFIN_TEST_RECORD=%s runs in mode %d, want %d", value, p.mode, want)
+		}
+		_ = p.Close()
+	}
+	// and it never turns a replay into a recording
+	t.Setenv("EMBYFIN_TEST_RECORD", "all")
+	p, err := New(Options{CassetteDir: t.TempDir(), Addr: "127.0.0.1:0", Logger: log.New(io.Discard, "", 0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.mode != Replay {
+		t.Errorf("a replay proxy runs in mode %d", p.mode)
+	}
+	_ = p.Close()
 }
 
 // Record mode against a real provider. Off by default so `go test ./...` stays

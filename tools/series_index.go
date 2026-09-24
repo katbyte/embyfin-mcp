@@ -31,6 +31,24 @@ import (
 // resolves.
 const seriesIndexTTL = 5 * time.Minute
 
+// A write drops the index, but several writes finish after they return:
+// library_scan, item_refresh, task_run and item_identify_apply only queue the
+// work. A lookup a few seconds later read the library as it was before the
+// scan got to it and trusted that for the whole TTL, so plan_check could not
+// see a folder just scanned and the duplicate check could not see an entry
+// just made. So for a while after any write an index is trusted only
+// briefly, and read again once that has passed, until the writes have had
+// time to land.
+const (
+	// seriesIndexSettle is how long after a write the library is taken to
+	// be still changing
+	seriesIndexSettle = 5 * time.Minute
+	// seriesIndexSettlingTTL is how long an index read in that time is
+	// trusted: long enough that one batch of names costs one read, short
+	// enough that the next call sees what the scan has done since
+	seriesIndexSettlingTTL = 10 * time.Second
+)
+
 // commonWord is how many series a title word can name before it stops being
 // worth gathering candidates by: "the" names thousands of shows and narrows
 // nothing.
@@ -42,6 +60,9 @@ type seriesIndex struct {
 	byWord     map[string][]int
 	byProvider map[string][]int
 	read       time.Time
+	// ttl is how long this read is trusted: the full TTL, or the short one
+	// when it was read while a write may still have been landing
+	ttl time.Duration
 }
 
 // seriesCache holds an index per library, and one across all of them for
@@ -49,6 +70,10 @@ type seriesIndex struct {
 type seriesCache struct {
 	mu      sync.Mutex
 	indexes map[string]*seriesIndex
+	// lastWrite is when a write through this server last dropped the index
+	lastWrite time.Time
+	// now is the clock, for a test to move; nil is the wall clock
+	now func() time.Time
 }
 
 func (r *registry) seriesCache() *seriesCache {
@@ -57,12 +82,24 @@ func (r *registry) seriesCache() *seriesCache {
 	return r.series
 }
 
-// invalidate drops every index, so the next call reads the library again.
+func (c *seriesCache) clock() time.Time {
+	if c.now != nil {
+		return c.now()
+	}
+
+	return time.Now()
+}
+
+// invalidate drops every index, so the next call reads the library again,
+// and marks the library as changing for a while (see seriesIndexSettle). It
+// waits for a read in progress, so an index read before the write cannot be
+// stored after it.
 func (c *seriesCache) invalidate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	clear(c.indexes)
+	c.lastWrite = c.clock()
 }
 
 // get returns the index for a library ("" for every library), reading it
@@ -71,12 +108,17 @@ func (c *seriesCache) get(ctx context.Context, client *embyfin.Client, parent st
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if idx, ok := c.indexes[parent]; ok && time.Since(idx.read) < seriesIndexTTL {
+	now := c.clock()
+	if idx, ok := c.indexes[parent]; ok && now.Sub(idx.read) < idx.ttl {
 		return idx, nil
 	}
 	idx, err := readSeriesIndex(ctx, client, parent)
 	if err != nil {
 		return nil, err
+	}
+	idx.read, idx.ttl = now, seriesIndexTTL
+	if !c.lastWrite.IsZero() && now.Sub(c.lastWrite) < seriesIndexSettle {
+		idx.ttl = seriesIndexSettlingTTL
 	}
 	c.indexes[parent] = idx
 
@@ -223,10 +265,14 @@ func (r *registry) matchSeries(ctx context.Context, rel release, parent string) 
 // one entry holding season 1 and another holding the rest is a real shape in a
 // real library - so an exists check against one of them answers "known:
 // false" for an episode the library is holding in the other.
-func (r *registry) otherEntriesFor(ctx context.Context, series *embyfin.Item) []embyfin.Item {
+//
+// It fails when the library's series could not be read, and the caller has to
+// say so: answering "no other entries" in its place is the one thing that
+// makes an absence read as proof.
+func (r *registry) otherEntriesFor(ctx context.Context, series *embyfin.Item) ([]embyfin.Item, error) {
 	idx, err := r.seriesCache().get(ctx, r.client, "")
 	if err != nil {
-		return nil // a warning we could not raise is not an error in the answer
+		return nil, err
 	}
 
 	seen := map[string]bool{series.ID: true}
@@ -244,7 +290,7 @@ func (r *registry) otherEntriesFor(ctx context.Context, series *embyfin.Item) []
 		}
 	}
 
-	return out
+	return out, nil
 }
 
 func sortCandidates(rows []seriesCandidate) {

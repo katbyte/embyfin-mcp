@@ -4,6 +4,7 @@ package acceptance
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -85,6 +86,11 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 	if len(groups) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
 		t.Fatalf("groups = %v", groups)
 	}
+	// the only such pair on the server: the messy shows' titles are all
+	// their own, and a limit of one holds it
+	if whole := call(t, "audit_duplicate_episodes", map[string]any{"limit": 1}); len(rows(t, whole["groups"], "groups")) != 1 || num(t, whole["total_findings"], "total_findings") != 1 {
+		t.Errorf("across the server = %v", whole)
+	}
 	group := groups[0]
 	if title(str(group["series"])) != "Breaking Bad" || !strings.Contains(str(group["title"]), "Cat") {
 		t.Errorf("group = %v", group)
@@ -136,15 +142,34 @@ func TestAuditFilePathShows(t *testing.T) {
 	}
 }
 
-// Two folders for one show. The fixtures hold no such pair, so what this
-// proves live is the sweep itself on both backends: every series read, and
-// nothing reported that does not collide.
+// Two folders for one show, a space and a letter's case apart: the messy
+// Zzyzx Twins pair, and the only collision across every series the server
+// holds. The two Severances are one show in two libraries, which is not
+// this audit's business (audit_duplicates groups them by their ids).
 func TestAuditDuplicateSeries(t *testing.T) {
 	out := call(t, "audit_duplicate_series", nil)
-	if n := num(t, out["items_scanned"], "items_scanned"); n < 5 {
-		t.Errorf("items_scanned = %d, want every series in the fixtures", n)
+	if n := num(t, out["items_scanned"], "items_scanned"); n != 3+messySeries {
+		t.Errorf("items_scanned = %d, want every series in the fixtures (%d)", n, 3+messySeries)
 	}
-	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("the fixtures hold no colliding folders, but %d groups came back: %v", n, out["groups"])
+	groups := rows(t, out["groups"], "groups")
+	if len(groups) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
+		t.Fatalf("groups = %v, want the Twins pair alone", groups)
+	}
+	var folders []string
+	for _, s := range rows(t, groups[0]["series"], "series") {
+		folders = append(folders, str(s["folder"]))
+		if str(s["series_id"]) == "" || num(t, s["year"], "year") != 2005 || !strings.HasPrefix(str(s["path"]), "/media/messy-shows/") {
+			t.Errorf("series = %v", s)
+		}
+	}
+	if !slices.Equal(sorted(folders), []string{"Zzyzx  twins (2005)", "Zzyzx Twins (2005)"}) {
+		t.Errorf("the pair = %v", folders)
+	}
+	// one library at a time finds it in its own, and a limit caps the rows
+	if n := num(t, call(t, "audit_duplicate_series", map[string]any{"library": "Messy Shows", "limit": 1})["total_findings"], "total_findings"); n != 1 {
+		t.Errorf("Messy Shows = %d groups", n)
+	}
+	if n := num(t, call(t, "audit_duplicate_series", map[string]any{"library": "Shows"})["total_findings"], "total_findings"); n != 0 {
+		t.Errorf("Shows = %d groups", n)
 	}
 }

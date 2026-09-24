@@ -1,6 +1,9 @@
 package embyfin
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 // keyedLocks holds one mutex per key, made when first wanted and dropped when
 // nobody holds or waits for it, so a long-running server does not collect one
@@ -22,8 +25,13 @@ type keyedLock struct {
 	refs int
 }
 
-// lock blocks until key is free, takes it, and returns the release.
+// lock blocks until key is free, takes it, and returns the release. The key
+// is an item id, and Jellyfin reads a GUID with or without its dashes and in
+// either case, so the key is taken in one spelling: two edits that name one
+// item differently still wait for each other. (Emby's ids are numbers, which
+// the spelling leaves as they are.)
 func (k *keyedLocks) lock(key string) (unlock func()) {
+	key = strings.ToLower(strings.ReplaceAll(key, "-", ""))
 	k.mu.Lock()
 	if k.locks == nil {
 		k.locks = map[string]*keyedLock{}

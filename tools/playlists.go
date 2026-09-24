@@ -134,6 +134,10 @@ func registerPlaylistTools(r *registry) {
 			return nil, createOut{}, err
 		}
 
+		if err := visibleToAll(ctx, client, user, in.ItemIDs); err != nil {
+			return nil, createOut{}, err
+		}
+
 		id, err := client.CreatePlaylist(ctx, in.Name, in.ItemIDs, in.MediaType, user.ID)
 		if err != nil {
 			return nil, createOut{}, err
@@ -161,6 +165,10 @@ func registerPlaylistTools(r *registry) {
 		}
 		user, err := client.ResolveUser(ctx, in.User)
 		if err != nil {
+			return nil, addOut{}, err
+		}
+
+		if err := visibleToAll(ctx, client, user, in.ItemIDs); err != nil {
 			return nil, addOut{}, err
 		}
 
@@ -275,7 +283,7 @@ func registerPlaylistTools(r *registry) {
 	type deleteOut struct {
 		Deleted string `json:"deleted"`
 	}
-	add(r, writeTool, &mcp.Tool{
+	add(r, deleteTool, &mcp.Tool{
 		Name:        "playlist_delete",
 		Description: "Delete a playlist. The items stay in the library; only the list goes. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
@@ -290,4 +298,29 @@ func registerPlaylistTools(r *registry) {
 
 		return nil, deleteOut{Deleted: pl.Name}, nil
 	})
+}
+
+// visibleToAll checks that the user a playlist is changed for can see every
+// item going into it. Neither server does: Emby keeps the item in the
+// playlist where only an administrator sees it, and Jellyfin keeps it and
+// shows it to the restricted user, so a playlist was a way round the
+// libraries an account was given. item_set_state checks the same (visibleTo).
+func visibleToAll(ctx context.Context, client *embyfin.Client, user *embyfin.User, ids []string) error {
+	for _, id := range ids {
+		_, seen, err := client.VisibleUserItem(ctx, user.ID, id)
+		if err != nil {
+			return err
+		}
+		if seen {
+			continue
+		}
+		name := id
+		if it, err := client.ItemByID(ctx, id); err == nil {
+			name = it.Name + " (" + id + ")"
+		}
+
+		return fmt.Errorf("%s cannot see %s: it is in a library they have no access to, or rated above what they may watch, and a playlist of theirs takes only what they can see", user.Name, name)
+	}
+
+	return nil
 }

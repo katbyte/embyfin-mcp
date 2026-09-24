@@ -27,6 +27,13 @@ func TestDiscRoot(t *testing.T) {
 		{"/m/Film (1999)/Film (1999).mkv", "", ""},
 		{"/m/Film (1999)/12345.mkv", "", ""},
 		{"/m/Film (1999)/Film 00000.m2ts", "", ""},
+		// a camcorder's footage is numbered the same way and even keeps a
+		// BDMV folder, under PRIVATE/AVCHD, but its clips are .MTS and they
+		// are home videos, not a disc's menu and trailers
+		{"/home/Zzyzx Holiday/PRIVATE/AVCHD/BDMV/STREAM/00000.MTS", "", ""},
+		{`D:\Home\Zzyzx Holiday\PRIVATE\AVCHD\BDMV\STREAM\00001.MTS`, "", ""},
+		{"/home/Zzyzx Holiday/00002.MTS", "", ""},
+		{"/home/Zzyzx Holiday/00003.mts", "", ""},
 	} {
 		root, kind, isDisc := discRoot(tc.path)
 		if isDisc != (tc.kind != "") || root != tc.root || kind != tc.kind {

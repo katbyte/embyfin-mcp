@@ -34,6 +34,9 @@ func (c *Client) CreateCollection(ctx context.Context, name string, itemIDs []st
 		if err != nil {
 			return "", err
 		}
+		if res.Model == nil {
+			return "", fmt.Errorf("the server answered the creation of collection %q with nothing, not its id", name)
+		}
 
 		return res.Model.Id, nil
 	}
@@ -181,4 +184,64 @@ func (c *Client) removeMembers(ctx context.Context, collectionID string, itemIDs
 	_, err := c.jf.RemoveFromCollection(ctx, collectionID, jf.RemoveFromCollectionOperationOptions{Ids: itemIDs})
 
 	return err
+}
+
+// collectionDeleteTries is how many deletes DeleteCollection sends before it
+// gives up on a collection that keeps coming back, and collectionGoneChecks
+// how many settle intervals it must then stay gone for: Jellyfin put one back
+// half a second after the delete answered, under test.
+const (
+	collectionDeleteTries = 3
+	collectionGoneChecks  = 12
+)
+
+// DeleteCollection deletes a collection and reads back that it is gone and
+// stays gone. Jellyfin refreshes a collection it has just made (and one whose
+// members changed), and a delete that lands while that refresh runs is undone
+// when the refresh saves the collection again: the delete answers 204 and
+// the collection is back a moment later. So the collection is looked for
+// until it has stayed gone a while, deleted again when it comes back, and an
+// error says so when it keeps coming back.
+func (c *Client) DeleteCollection(ctx context.Context, id string) error {
+	for range collectionDeleteTries {
+		if err := c.DeleteItem(ctx, id); err != nil {
+			held, herr := c.holds(ctx, id)
+			if herr != nil || held {
+				return err
+			}
+			// already gone: a delete that raced another
+		}
+		back := false
+		for range collectionGoneChecks {
+			if err := c.pause(ctx); err != nil {
+				return err
+			}
+			held, err := c.holds(ctx, id)
+			if err != nil {
+				return err
+			}
+			if held {
+				back = true
+
+				break
+			}
+		}
+		if !back {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("collection %s came back after each of %d deletes: the server saves it again from a refresh still running on it; try again in a minute", id, collectionDeleteTries)
+}
+
+// holds says whether the server has an item of this id. Emby answers an Ids
+// filter it cannot parse with the whole library, so the answer has to be the
+// item asked for.
+func (c *Client) holds(ctx context.Context, id string) (bool, error) {
+	items, _, err := c.Search(ctx, SearchOptions{IDs: id, Fields: FieldsLean, Limit: 2})
+	if err != nil {
+		return false, err
+	}
+
+	return len(items) > 0 && items[0].ID == id, nil
 }

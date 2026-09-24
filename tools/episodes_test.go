@@ -433,7 +433,7 @@ func TestAVirtualRecordIsNotAFile(t *testing.T) {
 
 	s := severance()
 	// the awkward one: marked virtual, and carrying a path regardless
-	s.episodes = append(s.episodes, ep{season: 1, number: 3, name: "In Perpetuity", path: "/media/shows/Severance/Season 01/S01E03.mkv", missing: true})
+	s.episodes = append(s.episodes, ep{season: 1, number: 3, name: "In Perpetuity", path: "/media/shows/Severance/Season 01/S01E03.mkv", missing: true, premiere: "2022-02-25T00:00:00.0000000Z"})
 	cs := session(t, tvServer(t, s), Options{})
 
 	// it is missing, from the server's own records
@@ -1003,5 +1003,53 @@ func TestEpisodeRowsCarryBothDates(t *testing.T) {
 	asked := f.requests("/Items")
 	if len(asked) == 0 || !strings.Contains(asked[0].Query, "MinDateLastSaved=2026-09-17") {
 		t.Errorf("saved_since did not reach the server: %v", asked)
+	}
+}
+
+// The runtime multiple is worked out from the runtime, so asking for the one
+// without the other still answers it. The runtime used to be dropped first,
+// and a caller asking only for the multiple got none at all.
+func TestTheRuntimeMultipleCanBeAskedForAlone(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = []ep{
+		{season: 1, number: 1, name: "one", path: "/m/1.mkv", minutes: 50},
+		{season: 1, number: 2, name: "two", path: "/m/2.mkv", minutes: 50},
+		{season: 1, number: 3, name: "three and four", path: "/m/3.mkv", minutes: 100},
+		{season: 1, number: 5, name: "five", path: "/m/5.mkv", minutes: 50},
+	}
+	cs := session(t, tvServer(t, s), Options{})
+
+	out := mustCall(t, cs, "library_episodes", map[string]any{"series_id": "sev", "fields": []string{"runtime_multiple"}})
+	rows := objects(t, out["episodes"], "episodes")
+	if len(rows) != 4 {
+		t.Fatalf("episodes = %v", rows)
+	}
+	if got := decimal(t, rows[2]["runtime_multiple"], "runtime_multiple"); got != 2 {
+		t.Errorf("the double episode's multiple = %v, want 2: %v", got, rows[2])
+	}
+	// and what was not asked for is still left out
+	if rows[2]["runtime_s"] != nil || rows[2]["path"] != nil {
+		t.Errorf("fields not asked for came back: %v", rows[2])
+	}
+}
+
+// library_items reads every item's files with it, so an uncapped limit was a
+// whole library in one answer. It is capped the way library_episodes is.
+func TestLibraryItemsCapsItsPage(t *testing.T) {
+	t.Parallel()
+
+	f := tvServer(t, severance())
+	cs := session(t, f, Options{})
+
+	mustCall(t, cs, "library_items", map[string]any{"library": "Shows", "limit": 50000})
+	asked := f.requests("/Items")
+	if len(asked) == 0 {
+		t.Fatal("the server was not asked")
+	}
+	last := asked[len(asked)-1].Query
+	if !strings.Contains(last, "Limit="+strconv.Itoa(episodePageMax)) || strings.Contains(last, "Limit=50000") {
+		t.Errorf("a limit of 50000 reached the server as %s, want the %d cap", last, episodePageMax)
 	}
 }

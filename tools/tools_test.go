@@ -1,12 +1,16 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"reflect"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -46,12 +50,24 @@ func TestRegisterAllKinds(t *testing.T) {
 	if len(all) <= len(dflt) || len(dflt) <= len(ro) || len(ro) == 0 {
 		t.Fatalf("counts all=%d default=%d read-only=%d", len(all), len(dflt), len(ro))
 	}
-	for _, name := range []string{"item_delete", "item_orphans_delete", "library_delete"} {
+	deletes := []string{"item_delete", "item_orphans_delete", "library_delete", "playlist_delete", "collection_delete"}
+	for _, name := range deletes {
 		if slices.Contains(dflt, name) {
 			t.Errorf("%s registered without --enable-delete", name)
 		}
 		if !slices.Contains(all, name) {
 			t.Errorf("%s missing with --enable-delete", name)
+		}
+	}
+	// and a client is told they destroy something, without reading the text
+	listed, err := session(t, newFakeServer(t), Options{EnableDelete: true}).ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range listed.Tools {
+		destructive := tool.Annotations != nil && tool.Annotations.DestructiveHint != nil && *tool.Annotations.DestructiveHint
+		if destructive != slices.Contains(deletes, tool.Name) {
+			t.Errorf("%s is marked destructive: %v", tool.Name, destructive)
 		}
 	}
 	for _, name := range ro {
@@ -71,10 +87,10 @@ func TestRegisterAllKinds(t *testing.T) {
 	}
 }
 
-// The surface is 91 tools, 64 of them reads, and the essential preset is
-// enough to find things, read them and keep watch state in sync. A tool
-// added, merged or removed changes these on purpose, and this is where that
-// is said.
+// The surface is 89 tools, 62 of them reads and 5 deletes, and the essential
+// preset is enough to find things, read them and keep watch state in sync. A
+// tool added, merged, removed or moved between kinds changes these on
+// purpose, and this is where that is said.
 func TestSurfaceSize(t *testing.T) {
 	t.Parallel()
 
@@ -86,8 +102,8 @@ func TestSurfaceSize(t *testing.T) {
 	for _, ti := range list {
 		kinds[ti.Kind]++
 	}
-	if len(list) != 89 || kinds["read"] != 62 || kinds["write"] != 24 || kinds["delete"] != 3 {
-		t.Errorf("surface = %d tools: %v, want 89 with 62 read, 24 write, 3 delete", len(list), kinds)
+	if len(list) != 89 || kinds["read"] != 62 || kinds["write"] != 22 || kinds["delete"] != 5 {
+		t.Errorf("surface = %d tools: %v, want 89 with 62 read, 22 write, 5 delete", len(list), kinds)
 	}
 	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids"} {
 		if slices.ContainsFunc(list, func(ti ToolInfo) bool { return ti.Name == gone }) {
@@ -314,6 +330,54 @@ func TestEmptyNilSlices(t *testing.T) {
 	if len(v.Keep) != 1 {
 		t.Error("a populated slice was touched")
 	}
+}
+
+// A handler that panics answers its call with an error naming the tool and
+// logs the stack, rather than ending the session: the next call is served.
+// A write tool that panicked still drops the series index, since it may have
+// changed the server before it failed.
+func TestAPanicInAToolIsAnErrorNotACrash(t *testing.T) {
+	t.Parallel()
+
+	var (
+		mu     sync.Mutex
+		logged strings.Builder
+	)
+	r := &registry{client: newTestClient(t), errorLog: func(format string, args ...any) {
+		mu.Lock()
+		defer mu.Unlock()
+		_, _ = fmt.Fprintf(&logged, format, args...)
+	}}
+	type none struct{}
+	add(r, writeTool, &mcp.Tool{Name: "zzyzx_panic"}, func(context.Context, *mcp.CallToolRequest, none) (*mcp.CallToolResult, none, error) {
+		var found map[string]*embyfin.Item
+
+		return nil, none{}, errors.New(found["9"].Name) // a nil dereference
+	})
+	add(r, readTool, &mcp.Tool{Name: "zzyzx_fine"}, func(context.Context, *mcp.CallToolRequest, none) (*mcp.CallToolResult, none, error) {
+		return nil, none{}, nil
+	})
+	cs := hostRegistry(t, r)
+	cache := r.seriesCache()
+	cache.indexes["lib9"] = &seriesIndex{read: time.Now()}
+
+	msg := mustRefuse(t, cs, "zzyzx_panic", map[string]any{})
+	if !strings.Contains(msg, "internal error in zzyzx_panic") || !strings.Contains(msg, "nil pointer") {
+		t.Errorf("the refusal = %q, want the tool and the panic named", msg)
+	}
+	mu.Lock()
+	log := logged.String()
+	mu.Unlock()
+	if !strings.Contains(log, "internal error in zzyzx_panic") || !strings.Contains(log, "goroutine") {
+		t.Errorf("the log = %q, want the panic and its stack", log)
+	}
+	cache.mu.Lock()
+	left := len(cache.indexes)
+	cache.mu.Unlock()
+	if left != 0 {
+		t.Error("a write tool that panicked left the series index standing")
+	}
+	mustCall(t, cs, "zzyzx_fine", map[string]any{})
 }
 
 func TestCutoffs(t *testing.T) {

@@ -1,9 +1,9 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -38,6 +38,13 @@ type auditOut struct {
 // returns (finding detail, true) when the item is suspect. skip, when set,
 // leaves an item out before it is counted as scanned.
 func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields string, skip func(*embyfin.Item) bool, check func(*embyfin.Item) (string, bool)) (auditOut, error) {
+	return runAuditOver(ctx, client, in, fields, false, skip, check)
+}
+
+// runAuditOver is runAudit, over the items as the server shows them to
+// people when shown is set (see shownItems): what an audit of versions has
+// to read, because Emby merges them only in a user's view.
+func runAuditOver(ctx context.Context, client *embyfin.Client, in auditIn, fields string, shown bool, skip func(*embyfin.Item) bool, check func(*embyfin.Item) (string, bool)) (auditOut, error) {
 	types := in.Types
 	if types == "" {
 		types = "Movie,Series"
@@ -58,7 +65,7 @@ func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields st
 	}
 
 	out := auditOut{Findings: []auditFinding{}}
-	sweepErr := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+	score := func(items []embyfin.Item) bool {
 		for i := range items {
 			if skip != nil && skip(&items[i]) {
 				continue
@@ -81,9 +88,18 @@ func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields st
 			}
 		}
 		return true
-	})
-	if sweepErr != nil {
-		return auditOut{}, sweepErr
+	}
+	if shown {
+		items, err := shownItems(ctx, client, opts)
+		if err != nil {
+			return auditOut{}, err
+		}
+		score(items)
+
+		return out, nil
+	}
+	if err := client.SearchAll(ctx, opts, score); err != nil {
+		return auditOut{}, err
 	}
 
 	return out, nil
@@ -98,6 +114,9 @@ type auditCheck struct {
 	fields      string // the item fields the check needs, on top of the lean set
 	types       string // default item types, "" for Movie,Series
 	check       func(*embyfin.Item) (string, bool)
+	// shown sweeps the items as the server shows them to people rather than
+	// as it stores them: Emby merges versions only in a user's view
+	shown bool
 	// tool, when set, registers the audit's tool in place of the shared one,
 	// for an audit with options of its own; audit_all still runs check
 	tool func(r *registry, c auditCheck)
@@ -137,20 +156,51 @@ var auditChecks = []auditCheck{
 	},
 	{
 		name:        "audit_multiple_versions",
-		description: "Sweep the library for entries the server has merged into several versions (more than one media file under one item, e.g. a 4K and a 1080p copy; Jellyfin merges same-folder versions at scan time, Emby only when merged in its web client). Separate entries for the same title show up in audit_duplicates instead. Defaults to Movie,Episode.",
+		description: "Sweep the library for items the server shows as one title with several versions (more than one media file, e.g. a 4K and a 1080p copy). Jellyfin merges the files of one film in one folder when it scans; Emby merges those, and copies in other folders sharing a provider id, in what it shows people - so on Emby this reads the library as the first administrator is shown it. Separate entries for the same title show up in audit_duplicates instead. Defaults to Movie,Episode.",
 		fields:      "Path,ProviderIds,ProductionYear,MediaSources",
 		types:       "Movie,Episode",
+		shown:       true,
 		check: func(it *embyfin.Item) (string, bool) {
 			if len(it.MediaSources) < 2 {
 				return "", false
 			}
 			names := make([]string, 0, len(it.MediaSources))
 			for _, s := range it.MediaSources {
-				names = append(names, path.Base(s.Path))
+				// the server's path, which on Windows is split by backslashes
+				names = append(names, baseName(s.Path))
 			}
 			return strconv.Itoa(len(it.MediaSources)) + " versions: " + strings.Join(names, ", "), true
 		},
+		tool: registerVersionsAudit,
 	},
+}
+
+// versionsIn is audit_multiple_versions' input: the shared one, saying the
+// default this audit really sweeps. A series is never a file with versions,
+// so it reads films and episodes, and a schema that said Movie,Series told a
+// caller that episodes were left out when they were the half that counts.
+type versionsIn struct {
+	Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
+	Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types to audit; defaults to Movie,Episode"`
+	Limit   int    `json:"limit,omitempty"   jsonschema:"maximum findings to return, default 100"`
+}
+
+// registerVersionsAudit adds audit_multiple_versions, with the input that
+// states its own defaults; the sweep is the shared one.
+func registerVersionsAudit(r *registry, c auditCheck) {
+	client := r.client
+
+	add(r, readTool, &mcp.Tool{
+		Name:        c.name,
+		Description: c.description,
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in versionsIn) (*mcp.CallToolResult, auditOut, error) {
+		if in.Types == "" {
+			in.Types = c.types
+		}
+		out, err := runAuditOver(ctx, client, auditIn(in), c.fields, c.shown, nil, c.check)
+
+		return nil, out, err
+	})
 }
 
 // metadataProviders are the providers missing can name, in the order a
@@ -271,13 +321,15 @@ func registerAuditTools(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_duplicates",
 		Description: "Find separate entries sharing the same tmdb/imdb/tvdb id: multiple copies of one film, series or episode, in one library or across libraries (compare the paths). " +
-			"Episodes are grouped by provider id AND season and episode number, because a library can carry one shared id across unrelated episodes. Default limit 50 groups.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, dupOut, error) {
+			"A tmdb or tvdb id only joins entries of one kind, a film to a film and a series to a series, because both providers number films and TV apart; an imdb id joins any. " +
+			"Episodes are grouped by provider id AND series name AND season and episode number, because a library can carry one shared id across unrelated episodes. " +
+			"Items the server shows as one title's versions are not entries of their own (Emby merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it): audit_multiple_versions lists those. Default limit 50 groups.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in dupIn) (*mcp.CallToolResult, dupOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
-			limit = 50
+			limit = duplicateLimit
 		}
-		groups, scanned, err := duplicateGroups(ctx, client, in)
+		groups, scanned, err := duplicateGroups(ctx, client, in.Library, in.Types)
 		if err != nil {
 			return nil, dupOut{}, err
 		}
@@ -351,7 +403,9 @@ func libraryFolders(ctx context.Context, client *embyfin.Client, names []string)
 		if name = strings.TrimSpace(name); name == "" {
 			continue
 		}
-		folder, err := resolveLibrary(ctx, client, name)
+		// by its folders, not its id, so a library listed without one can be
+		// left out too
+		folder, err := findLibrary(ctx, client, name)
 		if err != nil {
 			return nil, err
 		}
@@ -365,20 +419,34 @@ func libraryFolders(ctx context.Context, client *embyfin.Client, names []string)
 	return folders, nil
 }
 
+// audit_duplicates' defaults. Episodes too: a library holding one episode
+// twice is the common shape, and audit_all reports this audit's count, so
+// the two have to sweep the same things or the overview names a number the
+// audit cannot reproduce.
+const (
+	duplicateTypes = "Movie,Series,Episode"
+	duplicateLimit = 50
+)
+
+// dupIn is audit_duplicates' input. It is not the shared auditIn because its
+// defaults are not: the shared schema said Movie,Series and 100, and a
+// caller believing it asked for episodes it already had, or read a capped
+// list as the whole.
+type dupIn struct {
+	Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
+	Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types to group; defaults to Movie,Series,Episode"`
+	Limit   int    `json:"limit,omitempty"   jsonschema:"maximum groups to return, default 50"`
+}
+
 // duplicateGroups sweeps the library and groups items by shared tmdb/imdb id,
 // in a deterministic order so a limit pages the same way each run.
-func duplicateGroups(ctx context.Context, client *embyfin.Client, in auditIn) ([][]embyfin.Item, int, error) {
-	types := in.Types
+func duplicateGroups(ctx context.Context, client *embyfin.Client, library, types string) ([][]embyfin.Item, int, error) {
 	if types == "" {
-		// episodes too: a library holding one episode twice is the common
-		// shape, and audit_all reports this audit's count, so the two have to
-		// sweep the same things or the overview names a number the audit
-		// cannot reproduce
-		types = "Movie,Series,Episode"
+		types = duplicateTypes
 	}
 	opts := embyfin.SearchOptions{IncludeItemTypes: types}
 
-	folder, err := resolveLibrary(ctx, client, in.Library)
+	folder, err := resolveLibrary(ctx, client, library)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -386,16 +454,27 @@ func duplicateGroups(ctx context.Context, client *embyfin.Client, in auditIn) ([
 		opts.ParentID = folder.ItemID
 	}
 
-	var all []embyfin.Item
-	sweepErr := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
-		all = append(all, items...)
-		return true
-	})
-	if sweepErr != nil {
-		return nil, 0, sweepErr
+	// as the server shows them: two files Emby shows as one film's versions
+	// are versions (audit_multiple_versions), not two entries
+	all, err := shownItems(ctx, client, opts)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	return groupByProviderID(all), len(all), nil
+}
+
+// idSpace is the numbering a tmdb or tvdb id is read in. Both providers
+// number films and TV apart - and a series, its seasons and its episodes
+// apart again - so tmdb 1399 is one film and an unrelated series. An IMDb
+// id names one title whatever it is, and needs no space.
+func idSpace(itemType string) string {
+	switch itemType {
+	case "Series", "Season", typeEpisode:
+		return strings.ToLower(itemType)
+	}
+
+	return "film"
 }
 
 // groupByProviderID groups items sharing a tmdb, imdb or tvdb id. An item
@@ -417,19 +496,31 @@ func groupByProviderID(items []embyfin.Item) [][]embyfin.Item {
 	}
 	firstWith := map[string]int{}
 	for i, it := range items {
+		// an episode's provider id is shared far more loosely than a film's:
+		// a library can carry one imdb id on many unrelated episodes, even
+		// across different shows. Its series, season and episode number go
+		// into the key, so a group is at worst the same episode of the same
+		// show.
+		//
+		// The series goes in by name, folded the way a folder name is (case,
+		// spacing, accents, punctuation), and not by id: one show split
+		// across two series entries after a folder rename is a case this
+		// audit exists for, and the server names the two alike but numbers
+		// them apart. Two different shows of one name sharing a loose id
+		// would still meet, which is rare enough to read past in a group
+		// whose paths are listed.
+		episode := ""
+		if it.Type == typeEpisode {
+			episode = fmt.Sprintf(":%s:s%02de%02d", folderKey(it.SeriesName), it.ParentIndexNumber, it.IndexNumber)
+		}
 		for k, v := range it.ProviderIDs {
 			lk := strings.ToLower(k)
 			if (lk != "tmdb" && lk != "imdb" && lk != "tvdb") || v == "" {
 				continue
 			}
-			// an episode's provider id is shared far more loosely than a
-			// film's: a library can carry one imdb id on many unrelated
-			// episodes, even across different shows. Its season and episode
-			// number go into the key, so a group is at worst the same
-			// episode of the same show.
-			key := lk + ":" + v
-			if it.Type == typeEpisode {
-				key = fmt.Sprintf("%s:s%02de%02d", key, it.ParentIndexNumber, it.IndexNumber)
+			key := lk + ":" + v + episode
+			if lk != "imdb" {
+				key = idSpace(it.Type) + ":" + key
 			}
 			if j, ok := firstWith[key]; ok {
 				parent[find(i)] = find(j)
@@ -507,7 +598,7 @@ func registerAuditAll(r *registry) {
 
 		for i := range auditChecks {
 			c := &auditChecks[i]
-			res, err := runAudit(ctx, client, auditIn{Library: in.Library, Types: c.types, Limit: 1}, c.fields, nil, c.check)
+			res, err := runAuditOver(ctx, client, auditIn{Library: in.Library, Types: c.types, Limit: 1}, c.fields, c.shown, nil, c.check)
 			if err != nil {
 				return fail(c.name, err)
 			}
@@ -524,7 +615,7 @@ func registerAuditAll(r *registry) {
 		// Movie,Series, so it reported the series count as items_scanned and
 		// an episode held twice was invisible from the call that says "start
 		// here"
-		groups, scanned, err := duplicateGroups(ctx, client, auditIn{Library: in.Library})
+		groups, scanned, err := duplicateGroups(ctx, client, in.Library, "")
 		if err != nil {
 			return fail("audit_duplicates", err)
 		}
@@ -560,7 +651,7 @@ func registerAuditAll(r *registry) {
 		if err != nil {
 			return fail("audit_runtime", err)
 		}
-		add(auditAllRow{Audit: "audit_runtime", Findings: eps.Found, Scanned: eps.Scanned, Note: "episodes against their season median"})
+		add(auditAllRow{Audit: "audit_runtime", Findings: eps.Found, Scanned: eps.Scanned, Note: "episodes against their season median, and durations too long to be a runtime"})
 
 		quality, err := auditQuality(ctx, client, qualityIn{Library: in.Library, Limit: 1})
 		if err != nil {
@@ -593,11 +684,14 @@ func registerAuditAll(r *registry) {
 		out.Audits = append(out.Audits, auditAllRow{Audit: "audit_unwatched", Findings: unwatched.Found, Scanned: unwatched.Scanned, Note: "films no account has watched: not a defect, what to archive or recommend; not in total_findings"})
 
 		if in.Library == "" {
-			orphans, err := auditOrphans(ctx, client, orphansIn{Limit: 1})
+			// the sweep audit_orphans counts, without the grouping into
+			// folders, which asks the server about each folder and changes
+			// no number here
+			_, orphans, scanned, err := findOrphans(ctx, client)
 			if err != nil {
 				return fail("audit_orphans", err)
 			}
-			add(auditAllRow{Audit: "audit_orphans", Findings: orphans.Found, Scanned: orphans.Scanned, Note: "items under folders no library covers; audit_orphans lists them, in the admin toolset"})
+			add(auditAllRow{Audit: "audit_orphans", Findings: len(orphans), Scanned: scanned, Note: "items under folders no library covers; audit_orphans lists them, in the admin toolset"})
 		} else {
 			skip("audit_orphans", "server-wide: run it without a library")
 		}
@@ -628,8 +722,9 @@ func registerRuntimeAudit(r *registry) {
 	client := r.client
 
 	add(r, readTool, &mcp.Tool{
-		Name:        "audit_runtime",
-		Description: "Find episodes whose runtime disagrees with their season's: truncated downloads, wrong files, or wrong matches, each compared to the median of its season (needs 3+ episodes), with no external data. A film's runtime against its provider's is audit_provider.",
+		Name: "audit_runtime",
+		Description: "Find episodes whose runtime disagrees with their season's: truncated downloads, wrong files, or wrong matches, each compared to the median of its season (needs 3+ episodes), with no external data. " +
+			fmt.Sprintf("A duration too long to be any episode's (%d hours or more) is broken metadata and reported wherever it is, whatever the season holds. A film's runtime against its provider's is audit_provider.", absurdRuntimeS/3600),
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in runtimeIn) (*mcp.CallToolResult, auditOut, error) {
 		if in.TolerancePct <= 0 {
 			in.TolerancePct = defaultRuntimeTolerancePct
@@ -687,6 +782,13 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 		season int
 	}
 
+	type scored struct {
+		finding auditFinding
+		pct     int
+	}
+	var findings []scored
+	name := func(e ep) string { return fmt.Sprintf("%s S%02dE%02d %s", e.series, e.season, e.index, e.name) }
+
 	seasons := map[seasonKey][]ep{}
 	out := auditOut{Findings: []auditFinding{}}
 	sweepErr := client.SearchAll(ctx, embyfin.SearchOptions{
@@ -697,18 +799,33 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 		for i := range items {
 			it := &items[i]
 			out.Scanned++
-			// specials (season 0) have no typical length, so there is nothing to compare to
-			if it.SeriesID == "" || it.RunTimeTicks <= 0 || it.ParentIndexNumber == 0 {
+			if it.RunTimeTicks <= 0 {
 				continue
 			}
-			k := seasonKey{it.SeriesID, it.ParentIndexNumber}
-			seasons[k] = append(seasons[k], ep{
+			e := ep{
 				id: it.ID, name: it.Name, series: it.SeriesName, filePath: it.Path,
 				season: it.ParentIndexNumber, index: it.IndexNumber, minutes: it.RuntimeMinutes(),
 				// a file the server recorded as holding several episodes is
 				// expected to run that many times the median, not once
 				span: max(it.IndexNumberEnd-it.IndexNumber+1, 1),
-			})
+			}
+			// a duration this long is broken metadata rather than a long
+			// episode, and needs nothing to compare it to: it is reported
+			// wherever it is, a season of two, a season where every file is
+			// broken, the specials. A percentage off a median would dress it
+			// up as a measurement.
+			if e.minutes >= absurdRuntimeMinutes {
+				findings = append(findings, scored{pct: brokenRuntimeRank, finding: auditFinding{
+					ID: e.id, Name: name(e), Path: e.filePath,
+					Detail: fmt.Sprintf("%d min: not a runtime, the file's duration metadata is broken", e.minutes),
+				}})
+			}
+			// specials (season 0) have no typical length, so there is nothing to compare to
+			if it.SeriesID == "" || it.ParentIndexNumber == 0 {
+				continue
+			}
+			k := seasonKey{it.SeriesID, it.ParentIndexNumber}
+			seasons[k] = append(seasons[k], e)
 		}
 		return true
 	})
@@ -716,11 +833,6 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 		return auditOut{}, sweepErr
 	}
 
-	type scored struct {
-		finding auditFinding
-		pct     int
-	}
-	var findings []scored
 	for _, eps := range seasons {
 		if len(eps) < 3 {
 			continue
@@ -741,17 +853,8 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 		median := mins[len(mins)/2]
 
 		for _, e := range eps {
-			name := fmt.Sprintf("%s S%02dE%02d %s", e.series, e.season, e.index, e.name)
-			// a duration this long is broken metadata rather than a long
-			// episode; a percentage off a median would dress it up as a
-			// measurement
 			if e.minutes >= absurdRuntimeMinutes {
-				findings = append(findings, scored{pct: brokenRuntimeRank, finding: auditFinding{
-					ID: e.id, Name: name, Path: e.filePath,
-					Detail: fmt.Sprintf("%d min: not a runtime, the file's duration metadata is broken", e.minutes),
-				}})
-
-				continue
+				continue // reported as broken already
 			}
 			expected := median * e.span
 			pct, off := runtimeOff(e.minutes, expected, in.TolerancePct)
@@ -763,16 +866,15 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 				detail = fmt.Sprintf("%d min for %d episodes, season median %d min each, %d expected (%d%% off)", e.minutes, e.span, median, expected, pct)
 			}
 			findings = append(findings, scored{pct: pct, finding: auditFinding{
-				ID: e.id, Name: name, Path: e.filePath, Detail: detail,
+				ID: e.id, Name: name(e), Path: e.filePath, Detail: detail,
 			}})
 		}
 	}
-	// worst deviations first so a capped worklist starts with the clearest problems
+	// worst deviations first so a capped worklist starts with the clearest
+	// problems; the id settles two entries of one name, so a limit keeps the
+	// same ones on every call
 	slices.SortFunc(findings, func(a, b scored) int {
-		if a.pct != b.pct {
-			return b.pct - a.pct
-		}
-		return strings.Compare(a.finding.Name, b.finding.Name)
+		return cmp.Or(cmp.Compare(b.pct, a.pct), strings.Compare(a.finding.Name, b.finding.Name), strings.Compare(a.finding.ID, b.finding.ID))
 	})
 
 	out.Found = len(findings)

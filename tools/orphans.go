@@ -75,41 +75,187 @@ func libraryPaths(ctx context.Context, client *embyfin.Client) ([]libraryPath, e
 	return out, nil
 }
 
+// findOrphans is the sweep audit_orphans counts: every item outside every
+// library folder, and the library folders it was read against. audit_all
+// reports its count without placing the items in folders, which asks the
+// server about each folder.
+func findOrphans(ctx context.Context, client *embyfin.Client) ([]libraryPath, []embyfin.Item, int, error) {
+	libs, err := libraryPaths(ctx, client)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	orphans, scanned, err := sweepOrphans(ctx, client, libs, "")
+
+	return libs, orphans, scanned, err
+}
+
 func auditOrphans(ctx context.Context, client *embyfin.Client, in orphansIn) (orphansOut, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 50
 	}
-	libs, err := libraryPaths(ctx, client)
-	if err != nil {
-		return orphansOut{}, err
-	}
-	orphans, scanned, err := sweepOrphans(ctx, client, libs, "")
+	libs, orphans, scanned, err := findOrphans(ctx, client)
 	if err != nil {
 		return orphansOut{}, err
 	}
 
-	byFolder := map[string][]embyfin.Item{}
-	for _, it := range orphans {
-		folder := orphanFolder(it.Path, libs)
-		byFolder[folder] = append(byFolder[folder], it)
-	}
-	folders := slices.SortedFunc(maps.Keys(byFolder), func(a, b string) int {
-		return cmp.Or(cmp.Compare(len(byFolder[b]), len(byFolder[a])), strings.Compare(a, b))
+	places := placeOrphans(ctx, client, orphans, libs)
+	folders := slices.SortedFunc(maps.Keys(places), func(a, b string) int {
+		return cmp.Or(cmp.Compare(len(places[b].items), len(places[a].items)), strings.Compare(a, b))
 	})
 
 	out := orphansOut{Scanned: scanned, Found: len(orphans), Folders: []orphanGroup{}}
 	for _, folder := range folders[:min(len(folders), limit)] {
-		items := byFolder[folder]
-		group := orphanGroup{Folder: folder, Items: len(items), ByType: map[string]int{}, Examples: orphanRows(items, 5)}
-		for _, it := range items {
+		p := places[folder]
+		group := orphanGroup{Folder: folder, OnServer: p.state, Note: p.note, Items: len(p.items), ByType: map[string]int{}, Examples: orphanRows(p.items, 5)}
+		for _, it := range p.items {
 			group.ByType[it.Type]++
 		}
-		group.OnServer, group.Note = folderState(ctx, client, folder)
 		out.Folders = append(out.Folders, group)
 	}
 
 	return out, nil
+}
+
+// orphanPlace is a folder orphans are reported under: the items, and
+// whether the server can see the folder.
+type orphanPlace struct {
+	items       []embyfin.Item
+	state, note string
+}
+
+// placeOrphans decides the folder each orphan is reported under: for
+// leftovers, the deepest folder holding them that the server can no longer
+// see, which is the folder item_orphans_delete takes; for files still on
+// disk, the deepest folder holding them.
+//
+// It starts from the orphans under each highest folder that holds no
+// library (orphanFolder) and asks the server about the deepest folder
+// holding them all. Gone, that folder is the answer: everything under it
+// went with it. Still there, the orphans are split by the entry beneath it
+// they sit under and each part is asked about the same way. That is what
+// keeps two unrelated removed trees apart, and reports a disk that was
+// mounted at /mnt/old at the folder that was on it rather than at /mnt,
+// which the server can see: climbing to just below the top named /mnt,
+// called it present, and item_orphans_delete refused the folder the audit
+// had named. An orphan sitting directly in a folder the server can see is
+// on disk, and those are reported together under the deepest folder holding
+// them. A folder the server could not be asked about is reported as it
+// stands, unknown, and nothing below it is guessed at. Each folder is asked
+// about once.
+func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin.Item, libs []libraryPath) map[string]*orphanPlace {
+	type answer struct{ state, note string }
+	asked := map[string]answer{}
+	ask := func(folder string) answer {
+		a, ok := asked[folder]
+		if !ok {
+			a.state, a.note = folderState(ctx, client, folder)
+			asked[folder] = a
+		}
+
+		return a
+	}
+	places := map[string]*orphanPlace{}
+	put := func(folder string, items []embyfin.Item) {
+		p := places[folder]
+		if p == nil {
+			a := ask(folder)
+			p = &orphanPlace{state: a.state, note: a.note}
+			places[folder] = p
+		}
+		p.items = append(p.items, items...)
+	}
+
+	var split func(folder string, items []embyfin.Item, onDisk *[]embyfin.Item)
+	split = func(folder string, items []embyfin.Item, onDisk *[]embyfin.Item) {
+		if ask(folder).state != folderPresent {
+			put(folder, items)
+
+			return
+		}
+		below := map[string][]embyfin.Item{}
+		for _, it := range items {
+			child := childOf(folder, it.Path)
+			if child == "" {
+				// the folder's own item: a Folder or a Series whose folder
+				// the server can see
+				*onDisk = append(*onDisk, it)
+
+				continue
+			}
+			below[child] = append(below[child], it)
+		}
+		for _, child := range slices.Sorted(maps.Keys(below)) {
+			part := below[child]
+			// a file sitting in this folder, or copies of one: the folder
+			// holding it is this one, which the server can see
+			if !slices.ContainsFunc(part, func(it embyfin.Item) bool { return trimSep(it.Path) != child }) {
+				*onDisk = append(*onDisk, part...)
+
+				continue
+			}
+			split(holdingFolder(part, child), part, onDisk)
+		}
+	}
+
+	byRegion := map[string][]embyfin.Item{}
+	for _, it := range orphans {
+		region := orphanFolder(it.Path, libs)
+		byRegion[region] = append(byRegion[region], it)
+	}
+	for _, region := range slices.Sorted(maps.Keys(byRegion)) {
+		items := byRegion[region]
+		var onDisk []embyfin.Item
+		split(holdingFolder(items, region), items, &onDisk)
+		if len(onDisk) > 0 {
+			put(holdingFolder(onDisk, region), onDisk)
+		}
+	}
+
+	return places
+}
+
+// holdingFolder is the deepest folder every item is at or under: the path
+// their paths share, or, when they are all one path (a single file, or
+// copies of one), the folder holding it. It never climbs above bound, which
+// holds them all and no library.
+func holdingFolder(items []embyfin.Item, bound string) string {
+	first := trimSep(items[0].Path)
+	common, same := first, true
+	for _, it := range items[1:] {
+		p := trimSep(it.Path)
+		same = same && p == first
+		for common != "" && !within(p, common) {
+			common = parentDir(common)
+		}
+	}
+	if same {
+		if up := parentDir(common); up != "" && within(up, bound) {
+			common = up
+		}
+	}
+
+	return common
+}
+
+// childOf is the entry directly inside folder that path is or is under,
+// spelled with the path's own separator, or "" for the folder itself. path
+// is within folder.
+func childOf(folder, path string) string {
+	folder, path = trimSep(folder), trimSep(path)
+	if len(path) <= len(folder) {
+		return ""
+	}
+	rest, sep := path[len(folder):], ""
+	// a filesystem's top already ends in its separator
+	if !isSep(folder[len(folder)-1]) {
+		sep, rest = rest[:1], rest[1:]
+	}
+	if i := strings.IndexAny(rest, `/\`); i >= 0 {
+		rest = rest[:i]
+	}
+
+	return folder + sep + rest
 }
 
 func isSep(b byte) bool { return b == '/' || b == '\\' }
@@ -158,7 +304,10 @@ func parentDir(p string) string {
 	return p[:i]
 }
 
-// baseName is the last segment of a path, either separator.
+// baseName is the last segment of a path, either separator. Every path an
+// audit splits is the media server's, and one on Windows answers with
+// backslashes whatever machine this runs on, which filepath.Base would read
+// as one long name.
 func baseName(p string) string {
 	p = trimSep(p)
 	if i := strings.LastIndexAny(p, `/\`); i >= 0 {
@@ -222,10 +371,10 @@ func holdsLibrary(folder string, libs []libraryPath) (libraryPath, bool) {
 	return libraryPath{}, false
 }
 
-// orphanFolder is the folder an orphan is reported under: the highest one
-// above it that holds no library folder, which is where the removed library's
-// folder was. The one above that holds libraries still in use, and naming it
-// would be naming them.
+// orphanFolder is the highest folder above an orphan that holds no library
+// folder, which is as high as the removed library's folder can have been:
+// the one above holds libraries still in use, and naming it would be naming
+// them. audit_orphans reports each orphan at or below it (placeOrphans).
 func orphanFolder(path string, libs []libraryPath) string {
 	folder := trimSep(path)
 	for {
@@ -423,7 +572,7 @@ func settled(ctx context.Context, client *embyfin.Client, failures []orphanFailu
 func depth(p string) int { return strings.Count(trimSep(p), "/") + strings.Count(trimSep(p), `\`) }
 
 type orphanGroup struct {
-	Folder   string         `json:"folder"         jsonschema:"the highest folder above these items that holds no library folder: where a library's folder was"`
+	Folder   string         `json:"folder"         jsonschema:"the deepest folder holding these items: for leftovers the one the server can no longer see, which item_orphans_delete takes as named; for files still on disk the folder they are in"`
 	OnServer string         `json:"on_server"      jsonschema:"missing: the server cannot find the folder, so these are leftovers item_orphans_delete removes; present: the files are still there, held outside every library, and item_orphans_delete refuses them; unknown: the check failed, see note"`
 	Items    int            `json:"items"`
 	ByType   map[string]int `json:"by_type"        jsonschema:"how many of each kind of item"`

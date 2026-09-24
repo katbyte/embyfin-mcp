@@ -30,8 +30,10 @@ var discPatterns = []struct {
 	kind string
 	re   *regexp.Regexp
 }{
-	// a Blu-ray's streams, five digits and an extension, nothing else
-	{"flattened blu-ray", regexp.MustCompile(`(?i)/\d{5}\.(m2ts|mts|ssif)$`)},
+	// a Blu-ray's streams, five digits and an extension, nothing else. Not
+	// .mts: that is a camcorder's clip (AVCHD), numbered the same way, and
+	// a folder of those is home video rather than a disc's menu and extras
+	{"flattened blu-ray", regexp.MustCompile(`(?i)/\d{5}\.(m2ts|ssif)$`)},
 	// a DVD's VOBs, titleset and part
 	{"flattened dvd", regexp.MustCompile(`(?i)/vts_\d+_\d+\.vob$`)},
 }
@@ -41,6 +43,12 @@ var discPatterns = []struct {
 // disc into its parts.
 var discStructures = []string{"BDMV", "VIDEO_TS", "AUDIO_TS"}
 
+// camcorderFolder is where a camcorder writes its footage, in a BDMV folder
+// of its own: PRIVATE/AVCHD/BDMV/STREAM/00000.MTS. That is the shape of a
+// disc, and it is a card of home videos; advice to remux the feature and
+// remove the rest would remove them.
+const camcorderFolder = "AVCHD"
+
 // discRoot is the folder to report an item under: the disc's own folder,
 // which is the one holding the streams, or the one holding BDMV or VIDEO_TS.
 func discRoot(path string) (root, kind string, isDisc bool) {
@@ -48,7 +56,11 @@ func discRoot(path string) (root, kind string, isDisc bool) {
 	// written with one separator, so the path is read with one
 	slashed := strings.ReplaceAll(path, `\`, "/")
 	parts := strings.Split(slashed, "/")
-	for i, seg := range parts[:max(len(parts)-1, 0)] {
+	folders := parts[:max(len(parts)-1, 0)]
+	if slices.ContainsFunc(folders, func(s string) bool { return strings.EqualFold(s, camcorderFolder) }) {
+		return "", "", false
+	}
+	for i, seg := range folders {
 		if slices.ContainsFunc(discStructures, func(s string) bool { return strings.EqualFold(seg, s) }) {
 			return trimSep(strings.Join(parts[:i], "/")), "inside a disc structure", true
 		}

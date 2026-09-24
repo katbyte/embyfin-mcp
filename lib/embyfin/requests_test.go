@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -113,6 +114,20 @@ func (f *fake) all(key string) []recorded {
 	return got
 }
 
+// queryList reads a list parameter whichever server's spelling it takes:
+// Emby's capitalised and comma-joined, Jellyfin's camel-cased and repeated.
+func queryList(q url.Values, name string) []string {
+	if v := q.Get(name); v != "" {
+		return strings.Split(v, ",")
+	}
+	var out []string
+	for _, v := range q[strings.ToLower(name[:1])+name[1:]] {
+		out = append(out, strings.Split(v, ",")...)
+	}
+
+	return out
+}
+
 // jsonBody decodes a recorded body.
 func jsonBody(t *testing.T, body string) map[string]any {
 	t.Helper()
@@ -145,6 +160,118 @@ func TestNew(t *testing.T) {
 	c, err := New(Jellyfin, "http://nas:8096/", "t")
 	if err != nil || c.Backend() != Jellyfin || c.BaseURL() != "http://nas:8096" {
 		t.Errorf("New = %+v, %v", c, err)
+	}
+}
+
+// Emby answers a lookup that finds nothing with a 204 and no body, which the
+// typed client hands back as a nil model and no error. Every Emby read takes
+// that as nothing found: a list comes back empty, a single item is an error
+// IsNotFound recognises, and nothing reaches through the missing model.
+func TestEmbyNullResults(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	t.Cleanup(srv.Close)
+	c, err := New(Emby, srv.URL, "tok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.emby.Client.HTTPClient = srv.Client()
+	ctx := t.Context()
+
+	// call runs one read, turning a panic into a failure of that read alone
+	call := func(name string, read func() error) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("%s panicked on Emby's null result: %v", name, r)
+				err = nil
+			}
+		}()
+		return read()
+	}
+	empty := func(n int, err error) error {
+		if err == nil && n != 0 {
+			return fmt.Errorf("%d results", n)
+		}
+		return err
+	}
+
+	for name, read := range map[string]func() error{
+		"Search": func() error { items, total, err := c.Search(ctx, SearchOptions{}); return empty(len(items)+total, err) },
+		"Search as a user": func() error {
+			items, _, err := c.Search(ctx, SearchOptions{UserID: "u1"})
+			return empty(len(items), err)
+		},
+		"ItemsByProviderID": func() error { items, err := c.ItemsByProviderID(ctx, "tmdb", "348"); return empty(len(items), err) },
+		"Similar":           func() error { items, err := c.Similar(ctx, "1", "u1", 5); return empty(len(items), err) },
+		"InstantMix":        func() error { items, err := c.InstantMix(ctx, "1", 5); return empty(len(items), err) },
+		"PlaylistItems": func() error {
+			items, total, err := c.PlaylistItems(ctx, "p1", "u1")
+			return empty(len(items)+total, err)
+		},
+		"RemoteImages": func() error {
+			images, total, err := c.RemoteImages(ctx, "1", "Primary", 5)
+			return empty(len(images)+total, err)
+		},
+		"VirtualFolders": func() error { folders, err := c.VirtualFolders(ctx); return empty(len(folders), err) },
+		"Persons":        func() error { people, err := c.Persons(ctx, "ridley", 5); return empty(len(people), err) },
+		"Seasons":        func() error { items, err := c.Seasons(ctx, "s1", "u1"); return empty(len(items), err) },
+		"Episodes":       func() error { items, err := c.Episodes(ctx, "s1", EpisodeOptions{}); return empty(len(items), err) },
+		"Users":          func() error { users, err := c.Users(ctx); return empty(len(users), err) },
+		"NextUp":         func() error { items, err := c.NextUp(ctx, "u1", 5); return empty(len(items), err) },
+		"Resume":         func() error { items, err := c.Resume(ctx, "u1", 5); return empty(len(items), err) },
+		"ActivityLog": func() error {
+			entries, total, err := c.ActivityLog(ctx, time.Time{}, 5, 0)
+			return empty(len(entries)+total, err)
+		},
+		"Devices":  func() error { devices, err := c.Devices(ctx); return empty(len(devices), err) },
+		"LogFiles": func() error { files, err := c.LogFiles(ctx); return empty(len(files), err) },
+		// no fetchers listed is a library created with none
+		"CreateLibrary with providers": func() error {
+			return c.CreateLibrary(ctx, LibrarySpec{Name: "Films", CollectionType: "movies", Paths: []string{"/m"}, Providers: true})
+		},
+	} {
+		if err := call(name, read); err != nil {
+			t.Errorf("%s = %v, want nothing found", name, err)
+		}
+	}
+
+	edited := false
+	for name, read := range map[string]func() error{
+		"UserItem": func() error { _, err := c.UserItem(ctx, "u1", "42"); return err },
+		"FullItem": func() error { _, err := c.FullItem(ctx, "u1", "42"); return err },
+		"EditItem": func() error {
+			_, err := c.EditItem(ctx, "u1", "42", func(full map[string]any) (bool, error) {
+				edited = true
+				full["Name"] = "Alien"
+				return true, nil
+			})
+			return err
+		},
+		"Person": func() error { _, err := c.Person(ctx, "Ridley Scott", ""); return err },
+	} {
+		if err := call(name, read); !client.IsNotFound(err) {
+			t.Errorf("%s = %v, want an error IsNotFound recognises", name, err)
+		}
+	}
+	if edited {
+		t.Error("EditItem handed its edit an item the server does not have")
+	}
+	if it, seen, err := c.VisibleUserItem(ctx, "u1", "42"); err != nil || seen || it != nil {
+		t.Errorf("VisibleUserItem = %v, %v, %v, want not seen", it, seen, err)
+	}
+
+	// what has no answer to fall back on is an error rather than a zero
+	for name, read := range map[string]func() error{
+		"CreatePlaylist":   func() error { _, err := c.CreatePlaylist(ctx, "Mix", []string{"1"}, "Video", "u1"); return err },
+		"CreateCollection": func() error { _, err := c.CreateCollection(ctx, "Set", []string{"1"}); return err },
+		"SystemInfo":       func() error { _, err := c.SystemInfo(ctx); return err },
+		"Counts":           func() error { _, err := c.Counts(ctx); return err },
+		"SetLibraryNfo":    func() error { return c.SetLibraryNfo(ctx, &VirtualFolder{Name: "Films", ItemID: "7"}, true) },
+	} {
+		if err := call(name, read); err == nil {
+			t.Errorf("%s succeeded on an answer of nothing", name)
+		}
 	}
 }
 
@@ -300,6 +427,41 @@ func TestSearchAllAndLookups(t *testing.T) {
 	// ignored is never actually pulled
 	if q := f.requests[len(f.requests)-1].query; q.Get("Limit") != "2" {
 		t.Errorf("ItemByID query = %v, want Limit=2", q)
+	}
+}
+
+// A provider id names a film or a series. TMDB numbers its collections apart
+// from its films, so collection 10 and film 10 are different things, and a
+// box set, season or episode carrying the number is not the film: both
+// servers are asked for films and series only.
+func TestItemsByProviderIDFindsFilmsAndSeries(t *testing.T) {
+	t.Parallel()
+
+	library := []struct{ id, typ string }{{"m", "Movie"}, {"bs", "BoxSet"}, {"se", "Series"}, {"sn", "Season"}, {"ep", "Episode"}}
+	// every item carries tmdb 10; the server narrows by type when asked
+	items := func(r *http.Request, _ string) (int, string) {
+		types := queryList(r.URL.Query(), "IncludeItemTypes")
+		var out []string
+		for _, it := range library {
+			if len(types) == 0 || slices.Contains(types, it.typ) {
+				out = append(out, `{"Id":"`+it.id+`","Type":"`+it.typ+`","ProviderIds":{"Tmdb":"10"}}`)
+			}
+		}
+		return http.StatusOK, `{"Items":[` + strings.Join(out, ",") + `],"TotalRecordCount":` + strconv.Itoa(len(out)) + `}`
+	}
+	for _, backend := range []Backend{Emby, Jellyfin} {
+		c, _ := newFake(t, backend, map[string]route{"GET /Items": items})
+		found, err := c.ItemsByProviderID(t.Context(), "tmdb", "10")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, it := range found {
+			got = append(got, it.Type)
+		}
+		if !slices.Equal(got, []string{"Movie", "Series"}) {
+			t.Errorf("%s: tmdb 10 found %v, want the film and the series only", backend, got)
+		}
 	}
 }
 
@@ -527,6 +689,8 @@ func TestPlaylists(t *testing.T) {
 	added := false
 	c, f := newFake(t, Emby, map[string]route{
 		"POST /Playlists": ok(`{"Id":"p1"}`),
+		// what is added is read first, to tell a folder from an item
+		"GET /Items": ok(`{"Items":[{"Id":"3","Type":"Movie","IsFolder":false},{"Id":"4","Type":"Movie","IsFolder":false}]}`),
 		"POST /Playlists/p1/Items": func(*http.Request, string) (int, string) {
 			added = true
 			return http.StatusNoContent, ""
@@ -597,30 +761,105 @@ func TestPlaylists(t *testing.T) {
 func TestAddToPlaylist(t *testing.T) {
 	t.Parallel()
 
-	// a playlist whose entries follow the adds the server keeps: lose says
-	// how many adds are answered, applied and then put back by a refresh
-	playlist := func(t *testing.T, backend Backend, lose int) (*Client, *fake) {
+	// the library the playlist is filled from: a series whose season holds
+	// two episodes and the record of a missing one, a season with nothing in
+	// it, an album holding two songs and a music video, and the songs' artist
+	type libraryItem struct {
+		typ, parent, media, artist string
+		folder, virtual            bool
+	}
+	library := map[string]libraryItem{
+		"a": {typ: "Movie", media: "Video"}, "b": {typ: "Movie", media: "Video"}, "c": {typ: "Movie", media: "Video"},
+		"s": {typ: "Series", folder: true}, "s1": {typ: "Season", parent: "s", folder: true}, "s2": {typ: "Season", parent: "s", folder: true},
+		"e1": {typ: "Episode", parent: "s1", media: "Video"}, "e2": {typ: "Episode", parent: "s1", media: "Video"},
+		"e3": {typ: "Episode", parent: "s1", media: "Video", virtual: true},
+		"al": {typ: "MusicAlbum", folder: true}, "ar": {typ: "MusicArtist", folder: true},
+		"t1": {typ: "Audio", parent: "al", media: "Audio", artist: "ar"}, "t2": {typ: "Audio", parent: "al", media: "Audio", artist: "ar"},
+		"mv": {typ: "MusicVideo", parent: "al", media: "Video"},
+	}
+	under := func(id, ancestor string) bool {
+		for p := library[id].parent; p != ""; p = library[p].parent {
+			if p == ancestor {
+				return true
+			}
+		}
+		return false
+	}
+	dto := func(id string) string {
+		it := library[id]
+		location := "FileSystem"
+		if it.virtual {
+			location = "Virtual"
+		}
+		return fmt.Sprintf(`{"Id":%q,"Name":"Item %s","Type":%q,"IsFolder":%t,"MediaType":%q,"LocationType":%q}`, id, id, it.typ, it.folder, it.media, location)
+	}
+	// items answers the item query the way both servers read it
+	items := func(r *http.Request, _ string) (int, string) {
+		q := r.URL.Query()
+		ids, filters, parent := queryList(q, "Ids"), queryList(q, "Filters"), queryList(q, "ParentId")
+		media, artists, types := queryList(q, "MediaTypes"), queryList(q, "ArtistIds"), queryList(q, "IncludeItemTypes")
+		var out []string
+		for _, id := range slices.Sorted(maps.Keys(library)) {
+			it := library[id]
+			if len(ids) > 0 && !slices.Contains(ids, id) ||
+				slices.Contains(filters, "IsFolder") && !it.folder || slices.Contains(filters, "IsNotFolder") && it.folder ||
+				len(parent) > 0 && !under(id, parent[0]) || len(media) > 0 && !slices.Contains(media, it.media) ||
+				len(artists) > 0 && !slices.Contains(artists, it.artist) || len(types) > 0 && !slices.Contains(types, it.typ) {
+				continue
+			}
+			out = append(out, dto(id))
+		}
+		return http.StatusOK, `{"Items":[` + strings.Join(out, ",") + `],"TotalRecordCount":` + strconv.Itoa(len(out)) + `}`
+	}
+
+	// a playlist whose entries follow the adds the server keeps, expanding
+	// what it is handed the way both servers do: an artist is its songs, any
+	// other folder the items anywhere beneath it of the playlist's media type
+	// (the missing episode's record included), anything else itself. lose
+	// says how many adds are answered, applied and then put back by a refresh
+	playlist := func(t *testing.T, backend Backend, mediaType string, lose int) (*Client, *fake) {
 		t.Helper()
 
 		held := []string{"a"}
-		c, f := newFake(t, backend, map[string]route{
-			"GET /Playlists/p1/Items": func(*http.Request, string) (int, string) {
-				items := make([]string, 0, len(held))
-				for _, id := range held {
-					items = append(items, `{"Id":"`+id+`"}`)
+		expand := func(id string) []string {
+			var out []string
+			for _, leaf := range slices.Sorted(maps.Keys(library)) {
+				it := library[leaf]
+				switch {
+				case library[id].typ == "MusicArtist":
+					if it.artist == id {
+						out = append(out, leaf)
+					}
+				case !it.folder && under(leaf, id) && it.media == mediaType:
+					out = append(out, leaf)
 				}
-				return http.StatusOK, `{"Items":[` + strings.Join(items, ",") + `]}`
+			}
+			if !library[id].folder {
+				return []string{id}
+			}
+			return out
+		}
+		playlistItem := ok(`{"Id":"p1","Name":"Mix","Type":"Playlist","IsFolder":true,"MediaType":"` + mediaType + `"}`)
+		c, f := newFake(t, backend, map[string]route{
+			"GET /Items":             items, // Emby's without a user, and Jellyfin's
+			"GET /Users/u1/Items":    items, // Emby's in a user's view
+			"GET /Users/u1/Items/p1": playlistItem,
+			"GET /Items/p1":          playlistItem,
+			"GET /Playlists/p1/Items": func(*http.Request, string) (int, string) {
+				entries := make([]string, 0, len(held))
+				for _, id := range held {
+					entries = append(entries, `{"Id":"`+id+`"}`)
+				}
+				return http.StatusOK, `{"Items":[` + strings.Join(entries, ",") + `]}`
 			},
 			"POST /Playlists/p1/Items": func(r *http.Request, _ string) (int, string) {
 				if lose > 0 {
 					lose--
 					return http.StatusNoContent, ""
 				}
-				added := r.URL.Query()["ids"]
-				if ids := r.URL.Query().Get("Ids"); ids != "" {
-					added = strings.Split(ids, ",")
+				for _, id := range queryList(r.URL.Query(), "Ids") {
+					held = append(held, expand(id)...)
 				}
-				held = append(held, added...)
 				return http.StatusNoContent, ""
 			},
 		})
@@ -637,9 +876,20 @@ func TestAddToPlaylist(t *testing.T) {
 		}
 		return got
 	}
+	holds := func(c *Client) []string {
+		entries, _, err := c.PlaylistItems(t.Context(), "p1", "u1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids := make([]string, 0, len(entries))
+		for _, e := range entries {
+			ids = append(ids, e.ID)
+		}
+		return ids
+	}
 
 	// kept at once: one add; a copy of an item already there counts as new
-	c, f := playlist(t, Emby, 0)
+	c, f := playlist(t, Emby, "Video", 0)
 	if err := c.AddToPlaylist(t.Context(), "p1", []string{"a", "b"}, "u1"); err != nil {
 		t.Fatal(err)
 	}
@@ -648,7 +898,7 @@ func TestAddToPlaylist(t *testing.T) {
 	}
 
 	// lost once: what is missing is sent again, and only that
-	c, f = playlist(t, Jellyfin, 1)
+	c, f = playlist(t, Jellyfin, "Video", 1)
 	if err := c.AddToPlaylist(t.Context(), "p1", []string{"b", "c"}, "u1"); err != nil {
 		t.Fatal(err)
 	}
@@ -657,12 +907,60 @@ func TestAddToPlaylist(t *testing.T) {
 	}
 
 	// never kept: an error naming what is missing, not a success
-	c, f = playlist(t, Emby, 2)
+	c, f = playlist(t, Emby, "Video", 2)
 	if err := c.AddToPlaylist(t.Context(), "p1", []string{"b"}, "u1"); err == nil || !strings.Contains(err.Error(), "did not keep b") {
 		t.Errorf("an add the server never keeps = %v", err)
 	}
 	if got := adds(f); len(got) != 2 {
 		t.Errorf("adds = %v, want two", got)
+	}
+
+	// a series goes in as its episodes, which is what is checked: the series
+	// itself never shows in the playlist, and is sent once
+	for _, backend := range []Backend{Emby, Jellyfin} {
+		c, f = playlist(t, backend, "Video", 0)
+		if err := c.AddToPlaylist(t.Context(), "p1", []string{"s"}, "u1"); err != nil {
+			t.Fatalf("%s: adding a series = %v", backend, err)
+		}
+		if got := adds(f); !slices.Equal(got, []string{"s"}) {
+			t.Errorf("%s: adds = %v, want the series sent once", backend, got)
+		}
+		if got := holds(c); !slices.Equal(got, []string{"a", "e1", "e2", "e3"}) {
+			t.Errorf("%s: the playlist holds %v", backend, got)
+		}
+
+		// lost once: the episodes missing go again, never the series, which
+		// would put every episode in twice
+		c, f = playlist(t, backend, "Video", 1)
+		if err := c.AddToPlaylist(t.Context(), "p1", []string{"s"}, "u1"); err != nil {
+			t.Fatalf("%s: adding a series the server lost once = %v", backend, err)
+		}
+		if got := adds(f); !slices.Equal(got, []string{"s", "e1,e2"}) {
+			t.Errorf("%s: adds = %v, want the series, then its episodes", backend, got)
+		}
+		if got := holds(c); !slices.Equal(got, []string{"a", "e1", "e2"}) {
+			t.Errorf("%s: the playlist holds %v", backend, got)
+		}
+	}
+
+	// an album is its songs of the playlist's media type, an artist their
+	// songs, both beside a plain item in one add
+	c, f = playlist(t, Jellyfin, "Audio", 0)
+	if err := c.AddToPlaylist(t.Context(), "p1", []string{"al", "ar", "b"}, "u1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := holds(c); !slices.Equal(got, []string{"a", "t1", "t2", "t1", "t2", "b"}) || len(adds(f)) != 1 {
+		t.Errorf("the playlist holds %v after %v", got, adds(f))
+	}
+
+	// a folder holding nothing the playlist can take is an error, and
+	// nothing is sent
+	c, f = playlist(t, Emby, "Video", 0)
+	if err := c.AddToPlaylist(t.Context(), "p1", []string{"b", "s2"}, "u1"); err == nil || !strings.Contains(err.Error(), "holds nothing") {
+		t.Errorf("adding an empty season = %v", err)
+	}
+	if got := adds(f); len(got) != 0 {
+		t.Errorf("adds = %v, want none", got)
 	}
 }
 
@@ -836,8 +1134,8 @@ func TestSessions(t *testing.T) {
 	if err := c.PlayCommand(t.Context(), "s1", "Seek", 900); err != nil {
 		t.Fatal(err)
 	}
-	if body := f.only("POST /Sessions/s1/Playing/Seek").body; body != `{"SeekPositionTicks":900}` {
-		t.Errorf("Emby seek body = %s", body)
+	if r := f.only("POST /Sessions/s1/Playing/Seek"); r.body != `{"SeekPositionTicks":900}` || r.query.Get("SeekPositionTicks") != "900" {
+		t.Errorf("Emby seek = %v %s", r.query, r.body)
 	}
 	if err := c.Message(t.Context(), "s1", "Hi", "there", 5000); err != nil {
 		t.Fatal(err)
@@ -871,6 +1169,32 @@ func TestSessions(t *testing.T) {
 	}
 }
 
+// A seek to the start is a position of 0, which Emby's body model leaves out
+// as unset: the position goes in the query too, where Emby's own web client
+// sends it and where 0 is sent. Other commands send no position at all.
+func TestSeekToTheStart(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range []Backend{Emby, Jellyfin} {
+		c, f := newFake(t, backend, map[string]route{
+			"POST /Sessions/s1/Playing/Seek":  noContent,
+			"POST /Sessions/s1/Playing/Pause": noContent,
+		})
+		if err := c.PlayCommand(t.Context(), "s1", "Seek", 0); err != nil {
+			t.Fatal(err)
+		}
+		if got := queryList(f.only("POST /Sessions/s1/Playing/Seek").query, "SeekPositionTicks"); !slices.Equal(got, []string{"0"}) {
+			t.Errorf("%s: a seek to the start sent position %v, want 0", backend, got)
+		}
+		if err := c.PlayCommand(t.Context(), "s1", "Pause", 0); err != nil {
+			t.Fatal(err)
+		}
+		if got := queryList(f.only("POST /Sessions/s1/Playing/Pause").query, "SeekPositionTicks"); len(got) != 0 {
+			t.Errorf("%s: a pause sent position %v", backend, got)
+		}
+	}
+}
+
 func TestServer(t *testing.T) {
 	t.Parallel()
 
@@ -890,8 +1214,8 @@ func TestServer(t *testing.T) {
 	if _, err := c.RunTask(t.Context(), "defrag"); err == nil || !strings.Contains(err.Error(), "have: Scan media library") {
 		t.Errorf("an unknown task = %v", err)
 	}
-	if text, err := c.LogText(t.Context(), "embyserver.txt"); err != nil || text != "line one\nline two\n" || f.only("GET /System/Logs/embyserver.txt").path == "" {
-		t.Errorf("LogText = %q, %v", text, err)
+	if text, err := c.LogTail(t.Context(), "embyserver.txt", 5); err != nil || text != "line one\nline two" || f.only("GET /System/Logs/embyserver.txt").path == "" {
+		t.Errorf("LogTail = %q, %v", text, err)
 	}
 	since := time.Date(2026, 9, 14, 12, 0, 0, 0, time.FixedZone("x", 3600))
 	if entries, total, err := c.ActivityLog(t.Context(), since, 10, 0); err != nil || total != 1 || entries[0].Name != "login" {
@@ -905,6 +1229,91 @@ func TestServer(t *testing.T) {
 	}
 	if err := c.RefreshLibrary(t.Context()); err != nil {
 		t.Error(err)
+	}
+}
+
+// A log runs to tens of megabytes on a busy server, and its tail is the part
+// worth reading: the whole of it is read through, keeping only the last lines,
+// so a log past any read cap still answers its true last lines, whole.
+func TestLogTailReadsABigLogToItsEnd(t *testing.T) {
+	t.Parallel()
+
+	// just over 40 MiB of numbered lines, made as they are sent
+	const size = 40 << 20
+	var lines atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		var buf strings.Builder
+		for sent := 0; sent < size; {
+			buf.Reset()
+			for range 1000 {
+				fmt.Fprintf(&buf, "2026-09-23 12:00:00.000 Info Server: request %09d answered in 12ms\n", lines.Add(1))
+			}
+			n, err := io.WriteString(w, buf.String())
+			if err != nil {
+				return
+			}
+			sent += n
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	for _, backend := range []Backend{Emby, Jellyfin} {
+		lines.Store(0)
+		c, err := New(backend, srv.URL, "tok")
+		if err != nil {
+			t.Fatal(err)
+		}
+		tail, err := c.LogTail(t.Context(), "embyserver.txt", 3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		last := lines.Load()
+		want := make([]string, 0, 3)
+		for n := last - 2; n <= last; n++ {
+			want = append(want, fmt.Sprintf("2026-09-23 12:00:00.000 Info Server: request %09d answered in 12ms", n))
+		}
+		if tail != strings.Join(want, "\n") {
+			t.Errorf("%s: the tail of %d lines = %q, want the last three", backend, last, tail)
+		}
+	}
+}
+
+// The tail is the last lines as the file ends them: a Windows server's
+// carriage returns go, blank lines at the very end do not count, one in the
+// middle does, and a line too long to keep whole keeps its start.
+func TestTailLines(t *testing.T) {
+	t.Parallel()
+
+	long := strings.Repeat("x", maxLogLine+10)
+	for _, tc := range []struct {
+		name, log string
+		n         int
+		want      string
+	}{
+		{"fewer lines than asked", "one\ntwo\n", 5, "one\ntwo"},
+		{"the last n", "one\ntwo\nthree\nfour\n", 2, "three\nfour"},
+		{"no newline at the end", "one\ntwo\nthree", 2, "two\nthree"},
+		{"carriage returns", "one\r\ntwo\r\nthree\r\n", 2, "two\nthree"},
+		{"blank lines at the end", "one\ntwo\n\n\n\n", 2, "one\ntwo"},
+		{"a blank line inside", "one\n\ntwo\n", 3, "one\n\ntwo"},
+		{"a line too long", "one\n" + long + "\nthree\n", 2, long[:maxLogLine] + "...\nthree"},
+		{"empty", "", 3, ""},
+	} {
+		got, err := tailLines(strings.NewReader(tc.log), tc.n)
+		if err != nil || got != tc.want {
+			t.Errorf("%s: tail = %q, %v, want %q", tc.name, got, err, tc.want)
+		}
+	}
+
+	// and what is kept stays within its bound however many lines are asked
+	var big strings.Builder
+	line := strings.Repeat("y", maxLogLine-1) + "\n"
+	for big.Len() <= maxTailBytes+4*maxLogLine {
+		big.WriteString(line)
+	}
+	got, err := tailLines(strings.NewReader(big.String()), 1_000_000)
+	if err != nil || len(got) > maxTailBytes || len(got) < maxTailBytes-2*maxLogLine {
+		t.Errorf("a tail of every line = %d bytes, %v, want it held to about %d", len(got), err, maxTailBytes)
 	}
 }
 
@@ -1241,16 +1650,19 @@ func TestPlaylistEdits(t *testing.T) {
 		t.Errorf("rename = %v", body)
 	}
 
-	// a Jellyfin playlist the routes below change: removes take entries out,
-	// adds append items with new entry ids, and one listing never changes
-	// however it is edited, like a scan re-reading the playlist file
-	jf := map[string][]string{"p2": {"a:ea", "b:eb", "c:ec"}, "p5": {"a:ea", "b:eb"}, "p6": {"a:ea", "b:eb", "c:ec"}}
+	// a Jellyfin playlist the routes below change, holding item ids: an
+	// entry's id is its item's, so a removal takes every copy of an item and
+	// an add appends items; one listing never changes however it is edited,
+	// like a scan re-reading the playlist file
+	jf := map[string][]string{
+		"p2": {"a", "b", "c"}, "p5": {"a", "b"}, "p6": {"a", "b", "c"},
+		"p7": {"a", "b", "a", "c"}, "p8": {"x", "a", "y", "a", "z"},
+	}
 	jfListing := func(id string) route {
 		return func(*http.Request, string) (int, string) {
 			items := make([]string, 0, len(jf[id]))
-			for _, e := range jf[id] {
-				item, entry, _ := strings.Cut(e, ":")
-				items = append(items, `{"Id":"`+item+`","PlaylistItemId":"`+entry+`"}`)
+			for _, item := range jf[id] {
+				items = append(items, `{"Id":"`+item+`","PlaylistItemId":"`+item+`"}`)
 			}
 			return http.StatusOK, `{"Items":[` + strings.Join(items, ",") + `],"TotalRecordCount":` + strconv.Itoa(len(items)) + `}`
 		}
@@ -1258,18 +1670,13 @@ func TestPlaylistEdits(t *testing.T) {
 	jfRemove := func(id string) route {
 		return func(r *http.Request, _ string) (int, string) {
 			gone := r.URL.Query()["entryIds"]
-			jf[id] = slices.DeleteFunc(jf[id], func(e string) bool {
-				_, entry, _ := strings.Cut(e, ":")
-				return slices.Contains(gone, entry)
-			})
+			jf[id] = slices.DeleteFunc(jf[id], func(item string) bool { return slices.Contains(gone, item) })
 			return http.StatusNoContent, ""
 		}
 	}
 	jfAdd := func(id string) route {
 		return func(r *http.Request, _ string) (int, string) {
-			for _, item := range r.URL.Query()["ids"] {
-				jf[id] = append(jf[id], item+":e"+item+strconv.Itoa(len(jf[id])))
-			}
+			jf[id] = append(jf[id], r.URL.Query()["ids"]...)
 			return http.StatusNoContent, ""
 		}
 	}
@@ -1279,7 +1686,7 @@ func TestPlaylistEdits(t *testing.T) {
 		"POST /Playlists/p2/Items":   jfAdd("p2"),
 		"GET /Items/p2":              ok(`{"Id":"p2","Name":"Mix"}`),
 		"POST /Items/p2":             noContent,
-		"GET /Playlists/p5/Items":    ok(`{"Items":[{"Id":"a","PlaylistItemId":"ea"},{"Id":"b","PlaylistItemId":"eb"}],"TotalRecordCount":2}`),
+		"GET /Playlists/p5/Items":    ok(`{"Items":[{"Id":"a","PlaylistItemId":"a"},{"Id":"b","PlaylistItemId":"b"}],"TotalRecordCount":2}`),
 		"DELETE /Playlists/p5/Items": noContent,
 		"POST /Playlists/p5/Items":   noContent,
 		"GET /Playlists/p6/Items":    jfListing("p6"),
@@ -1292,31 +1699,38 @@ func TestPlaylistEdits(t *testing.T) {
 			return func(r *http.Request, body string) (int, string) {
 				calls++
 				if calls == 1 {
-					jf["p6"] = append(jf["p6"], "b:eb", "c:ec")
+					jf["p6"] = append(jf["p6"], "b", "c")
 				}
 				return add(r, body)
 			}
 		}(),
+		"GET /Playlists/p7/Items":    jfListing("p7"),
+		"DELETE /Playlists/p7/Items": jfRemove("p7"),
+		"POST /Playlists/p7/Items":   jfAdd("p7"),
+		"GET /Playlists/p8/Items":    jfListing("p8"),
+		"DELETE /Playlists/p8/Items": jfRemove("p8"),
+		"POST /Playlists/p8/Items":   jfAdd("p8"),
 	})
+	c.settle = time.Millisecond
 	// Jellyfin's move wants a user behind the request, so the entries from
 	// the lower of the two positions on come out and go back in the new
 	// order; the ones before stay where they are
-	if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", "ec", 1); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", "c", 1); err != nil {
 		t.Fatal(err)
 	}
-	if q := f.only("DELETE /Playlists/p2/Items").query; !slices.Equal(q["entryIds"], []string{"eb", "ec"}) {
+	if q := f.only("DELETE /Playlists/p2/Items").query; !slices.Equal(q["entryIds"], []string{"b", "c"}) {
 		t.Errorf("remove = %v", q)
 	}
 	if q := f.only("POST /Playlists/p2/Items").query; !slices.Equal(q["ids"], []string{"c", "b"}) || q.Get("userId") != "u1" {
 		t.Errorf("re-add = %v", q)
 	}
-	if got := jf["p2"]; len(got) != 3 || !strings.HasPrefix(got[0], "a:") || !strings.HasPrefix(got[1], "c:") || !strings.HasPrefix(got[2], "b:") {
+	if got := jf["p2"]; !slices.Equal(got, []string{"a", "c", "b"}) {
 		t.Errorf("after the move the playlist holds %v, want a, c, b", got)
 	}
 	// a put-back the server undoes (a scan re-reading the playlist file
 	// between the removal and the add) is sent once more, then an error,
 	// rather than the old order being reported as moved
-	if err := c.MovePlaylistEntry(t.Context(), "p5", "u1", "eb", 0); err == nil || !strings.Contains(err.Error(), "did not move entry eb") {
+	if err := c.MovePlaylistEntry(t.Context(), "p5", "u1", "b", 0); err == nil || !strings.Contains(err.Error(), "did not move entry b") {
 		t.Errorf("a move whose put-back is lost = %v", err)
 	}
 	if n := len(f.all("POST /Playlists/p5/Items")); n != 2 {
@@ -1324,16 +1738,36 @@ func TestPlaylistEdits(t *testing.T) {
 	}
 	// a refresh that restores the old tail beside the new one is not
 	// someone else's edit: the tail goes out and back once more
-	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "ec", 1); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "c", 1); err != nil {
 		t.Fatal(err)
 	}
-	if got := jf["p6"]; len(got) != 3 || !strings.HasPrefix(got[0], "a:") || !strings.HasPrefix(got[1], "c:") || !strings.HasPrefix(got[2], "b:") {
+	if got := jf["p6"]; !slices.Equal(got, []string{"a", "c", "b"}) {
 		t.Errorf("after the second put-back the playlist holds %v, want a, c, b", got)
 	}
 	if n := len(f.all("POST /Playlists/p6/Items")); n != 2 {
 		t.Errorf("the put-back was sent %d times, want 2", n)
 	}
-	for entry, index := range map[string]int{"nope": 0, "ea": 3} {
+	// an item the playlist holds twice: removing it from the moved stretch
+	// takes its copy above the stretch too, so the stretch starts at that
+	// copy and the playlist ends as asked, both copies kept
+	if err := c.MovePlaylistEntry(t.Context(), "p7", "u1", "c", 2); err != nil {
+		t.Fatal(err)
+	}
+	if got := jf["p7"]; !slices.Equal(got, []string{"a", "b", "c", "a"}) {
+		t.Errorf("after moving c above the second a the playlist holds %v, want a, b, c, a", got)
+	}
+	// and it starts no higher than a copy needs: x, above every copy of what
+	// moves, is never taken out
+	if err := c.MovePlaylistEntry(t.Context(), "p8", "u1", "z", 3); err != nil {
+		t.Fatal(err)
+	}
+	if got := jf["p8"]; !slices.Equal(got, []string{"x", "a", "y", "z", "a"}) {
+		t.Errorf("after moving z the playlist holds %v, want x, a, y, z, a", got)
+	}
+	if q := f.only("DELETE /Playlists/p8/Items").query; !slices.Equal(q["entryIds"], []string{"a", "y", "z"}) {
+		t.Errorf("remove = %v, want each item from the first a on, once", q)
+	}
+	for entry, index := range map[string]int{"nope": 0, "a": 3} {
 		if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", entry, index); err == nil {
 			t.Errorf("moving %s to %d succeeded", entry, index)
 		}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -78,7 +80,7 @@ func registerIdentifyTools(r *registry) {
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "item_identify_apply",
-		Description: "Apply a candidate from item_identify: rewrites the item's identity and re-fetches its metadata and images, then reads the item back and reports it as it now is. An identity the server did not take is an error (Emby keeps the one an nfo beside the file names). In a library with its metadata fetchers off only the ids change and nothing is fetched: check the year and overview reported, and set them with item_edit. Changes server state.",
+		Description: "Apply a candidate from item_identify: rewrites the item's identity and re-fetches its metadata and images, then reads the item back and reports it as it now is. An identity the server did not take is an error (Emby keeps the one an nfo beside the file names). In a library with its metadata fetchers off the ids are set by a plain edit of the item, which changes them and nothing else (the server's apply would refresh the item with nothing to fetch): check the year and overview reported, and set them with item_edit. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in applyIn) (*mcp.CallToolResult, applyOut, error) {
 		results, err := client.RemoteSearch(ctx, in.Kind, in.ID, in.Name, in.Year)
 		if err != nil {
@@ -90,7 +92,31 @@ func registerIdentifyTools(r *registry) {
 		}
 		chosen := results[in.Candidate]
 
-		it, err := client.ApplyRemoteSearchResult(ctx, in.ID, chosen, in.ReplaceAllImages)
+		// in a library with its metadata fetchers off there is nothing to
+		// fetch, and the server's apply refreshes the item as if there were:
+		// Jellyfin's replaced every episode number of a series with nothing.
+		// There the ids are set with a plain edit, which changes them and
+		// nothing else.
+		current, err := client.ItemByID(ctx, in.ID)
+		if err != nil {
+			return nil, applyOut{}, err
+		}
+		folder, err := libraryOf(ctx, client, current)
+		if err != nil {
+			return nil, applyOut{}, err
+		}
+		fetchersOff := folder != nil && folder.FetchersOff(current.Type)
+
+		var it *embyfin.Item
+		if fetchersOff {
+			admin, aerr := client.ResolveUser(ctx, "")
+			if aerr != nil {
+				return nil, applyOut{}, aerr
+			}
+			it, err = client.SetProviderIDs(ctx, admin.ID, in.ID, chosen.ProviderIDs)
+		} else {
+			it, err = client.ApplyRemoteSearchResult(ctx, in.ID, chosen, in.ReplaceAllImages)
+		}
 		if err != nil {
 			return nil, applyOut{}, err
 		}
@@ -104,12 +130,13 @@ func registerIdentifyTools(r *registry) {
 			Name:    it.Name, Year: it.ProductionYear, Overview: overview,
 			MetadataProviderIDs: providerKeys(it.ProviderIDs),
 		}
-		folder, err := libraryOf(ctx, client, it)
-		if err != nil {
-			return nil, applyOut{}, err
-		}
-		if folder != nil && folder.FetchersOff(it.Type) {
+		if fetchersOff {
 			out.Note = fmt.Sprintf("the %s library has its metadata fetchers off, so only the ids changed and nothing was fetched: set what is missing or wrong with item_edit", folder.Name)
+			if !folder.SavesNfo {
+				// the ids are not written to the nfo, and a refresh reads it
+				// again (seen on Emby: the messy Dune went back to 841)
+				out.Note += ". The library does not save nfo files, so a refresh puts back the ids an nfo beside the file names, if it has one: correct that nfo too"
+			}
 		}
 
 		return nil, out, nil

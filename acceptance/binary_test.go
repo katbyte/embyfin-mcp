@@ -140,6 +140,35 @@ func listed(t *testing.T, cs *mcp.ClientSession) []string {
 	return names
 }
 
+// listedTools is the tools a session's server lists, with what each says of
+// itself.
+func listedTools(t *testing.T, cs *mcp.ClientSession) []*mcp.Tool {
+	t.Helper()
+
+	res, err := cs.ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return res.Tools
+}
+
+// kindOf reads a tool's kind from the hints a client sees: read-only, or
+// destructive (a delete), or neither (a write).
+func kindOf(tool *mcp.Tool) string {
+	a := tool.Annotations
+	switch {
+	case a == nil:
+		return "unannotated"
+	case a.ReadOnlyHint:
+		return "read"
+	case a.DestructiveHint != nil && *a.DestructiveHint:
+		return "delete"
+	}
+
+	return "write"
+}
+
 // callOn calls a tool on a session and returns its structured result.
 func callOn(t *testing.T, cs *mcp.ClientSession, name string, args map[string]any) map[string]any {
 	t.Helper()
@@ -215,6 +244,72 @@ func TestTheBinary(t *testing.T) {
 				}
 			})
 		}
+
+		// every tool says what it may do, and the kinds are what the
+		// operator's flags choose between: playlist_delete and
+		// collection_delete remove a list the server keeps, so they are
+		// delete tools, and library_export writes only this machine's disk,
+		// so it is a read tool
+		t.Run("the kinds a client is told", func(t *testing.T) {
+			cmd, stderr := bin.command(t, nil, "serve", "--toolsets", "all", "--enable-delete")
+			cs := connect(t, &mcp.CommandTransport{Command: cmd}, stderr)
+			t.Cleanup(func() { _ = cs.Close() })
+			kinds := map[string][]string{}
+			for _, tool := range listedTools(t, cs) {
+				kinds[kindOf(tool)] = append(kinds[kindOf(tool)], tool.Name)
+			}
+			if len(kinds["read"]) != 62 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
+				t.Errorf("read %d, write %d, delete %d, want 62, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
+			}
+			if want := []string{"collection_delete", "item_delete", "item_orphans_delete", "library_delete", "playlist_delete"}; !slices.Equal(sorted(kinds["delete"]), want) {
+				t.Errorf("delete tools = %v, want %v", kinds["delete"], want)
+			}
+			if !slices.Contains(kinds["read"], "library_export") {
+				t.Errorf("library_export is not a read tool: %v", kinds)
+			}
+		})
+
+		// --read-only wins over --enable-delete: nothing that changes the
+		// server is listed, and a write asked for anyway is refused and
+		// changes nothing
+		t.Run("read only refuses writes", func(t *testing.T) {
+			cmd, stderr := bin.command(t, nil, "serve", "--toolsets", "all", "--read-only", "--enable-delete")
+			cs := connect(t, &mcp.CommandTransport{Command: cmd}, stderr)
+			t.Cleanup(func() { _ = cs.Close() })
+			served := listedTools(t, cs)
+			var got []string
+			for _, tool := range served {
+				got = append(got, tool.Name)
+				if k := kindOf(tool); k != "read" {
+					t.Errorf("%s is listed under --read-only as a %s tool", tool.Name, k)
+				}
+			}
+			slices.Sort(got)
+			if want := toolsFor(t, tools.Options{Toolsets: []string{"all"}, ReadOnly: true, EnableDelete: true}); !slices.Equal(got, want) || !slices.Contains(got, "library_export") {
+				t.Errorf("tools = %v\nwant %v", got, want)
+			}
+
+			arrival := findItem(t, "Movies", "Movie", "Arrival")
+			favourites := func() int {
+				return len(rows(t, callOn(t, cs, "library_items", map[string]any{"watched": "favourite"})["items"], "items"))
+			}
+			before := favourites()
+			for name, args := range map[string]map[string]any{
+				"item_set_state": {"id": arrival, "favourite": true},
+				"item_delete":    {"id": arrival, "confirm": true},
+			} {
+				res, err := cs.CallTool(t.Context(), &mcp.CallToolParams{Name: name, Arguments: args})
+				if err == nil && !res.IsError {
+					t.Errorf("%s ran under --read-only: %v", name, res.StructuredContent)
+				}
+			}
+			if after := favourites(); after != before {
+				t.Errorf("root's favourites went from %d to %d under --read-only", before, after)
+			}
+			if got := callOn(t, cs, "item_get", map[string]any{"id": arrival}); str(got["name"]) != "Arrival" {
+				t.Errorf("Arrival after the refused delete = %v", got)
+			}
+		})
 
 		t.Run("a write", func(t *testing.T) {
 			cmd, stderr := bin.command(t, []string{"EMBYFIN_TOOLSETS=all"}, "serve")
@@ -294,7 +389,7 @@ func TestTheBinary(t *testing.T) {
 		if got, want := listed(t, cs), toolsFor(t, tools.Options{Toolsets: []string{"curation"}}); !slices.Equal(got, want) {
 			t.Errorf("tools = %v\nwant %v", got, want)
 		}
-		if got := findings(t, callOn(t, cs, "audit_file_path", map[string]any{"library": "Messy Movies"})); !slices.Equal(got, []string{"Dune"}) {
+		if got := findings(t, callOn(t, cs, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "year"})); !slices.Equal(got, []string{"Dune"}) {
 			t.Errorf("audit_file_path over HTTP = %v, want [Dune]", got)
 		}
 		_ = cs.Close()

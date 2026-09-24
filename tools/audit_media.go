@@ -337,6 +337,16 @@ func guideMissing(run []tmdb.Episode, held map[[2]int]bool) string {
 	return strings.Join(missing, ", ")
 }
 
+// recordAired says whether an episode the server keeps a record of, with no
+// file, has aired: by the rule the provider's run is read by (aired), so an
+// episode announced for next month, or announced with no date at all, is
+// not reported missing by one source and left out by the other.
+func recordAired(it *embyfin.Item, now time.Time) bool {
+	day, _, _ := strings.Cut(it.PremiereDate, "T")
+
+	return aired(tmdb.Episode{AirDate: day}, now)
+}
+
 func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide seriesGuide, in episodesIn) (missingEpisodesOut, error) {
 	limit := in.Limit
 	if limit <= 0 {
@@ -349,7 +359,7 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 	if maxLookups <= 0 {
 		maxLookups = defaultTMDBLookups
 	}
-	opts, err := sweepOptions(ctx, client, in.Library, "", "Episode", "Path")
+	opts, err := sweepOptions(ctx, client, in.Library, "", "Episode", "Path,PremiereDate")
 	if err != nil {
 		return missingEpisodesOut{}, err
 	}
@@ -358,11 +368,13 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 		name     string
 		onDisk   map[int][]int
 		held     map[[2]int]bool // every number a file covers, specials included
-		provider []string        // episodes the server lists without a file
+		records  bool            // the server keeps records of episodes it has no file for
+		provider []string        // aired episodes the server lists without a file
 		guide    string          // what the metadata provider lists without a file
 	}
 	bySeries := map[string]*series{}
 	out := auditOut{Findings: []auditFinding{}}
+	now := time.Now()
 	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
@@ -375,7 +387,13 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 				bySeries[it.SeriesID] = s
 			}
 			if !it.HasFile() {
-				s.provider = append(s.provider, fmt.Sprintf("S%02dE%02d", it.ParentIndexNumber, it.IndexNumber))
+				// a record of an episode still to come is a run the server
+				// knows, not an episode missing from it
+				s.records = true
+				if recordAired(it, now) {
+					s.provider = append(s.provider, fmt.Sprintf("S%02dE%02d", it.ParentIndexNumber, it.IndexNumber))
+				}
+
 				continue
 			}
 			out.Scanned++
@@ -392,17 +410,23 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 
 	runs := false
 	for _, s := range bySeries {
-		if len(s.provider) > 0 {
+		if s.records {
 			runs = true
 			break
 		}
 	}
 
+	// by name, then by id: two series of one name (one show split across two
+	// entries is the usual reason) otherwise swap places with the map's
+	// order from one call to the next, and paged by offset one of them is
+	// asked about twice and the other never
 	ids := make([]string, 0, len(bySeries))
 	for id := range bySeries {
 		ids = append(ids, id)
 	}
-	slices.SortFunc(ids, func(a, b string) int { return strings.Compare(bySeries[a].name, bySeries[b].name) })
+	slices.SortFunc(ids, func(a, b string) int {
+		return cmp.Or(strings.Compare(bySeries[a].name, bySeries[b].name), strings.Compare(a, b))
+	})
 
 	answer := missingEpisodesOut{auditOut: out}
 	if in.Provider {
@@ -509,7 +533,7 @@ func registerMediaAudits(r *registry) {
 
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_missing_episodes",
-		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). " +
+		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have aired and have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). " +
 			"With provider true, each series' whole run is read from the configured metadata providers instead (TMDB, with EMBYFIN_TMDB_TOKEN set), one request a series and paged, so what a series lacks after its last file is seen too. " +
 			"Read 'runs_known': when it is false this sweep can only see gaps between files, so a series it does not list is not known to be complete.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, missingEpisodesOut, error) {

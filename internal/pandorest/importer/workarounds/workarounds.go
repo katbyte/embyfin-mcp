@@ -44,6 +44,7 @@ var All = []Workaround{
 	embyPlaylistCreateUserID{},
 	embyLibraryAvailableOptionsQuery{},
 	embyNextUpLegacy{},
+	embyPlaystateSeekQuery{},
 	embyLibraryDeleteID{},
 	embyCommaSeparatedArrays{},
 	embyNullResultNoContent{},

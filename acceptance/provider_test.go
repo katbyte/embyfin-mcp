@@ -3,6 +3,8 @@
 package acceptance
 
 import (
+	"net/http"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -51,8 +53,8 @@ func TestItemIdentify(t *testing.T) {
 		t.Errorf("series candidates = %v", cands)
 	}
 
-	if msg := callErr(t, "item_identify", map[string]any{"id": id, "kind": "podcast"}); msg == "" {
-		t.Error("an unsupported kind was accepted")
+	if msg := callErr(t, "item_identify", map[string]any{"id": id, "kind": "podcast"}); !strings.Contains(msg, `unsupported identify kind "podcast"`) {
+		t.Errorf("an unsupported kind: %s", msg)
 	}
 }
 
@@ -98,17 +100,20 @@ func TestItemIdentifyApply(t *testing.T) {
 
 func TestItemArtwork(t *testing.T) {
 	id := findItem(t, "Movies", "Movie", "Blade Runner")
-	out := call(t, "item_artwork", map[string]any{"id": id, "limit": 3})
-	current := rows(t, out["current"], "current")
-	var primary bool
-	for _, img := range current {
-		if str(img["ImageType"]) == "Primary" {
-			primary = true
+	// the Primary image it holds: on a fresh server the fixture's 200x300
+	// poster.jpg
+	primary := func(item string) (w, h int, ok bool) {
+		for _, img := range rows(t, call(t, "item_artwork", map[string]any{"id": item, "limit": 1})["current"], "current") {
+			if str(img["ImageType"]) == "Primary" {
+				return numOr0(img["Width"]), numOr0(img["Height"]), true
+			}
 		}
+		return 0, 0, false
 	}
-	if !primary {
-		t.Errorf("no primary image among %v", current)
+	if _, _, ok := primary(id); !ok {
+		t.Fatal("Blade Runner holds no poster")
 	}
+	out := call(t, "item_artwork", map[string]any{"id": id, "type": "Primary", "limit": 3})
 	cands := rows(t, out["candidates"], "candidates")
 	if len(cands) == 0 || len(cands) > 3 {
 		t.Fatalf("candidates = %v", cands)
@@ -119,52 +124,71 @@ func TestItemArtwork(t *testing.T) {
 		}
 	}
 
-	// backdrops too
-	out = call(t, "item_artwork", map[string]any{"id": id, "type": "Backdrop", "limit": 2})
-	if n := len(rows(t, out["candidates"], "candidates")); n == 0 {
-		t.Error("no backdrop candidates")
-	}
-
 	// apply the first poster candidate: the server downloads it through the
-	// proxy (a placeholder image on replay) and keeps it
-	set := call(t, "item_artwork_set", map[string]any{"id": id, "url": str(cands[0]["url"])})
+	// proxy and keeps it in place of the poster.jpg. On replay the image is
+	// the proxy's 2x2 placeholder, recorded images being elided, so the size
+	// says the new one is in place
+	set := call(t, "item_artwork_set", map[string]any{"id": id, "url": str(cands[0]["url"]), "type": "Primary"})
 	if str(set["set"]) != "Primary" {
 		t.Errorf("item_artwork_set = %v", set)
 	}
-	if err := waitForScan(); err != nil {
-		t.Fatal(err)
+	if !recording() && !eventually(func() bool { w, h, ok := primary(id); return ok && w == 2 && h == 2 }) {
+		w, h, _ := primary(id)
+		t.Errorf("after item_artwork_set the poster is %dx%d, want the replayed 2x2", w, h)
 	}
-	after := call(t, "item_artwork", map[string]any{"id": id, "limit": 1})
-	primary = false
-	for _, img := range rows(t, after["current"], "current") {
-		if str(img["ImageType"]) == "Primary" {
-			primary = true
+
+	// and a type the item had none of: the messy copy, its fetchers off, has
+	// only its poster.jpg, and takes the clean copy's backdrop
+	backdrops := rows(t, call(t, "item_artwork", map[string]any{"id": id, "type": "Backdrop", "limit": 2})["candidates"], "candidates")
+	if len(backdrops) == 0 {
+		t.Fatal("no backdrop candidates")
+	}
+	var messy string
+	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Blade Runner"})["items"], "items") {
+		messy = str(it["id"]) // either of Emby's two will do
+	}
+	types := func() []string {
+		var out []string
+		for _, img := range rows(t, call(t, "item_artwork", map[string]any{"id": messy, "limit": 1})["current"], "current") {
+			out = append(out, str(img["ImageType"]))
 		}
+		return out
 	}
-	if !primary {
-		t.Error("no primary image after item_artwork_set")
+	if got := types(); slices.Contains(got, "Backdrop") {
+		t.Fatalf("the messy Blade Runner already has a backdrop: %v", got)
+	}
+	t.Cleanup(func() {
+		if status, raw := api(t, http.MethodDelete, "/Items/"+messy+"/Images/Backdrop/0", "", nil); status/100 != 2 {
+			t.Errorf("removing the backdrop: HTTP %d: %s", status, raw)
+		}
+	})
+	if set := call(t, "item_artwork_set", map[string]any{"id": messy, "url": str(backdrops[0]["url"]), "type": "Backdrop"}); str(set["set"]) != "Backdrop" {
+		t.Errorf("item_artwork_set type Backdrop = %v", set)
+	}
+	if !eventually(func() bool { return slices.Contains(types(), "Backdrop") }) {
+		t.Errorf("after item_artwork_set the messy copy's images are %v, want a Backdrop", types())
 	}
 }
 
-// No subtitle provider is configured on a fresh server, so the search
-// answers with nothing or with the provider's refusal; either way the
-// tools answer rather than hang, and a download of nothing is refused.
+// No subtitle provider is configured on a fresh server, so a search answers
+// with nothing on both, in any language or none, and a download of nothing is
+// refused.
 func TestSubtitles(t *testing.T) {
 	id := findItem(t, "Movies", "Movie", "Dune")
-	out, err := invoke("item_subtitle_search", map[string]any{"id": id, "language": "eng"})
-	switch {
-	case err != nil:
-		if !strings.Contains(strings.ToLower(err.Error()), "subtitle") && !strings.Contains(err.Error(), "HTTP") {
-			t.Errorf("subtitle search failed oddly: %v", err)
-		}
-	default:
-		if _, ok := out["candidates"].([]any); !ok {
-			t.Errorf("candidates = %v", out["candidates"])
+	for _, args := range []map[string]any{{"id": id, "language": "eng"}, {"id": id}} {
+		if out := call(t, "item_subtitle_search", args); len(rows(t, out["candidates"], "candidates")) != 0 {
+			t.Errorf("item_subtitle_search %v = %v, want nothing with no provider", args, out["candidates"])
 		}
 	}
-	// a download of nothing: Emby refuses it, Jellyfin answers 204 and
-	// downloads nothing, so only the call is asserted
-	if _, err := invoke("item_subtitle_download", map[string]any{"id": id, "subtitle_id": "nope_nope"}); err != nil && !strings.Contains(err.Error(), "HTTP") {
-		t.Errorf("subtitle download failed oddly: %v", err)
+	// a download of a subtitle no provider offered: Emby refuses it with a
+	// 500, and Jellyfin answers 204 having downloaded nothing, which the tool
+	// reads back for and refuses too
+	msg := callErr(t, "item_subtitle_download", map[string]any{"id": id, "subtitle_id": "nope_nope"})
+	want := "HTTP 500"
+	if isJellyfin() {
+		want = "no new subtitle reached Dune within ten seconds"
+	}
+	if !strings.Contains(msg, want) {
+		t.Errorf("downloading a subtitle nobody offered: %s", msg)
 	}
 }

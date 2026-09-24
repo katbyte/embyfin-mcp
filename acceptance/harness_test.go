@@ -59,26 +59,35 @@ var libraries = []libraryFixture{
 	{Name: "Movies", Type: "movies", Folder: "/media/movies", Providers: true, Items: func() int { return 8 }},
 	{Name: "Shows", Type: "tvshows", Folder: "/media/shows", Providers: true, Items: func() int { return 3 }, Episodes: 9},
 	{Name: "Messy Movies", Type: "movies", Folder: "/media/messy-movies", Items: messyMovies},
-	{Name: "Messy Shows", Type: "tvshows", Folder: "/media/messy-shows", Items: func() int { return 2 }, Episodes: 5},
+	{Name: "Messy Shows", Type: "tvshows", Folder: "/media/messy-shows", Items: func() int { return messySeries }, Episodes: messyEpisodes},
 	{Name: "Music", Type: "music", Folder: "/media/music", Items: func() int { return len(albums) }},
 }
 
-// messyMovies is how many films the messy library holds: seven folders, but
+// messyMovies is how many films the messy library stores: eleven folders, but
 // Jellyfin folds the two Blade Runner files into one entry with two versions
-// while Emby lists them as two films (its web client merges versions by
-// hand, and its merge endpoint answered 204 without merging under test), so
-// on Emby the pair shows up in audit_duplicates rather than
-// audit_multiple_versions.
+// while Emby keeps them as two items. Emby does merge them - by file name,
+// and the two Aliens by their shared TMDB id - but only in what it shows
+// people, which the versions and duplicates audits read
+// (TestAuditMultipleVersions); every other count is of what it stores.
 func messyMovies() int {
 	if isJellyfin() {
-		return 7
+		return 11
 	}
 
-	return 8
+	return 12
 }
 
-// versionsMerged reports whether the server folded the two Blade Runner
-// files into one entry.
+// The messy show library: Severance, Star Trek The Next Generation, Zzyzx
+// Paths, the Zzyzx Twins pair and Zzyzx Gaiden, holding seventeen episode files
+// between them (scripts/testenv.sh says what is wrong with each).
+const (
+	messySeries   = 6
+	messyEpisodes = 17
+)
+
+// versionsMerged reports whether the server stores the two Blade Runner
+// files as one entry, so a sweep of its items sees one film. Emby stores two
+// and merges them only in what it shows people (audit_multiple_versions).
 func versionsMerged() bool { return isJellyfin() }
 
 // movieFixture is a film in the clean Movies library, as its nfo describes it.
@@ -171,7 +180,15 @@ const (
 	messyAlienCut     = "Alien (1979) Directors Cut" // tmdb 348, twice
 	messyBladeRunner  = "Blade Runner (1982)"        // two files: 1080p and 2160p
 	messyInterstellar = "Interstellar (2014)"        // nfo says 169 minutes, the file runs one second
+	messyNightFerry   = "Zzyzx Night Ferry (1999)"   // a DVD's VOB loose in the folder, no nfo
+	messyKeepCase     = "Zzyzx Keep Case (2000)"     // a Blu-ray kept whole, BDMV/STREAM, no nfo
+	messyCrossed      = "Zzyzx Crossed Wires (2008)" // Breaking Bad's IMDb id and no TMDB one
+	messyTakenDown    = "Zzyzx Taken Down (2010)"    // a TMDB id TMDB has no film for; genre Science-Fiction
 )
+
+// messyUnmatched are the messy films no nfo names: the one with none, and the
+// two discs, whose folders hold nothing but the disc.
+var messyUnmatched = []string{"Princess Mononoke", "Zzyzx Keep Case", "Zzyzx Night Ferry"}
 
 var (
 	ctx     context.Context
@@ -181,8 +198,10 @@ var (
 	backend embyfin.Backend
 )
 
-// recording reports whether this run should call the real providers and
-// refresh the cassettes, rather than replay them.
+// recording reports whether this run may call the real providers.
+// EMBYFIN_TEST_RECORD=1 fills in only the answers a cassette lacks, replaying
+// the rest as recorded; EMBYFIN_TEST_RECORD=all fetches every answer afresh
+// (make record). Either needs a TMDB token.
 func recording() bool { return os.Getenv("EMBYFIN_TEST_RECORD") != "" }
 
 // verifying reports whether to check the cassettes against the live providers

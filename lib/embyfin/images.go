@@ -63,12 +63,13 @@ func (c *Client) RemoteImages(ctx context.Context, itemID, imageType string, lim
 		if err != nil {
 			return nil, 0, err
 		}
-		images := make([]RemoteImage, 0, len(res.Model.Images))
-		for i := range res.Model.Images {
-			images = append(images, remoteImageFromEmby(&res.Model.Images[i]))
+		found := orEmpty(res.Model)
+		images := make([]RemoteImage, 0, len(found.Images))
+		for i := range found.Images {
+			images = append(images, remoteImageFromEmby(&found.Images[i]))
 		}
 
-		return images, res.Model.TotalRecordCount, nil
+		return images, found.TotalRecordCount, nil
 	}
 
 	res, err := c.jf.GetRemoteImages(ctx, itemID, jf.GetRemoteImagesOperationOptions{Type: jf.ImageType(imageType), Limit: nz(limit)})

@@ -59,6 +59,41 @@ func TestParseRelease(t *testing.T) {
 		{"9-1-1/Season 09/9-1-1 - S09E16 - Ashes, Ashes.mkv", "9-1-1", 0, 9, 16, 0},
 		// and its spelling of a file holding two episodes
 		{"The Expanse - S01E01-E02 - Dulcinea.mkv", "The Expanse", 0, 1, 1, 2},
+
+		// a slash alone does not make a path: titles have them. Read as paths
+		// these were "Vicious", "Tuck" and "20", and "Vicious" then matched a
+		// different show at 1.0
+		{"Sweet/Vicious", "Sweet/Vicious", 0, 0, 0, 0},
+		{"Nip/Tuck", "Nip/Tuck", 0, 0, 0, 0},
+		{"20/20", "20/20", 0, 0, 0, 0},
+		{"Nip/Tuck (2003)", "Nip/Tuck", 2003, 0, 0, 0},
+		{"Sweet/Vicious S01E01 1080p WEB H264-GROUP", "Sweet/Vicious", 0, 1, 1, 0},
+		{"Nip/Tuck - S02E03 - Manny Skerritt", "Nip/Tuck", 0, 2, 3, 0},
+		// and a path is still read as one, by what no title carries: a
+		// season folder, a leading separator, a drive, a file extension, or a
+		// show's folder named with its year
+		{"Severance (2022)/Season 02/Severance - S02E07 - Chikhai Bardo.mkv", "Severance", 2022, 2, 7, 0},
+		{"/tv/Nip Tuck (2003)/Season 01/Nip Tuck - S01E01.mkv", "Nip Tuck", 2003, 1, 1, 0},
+		{`D:\TV\Severance (2022)\Season 01\Severance - S01E01 - Good News About Hell.mkv`, "Severance", 2022, 1, 1, 0},
+		{"Severance (2022)/S01E01", "Severance", 2022, 1, 1, 0},
+		{"Severance/Specials/Severance - S00E01 - Lumon Orientation.mkv", "Severance", 0, 0, 1, 0},
+		{"Sweet Vicious/Sweet Vicious - S01E01.mkv", "Sweet Vicious", 0, 1, 1, 0},
+
+		// every way a file says it holds a run of episodes, to its last
+		{"The.Expanse.S01E01E02E03.1080p.BluRay.x265-RARBG", "The Expanse", 0, 1, 1, 3},
+		{"The Expanse - S01E01-02-03 - Dulcinea.mkv", "The Expanse", 0, 1, 1, 3},
+		{"The Expanse - S01E01-E02-E03 - Dulcinea.mkv", "The Expanse", 0, 1, 1, 3},
+		{"The.Expanse.S01E01.S01E02.1080p.WEB.H264-GROUP", "The Expanse", 0, 1, 1, 2},
+		// a run cannot cross into another season and still have one end
+		{"The.Expanse.S01E10.S02E01.1080p.WEB.H264-GROUP", "The Expanse", 0, 1, 10, 0},
+		// and the encode after a marker is still not an episode
+		{"The.Expanse.S02E01-1080p.WEB.H264-GROUP", "The Expanse", 0, 2, 1, 0},
+
+		// titles in other scripts are titles
+		{"千と千尋の神隠し (2001)", "千と千尋の神隠し", 2001, 0, 0, 0},
+		{"進撃の巨人 S01E01 1080p WEB H264-GROUP", "進撃の巨人", 0, 1, 1, 0},
+		{"Слово.пацана.S01E03.1080p.WEB-DL.H264-GROUP", "Слово пацана", 0, 1, 3, 0},
+		{"Το.Νησί.S01E01.720p.HDTV.x264-GROUP", "Το Νησί", 0, 1, 1, 0},
 	} {
 		got := parseRelease(tc.name)
 		if got.Title != tc.title || got.Year != tc.year || got.Season != tc.season || got.Episode != tc.episode || got.EpisodeEnd != tc.end {
@@ -97,6 +132,93 @@ func TestTitleScore(t *testing.T) {
 	// an article is not a difference worth refusing over
 	if score, _ := titleScore("Office", "The Office"); score < 0.9 {
 		t.Errorf("an article cost %.2f", score)
+	}
+}
+
+// A title in another script is a title. Folding to a-z and 0-9 left nothing of
+// one, and nothing scores 0 even against itself: 千と千尋の神隠し could not be
+// found by its own name, nor any Russian or Greek series by any name.
+func TestTitleScoreReadsEveryScript(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ release, library string }{
+		{"千と千尋の神隠し", "千と千尋の神隠し"},
+		{"進撃の巨人", "進撃の巨人"},
+		{"Слово пацана", "СЛОВО ПАЦАНА"},
+		// Russian writes ё as е as often as not
+		{"Елки", "Ёлки"},
+		// Greek drops its accents in capitals, and ends a word in ς
+		{"ΟΔΥΣΣΕΙΑ", "Οδύσσεια"},
+		{"Ο ΘΕΟΣ", "Ο Θεός"},
+		// an accent written as a mark of its own after its letter
+		{"Pokemon", "Pokémon"},
+	} {
+		if score, how := titleScore(tc.release, tc.library); score != 1 {
+			t.Errorf("%q against %q scored %v (%s), want 1", tc.release, tc.library, score, how)
+		}
+	}
+
+	// and different titles in them are still different
+	for _, tc := range []struct{ a, b string }{
+		{"千と千尋の神隠し", "もののけ姫"},
+		{"Слово пацана", "Мастер и Маргарита"},
+		{"Το Νησί", "Η Ζωή Αλλιώς"},
+	} {
+		if score, _ := titleScore(tc.a, tc.b); score > 0 {
+			t.Errorf("%q against %q scored %v", tc.a, tc.b, score)
+		}
+	}
+	// a word shared is still a word in common
+	if score, _ := titleScore("Слово пацана", "Слово пацана. Кровь на асфальте"); score <= 0 || score >= 1 {
+		t.Errorf("a longer Russian title scored %v, want a candidate", score)
+	}
+}
+
+// and so show_resolve finds a series by a title in any script, and a release
+// name carrying one
+func TestShowResolveReadsEveryScript(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t,
+		&fakeSeries{id: "slovo", name: "Слово пацана. Кровь на асфальте", year: 2023},
+		&fakeSeries{id: "titan", name: "進撃の巨人", year: 2013},
+		&fakeSeries{id: "nisi", name: "Το Νησί", year: 2010},
+	), Options{})
+
+	for _, tc := range []struct{ release, want string }{
+		{"進撃の巨人 S01E01 1080p WEB H264-GROUP", "titan"},
+		{"Το.Νησί.S01E01.720p.HDTV.x264-GROUP", "nisi"},
+		{"ΤΟ ΝΗΣΙ", "nisi"},
+		{"Слово пацана Кровь на асфальте S01E03", "slovo"},
+	} {
+		out := mustCall(t, cs, "show_resolve", map[string]any{"title": tc.release})
+		cands := objects(t, out["candidates"], "candidates")
+		if len(cands) == 0 || cands[0]["series_id"] != tc.want {
+			t.Errorf("%s resolved to %v, want %s", tc.release, cands, tc.want)
+			continue
+		}
+		if got := score(t, cands[0]); got < seriesConfident {
+			t.Errorf("%s matched at %v, too low to act on", tc.release, got)
+		}
+	}
+}
+
+// A show with a slash in its name resolves to itself, not to whatever the
+// half after the slash names.
+func TestAShowNamedWithASlashIsNotAPath(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t,
+		&fakeSeries{id: "sv", name: "Sweet/Vicious", year: 2016, episodes: []ep{{season: 1, number: 1, name: "Pilot", path: "/media/shows/Sweet Vicious/S01E01.mkv"}}},
+		&fakeSeries{id: "vicious", name: "Vicious", year: 2013, episodes: []ep{{season: 1, number: 1, name: "Anniversary", path: "/media/shows/Vicious/S01E01.mkv"}}},
+		&fakeSeries{id: "nt", name: "Nip/Tuck", year: 2003, episodes: []ep{{season: 1, number: 1, name: "Pilot", path: "/media/shows/Nip Tuck/S01E01.mkv"}}},
+	), Options{})
+
+	for name, want := range map[string]string{"Sweet/Vicious": "sv", "Nip/Tuck": "nt", "Sweet/Vicious S01E01 1080p WEB H264-GROUP": "sv"} {
+		out := mustCall(t, cs, "show_episodes_exist", map[string]any{"series": name, "episodes": []map[string]any{{"season": 1, "episode": 1}}})
+		if got := text(out["series_id"]); got != want {
+			t.Errorf("%q resolved to %q, want %s", name, got, want)
+		}
 	}
 }
 

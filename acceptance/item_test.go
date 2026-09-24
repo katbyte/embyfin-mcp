@@ -196,13 +196,13 @@ func TestItemRefresh(t *testing.T) {
 }
 
 func TestItemInstantMix(t *testing.T) {
-	// a film is not music: the mix is empty on Jellyfin and a list on Emby,
-	// and the tool must answer either way. The mixes that mean something are
-	// seeded from the music library (TestMusicInstantMix).
+	// a film is not music: neither server mixes anything from one, and the
+	// tool answers with the empty mix rather than failing. The mixes that
+	// mean something are seeded from the music library (TestMusicInstantMix).
 	id := findItem(t, "Movies", "Movie", "Alien")
 	out := call(t, "item_instant_mix", map[string]any{"id": id, "limit": 5})
-	if _, ok := out["items"].([]any); !ok {
-		t.Errorf("instant mix = %v", out)
+	if items := rows(t, out["items"], "items"); len(items) != 0 {
+		t.Errorf("a mix seeded from a film = %v", items)
 	}
 }
 

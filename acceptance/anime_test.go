@@ -42,27 +42,42 @@ func seriesCount(t *testing.T, library string) int {
 // matched as the whole show; and an OVA held on its own. The list is a file
 // here, so the suite never reaches GitHub.
 //
-// The shows are staged and taken away again, like the disc audit's streams:
-// the messy show library's count is read by tests that have nothing to do
-// with anime.
+// The OVA held on its own, Zzyzx Gaiden, is a lasting fixture; the other two
+// are staged and taken away again, since the messy show library's count is
+// read by tests that have nothing to do with anime.
 func TestAuditAnimeIDs(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
+	have := seriesCount(t, "Messy Shows")
+
+	// the fixtures alone: Gaiden, and nothing else to say
+	out := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
+	kept := rows(t, out["kept_separate"], "kept_separate")
+	if num(t, out["list_entries"], "list_entries") != 4 || num(t, out["items_scanned"], "items_scanned") != have || len(kept) != 1 ||
+		num(t, out["total_ids_disagree"], "total_ids_disagree") != 0 || num(t, out["total_split_out"], "total_split_out") != 0 {
+		t.Fatalf("the fixtures = %v, want Gaiden kept separate and nothing else", out)
+	}
+	if row := kept[0]; title(str(row["name"])) != "Zzyzx Gaiden" || str(row["anidb"]) != "AniDB 9104 Zzyzx Gaiden" ||
+		str(row["detail"]) != "an AniDB entry of its own; TMDB folds it into the specials of tv 82001, and TVDB into those of series 72001" {
+		t.Errorf("kept_separate = %v", row)
+	}
+	if n := num(t, call(t, "audit_anime_ids", map[string]any{"library": "Shows"})["total_kept_separate"], "total_kept_separate"); n != 0 {
+		t.Errorf("the clean shows hold %d anime kept separate", n)
+	}
+
 	special, err := os.ReadFile(filepath.Join(dataDir(), "anime-src", "special.mp4")) //nolint:gosec // a fixture under the test data dir
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	have := seriesCount(t, "Messy Shows")
 	root := filepath.Join(dataDir(), "messy-shows")
-	staged := []string{"Zzyzx Senki (2001)", "Zzyzx Tokubetsu-hen (2003)", "Zzyzx Gaiden (2002)"}
+	staged := []string{"Zzyzx Senki (2001)", "Zzyzx Tokubetsu-hen (2003)"}
 	t.Cleanup(func() {
 		for _, folder := range staged {
 			_ = os.RemoveAll(filepath.Join(root, folder))
 		}
-		if _, err := invoke("library_scan", nil); err == nil {
-			_ = waitForItems("Messy Shows", have)
+		if err := scanUntil("Messy Shows", have); err != nil {
+			t.Error(err)
 		}
 	})
 	stage := func(folder string, nfo []byte, files ...string) {
@@ -81,20 +96,12 @@ func TestAuditAnimeIDs(t *testing.T) {
 	// a special of TMDB's tv 83001, matched as that whole show
 	stage(staged[1], showNfo("Zzyzx Tokubetsu-hen", map[string]string{"tmdb": "83001", "anidb": "9105"}),
 		"Season 01/Zzyzx Tokubetsu-hen S01E01.mp4")
-	// an OVA TMDB and TVDB fold into another show, held on its own
-	stage(staged[2], showNfo("Zzyzx Gaiden", map[string]string{"anidb": "9104"}),
-		"Season 01/Zzyzx Gaiden S01E01.mp4")
-
-	call(t, "library_scan", nil)
-	if err := waitForItems("Messy Shows", have+3); err != nil {
-		t.Fatal(err)
-	}
-	if err := waitForScan(); err != nil {
+	if err := scanUntil("Messy Shows", have+2); err != nil {
 		t.Fatal(err)
 	}
 
-	out := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
-	if num(t, out["list_entries"], "list_entries") != 4 || num(t, out["items_scanned"], "items_scanned") != have+3 {
+	out = call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
+	if num(t, out["list_entries"], "list_entries") != 4 || num(t, out["items_scanned"], "items_scanned") != have+2 {
 		t.Fatalf("out = %v", out)
 	}
 
@@ -123,11 +130,16 @@ func TestAuditAnimeIDs(t *testing.T) {
 		t.Errorf("the OVA is specials %v, want 3 and 4", eps)
 	}
 
-	// the two that turn on the show's own AniDB id, read from its nfo
+	// the one that turns on the show's own AniDB id, read from its nfo
 	if row := named("ids_disagree", "Zzyzx Tokubetsu-hen"); !strings.Contains(str(row["detail"]), "tv 83001") {
 		t.Errorf("ids_disagree = %v", row)
 	}
-	if row := named("kept_separate", "Zzyzx Gaiden"); str(row["anidb"]) != "AniDB 9104 Zzyzx Gaiden" {
-		t.Errorf("kept_separate = %v", row)
+	// and Gaiden still kept separate, the one of its kind
+	if n := num(t, out["total_kept_separate"], "total_kept_separate"); n != 1 {
+		t.Errorf("kept_separate = %v", out["kept_separate"])
+	}
+	// a limit caps each list, not its count
+	if capped := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows", "limit": 1}); len(rows(t, capped["split_out"], "split_out")) != 1 || num(t, capped["total_split_out"], "total_split_out") != 1 {
+		t.Errorf("limit 1 = %v", capped)
 	}
 }

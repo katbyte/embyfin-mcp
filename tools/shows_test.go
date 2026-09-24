@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -33,6 +34,12 @@ type ep struct {
 	name           string
 	path           string
 	missing        bool
+	// premiere is the air date the server's record carries, as it spells
+	// one: a day and a time
+	premiere string
+	// alt is a second version of the file, a 720p one, merged into the same
+	// item the way a server merges two files of one episode in one folder
+	alt string
 }
 
 // fakeSeries is one series the canned server holds.
@@ -47,6 +54,8 @@ type fakeSeries struct {
 	// path overrides the folder the series is built from, for the tests that
 	// care what two folders are called rather than what the shows are named
 	path string
+	// film makes this a film rather than a series: path is then its file
+	film bool
 }
 
 // wireItem is an item as the MediaBrowser API spells one.
@@ -71,9 +80,21 @@ type wireItem struct {
 }
 
 type wireSource struct {
+	Path         string       `json:"Path,omitempty"`
 	Container    string       `json:"Container"`
 	Size         int64        `json:"Size"`
 	MediaStreams []wireStream `json:"MediaStreams"`
+}
+
+// probedSource is one file as the scan probed it: h264 with a 5.1 AAC track.
+func probedSource(path string, width, height int, size int64) wireSource {
+	return wireSource{
+		Path: path, Container: "mkv", Size: size,
+		MediaStreams: []wireStream{
+			{Type: "Video", Codec: "h264", Width: width, Height: height, BitRate: 4_000_000, AverageFrameRate: 23.976, ColorTransfer: "bt709"},
+			{Type: "Audio", Codec: "aac", Language: "eng", Channels: 6, BitRate: 448_000},
+		},
+	}
 }
 
 type wireStream struct {
@@ -92,6 +113,14 @@ type wireStream struct {
 }
 
 func (s *fakeSeries) item() wireItem {
+	if s.film {
+		return wireItem{
+			ID: s.id, Name: s.name, Type: "Movie", Path: s.path, ProviderIDs: s.ids, ProductionYear: s.year,
+			LocationType: "FileSystem", RunTimeTicks: 7200 * 10_000_000,
+			MediaSources: []wireSource{probedSource(s.path, 1920, 1080, 4<<30)},
+		}
+	}
+
 	return wireItem{ID: s.id, Name: s.name, Type: "Series", Path: cmp.Or(s.path, "/media/shows/"+s.name), ProviderIDs: s.ids, ProductionYear: s.year}
 }
 
@@ -114,18 +143,16 @@ func (s *fakeSeries) items() []wireItem {
 			RunTimeTicks:      int64(cmp.Or(e.minutes, 30)) * 600_000_000,
 			DateCreated:       "2026-09-01T10:00:00.0000000Z",
 			DateModified:      "2026-09-17T22:30:00.0000000Z",
+			PremiereDate:      e.premiere,
 		}
 		if e.missing {
 			it.LocationType = "Virtual"
 		}
 		if e.path != "" && !e.missing {
-			it.MediaSources = []wireSource{{
-				Container: "mkv", Size: 700 << 20,
-				MediaStreams: []wireStream{
-					{Type: "Video", Codec: "h264", Width: 1920, Height: 1080, BitRate: 4_000_000, AverageFrameRate: 23.976, ColorTransfer: "bt709"},
-					{Type: "Audio", Codec: "aac", Language: "eng", Channels: 6, BitRate: 448_000},
-				},
-			}}
+			it.MediaSources = []wireSource{probedSource(e.path, 1920, 1080, 700<<20)}
+			if e.alt != "" {
+				it.MediaSources = append(it.MediaSources, probedSource(e.alt, 1280, 720, 350<<20))
+			}
 		}
 		out = append(out, it)
 	}
@@ -174,8 +201,14 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		byID[s.id] = s
 	}
 
+	// one library, reading everything under /media: Emby lists it on its
+	// query route, Jellyfin as a bare list
+	library := map[string]any{"Name": "Shows", "CollectionType": "tvshows", "ItemId": "lib", "Locations": []string{"/media"}}
 	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(t, w, map[string]any{"Items": []map[string]any{{"Name": "Shows", "CollectionType": "tvshows", "ItemId": "lib"}}, "TotalRecordCount": 1})
+		writeJSON(t, w, map[string]any{"Items": []map[string]any{library}, "TotalRecordCount": 1})
+	})
+	f.mux.HandleFunc("GET /Library/VirtualFolders", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, []map[string]any{library})
 	})
 
 	f.mux.HandleFunc("GET /Shows/{id}/Episodes", func(w http.ResponseWriter, r *http.Request) {
@@ -187,7 +220,7 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		// Emby 4.10 takes a season number but no missing filter, and answers
 		// with every episode it holds; Jellyfin splits the two apart
 		rows := s.items()
-		if season := r.URL.Query().Get("Season"); season != "" {
+		if season := param(r.URL.Query(), "Season"); season != "" {
 			n, _ := strconv.Atoi(season)
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.ParentIndexNumber != n })
 		}
@@ -205,24 +238,24 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 			rows = append(rows, s.item())
 			rows = append(rows, s.items()...)
 		}
-		if ids := q.Get("Ids"); ids != "" {
+		if ids := param(q, "Ids"); ids != "" {
 			want := strings.Split(ids, ",")
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !slices.Contains(want, it.ID) })
 		}
-		if types := q.Get("IncludeItemTypes"); types != "" {
+		if types := param(q, "IncludeItemTypes"); types != "" {
 			want := strings.Split(types, ",")
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !slices.Contains(want, it.Type) })
 		}
 		// the servers that have a path filter answer only the item at that
-		// exact path
-		if want := q.Get("Path"); want != "" {
+		// exact path; Jellyfin has none, and is never sent one
+		if want := param(q, "Path"); want != "" {
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.Path != want })
 		}
-		if term := q.Get("SearchTerm"); term != "" {
+		if term := param(q, "SearchTerm"); term != "" {
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return !strings.Contains(searchFold(it.Name), searchFold(term)) })
 		}
 		// a series as the parent is its own episodes; the library is all of them
-		if parent := q.Get("ParentId"); parent != "" && parent != "lib" {
+		if parent := param(q, "ParentId"); parent != "" && parent != "lib" {
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.SeriesID != parent })
 		}
 		slices.SortStableFunc(rows, func(a, b wireItem) int {
@@ -236,18 +269,32 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		})
 
 		total := len(rows)
-		start, _ := strconv.Atoi(q.Get("StartIndex"))
+		start, _ := strconv.Atoi(param(q, "StartIndex"))
 		if start > total {
 			start = total
 		}
 		rows = rows[start:]
-		if limit, _ := strconv.Atoi(q.Get("Limit")); limit > 0 && limit < len(rows) {
+		if limit, _ := strconv.Atoi(param(q, "Limit")); limit > 0 && limit < len(rows) {
 			rows = rows[:limit]
 		}
 		writeJSON(t, w, map[string]any{"Items": rows, "TotalRecordCount": total})
 	})
 
 	return f
+}
+
+// param reads a query parameter however the server's SDK spelled it: Emby's
+// SearchTerm is Jellyfin's searchTerm, and Jellyfin repeats a list parameter
+// where Emby joins it, so every value comes back joined.
+func param(q url.Values, name string) string {
+	var values []string
+	for key, vs := range q {
+		if strings.EqualFold(key, name) {
+			values = append(values, vs...)
+		}
+	}
+
+	return strings.Join(values, ",")
 }
 
 func writeJSON(t *testing.T, w http.ResponseWriter, v any) {
@@ -663,7 +710,7 @@ func TestShowMissingPrefersTheServersOwnRecords(t *testing.T) {
 	t.Parallel()
 
 	s := severance()
-	s.episodes = append(s.episodes, ep{season: 1, number: 3, name: "In Perpetuity", missing: true})
+	s.episodes = append(s.episodes, ep{season: 1, number: 3, name: "In Perpetuity", missing: true, premiere: "2022-02-25T00:00:00.0000000Z"})
 	cs := session(t, tvServer(t, s), Options{TMDBKey: "k", ProviderTransport: guideServer(t, map[int][]string{1: {"a", "b", "c", "d", "e"}}, aired2022)})
 
 	out := mustCall(t, cs, "show_missing", map[string]any{"series_id": "sev"})
@@ -753,7 +800,7 @@ func TestShowMissingOnJellyfinWithTheProviderRun(t *testing.T) {
 	t.Parallel()
 
 	s := severance()
-	s.episodes = append(s.episodes, ep{season: 1, number: 3, name: "In Perpetuity", missing: true})
+	s.episodes = append(s.episodes, ep{season: 1, number: 3, name: "In Perpetuity", missing: true, premiere: "2022-02-25T00:00:00.0000000Z"})
 	cs := session(t, tvServerJellyfin(t, s), Options{})
 
 	out := mustCall(t, cs, "show_missing", map[string]any{"series_id": "sev"})
@@ -762,5 +809,100 @@ func TestShowMissingOnJellyfinWithTheProviderRun(t *testing.T) {
 	}
 	if got := codes(t, out["missing"], "missing"); !slices.Equal(got, []string{"S01E03"}) {
 		t.Errorf("missing = %v, want only the record with no file", got)
+	}
+}
+
+// The server's own records are read by the same rules as the provider's run.
+// They were listed whole: an episode dated years away read as missing with
+// include_unaired off, and a record for E02 beside a file holding E01-E02 read
+// as missing though the library plays it. A record with no date is announced
+// rather than aired, as an undated TMDB episode is.
+func TestShowMissingReadsTheServersRecordsByTheSameRules(t *testing.T) {
+	t.Parallel()
+
+	for _, jellyfin := range []bool{false, true} {
+		s := severance()
+		s.episodes = []ep{
+			// one file holding two episodes, and the record of the second
+			{season: 1, number: 1, number2: 2, name: "Good News About Hell", path: "/media/shows/Severance/Season 01/S01E01E02.mkv"},
+			{season: 1, number: 2, name: "Half Loop", missing: true, premiere: "2022-02-18T00:00:00.0000000Z"},
+			// aired, and not held
+			{season: 1, number: 3, name: "In Perpetuity", missing: true, premiere: "2022-02-25T00:00:00.0000000Z"},
+			// announced, years away
+			{season: 1, number: 4, name: "The You You Are", missing: true, premiere: "2999-01-01T00:00:00.0000000Z"}, //nolint:dupword // the episode's real title
+			// announced without a date at all
+			{season: 1, number: 5, name: "The Grim Barbarity of Optics and Design", missing: true},
+		}
+		cs := session(t, tvServerFor(t, jellyfin, s), Options{})
+
+		out := mustCall(t, cs, "show_missing", map[string]any{"series_id": "sev"})
+		if !boolean(t, out["supported"], "supported") || out["source"] != sourceServer {
+			t.Fatalf("jellyfin %v: supported = %v, source = %v", jellyfin, out["supported"], out["source"])
+		}
+		if got := codes(t, out["missing"], "missing"); !slices.Equal(got, []string{"S01E03"}) {
+			t.Errorf("jellyfin %v: missing = %v, want only S01E03: not the episode a file holds, nor the ones not yet aired", jellyfin, got)
+		}
+
+		out = mustCall(t, cs, "show_missing", map[string]any{"series_id": "sev", "include_unaired": true})
+		if got := codes(t, out["missing"], "missing"); !slices.Equal(got, []string{"S01E03", "S01E04", "S01E05"}) {
+			t.Errorf("jellyfin %v: with include_unaired, missing = %v", jellyfin, got)
+		}
+	}
+
+	// and a server whose every record is held or unaired still answers from
+	// them - complete, as far as it knows - rather than as though it kept none
+	s := severance()
+	s.episodes = append(s.episodes, ep{season: 1, number: 3, name: "In Perpetuity", missing: true, premiere: "2999-01-01T00:00:00.0000000Z"})
+	out := mustCall(t, session(t, tvServer(t, s), Options{}), "show_missing", map[string]any{"series_id": "sev"})
+	if !boolean(t, out["supported"], "supported") || out["source"] != sourceServer || out["missing"] == nil {
+		t.Fatalf("supported = %v, source = %v, missing = %v", out["supported"], out["source"], out["missing"])
+	}
+	if got := codes(t, out["missing"], "missing"); len(got) != 0 {
+		t.Errorf("missing = %v, want none", got)
+	}
+}
+
+// A special is season 0 and a film has no season: the one is said, the other
+// left out, so a 0 is never the absence of a number.
+func TestSummariesSayASpecialIsSeasonZero(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		item          embyfin.Item
+		season        *int
+		episode       int
+		name, because string
+	}{
+		{embyfin.Item{Type: "Episode", ParentIndexNumber: 0, IndexNumber: 3}, new(0), 3, "special", "a special is season 0"},
+		{embyfin.Item{Type: "Episode", ParentIndexNumber: 2, IndexNumber: 5}, new(2), 5, "episode", "an episode has its season"},
+		{embyfin.Item{Type: "Season", IndexNumber: 0}, new(0), 0, "specials", "the specials are season 0, and not episode anything"},
+		{embyfin.Item{Type: "Season", IndexNumber: 4}, new(4), 0, "season", "a season's number is its season, not an episode"},
+		{embyfin.Item{Type: "Movie"}, nil, 0, "film", "a film has no season at all"},
+		{embyfin.Item{Type: "Series"}, nil, 0, "series", "nor does a series"},
+	} {
+		got := summarise(&tc.item)
+		if (got.Season == nil) != (tc.season == nil) || (got.Season != nil && *got.Season != *tc.season) || got.Episode != tc.episode {
+			t.Errorf("%s: season %v episode %d: %s", tc.name, got.Season, got.Episode, tc.because)
+		}
+	}
+
+	// and on the wire: a special says season 0, a series says nothing
+	s := severance()
+	s.episodes = append(s.episodes, ep{season: 0, number: 1, name: "Lumon Orientation", path: "/media/shows/Severance/Specials/S00E01.mkv"})
+	cs := session(t, tvServer(t, s), Options{})
+	for _, row := range objects(t, mustCall(t, cs, "library_items", map[string]any{"library": "Shows", "types": "Episode"})["items"], "items") {
+		if text(row["id"]) != "sev-0-1" {
+			continue
+		}
+		if season, ok := row["season"]; !ok || number(t, season, "season") != 0 {
+			t.Errorf("a special's summary = %v, want season 0", row)
+		}
+	}
+	series := objects(t, mustCall(t, cs, "library_items", map[string]any{"library": "Shows", "types": "Series"})["items"], "items")
+	if len(series) == 0 {
+		t.Fatal("no series listed")
+	}
+	if _, ok := series[0]["season"]; ok {
+		t.Errorf("a series' summary carries a season: %v", series[0])
 	}
 }

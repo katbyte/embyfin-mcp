@@ -379,3 +379,85 @@ func TestUnwatchedByTitle(t *testing.T) {
 		t.Errorf("the watched sweep was scoped: %s", q)
 	}
 }
+
+// In a library with its metadata fetchers off there is nothing to fetch, and
+// the server's apply refreshes the item as if there were: Jellyfin's replaced
+// every episode number of a series with nothing (seen live). So there the
+// candidate's ids are set with a plain edit of the item, which changes the
+// ids and nothing else, and read back. With the fetchers on the server's own
+// apply runs, re-fetching as it should.
+func TestIdentifyApplyWithTheFetchersOff(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct {
+		name, path, id string
+		fetchersOff    bool
+	}{
+		{"fetchers off", "/media/messy-shows/Zzyzx Show", "2", true},
+		{"fetchers on", "/media/shows/Zzyzx Show", "3", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mu sync.Mutex
+			ids := map[string]any{}
+			f := newFakeServer(t)
+			f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true,"EnableAllFolders":true}}],"TotalRecordCount":1}`)
+			})
+			f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, `{"Items":[
+					{"Name":"Messy Shows","ItemId":"8","Locations":["/media/messy-shows"],"LibraryOptions":{"TypeOptions":[{"Type":"Series","MetadataFetchers":[]}]}},
+					{"Name":"Shows","ItemId":"9","Locations":["/media/shows"],"LibraryOptions":{"TypeOptions":[{"Type":"Series","MetadataFetchers":["TheMovieDb"]}]}}],"TotalRecordCount":2}`)
+			})
+			item := func() map[string]any {
+				mu.Lock()
+				defer mu.Unlock()
+				return map[string]any{"Id": c.id, "Name": "Zzyzx Show", "Type": "Series", "Path": c.path, "ProviderIds": ids}
+			}
+			f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+				writeJSON(t, w, page(item()))
+			})
+			f.mux.HandleFunc("GET /Users/admin/Items/{id}", func(w http.ResponseWriter, _ *http.Request) {
+				writeJSON(t, w, item())
+			})
+			f.mux.HandleFunc("POST /Items/RemoteSearch/Series", func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, `[{"Name":"Zzyzx Show","ProductionYear":1987,"ProviderIds":{"Tmdb":"655"}}]`)
+			})
+			f.mux.HandleFunc("POST /Items/RemoteSearch/Apply/{id}", func(w http.ResponseWriter, _ *http.Request) {
+				mu.Lock()
+				ids = map[string]any{"Tmdb": "655"}
+				mu.Unlock()
+				w.WriteHeader(http.StatusNoContent)
+			})
+			f.mux.HandleFunc("POST /Items/{id}", func(w http.ResponseWriter, r *http.Request) {
+				body := readBody(t, r)
+				mu.Lock()
+				if sent, ok := body["ProviderIds"].(map[string]any); ok {
+					ids = sent
+				}
+				mu.Unlock()
+				w.WriteHeader(http.StatusNoContent)
+			})
+			cs := session(t, f, Options{})
+
+			out, msg := callTool(t, cs, "item_identify_apply", map[string]any{"id": c.id, "kind": "series", "candidate": 0})
+			if msg != "" {
+				t.Fatal(msg)
+			}
+			if got, ok := out["metadata_provider_ids"].(map[string]any); !ok || got["tmdb"] != "655" {
+				t.Errorf("item_identify_apply = %v", out)
+			}
+			applied, edited := len(f.requests("/Items/RemoteSearch/Apply/"+c.id)), len(f.requests("/Items/"+c.id))
+			switch {
+			case c.fetchersOff && (applied != 0 || edited != 1):
+				t.Errorf("with the fetchers off: %d applies and %d edits, want the edit alone", applied, edited)
+			case !c.fetchersOff && (applied != 1 || edited != 0):
+				t.Errorf("with the fetchers on: %d applies and %d edits, want the apply alone", applied, edited)
+			}
+			if note := text(out["note"]); c.fetchersOff != strings.Contains(note, "metadata fetchers off") {
+				t.Errorf("note = %q", note)
+			}
+		})
+	}
+}

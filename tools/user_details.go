@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -9,6 +10,13 @@ import (
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// idsPerRequest is how many items a tool reads back by id in one request.
+// Jellyfin takes each id as a parameter of its own, about 37 bytes, and a
+// request line much past 8 KB is refused by a typical server or proxy: a user
+// with a couple of hundred series started failed the whole of user_stats
+// when they went in one request.
+const idsPerRequest = 100
 
 // userRef names a user; empty is the first administrator.
 type userRef struct {
@@ -253,12 +261,10 @@ func registerUserDetailTools(r *registry) {
 		// episode is left
 		out.SeriesStarted = len(episodes)
 		var series []seriesRow
-		if len(episodes) > 0 {
-			ids := make([]string, 0, len(episodes))
-			for id := range episodes {
-				ids = append(ids, id)
-			}
-			if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(ids, ","), IncludeItemTypes: "Series", UserID: u.ID, EnableUserData: true, Fields: "Path,Genres"}, func(items []embyfin.Item) bool {
+		// a batch at a time: see idsPerRequest
+		ids := slices.Sorted(maps.Keys(episodes))
+		for batch := range slices.Chunk(ids, idsPerRequest) {
+			if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(batch, ","), IncludeItemTypes: "Series", UserID: u.ID, EnableUserData: true, Fields: "Path,Genres"}, func(items []embyfin.Item) bool {
 				for i := range items {
 					s := &items[i]
 					finished := s.UserData != nil && s.UserData.UnplayedItemCount == 0

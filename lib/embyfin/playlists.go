@@ -23,6 +23,9 @@ func (c *Client) CreatePlaylist(ctx context.Context, name string, itemIDs []stri
 		if err != nil {
 			return "", err
 		}
+		if res.Model == nil {
+			return "", fmt.Errorf("the server answered the creation of playlist %q with nothing, not its id", name)
+		}
 
 		return res.Model.Id, nil
 	}
@@ -45,8 +48,9 @@ func (c *Client) PlaylistItems(ctx context.Context, playlistID, userID string) (
 		if err != nil {
 			return nil, 0, err
 		}
+		page := orEmpty(res.Model)
 
-		return itemsFromEmby(res.Model.Items), res.Model.TotalRecordCount, nil
+		return itemsFromEmby(page.Items), page.TotalRecordCount, nil
 	}
 
 	res, err := c.jf.GetPlaylistItems(ctx, playlistID, jf.GetPlaylistItemsOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault)})
@@ -65,6 +69,12 @@ func (c *Client) PlaylistItems(ctx context.Context, playlistID, userID string) (
 // queues such a scan itself). What has not stayed is sent once more before
 // it is an error. Changes to one playlist from this process are made one at a
 // time (see keyedLocks), so a check never sees another change's entries land.
+//
+// Both servers put a folder (a series, a season, an album) in a playlist as
+// the items beneath it rather than as itself, so what is checked is what the
+// add puts in (see playlistAdds): the folder's own id never shows, and a
+// check for it would send the folder again, putting every item in twice. What
+// is sent again is only what is missing, item by item, never the folder.
 func (c *Client) AddToPlaylist(ctx context.Context, playlistID string, itemIDs []string, userID string) error {
 	unlock := c.items.lock(playlistID)
 	defer unlock()
@@ -73,8 +83,12 @@ func (c *Client) AddToPlaylist(ctx context.Context, playlistID string, itemIDs [
 	if err != nil {
 		return err
 	}
+	adds, err := c.playlistAdds(ctx, playlistID, userID, itemIDs)
+	if err != nil {
+		return err
+	}
 	want := itemCounts(before)
-	for _, id := range itemIDs {
+	for _, id := range adds {
 		want[id]++
 	}
 
@@ -89,6 +103,96 @@ func (c *Client) AddToPlaylist(ctx context.Context, playlistID string, itemIDs [
 	}
 
 	return fmt.Errorf("the server did not keep %s in the playlist", strings.Join(missing, ", "))
+}
+
+// playlistAdds is what adding itemIDs to a playlist puts in it, an item id per
+// entry. Both servers expand what they are handed (Playlist.GetPlaylistItems):
+// an artist or a music genre becomes its songs, any other folder the items
+// anywhere beneath it that are not folders, of the playlist's media type, and
+// anything else is itself. The folders are told apart with one read of the
+// items asked for; an id that read does not answer is taken as itself.
+//
+// A record the server keeps of an item it has no file for (a missing
+// episode) is left out of what is expected, as is anything of another media
+// type: whether a server puts those in is its own affair, and expecting less
+// than it adds only checks less, where expecting more would send items it
+// never meant to add. A folder holding nothing the playlist can take is an
+// error before anything is sent.
+func (c *Client) playlistAdds(ctx context.Context, playlistID, userID string, itemIDs []string) ([]string, error) {
+	asked := slices.Compact(slices.Sorted(slices.Values(itemIDs)))
+	// capped, as ItemByID's is, for Emby answering the whole library to an
+	// id it cannot parse; only the ids asked for are read off the answer
+	items, _, err := c.Search(ctx, SearchOptions{IDs: strings.Join(asked, ","), Fields: "Path", Limit: len(asked) + 1})
+	if err != nil {
+		return nil, err
+	}
+	expanded := map[string]*Item{}
+	for i := range items {
+		it := &items[i]
+		if slices.Contains(asked, it.ID) && (it.IsFolder || it.Type == "MusicArtist" || it.Type == "MusicGenre") {
+			expanded[it.ID] = it
+		}
+	}
+	if len(expanded) == 0 {
+		return itemIDs, nil
+	}
+
+	mediaType := ""
+	adds := make([]string, 0, len(itemIDs))
+	for _, id := range itemIDs {
+		it := expanded[id]
+		var under SearchOptions
+		switch {
+		case it == nil:
+			adds = append(adds, id)
+			continue
+		case it.Type == "MusicArtist":
+			under = SearchOptions{ArtistIDs: id, IncludeItemTypes: "Audio"}
+		case it.Type == "MusicGenre":
+			under = SearchOptions{Genres: []string{it.Name}, IncludeItemTypes: "Audio"}
+		default:
+			if mediaType == "" {
+				if mediaType, err = c.playlistMediaType(ctx, userID, playlistID); err != nil {
+					return nil, err
+				}
+			}
+			under = SearchOptions{ParentID: id, Filters: "IsNotFolder", MediaTypes: mediaType}
+		}
+		// in the user's view, which is what the server expands in
+		under.UserID, under.Fields = userID, "Path"
+		var leaves []string
+		if err := c.SearchAll(ctx, under, func(page []Item) bool {
+			for i := range page {
+				if !page[i].IsMissing {
+					leaves = append(leaves, page[i].ID)
+				}
+			}
+			return true
+		}); err != nil {
+			return nil, err
+		}
+		if len(leaves) == 0 {
+			return nil, fmt.Errorf("%s %q (%s) holds nothing the playlist can take", it.Type, it.Name, id)
+		}
+		adds = append(adds, leaves...)
+	}
+
+	return adds, nil
+}
+
+// playlistMediaType is the media type a folder added to the playlist is
+// narrowed to: the playlist's own, Audio or Video, or both when it names
+// neither (both servers take the two from a folder at most).
+func (c *Client) playlistMediaType(ctx context.Context, userID, playlistID string) (string, error) {
+	full, err := c.FullItem(ctx, userID, playlistID)
+	if err != nil {
+		return "", err
+	}
+	if t, ok := full["MediaType"].(string); ok && (t == "Audio" || t == "Video") {
+		return t, nil
+	}
+
+	return "Audio,Video", nil
 }
 
 // playlistMissing waits for a playlist to hold at least want of each item,
@@ -298,8 +402,9 @@ func (c *Client) RenamePlaylist(ctx context.Context, playlistID, userID, name st
 // MovePlaylistEntry moves an entry (a PlaylistItemID, not an item id) to a
 // zero-based position in the playlist. Emby moves it in place. Jellyfin's
 // move checks access against the calling user, which an API key is not (a
-// 400), so there the entries from the lower of the two positions on are
-// taken out and put back in the new order, which the key may do; the put-back
+// 400), so there the entries from the lower of the two positions on (from
+// higher still when an item among them has a copy above, see stretchStart)
+// are taken out and put back in the new order, which the key may do; the put-back
 // is checked and re-sent as an add is, since a scan's re-read of the
 // playlist file can land between the two and put the old entries back. An
 // add made meanwhile from this process waits for the move (see keyedLocks):
@@ -326,12 +431,9 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 		return c.moveEmbyEntry(ctx, playlistID, userID, entries, order, from, newIndex)
 	}
 
-	// everything before the lower of the two positions stays where it is
-	lo := min(from, newIndex)
-	entryIDs := make([]string, 0, len(entries)-lo)
-	for _, e := range entries[lo:] {
-		entryIDs = append(entryIDs, e.PlaylistItemID)
-	}
+	// everything before the stretch that moves stays where it is: from the
+	// lower of the two positions, or from the first copy of an item in it
+	lo := stretchStart(entries, min(from, newIndex))
 	itemIDs := make([]string, 0, len(order)-lo)
 	for _, e := range order[lo:] {
 		itemIDs = append(itemIDs, e.ID)
@@ -353,11 +455,7 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 		// the entry ids are read afresh: a put-back the server undid may
 		// have renumbered them, or a refresh may have restored the old tail
 		// beside the new one, and everything from lo on goes out again
-		entryIDs = entryIDs[:0]
-		for _, e := range now[lo:] {
-			entryIDs = append(entryIDs, e.PlaylistItemID)
-		}
-		if err := c.removeEntries(ctx, playlistID, entryIDs); err != nil {
+		if err := c.removeEntries(ctx, playlistID, entryIDsOf(now[lo:])); err != nil {
 			return err
 		}
 		if err := c.addItems(ctx, playlistID, itemIDs, userID); err != nil {
@@ -431,8 +529,37 @@ func (c *Client) moveEmbyEntry(ctx context.Context, playlistID, userID string, e
 	return fmt.Errorf("the server did not move entry %s", entryID)
 }
 
-// sameItems reports whether two entry lists hold the same items in the same
-// order, whatever their entry ids.
+// stretchStart is where the stretch of a Jellyfin playlist taken out and put
+// back for a move begins, given the lower of the move's two positions.
+// Jellyfin names an entry by its item's id and takes every copy of the item
+// out at once, so a copy above the stretch would go with it and never come
+// back: the stretch starts at the first copy of any item in it instead, and
+// again at the first copy of anything that brings in, until no item in the
+// stretch has a copy above it.
+func stretchStart(entries []Item, lo int) int {
+	for {
+		in := itemCounts(entries[lo:])
+		first := slices.IndexFunc(entries[:lo], func(e Item) bool { return in[e.ID] > 0 })
+		if first < 0 {
+			return lo
+		}
+		lo = first
+	}
+}
+
+// entryIDsOf is the entry ids of entries, each once: on Jellyfin the copies
+// of an item share one.
+func entryIDsOf(entries []Item) []string {
+	ids := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if !slices.Contains(ids, e.PlaylistItemID) {
+			ids = append(ids, e.PlaylistItemID)
+		}
+	}
+
+	return ids
+}
+
 // tailReshuffled says whether now is entries with only the tail from lo on
 // changed, and changed only among the tail's own items: what a scan's
 // refresh leaves when it writes the playlist back around a move (the old
@@ -452,6 +579,8 @@ func tailReshuffled(now, entries []Item, lo int) bool {
 	return true
 }
 
+// sameItems reports whether two entry lists hold the same items in the same
+// order, whatever their entry ids.
 func sameItems(a, b []Item) bool {
 	return slices.EqualFunc(a, b, func(x, y Item) bool { return x.ID == y.ID })
 }

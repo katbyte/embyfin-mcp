@@ -125,10 +125,16 @@ func TestShowEpisodesExistMatching(t *testing.T) {
 		t.Errorf("an id needs no matching: %v", byID["matched"])
 	}
 
-	// punctuation and accents the release name has and the library does not
-	for _, name := range []string{"Sévérance", "Breaking.Bad", "The Expanse."} {
-		if _, err := invoke("show_episodes_exist", map[string]any{"series": name, "library": "Shows", "episodes": ep}); err != nil {
+	// punctuation and accents the release name has and the library does not,
+	// each to the series it names
+	for name, want := range map[string]string{"Sévérance": "Severance", "Breaking.Bad": "Breaking Bad", "The Expanse.": "The Expanse"} {
+		out, err := invoke("show_episodes_exist", map[string]any{"series": name, "library": "Shows", "episodes": ep})
+		if err != nil {
 			t.Errorf("%q did not resolve: %v", name, err)
+			continue
+		}
+		if id := findItem(t, "Shows", "Series", want); str(out["series_id"]) != id || str(out["series"]) != want {
+			t.Errorf("%q resolved to %v (%v), want %s (%s)", name, out["series"], out["series_id"], want, id)
 		}
 	}
 

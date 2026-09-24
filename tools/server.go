@@ -226,21 +226,17 @@ func registerServerTools(r *registry) {
 			}
 		}
 
-		text, err := client.LogText(ctx, name)
-		if err != nil {
-			return nil, logOut{}, err
-		}
-
 		lines := in.Lines
 		if lines <= 0 {
 			lines = 200
 		}
-		split := strings.Split(strings.TrimRight(text, "\n"), "\n")
-		if len(split) > lines {
-			split = split[len(split)-lines:]
+		// the whole log is read through for its tail, however big it is
+		tail, err := client.LogTail(ctx, name, lines)
+		if err != nil {
+			return nil, logOut{}, err
 		}
 
-		return nil, logOut{Name: name, Tail: strings.Join(split, "\n")}, nil
+		return nil, logOut{Name: name, Tail: tail}, nil
 	})
 
 	type taskOut struct {

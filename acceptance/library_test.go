@@ -218,10 +218,11 @@ func TestLibraryGenres(t *testing.T) {
 			t.Errorf("genre %s missing from %v", want, genres)
 		}
 	}
-	// the messy shows carry only what their nfo says
+	// the messy shows carry only what their nfo says, the two spellings of
+	// one genre as two
 	out = call(t, "library_genres", map[string]any{"library": "Messy Shows", "types": "Series"})
-	if genres = strs(t, out["genres"], "genres"); !slices.Equal(genres, []string{"Drama"}) {
-		t.Errorf("Messy Shows genres = %v, want [Drama]", genres)
+	if genres = strs(t, out["genres"], "genres"); !slices.Equal(sorted(genres), []string{"Drama", "Science Fiction", "Science-Fiction"}) {
+		t.Errorf("Messy Shows genres = %v, want Drama, Science Fiction and Science-Fiction", genres)
 	}
 	// across every library
 	out = call(t, "library_genres", nil)
@@ -412,8 +413,8 @@ func TestLibraryCreateAndDelete(t *testing.T) {
 	if boolOf(out["saves_nfo"]) != isJellyfin() {
 		t.Errorf("library_create saves_nfo = %v on %s", out["saves_nfo"], backend)
 	}
-	// Emby assigns the library's id at once; Jellyfin on its first scan
-	if !isJellyfin() && str(out["id"]) == "" {
+	// both servers give the library its id at once, before any scan
+	if str(out["id"]) == "" {
 		t.Errorf("library_create returned no id: %v", out)
 	}
 	t.Cleanup(func() {
@@ -430,6 +431,28 @@ func TestLibraryCreateAndDelete(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("Scratch is not listed after library_create")
+	}
+	// read by that id before any scan of its own: Jellyfin counts in it what
+	// its folder already holds, the messy films Messy Movies scanned
+	got := call(t, "library_get", map[string]any{"library": "Scratch"})
+	if str(got["id"]) != str(out["id"]) {
+		t.Errorf("library_get Scratch = %v, want its id %v", got, out["id"])
+	}
+	if isJellyfin() && num(t, object(t, got["type_counts"], "type_counts")["Movie"], "Movie") != messyMovies() {
+		t.Errorf("library_get Scratch counts %v, want the %d messy films", got["type_counts"], messyMovies())
+	}
+
+	// a name another library holds but for its case is refused before
+	// anything is made: Jellyfin would have made it SCRATCH2 and Emby a second
+	// library its names cannot tell apart
+	if msg := callErr(t, "library_create", map[string]any{"name": "SCRATCH", "type": "movies", "paths": []any{"/media/disc-src"}}); !strings.Contains(msg, `a library named "Scratch" already exists`) {
+		t.Errorf("a name another library holds but for its case: %s", msg)
+	}
+	for _, row := range rows(t, call(t, "library_list", nil)["libraries"], "libraries") {
+		if name := str(row["name"]); strings.EqualFold(name, "scratch") && name != "Scratch" || strings.HasPrefix(name, "SCRATCH") {
+			t.Errorf("the refused create made %s", name)
+			_, _ = invoke("library_delete", map[string]any{"library": str(row["id"]), "confirm": true})
+		}
 	}
 
 	if msg := callErr(t, "library_create", map[string]any{"name": "", "paths": []any{"/x"}}); !strings.Contains(msg, "required") {

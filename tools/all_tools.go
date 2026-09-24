@@ -5,8 +5,9 @@
 //
 // Every tool is registered through add with a kind: read tools never change
 // server state, write tools do (and are dropped under --read-only), and delete
-// tools remove library records or media files (and are only registered with
-// --enable-delete). --toolsets picks the groups a session needs, and
+// tools remove what cannot be put back - media files, libraries, the items a
+// removed library left, playlists and collections - and are only registered
+// with --enable-delete. --toolsets picks the groups a session needs, and
 // --allow-tools / --deny-tools narrow the set further.
 package tools
 
@@ -16,12 +17,14 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/go-kt/clog"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -29,8 +32,9 @@ import (
 type Options struct {
 	// ReadOnly registers only tools that never change server state.
 	ReadOnly bool
-	// EnableDelete registers the tools that delete media files and
-	// libraries. Off unless the operator opts in.
+	// EnableDelete registers the tools that delete: item_delete (the media
+	// file), item_orphans_delete, library_delete, playlist_delete and
+	// collection_delete. Off unless the operator opts in.
 	EnableDelete bool
 	// Toolsets, when set, restricts registration to the named groups (see
 	// Toolsets). "core" is always included, so a set can be asked for on its
@@ -41,9 +45,12 @@ type Options struct {
 	Allow []string
 	// Deny removes matching tools from whatever Allow left.
 	Deny []string
-	// TMDBKey enables the tools that need the metadata provider's own facts:
-	// audit_runtime for movies, and show_missing's fallback for a server that
-	// keeps no record of a series' run. Empty disables them.
+	// TMDBKey enables what needs the metadata provider's own facts:
+	// audit_provider (films' ids and runtimes against TMDB's),
+	// audit_missing_episodes with provider true (each series' whole run),
+	// audit_file_path naming the episode TMDB gives a file's title to, and
+	// show_missing's fallback for a server that keeps no record of a series'
+	// run. Empty disables them.
 	TMDBKey string
 	// AnimeList is where audit_anime_ids reads the Anime-Lists mapping: a
 	// URL, or a file on disk. Empty is the list its maintainers publish.
@@ -150,6 +157,32 @@ type registry struct {
 	// series_index.go
 	seriesOnce sync.Once
 	series     *seriesCache
+
+	// errorLog is where a handler's panic is logged; nil is the process's
+	// log (see logError)
+	errorLog func(format string, args ...any)
+	// settle is how long a tool waits between checks that a change the
+	// server makes in the background has landed; zero is settleInterval.
+	// The tests shorten it.
+	settle time.Duration
+}
+
+// settleInterval is the wait between checks that a change has landed, as the
+// client's own checks wait.
+const settleInterval = 250 * time.Millisecond
+
+// pause waits one settle interval, or until the context ends.
+func (r *registry) pause(ctx context.Context) error {
+	wait := r.settle
+	if wait == 0 {
+		wait = settleInterval
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(wait):
+		return nil
+	}
 }
 
 // add queues a typed tool for registration. It sets the MCP annotations from
@@ -169,7 +202,7 @@ func add[In, Out any](r *registry, kind toolKind, t *mcp.Tool, h mcp.ToolHandler
 	}
 
 	wrapped := func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
-		res, out, err := h(ctx, req, in)
+		res, out, err := recovered(ctx, r, t.Name, h, req, in)
 		if err == nil {
 			emptyNilSlices(reflect.ValueOf(&out).Elem())
 		}
@@ -189,6 +222,33 @@ func add[In, Out any](r *registry, kind toolKind, t *mcp.Tool, h mcp.ToolHandler
 		description: t.Description,
 		register:    func() { mcp.AddTool(r.server, t, wrapped) },
 	})
+}
+
+// recovered calls a handler, turning a panic into an ordinary tool error.
+// Nothing above the handler recovers one - not the MCP SDK, not the CLI - so
+// one nil dereference in one tool would otherwise end the whole session. The
+// caller is told which tool failed; the stack goes to the log, which writes
+// to stderr, because in stdio mode stdout carries the protocol itself.
+func recovered[In, Out any](ctx context.Context, r *registry, name string, h mcp.ToolHandlerFor[In, Out], req *mcp.CallToolRequest, in In) (res *mcp.CallToolResult, out Out, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			r.logError("internal error in %s: %v\n%s", name, p, debug.Stack())
+			var zero Out
+			res, out, err = nil, zero, fmt.Errorf("internal error in %s: %v", name, p)
+		}
+	}()
+
+	return h(ctx, req, in)
+}
+
+// logError writes to the registry's log: the process's own, which writes to
+// stderr, unless a test gave it another.
+func (r *registry) logError(format string, args ...any) {
+	if r.errorLog != nil {
+		r.errorLog(format, args...)
+		return
+	}
+	clog.Log.Errorf(format, args...)
 }
 
 // emptyNilSlices walks v (structs, pointers, slices) and replaces every settable
@@ -507,8 +567,15 @@ const (
 	typeEpisode = "Episode"
 )
 
-// activityScanLimit is how many activity log entries history tools read before filtering.
-const activityScanLimit = 1000
+// activityPage is how many activity log entries one request reads, and
+// activityScanMax the most a history tool reads in all. The server filters
+// the log to the period, so reading it to the end covers the period; the
+// ceiling stops a long period on a busy server from reading without end, and
+// an answer it cuts short says how far back it got (see readActivity).
+const (
+	activityPage    = 1000
+	activityScanMax = 20000
+)
 
 // sortDescending is the MediaBrowser SortOrder for newest/most-recent first.
 const sortDescending = "Descending"

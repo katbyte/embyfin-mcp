@@ -122,7 +122,7 @@ const aspectTolerance = 0.06
 // overridable and all of it reported back.
 type comparePolicy struct {
 	CodecEfficiency map[string]float64 `json:"codec_efficiency,omitempty" jsonschema:"bits of h264 one bit of each codec is worth; unnamed codecs count as h264"`
-	UpgradeMargin   float64            `json:"upgrade_margin,omitempty"   jsonschema:"effective bitrate ratio needed to call a copy better; default 1.6"`
+	UpgradeMargin   float64            `json:"upgrade_margin,omitempty"   jsonschema:"effective bitrate ratio needed to call a copy better; default 1.6, and 1 or more: below 1, two identical copies would read as one better than the other"`
 }
 
 // resolve fills a caller's policy in with the defaults it did not override.
@@ -159,7 +159,7 @@ type copyIn struct {
 	VideoCodec  string       `json:"video_codec,omitempty"  jsonschema:"h264, hevc, av1..."`
 	FrameRate   float64      `json:"frame_rate,omitempty"   jsonschema:"frames per second"`
 	HDR         string       `json:"hdr,omitempty"          jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10; omit when unknown"`
-	Bitrate     int64        `json:"bitrate,omitempty"      jsonschema:"bits per second; otherwise worked out from size and runtime_s"`
+	Bitrate     int64        `json:"bitrate,omitempty"      jsonschema:"the video stream's bits per second, as a library item reports it. When only the whole file's rate is known, leave this out and give size and runtime_s: the audio is taken out of that when the audio tracks' bitrates are given"`
 	Size        int64        `json:"size,omitempty"         jsonschema:"bytes"`
 	RuntimeS    int          `json:"runtime_s,omitempty"    jsonschema:"seconds"`
 	Audio       []audioTrack `json:"audio,omitempty"        jsonschema:"tracks: language, codec, channels, bitrate"`
@@ -178,8 +178,8 @@ type copyFacts struct {
 	VideoCodec      string   `json:"video_codec,omitempty"`
 	FrameRate       float64  `json:"frame_rate,omitempty"        jsonschema:"frames per second"`
 	HDR             string   `json:"hdr,omitempty"               jsonschema:"the dynamic range, or unknown when the server has not probed it"`
-	Bitrate         int64    `json:"bitrate,omitempty"           jsonschema:"bits per second as given or read"`
-	BitrateFrom     string   `json:"bitrate_from,omitempty"      jsonschema:"set when the bitrate was worked out rather than given"`
+	Bitrate         int64    `json:"bitrate,omitempty"           jsonschema:"bits per second: the number the comparison used, on the basis bitrate_basis names"`
+	BitrateFrom     string   `json:"bitrate_from,omitempty"      jsonschema:"what that number is: the video stream's own rate as given or read, the whole file's (from size and runtime, or the container's rate), or the whole file's less its audio tracks"`
 	Effective       int64    `json:"effective_bitrate,omitempty" jsonschema:"the bitrate in h264-equivalent bits per second: what this codec's bits are worth against the other side's"`
 	BitsPerPixel    float64  `json:"bits_per_pixel,omitempty"    jsonschema:"effective bitrate over the frame's pixels: how thinly the frame is encoded, which is what says whether a big frame is actually carrying detail"`
 	Size            int64    `json:"size,omitempty"`
@@ -189,7 +189,33 @@ type copyFacts struct {
 	AudioCodec      string   `json:"audio_codec,omitempty"       jsonschema:"the codec of the best track: most channels, then highest bitrate"`
 	AudioChannels   int      `json:"audio_channels,omitempty"`
 	AudioBitrate    int64    `json:"audio_bitrate,omitempty"     jsonschema:"that track's bits per second, when known"`
+
+	// The two rates a copy can be measured by, and they are not the same
+	// measurement: a library item's bitrate is its video stream's, while a
+	// rate worked out from size and runtime is the whole file's, audio and
+	// all. A 1080p file of 8 Mbps of video and 6 of TrueHD read as 14 against
+	// an item's 8.5 of video, and was called 1.65x better on the same
+	// picture. decide puts both sides on one footing or says it cannot.
+	video, file         int64
+	videoFrom, fileFrom string
+	// audio is every audio track's rate added up, or 0 when any is unknown
+	audio int64
 }
+
+// Where a copy's bitrate came from, and so what it measures.
+const (
+	fromGivenVideo = "the video stream, as given"
+	fromItemVideo  = "the video stream, as the library read it"
+	fromLessAudio  = "the whole file less its audio tracks"
+	fromSize       = "the whole file, from size and runtime"
+	fromContainer  = "the whole file, as the library's container rate"
+)
+
+// The footing two bitrates are compared on.
+const (
+	basisVideo = "video"
+	basisFile  = "whole_file"
+)
 
 // audioNote is the audio dimension, reported beside the video verdict and
 // never folded into it: a second language is not worth some number of
@@ -212,6 +238,7 @@ type compareOut struct {
 	A               copyFacts     `json:"a"`
 	B               copyFacts     `json:"b"`
 	ResolutionRatio float64       `json:"resolution_ratio,omitempty" jsonschema:"a's resolution class over b's"`
+	BitrateBasis    string        `json:"bitrate_basis,omitempty"    jsonschema:"what the two bitrates measure: video (the video stream alone, taken out of the whole file where the audio tracks' rates were known) or whole_file (audio included, on both sides). Absent when the two could not be put on the same footing, and then bitrate settles nothing"`
 	BitrateRatio    float64       `json:"bitrate_ratio,omitempty"    jsonschema:"a's effective bitrate over b's, the codecs taken out of both"`
 	Audio           audioNote     `json:"audio,omitzero"             jsonschema:"the audio dimension, reported separately and never folded into the verdict"`
 	Policy          comparePolicy `json:"policy_used"                jsonschema:"every constant this answer was made with, defaults included, so the same call can be made again or argued with"`
@@ -228,16 +255,21 @@ func registerQualityTools(r *registry) {
 
 	add(r, readTool, &mcp.Tool{
 		Name: "quality_compare",
-		Description: "Which of two copies is better, by how much, and why. Each side is an item_id or a file's numbers. Decides on resolution class, then bitrate with the codec taken out; the working and every constant come back with it. " +
+		Description: "Which of two copies is better, by how much, and why. Each side is an item_id or a file's numbers. Decides on resolution class, then bitrate with the codec taken out, measured alike on both sides - both video streams, or both whole files, as bitrate_basis says - and unknown where they cannot be; the working and every constant come back with it. " +
 			"Caveats flag what the numbers cannot see: frames of different shapes (black bars), an interpolated frame rate, a starved bitrate. Audio is reported beside the verdict, never folded in. It compares; it does not say what to do.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in compareIn) (*mcp.CallToolResult, compareOut, error) {
+		// a margin under 1 calls the worse copy better: identical copies
+		// measure 1.00x, which clears any margin below it
+		if m := in.Policy.UpgradeMargin; m != 0 && m < 1 {
+			return nil, compareOut{}, fmt.Errorf("upgrade_margin %g is below 1, which would call two identical copies different: give 1 or more (1 calls any difference at all better), or leave it out for the %g default", m, defaultUpgradeMargin)
+		}
 		policy := in.Policy.resolve()
 
-		a, reasonsA, err := readCopy(ctx, client, in.A, "a", policy)
+		a, reasonsA, err := readCopy(ctx, client, in.A, "a")
 		if err != nil {
 			return nil, compareOut{}, err
 		}
-		b, reasonsB, err := readCopy(ctx, client, in.B, "b", policy)
+		b, reasonsB, err := readCopy(ctx, client, in.B, "b")
 		if err != nil {
 			return nil, compareOut{}, err
 		}
@@ -252,17 +284,20 @@ func registerQualityTools(r *registry) {
 
 // readCopy turns one side into facts, reading them off the library when it
 // was given an id, and says what it derived on the way.
-func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side string, policy comparePolicy) (copyFacts, []string, error) {
+func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side string) (copyFacts, []string, error) {
 	facts := copyFacts{
 		Source:     "given",
 		Width:      in.Width,
 		Height:     in.Height,
 		VideoCodec: in.VideoCodec,
 		FrameRate:  in.FrameRate,
-		HDR:        in.HDR,
-		Bitrate:    in.Bitrate,
-		Size:       in.Size,
-		RuntimeS:   in.RuntimeS,
+		// "SDR" and "sdr" are one claim; read as two, they disagreed
+		HDR:      strings.ToLower(strings.TrimSpace(in.HDR)),
+		Size:     in.Size,
+		RuntimeS: in.RuntimeS,
+	}
+	if in.Bitrate > 0 {
+		facts.video, facts.videoFrom = in.Bitrate, fromGivenVideo
 	}
 	audio := in.Audio
 	stated := in.AspectRatio
@@ -286,9 +321,19 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 			VideoCodec: q.VideoCodec,
 			FrameRate:  q.FrameRate,
 			HDR:        q.HDR,
-			Bitrate:    q.Bitrate,
 			Size:       q.Size,
 			RuntimeS:   int(item.RunTimeTicks / 10_000_000),
+		}
+		// the item's one bitrate is its video stream's when the server read
+		// one, and the container's - the whole file - when it did not, so
+		// the two are kept apart rather than read as one number
+		if src := bestSource(item); src != nil {
+			if v := videoOf(src); v != nil && v.BitRate > 0 {
+				facts.video, facts.videoFrom = v.BitRate, fromItemVideo
+			}
+			if src.Bitrate > 0 {
+				facts.file, facts.fileFrom = src.Bitrate, fromContainer
+			}
 		}
 		audio = q.Audio
 		stated = q.AspectRatio
@@ -303,10 +348,25 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 	}
 
 	var reasons []string
-	if facts.Bitrate <= 0 && facts.Size > 0 && facts.RuntimeS > 0 {
-		facts.Bitrate = facts.Size * 8 / int64(facts.RuntimeS)
-		facts.BitrateFrom = "size and runtime"
-		reasons = append(reasons, fmt.Sprintf("%s: no bitrate given, worked out %s from %s over %ds", side, mbps(facts.Bitrate), bytes(facts.Size), facts.RuntimeS))
+	if facts.file <= 0 && facts.Size > 0 && facts.RuntimeS > 0 {
+		facts.file, facts.fileFrom = facts.Size*8/int64(facts.RuntimeS), fromSize
+		if facts.video <= 0 {
+			reasons = append(reasons, fmt.Sprintf("%s: no bitrate given, worked out %s for the whole file, audio included, from %s over %ds", side, mbps(facts.file), bytes(facts.Size), facts.RuntimeS))
+		}
+	}
+	// the whole file less its audio is the video, when every audio track's
+	// rate is known: that is what makes a size and runtime comparable with a
+	// library item's video rate
+	facts.audio = audioTotal(audio)
+	if facts.video <= 0 && facts.file > facts.audio && facts.audio > 0 {
+		facts.video, facts.videoFrom = facts.file-facts.audio, fromLessAudio
+		reasons = append(reasons, fmt.Sprintf("%s: the whole file's %s less %s of audio tracks leaves %s of video", side, mbps(facts.file), mbps(facts.audio), mbps(facts.video)))
+	}
+	// until decide puts both sides on one footing, each shows its own best
+	// number: the video's when known, else the whole file's
+	facts.Bitrate, facts.BitrateFrom = facts.video, facts.videoFrom
+	if facts.video <= 0 {
+		facts.Bitrate, facts.BitrateFrom = facts.file, facts.fileFrom
 	}
 
 	facts.ResolutionClass = resolutionClass(facts.Width, facts.Height)
@@ -317,16 +377,6 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 	if w, h, ok := embyfin.ParseAspect(stated); ok {
 		facts.Aspect = math.Round(float64(w)/float64(h)*100) / 100
 		facts.AspectFrom = "stated"
-	}
-	if facts.Bitrate > 0 {
-		factor := policy.efficiency(facts.VideoCodec)
-		facts.Effective = int64(float64(facts.Bitrate) * factor)
-		if factor != 1 {
-			reasons = append(reasons, fmt.Sprintf("%s: %s is %s, worth %s of h264 at x%.2g", side, facts.VideoCodec, mbps(facts.Bitrate), mbps(facts.Effective), factor))
-		}
-		if px := facts.Width * facts.Height; px > 0 {
-			facts.BitsPerPixel = math.Round(float64(facts.Effective)/float64(px)*100) / 100
-		}
 	}
 
 	facts.AudioTracks = len(audio)
@@ -350,6 +400,7 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 	}
 
 	out.ResolutionRatio = math.Round(float64(a.ResolutionClass)/float64(b.ResolutionClass)*100) / 100
+	settleBitrates(out)
 	if a.Effective > 0 && b.Effective > 0 {
 		out.BitrateRatio = math.Round(float64(a.Effective)/float64(b.Effective)*100) / 100
 	}
@@ -359,7 +410,10 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 	// inflate - width, codec and HDR can all be asserted by an encoder, and
 	// 60fps on a 24fps master cannot be anything but interpolation - so it
 	// outranks the frame size rather than sitting beside it.
-	if interpolated(a.FrameRate) != interpolated(b.FrameRate) {
+	//
+	// Only between two rates that are known: an unknown rate is not a slower
+	// master, and reading its 0 as one called every 50p copy interpolated.
+	if a.FrameRate > 0 && b.FrameRate > 0 && interpolated(a.FrameRate) != interpolated(b.FrameRate) {
 		synthetic := a
 		if interpolated(b.FrameRate) {
 			synthetic = b
@@ -372,7 +426,7 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 	// an HDR claim on a copy whose partner is SD-era is a claim about the
 	// encode, not the picture
 	// unknown is not a claim, so it cannot disagree with one
-	if a.HDR != "" && b.HDR != "" && a.HDR != hdrUnknown && b.HDR != hdrUnknown && a.HDR != b.HDR {
+	if a.HDR != "" && b.HDR != "" && !strings.EqualFold(a.HDR, hdrUnknown) && !strings.EqualFold(b.HDR, hdrUnknown) && !strings.EqualFold(a.HDR, b.HDR) {
 		out.Caveats = append(out.Caveats, fmt.Sprintf("the copies claim different HDR formats (%s against %s)", a.HDR, b.HDR))
 	}
 
@@ -390,7 +444,7 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 			hi, lo, better = b, a, "b_better"
 		}
 		margin = math.Round(float64(hi.ResolutionClass)/float64(lo.ResolutionClass)*100) / 100
-		out.Reasons = append(out.Reasons, fmt.Sprintf("%dp against %dp: a whole class apart, %.2gx the lines", hi.ResolutionClass, lo.ResolutionClass, margin))
+		out.Reasons = append(out.Reasons, fmt.Sprintf("%dp against %dp: a whole class apart, %.2fx the lines", hi.ResolutionClass, lo.ResolutionClass, margin))
 
 		// a bigger frame encoded thinly enough is the same picture softened:
 		// worth saying, not worth overruling the class on
@@ -404,10 +458,35 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 	}
 
 	out.Reasons = append(out.Reasons, fmt.Sprintf("%dp against %dp: the same class, so it comes down to bitrate", a.ResolutionClass, b.ResolutionClass))
-	if a.Effective <= 0 || b.Effective <= 0 {
+	switch {
+	case a.video+a.file <= 0 || b.video+b.file <= 0:
 		out.Reasons = append(out.Reasons, "one copy has no bitrate and no size and runtime to work one out from, so the two cannot be told apart")
 
 		return "unknown", 0, ""
+	case out.BitrateBasis == "":
+		// one side's rate is its video alone and the other's the whole
+		// file, and there is nothing to take the audio out with: a verdict
+		// on those would be the audio's as much as the picture's
+		videoSide, fileSide, v, f := "a", "b", a, b
+		if a.video <= 0 {
+			videoSide, fileSide, v, f = "b", "a", b, a
+		}
+		out.Caveats = append(out.Caveats, fmt.Sprintf(
+			"%s's bitrate is its video stream's alone (%s) and %s's is the whole file's, audio included (%s), with no audio rates to take out: the two measure different things, so bitrate cannot settle this. Give %s's audio tracks with their bitrates, or both copies' size and runtime",
+			videoSide, mbps(v.video), fileSide, mbps(f.file), fileSide))
+		out.Reasons = append(out.Reasons, "the two bitrates are not on the same footing, so the two cannot be told apart")
+
+		return "unknown", 0, ""
+	case out.BitrateBasis == basisFile:
+		out.Reasons = append(out.Reasons, "compared as whole files, audio included on both sides: the video's own rate is not known on both")
+		switch {
+		case a.AudioTracks == 0 || b.AudioTracks == 0:
+			out.Caveats = append(out.Caveats, "the bitrates are whole files, audio included, and one copy's audio was not given: part of any gap may be sound rather than picture. Give both copies' audio tracks with their bitrates to compare the video alone")
+		case a.AudioTracks != b.AudioTracks || a.AudioChannels != b.AudioChannels || !strings.EqualFold(a.AudioCodec, b.AudioCodec):
+			out.Caveats = append(out.Caveats, fmt.Sprintf(
+				"the bitrates are whole files, audio included, and the copies carry different audio (%d tracks, best %s %dch, against %d tracks, best %s %dch): part of any gap is sound rather than picture",
+				a.AudioTracks, a.AudioCodec, a.AudioChannels, b.AudioTracks, b.AudioCodec, b.AudioChannels))
+		}
 	}
 
 	hi, lo, better := a, b, "a_better"
@@ -415,16 +494,70 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 		hi, lo, better = b, a, "b_better"
 	}
 	margin = math.Round(float64(hi.Effective)/float64(lo.Effective)*100) / 100
-	if margin < out.Policy.UpgradeMargin {
-		out.Reasons = append(out.Reasons, fmt.Sprintf("%s against %s effective: %.2gx, under the %.2gx margin, so they are the same copy for this purpose",
+	// two copies measuring the same are the same whatever margin was asked
+	// for: 1 calls any difference better, and no difference is none
+	if margin <= 1 || margin < out.Policy.UpgradeMargin {
+		out.Reasons = append(out.Reasons, fmt.Sprintf("%s against %s effective: %.2fx, under the %.2fx margin, so they are the same copy for this purpose",
 			mbps(hi.Effective), mbps(lo.Effective), margin, out.Policy.UpgradeMargin))
 
 		return "comparable", margin, "nothing"
 	}
-	out.Reasons = append(out.Reasons, fmt.Sprintf("%s against %s effective: %.2gx, over the %.2gx margin",
+	out.Reasons = append(out.Reasons, fmt.Sprintf("%s against %s effective: %.2fx, over the %.2fx margin",
 		mbps(hi.Effective), mbps(lo.Effective), margin, out.Policy.UpgradeMargin))
 
 	return better, margin, "bitrate"
+}
+
+// settleBitrates puts the two copies' bitrates on one footing: both video
+// streams when both are known (read, given, or the whole file less its
+// audio), else both whole files. It sets the rate each side is compared by,
+// what that rate is worth in h264, and how thinly it spreads over the frame,
+// and says which footing it chose. When neither fits - one side's video
+// against the other's whole file - it leaves them unset, and decide says so.
+func settleBitrates(out *compareOut) {
+	a, b := &out.A, &out.B
+	switch {
+	case a.video > 0 && b.video > 0:
+		out.BitrateBasis = basisVideo
+		a.Bitrate, a.BitrateFrom = a.video, a.videoFrom
+		b.Bitrate, b.BitrateFrom = b.video, b.videoFrom
+	case a.file > 0 && b.file > 0:
+		out.BitrateBasis = basisFile
+		a.Bitrate, a.BitrateFrom = a.file, a.fileFrom
+		b.Bitrate, b.BitrateFrom = b.file, b.fileFrom
+	default:
+		return
+	}
+
+	for _, side := range []struct {
+		name  string
+		facts *copyFacts
+	}{{"a", a}, {"b", b}} {
+		f := side.facts
+		factor := out.Policy.efficiency(f.VideoCodec)
+		f.Effective = int64(float64(f.Bitrate) * factor)
+		if factor != 1 {
+			out.Reasons = append(out.Reasons, fmt.Sprintf("%s: %s is %s, worth %s of h264 at x%.2f", side.name, f.VideoCodec, mbps(f.Bitrate), mbps(f.Effective), factor))
+		}
+		if px := f.Width * f.Height; px > 0 {
+			f.BitsPerPixel = math.Round(float64(f.Effective)/float64(px)*100) / 100
+		}
+	}
+}
+
+// audioTotal is every audio track's rate added up, or 0 when there are none
+// listed or any of them is unknown: a total missing a track would leave that
+// track's bits counted as video.
+func audioTotal(tracks []audioTrack) int64 {
+	var total int64
+	for _, t := range tracks {
+		if t.Bitrate <= 0 {
+			return 0
+		}
+		total += t.Bitrate
+	}
+
+	return total
 }
 
 // interpolated says whether a frame rate is one no scripted master is shot or

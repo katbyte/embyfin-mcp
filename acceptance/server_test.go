@@ -30,11 +30,11 @@ func TestServerStats(t *testing.T) {
 	if got, want := num(t, out["movies"], "movies"), 8+messyMovies(); got != want {
 		t.Errorf("movies = %d, want %d", got, want)
 	}
-	if got := num(t, out["series"], "series"); got != 3+2 {
-		t.Errorf("series = %d, want 5", got)
+	if got, want := num(t, out["series"], "series"), 3+messySeries; got != want {
+		t.Errorf("series = %d, want %d", got, want)
 	}
-	if got := num(t, out["episodes"], "episodes"); got < 9+5 {
-		t.Errorf("episodes = %d, want at least 14", got)
+	if got, want := num(t, out["episodes"], "episodes"), 9+messyEpisodes; got < want {
+		t.Errorf("episodes = %d, want at least %d", got, want)
 	}
 	if got := num(t, out["albums"], "albums"); got != len(albums) {
 		t.Errorf("albums = %d, want %d", got, len(albums))
@@ -129,7 +129,13 @@ func TestServerLogs(t *testing.T) {
 	}
 	// Jellyfin answers 404, Emby 500; either way the tool fails rather than
 	// handing back an empty tail
-	callErr(t, "server_log", map[string]any{"name": "no-such.log"})
+	status := "HTTP 500"
+	if isJellyfin() {
+		status = "HTTP 404"
+	}
+	if msg := callErr(t, "server_log", map[string]any{"name": "no-such.log"}); !strings.Contains(msg, status) {
+		t.Errorf("a log that is not there: %s", msg)
+	}
 }
 
 func TestTasks(t *testing.T) {

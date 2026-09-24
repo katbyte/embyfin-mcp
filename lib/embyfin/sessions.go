@@ -77,13 +77,18 @@ func (c *Client) Play(ctx context.Context, sessionID string, itemIDs []string, p
 func (c *Client) PlayCommand(ctx context.Context, sessionID, command string, seekTicks int64) error {
 	seek := strings.EqualFold(command, "Seek")
 	if c.isEmby() {
-		// Emby's document declares no query parameters for the command and
-		// takes the target position in the PlaystateRequest body instead
+		// Emby's document takes the target position in the PlaystateRequest
+		// body, whose number the typed model leaves out at 0, so a seek to
+		// the start would send none; the query carries it too
+		// (emby-playstate-seek-query), where Emby's own web client sends it
+		// and 0 is sent
 		var body emby.PlaystateRequest
+		var options emby.PostSessionsByIdPlayingByCommandOperationOptions
 		if seek {
 			body.SeekPositionTicks = seekTicks
+			options.SeekPositionTicks = &seekTicks
 		}
-		_, err := c.emby.PostSessionsByIdPlayingByCommand(ctx, sessionID, emby.PlaystateCommand(command), body)
+		_, err := c.emby.PostSessionsByIdPlayingByCommand(ctx, sessionID, emby.PlaystateCommand(command), body, options)
 
 		return err
 	}

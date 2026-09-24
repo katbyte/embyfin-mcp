@@ -159,6 +159,14 @@ type Item struct {
 	IndexNumberEnd    int               `json:"IndexNumberEnd,omitempty"`    // last episode number of a file holding several (S01E01E02)
 	PlaylistItemID    string            `json:"PlaylistItemId,omitempty"`    // entry id within a playlist
 	IsMissing         bool              `json:"IsMissing,omitempty"`         // virtual episode the library lacks
+	// IsFolder is whether the server holds the item as a folder of others (a
+	// series, a season, an album, a collection), which is what a playlist
+	// add expands into the items beneath it
+	IsFolder bool `json:"IsFolder,omitempty"`
+	// Etag changes whenever the server saves the item, which is how a read
+	// tells that a refresh it did not wait on has landed. Only answered when
+	// asked for (Fields=Etag).
+	Etag string `json:"Etag,omitempty"`
 }
 
 // HasFile reports whether the library holds a file for the item, which is
@@ -225,6 +233,12 @@ type SearchOptions struct {
 	Studios         []string
 	OfficialRatings []string
 	Years           string // comma-separated production years
+	// MediaTypes restricts to items of these media types, comma-separated
+	// (Video, Audio, Photo, Book)
+	MediaTypes string
+	// ArtistIDs restricts to the songs and albums of these artists, by id,
+	// comma-separated
+	ArtistIDs string
 	// ParentIndexNumber restricts to one season number (episodes only): nil
 	// is every season, 0 the specials.
 	ParentIndexNumber *int
@@ -278,6 +292,8 @@ func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields stri
 		Studios:           strings.Join(opts.Studios, "|"),
 		OfficialRatings:   strings.Join(opts.OfficialRatings, "|"),
 		Years:             opts.Years,
+		MediaTypes:        opts.MediaTypes,
+		ArtistIds:         opts.ArtistIDs,
 		Ids:               opts.IDs,
 		Filters:           opts.Filters,
 		SortBy:            opts.SortBy,
@@ -300,13 +316,13 @@ func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields stri
 		if err != nil {
 			return nil, 0, err
 		}
-		res = resp.Model
+		res = orEmpty(resp.Model)
 	} else {
 		resp, err := c.emby.GetItems(ctx, o)
 		if err != nil {
 			return nil, 0, err
 		}
-		res = resp.Model
+		res = orEmpty(resp.Model)
 	}
 
 	return itemsFromEmby(res.Items), res.TotalRecordCount, nil
@@ -329,6 +345,8 @@ func embyUserItemsOptions(o *emby.GetItemsOperationOptions) emby.GetUsersByUserI
 		Studios:           o.Studios,
 		OfficialRatings:   o.OfficialRatings,
 		Years:             o.Years,
+		MediaTypes:        o.MediaTypes,
+		ArtistIds:         o.ArtistIds,
 		MinDateLastSaved:  o.MinDateLastSaved,
 		Path:              o.Path,
 		ParentIndexNumber: o.ParentIndexNumber,
@@ -364,6 +382,8 @@ func (c *Client) searchJF(ctx context.Context, opts SearchOptions, fields string
 		Studios:             opts.Studios,
 		OfficialRatings:     opts.OfficialRatings,
 		Years:               years,
+		MediaTypes:          list[jf.MediaType](opts.MediaTypes),
+		ArtistIds:           list[string](opts.ArtistIDs),
 		ParentIndexNumber:   opts.ParentIndexNumber,
 		Ids:                 list[string](opts.IDs),
 		Filters:             list[jf.ItemFilter](opts.Filters),
@@ -430,26 +450,35 @@ func (c *Client) ItemByID(ctx context.Context, id string) (*Item, error) {
 	return &items[0], nil
 }
 
-// ItemsByProviderID looks up items by a metadata provider id, e.g.
-// ("tmdb", "89998"). Emby supports this server-side; Jellyfin lacks the query
-// parameter, so we fall back to scanning by type and filtering client-side.
+// providerIDTypes are the item types a provider id is looked up among: the
+// films and series a library holds. A provider numbers other things apart
+// (TMDB's collection 10 is not its film 10), and a box set, season or episode
+// carrying the same number is not the film or the series, so both servers
+// are asked for these alone.
+const providerIDTypes = "Movie,Series"
+
+// ItemsByProviderID looks up the films and series carrying a metadata
+// provider id, e.g. ("tmdb", "89998"). Emby supports this server-side;
+// Jellyfin lacks the query parameter, so we fall back to scanning by type and
+// filtering client-side.
 func (c *Client) ItemsByProviderID(ctx context.Context, provider, id string) ([]Item, error) {
 	if c.isEmby() {
 		res, err := c.emby.GetItems(ctx, emby.GetItemsOperationOptions{
 			Recursive:           new(true),
 			Fields:              FieldsDefault,
+			IncludeItemTypes:    providerIDTypes,
 			AnyProviderIdEquals: provider + "." + id,
 		})
 		if err != nil {
 			return nil, err
 		}
 
-		return itemsFromEmby(res.Model.Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), nil
 	}
 
 	// Jellyfin fallback: page through movies and series and match locally.
 	var matches []Item
-	if err := c.SearchAll(ctx, SearchOptions{IncludeItemTypes: "Movie,Series"}, func(items []Item) bool {
+	if err := c.SearchAll(ctx, SearchOptions{IncludeItemTypes: providerIDTypes}, func(items []Item) bool {
 		for _, it := range items {
 			for k, v := range it.ProviderIDs {
 				if strings.EqualFold(k, provider) && v == id {
@@ -474,7 +503,7 @@ func (c *Client) Similar(ctx context.Context, id, userID string, limit int) ([]I
 			return nil, err
 		}
 
-		return itemsFromEmby(res.Model.Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), nil
 	}
 
 	res, err := c.jf.GetSimilarItems(ctx, id, jf.GetSimilarItemsOperationOptions{UserId: userID, Fields: list[jf.ItemFields](FieldsDefault), Limit: nz(limit)})
@@ -493,7 +522,7 @@ func (c *Client) InstantMix(ctx context.Context, id string, limit int) ([]Item, 
 			return nil, err
 		}
 
-		return itemsFromEmby(res.Model.Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), nil
 	}
 
 	res, err := c.jf.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{Fields: list[jf.ItemFields](FieldsDefault), Limit: nz(limit)})
@@ -571,6 +600,9 @@ func (c *Client) UserItem(ctx context.Context, userID, itemID string) (*Item, er
 		if err != nil {
 			return nil, err
 		}
+		if res.Model == nil {
+			return nil, noResult("no item with id %s", itemID)
+		}
 		it := itemFromEmby(res.Model)
 
 		return &it, nil
@@ -595,6 +627,10 @@ func (c *Client) FullItem(ctx context.Context, userID, itemID string) (map[strin
 		res, err := c.emby.GetUsersByUserIdItemsById(ctx, userID, itemID)
 		if err != nil {
 			return nil, err
+		}
+		// a nil model would make a nil map, which an edit then writes to
+		if res.Model == nil {
+			return nil, noResult("no item with id %s", itemID)
 		}
 
 		return toMap(res.Model)
@@ -658,25 +694,28 @@ func (c *Client) EditItem(ctx context.Context, userID, itemID string, edit func(
 // one they may not (in a library they have no access to, or rated above what
 // they may watch). Jellyfin's single-item read answers 404 for such an item;
 // Emby's answers with it, and only its list query in the user's view leaves
-// it out, so Emby asks that first.
+// it out, so Emby asks that too. That list leaves out music albums and
+// artists unless their kind is asked for, even for an administrator (seen
+// live on Emby 4.10), so it is asked for the item's own kind.
 func (c *Client) VisibleUserItem(ctx context.Context, userID, itemID string) (*Item, bool, error) {
-	if c.isEmby() {
-		items, _, err := c.Search(ctx, SearchOptions{IDs: itemID, UserID: userID, Fields: "Path", Limit: 1})
-		if err != nil {
-			return nil, false, err
-		}
-		// an id Emby cannot parse drops the filter, so the answer must be the item
-		if len(items) == 0 || items[0].ID != itemID {
-			return nil, false, nil
-		}
-	}
-
 	it, err := c.UserItem(ctx, userID, itemID)
 	if apiclient.IsNotFound(err) {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
+	}
+	if !c.isEmby() {
+		return it, true, nil
+	}
+
+	items, _, err := c.Search(ctx, SearchOptions{IDs: itemID, UserID: userID, IncludeItemTypes: it.Type, Fields: "Path", Limit: 1})
+	if err != nil {
+		return nil, false, err
+	}
+	// an id Emby cannot parse drops the filter, so the answer must be the item
+	if len(items) == 0 || items[0].ID != itemID {
+		return nil, false, nil
 	}
 
 	return it, true, nil
