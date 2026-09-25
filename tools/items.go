@@ -532,12 +532,22 @@ func registerItemTools(r *registry) {
 			return nil, deleteOut{}, fmt.Errorf("refusing to delete %s without confirm=true: nothing was deleted. %s", it.Name, plan.would())
 		}
 
+		// a scan that had read the item's folder before the delete landed
+		// can list the item again once it finishes (seen on Jellyfin 12.1):
+		// the files stay gone, and the next scan lets the record go
+		scanning, _ := client.LibraryScanRunning(ctx)
 		if err := client.DeleteItem(ctx, in.ID); err != nil {
 			return nil, deleteOut{}, err
 		}
 		removed, note, err := r.removedBy(ctx, plan, it.Path)
 		if err != nil {
 			return nil, deleteOut{}, fmt.Errorf("deleted %s, but reading back what went failed: %w", it.Name, err)
+		}
+		if after, _ := client.LibraryScanRunning(ctx); scanning || after {
+			if note != "" {
+				note += "; "
+			}
+			note += "a library scan was running: it can list this item again once it finishes, pointing at files that are gone, until the next scan lets it go - if it is still listed after that, delete it again"
 		}
 
 		return nil, deleteOut{Deleted: it.Name + " (" + it.Path + ")", Removed: removed, Note: note}, nil

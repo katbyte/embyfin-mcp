@@ -175,3 +175,32 @@ func TestItemDeleteSaysWhatItRemoves(t *testing.T) {
 		t.Errorf("item_delete of an episode removed %v", got)
 	}
 }
+
+// A delete while a library scan runs can be undone for a while: a scan that
+// read the item's folder before the delete lists the item again when it
+// finishes, pointing at files that are gone, until the next scan (seen on
+// Jellyfin 12.1). item_delete says so when a scan was running, and says
+// nothing of it when none was.
+func TestItemDeleteSaysWhenAScanWasRunning(t *testing.T) {
+	t.Parallel()
+
+	for _, state := range []string{"Running", "Idle"} {
+		const folder = "/zz/films/Zzyzx (2001)"
+		items := map[string]map[string]any{
+			"5": {"Id": "5", "Name": "Zzyzx", "Type": "Movie", "Path": folder + "/Zzyzx (2001).mkv"},
+		}
+		disk := &diskState{paths: map[string]bool{"/zz/": true, "/zz/films/": true, folder + "/": true, folder + "/Zzyzx (2001).mkv": true}, deletes: map[string][]string{"5": {folder + "/"}}}
+		f := deleteServer(t, items, disk)
+		f.mux.HandleFunc("GET /ScheduledTasks", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(t, w, []map[string]any{{"Id": "t1", "Name": "Scan media library", "Category": "Library", "State": state}})
+		})
+		r := &registry{client: f.client(t), settle: time.Millisecond, opts: Options{EnableDelete: true}}
+		registerItemTools(r)
+		cs := hostRegistry(t, r)
+
+		out := mustCall(t, cs, "item_delete", map[string]any{"id": "5", "confirm": true})
+		if said := strings.Contains(text(out["note"]), "a library scan was running"); said != (state == "Running") {
+			t.Errorf("scan %s: note = %q", state, text(out["note"]))
+		}
+	}
+}

@@ -313,7 +313,7 @@ func TestDeletingWhatIsAlreadyGone(t *testing.T) {
 		t.Errorf("the refusal: %s", msg)
 	}
 	out := call(t, "item_delete", map[string]any{"id": id, "confirm": true})
-	if got := removedPaths(t, out); len(got) != 0 || str(out["note"]) != gone || !strings.Contains(str(out["deleted"]), name) {
+	if got := removedPaths(t, out); len(got) != 0 || !strings.HasPrefix(str(out["note"]), gone) || !strings.Contains(str(out["deleted"]), name) {
 		t.Errorf("item_delete = %v", out)
 	}
 	if msg := callErr(t, "item_get", map[string]any{"id": id}); !strings.Contains(msg, "no item") {

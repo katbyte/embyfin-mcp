@@ -50,6 +50,22 @@ func (c *Client) Tasks(ctx context.Context) ([]Task, error) {
 	return tasks, nil
 }
 
+// LibraryScanRunning says whether a library scan is running now: the task
+// both servers call "Scan media library" is not idle.
+func (c *Client) LibraryScanRunning(ctx context.Context) (bool, error) {
+	tasks, err := c.Tasks(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, t := range tasks {
+		if strings.Contains(strings.ToLower(t.Name), "scan media library") && t.State != "" && !strings.EqualFold(t.State, "Idle") {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // RunTask starts a scheduled task by name (case-insensitive) or id.
 func (c *Client) RunTask(ctx context.Context, nameOrID string) (*Task, error) {
 	tasks, err := c.Tasks(ctx)
