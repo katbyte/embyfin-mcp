@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -36,10 +37,12 @@ type recorded struct {
 type route func(r *http.Request, body string) (int, string)
 
 // fake is a canned server that answers by method and path and records every
-// request.
+// request. mu guards requests: a request the client gave up on can still be
+// answered while the next one is.
 type fake struct {
 	t        *testing.T
 	routes   map[string]route
+	mu       sync.Mutex
 	requests []recorded
 }
 
@@ -49,7 +52,9 @@ func newFake(t *testing.T, backend Backend, routes map[string]route) (*Client, *
 	f := &fake{t: t, routes: routes}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
+		f.mu.Lock()
 		f.requests = append(f.requests, recorded{method: r.Method, path: r.URL.EscapedPath(), query: r.URL.Query(), body: string(b)})
+		f.mu.Unlock()
 		handle, ok := routes[r.Method+" "+r.URL.EscapedPath()]
 		if !ok {
 			t.Errorf("unexpected request %s %s", r.Method, r.URL)
@@ -88,6 +93,8 @@ var noContent = answer(http.StatusNoContent, "")
 // only returns the one request made to "METHOD /path".
 func (f *fake) only(key string) recorded {
 	f.t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
 	var got []recorded
 	for _, r := range f.requests {
@@ -104,6 +111,9 @@ func (f *fake) only(key string) recorded {
 
 // all returns every request made to "METHOD /path".
 func (f *fake) all(key string) []recorded {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	var got []recorded
 	for _, r := range f.requests {
 		if r.method+" "+r.path == key {

@@ -282,9 +282,11 @@ func (c *Client) DeleteCollection(ctx context.Context, id string) (CollectionDel
 		}
 		back := false
 		// the first delete is watched for the whole window, a delete again
-		// for the rest of it or a few seconds, whichever is longer
+		// for the rest of it or a few seconds, whichever is longer - and
+		// never for fewer than collectionGoneChecks reads, which a slow
+		// server's answers would otherwise eat the few seconds with
 		until := time.Now().Add(max(time.Until(start.Add(watch)), collectionGoneChecks*c.settle))
-		for time.Now().Before(until) {
+		for checks := 0; checks < collectionGoneChecks || time.Now().Before(until); checks++ {
 			if err := c.pause(ctx); err != nil {
 				return out, err
 			}
