@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -12,7 +13,8 @@ import (
 // four artists, five albums, twenty tagged one-second tracks, the fetchers
 // off so the id3 tags are all either server knows. It carries two defects of
 // its own - an album with no cover art, and a genre spelled two ways - so the
-// audits can be pointed at music and find something true.
+// audits can be pointed at music and find something true, and the tags carry
+// more (TestMusicTagDefects).
 
 func TestMusicLibrary(t *testing.T) {
 	out := call(t, "library_get", map[string]any{"library": "Music"})
@@ -20,8 +22,8 @@ func TestMusicLibrary(t *testing.T) {
 		t.Errorf("Music collection_type = %v", out["collection_type"])
 	}
 	counts, _ := out["type_counts"].(map[string]any)
-	if got := num(t, counts["MusicAlbum"], "type_counts.MusicAlbum"); got != len(albums) {
-		t.Errorf("albums = %d, want %d (%v)", got, len(albums), counts)
+	if got := num(t, counts["MusicAlbum"], "type_counts.MusicAlbum"); got != musicAlbums() {
+		t.Errorf("albums = %d, want %d (%v)", got, musicAlbums(), counts)
 	}
 	if got := num(t, counts["Audio"], "type_counts.Audio"); got != songs() {
 		t.Errorf("songs = %d, want %d (%v)", got, songs(), counts)
@@ -36,8 +38,8 @@ func TestMusicLibrary(t *testing.T) {
 // and dated by.
 func TestMusicItems(t *testing.T) {
 	out := call(t, "library_items", map[string]any{"library": "Music", "sort": "name", "limit": 50})
-	if got := num(t, out["total"], "total"); got != len(albums) {
-		t.Errorf("total = %d, want %d", got, len(albums))
+	if got := num(t, out["total"], "total"); got != musicAlbums() {
+		t.Errorf("total = %d, want %d", got, musicAlbums())
 	}
 	years := map[string]int{}
 	for _, row := range rows(t, out["items"], "items") {
@@ -87,6 +89,10 @@ func TestMusicFilters(t *testing.T) {
 	want := map[string]int{}
 	for _, a := range albums {
 		want[a.Genre]++
+	}
+	// and on Emby the album made of the track whose album is misspelt
+	if !isJellyfin() {
+		want["Progressive Rock"]++
 	}
 	for genre, n := range want {
 		if got[genre] != n {
@@ -172,6 +178,10 @@ func TestAuditMusicMissingPoster(t *testing.T) {
 			want = append(want, a.Album)
 		}
 	}
+	// and on Emby the album made of the one track whose album is misspelt
+	if !isJellyfin() {
+		want = append(want, misspeltAlbum)
+	}
 	slices.Sort(want)
 	if isJellyfin() && len(want) != 1 {
 		t.Fatalf("the fixtures hold %v without art, want the one album", want)
@@ -179,8 +189,8 @@ func TestAuditMusicMissingPoster(t *testing.T) {
 	if got := findings(t, out); !slices.Equal(got, want) {
 		t.Errorf("albums with no art = %v, want %v", got, want)
 	}
-	if got := num(t, out["items_scanned"], "items_scanned"); got != len(albums) {
-		t.Errorf("scanned %d albums, want %d", got, len(albums))
+	if got := num(t, out["items_scanned"], "items_scanned"); got != musicAlbums() {
+		t.Errorf("scanned %d albums, want %d", got, musicAlbums())
 	}
 }
 
@@ -321,5 +331,87 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 func TestInstantMixFromAPlaylist(t *testing.T) {
 	if items := rows(t, call(t, "item_instant_mix", map[string]any{"id": songPlaylist(t)})["items"], "items"); len(items) == 0 {
 		t.Error("a mix seeded from a playlist of two songs is empty")
+	}
+}
+
+// The tags carry the defects a tagger leaves, one album's worth each, and
+// what each server makes of them is pinned here: Polygon's album artist is
+// Various Artists over Battle Tapes' tracks; Thundercolor carries no
+// MusicBrainz ids, its third track is numbered 2 and its fourth not at all;
+// The Dark Side of the Moon is two discs in two folders, each numbered from
+// one; and on Wish You Were Here one track's album is misspelt Wish You Where
+// Here and another's artist is spelled The Pink Floyd.
+//
+// Emby builds albums from the tags alone, so the misspelt one is an album of
+// its own; Jellyfin builds them from folders, so it is one track of the
+// album it sits in. Both make artists of every name the tags carry. Nothing
+// here tells the two Pink Floyds apart, or the two spellings of the album:
+// audit_spelling reads genres, tags and studios, not the names of artists or
+// albums.
+func TestMusicTagDefects(t *testing.T) {
+	namesOf := func(kind string) map[string]map[string]any {
+		out := map[string]map[string]any{}
+		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Music", "types": kind, "limit": 100})["items"], "items") {
+			out[str(it["name"])] = it
+		}
+
+		return out
+	}
+	albumNames := namesOf("MusicAlbum")
+	if _, split := albumNames[misspeltAlbum]; split == isJellyfin() || len(albumNames) != musicAlbums() {
+		t.Errorf("albums = %v, want %d, the misspelt one among them only on Emby", sorted(slices.Collect(maps.Keys(albumNames))), musicAlbums())
+	}
+	artistNames := namesOf("MusicArtist")
+	for _, name := range []string{variousArtists, pinkFloydAgain, "Pink Floyd", "Battle Tapes"} {
+		if artistNames[name] == nil {
+			t.Errorf("no artist %q among %v", name, sorted(slices.Collect(maps.Keys(artistNames))))
+		}
+	}
+	if len(artistNames) != artists() {
+		t.Errorf("artists = %d, want %d", len(artistNames), artists())
+	}
+	// the second spelling carries Pink Floyd's MusicBrainz id: from the
+	// track's tag on Emby, and on Jellyfin from MusicBrainz itself, which it
+	// asks about an artist with no folder of its own whatever the library's
+	// fetchers say; neither joins it to Pink Floyd by that id
+	again := call(t, "item_get", map[string]any{"id": str(artistNames[pinkFloydAgain]["id"])})
+	if ids, _ := again["metadata_provider_ids"].(map[string]any); str(ids["musicbrainzartist"]) != albums[2].MBArtist {
+		t.Errorf("%s's ids = %v, want Pink Floyd's MusicBrainz id", pinkFloydAgain, again["metadata_provider_ids"])
+	}
+
+	track := func(title string) map[string]any {
+		t.Helper()
+		return call(t, "item_get", map[string]any{"id": findItem(t, "Music", "Audio", title)})
+	}
+	// the numbers as tagged: a track numbered twice and one not numbered,
+	// and the second disc's tracks numbered from one again
+	for title, want := range map[string]any{"Stay With You": 2.0, "This Is How You Know": 2.0, "Changing Guard": nil, "Speak to Me": 1.0, "Breathe": 2.0, "On the Run": 1.0, "Time": 2.0} {
+		if got := track(title)["episode"]; got != want {
+			t.Errorf("%s is track %v, want %v as tagged", title, got, want)
+		}
+	}
+	// the rip nothing was looked up for has no ids, down to its artist
+	if ids := track("Diving At Night")["metadata_provider_ids"]; ids != nil {
+		t.Errorf("Thundercolor's track carries %v, want no ids", ids)
+	}
+	if ids := call(t, "item_get", map[string]any{"id": str(albumNames["Thundercolor"]["id"])})["metadata_provider_ids"]; ids != nil {
+		t.Errorf("Thundercolor carries %v, want no ids", ids)
+	}
+	// and two discs are one album holding both
+	var discs []string
+	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Music", "types": "Audio", "limit": 100})["items"], "items") {
+		if path := str(it["path"]); strings.Contains(path, "/The Dark Side of the Moon (1973)/") {
+			discs = append(discs, path[strings.Index(path, "(1973)/")+7:])
+		}
+	}
+	if want := []string{"Disc 1/01 - Speak to Me.mp3", "Disc 1/02 - Breathe.mp3", "Disc 2/01 - On the Run.mp3", "Disc 2/02 - Time.mp3"}; !slices.Equal(sorted(discs), want) {
+		t.Errorf("The Dark Side of the Moon's tracks = %v, want %v", sorted(discs), want)
+	}
+
+	// what audit_spelling reads in a music library: the genre spelled two
+	// ways, and neither artist's nor album's name
+	spelling := call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum"})
+	if groups := rows(t, spelling["groups"], "groups"); len(groups) != 1 || str(groups[0]["field"]) != "genres" {
+		t.Errorf("audit_spelling over Music = %v, want the Electronica pair alone", groups)
 	}
 }

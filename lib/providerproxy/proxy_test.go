@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -296,8 +297,10 @@ func TestRecordDecodesGzipAndElidesBinaries(t *testing.T) {
 		_ = resp.Body.Close()
 		return string(body)
 	}
-	if got := get("/3/authentication/token/new"); strings.Contains(got, "tok-1") {
-		t.Errorf("the recorded answer still carries the token: %s", got)
+	// the server that asked is handed the token, which it needs for what it
+	// asks next; the cassette is not (below)
+	if got := get("/3/authentication/token/new"); !strings.Contains(got, "tok-1") {
+		t.Errorf("the answer handed to the server lost its token: %s", got)
 	}
 	get("/packageFiles/Plugin.dll")
 	get("/studios.txt")
@@ -451,6 +454,102 @@ func TestRecordFillsInAndRerecordRefreshes(t *testing.T) {
 	}
 	if got := recorded(); len(got["/3/movie/348"]) != 1 || !strings.Contains(got["/3/movie/348"][0], `"runtime":118`) || len(got["/3/movie/78"]) != 1 {
 		t.Errorf("after Rerecord the cassette holds %v, want each request once, refreshed", got)
+	}
+}
+
+// A login is recorded with its token blanked out, and a recording run that
+// replayed it would hand the server that blank for a token: every call the
+// server then made that no cassette held went out with it, and TheTVDB's
+// 401s were what got recorded. So while recording, a recording that holds a
+// redacted credential is fetched again for the server that asked, and the
+// cassette keeps the recording as it was.
+func TestRecordFetchesARedactedLoginAgain(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	logins := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v4/login":
+			mu.Lock()
+			logins++
+			n := logins
+			mu.Unlock()
+			_, _ = fmt.Fprintf(w, `{"data":{"token":"tok-%d"},"status":"success"}`, n)
+		default:
+			// what the token authorises, which only a real token opens
+			if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer tok-") {
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = io.WriteString(w, `{"message":"Unauthorized"}`)
+				return
+			}
+			_, _ = io.WriteString(w, `{"data":{"id":1438}}`)
+		}
+	}))
+	t.Cleanup(upstream.Close)
+	host := strings.TrimPrefix(upstream.URL, "http://")
+
+	dir := t.TempDir()
+	writeCassette(t, dir, cassette{Host: host, Interactions: []*interaction{{
+		Key: "POST " + host + "/v4/login", Method: "POST", Host: host, Path: "/v4/login",
+		Status: 200, Headers: map[string]string{"Content-Type": "application/json"},
+		Body: `{"data":{"token":"` + redactedValue + `"},"status":"success"}`,
+	}}})
+	do := func(p *Proxy, method, path, token string) (int, string) {
+		t.Helper()
+		req, err := http.NewRequestWithContext(t.Context(), method, upstream.URL+path, strings.NewReader(`{"apikey":"k"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		resp, err := clientThrough(t, p).Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(body)
+	}
+	tokenOf := func(body string) string {
+		var login struct {
+			Data struct{ Token string } `json:"data"`
+		}
+		_ = json.Unmarshal([]byte(body), &login)
+		return login.Data.Token
+	}
+
+	for _, mode := range []Mode{Record, Rerecord} {
+		p, err := New(Options{Mode: mode, CassetteDir: dir, Logger: log.New(io.Discard, "", 0), RedactBodyFields: []string{"token"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		// asked twice: Rerecord's second ask is served its fresh recording,
+		// which is redacted too
+		for range 2 {
+			_, body := do(p, http.MethodPost, "/v4/login", "")
+			token := tokenOf(body)
+			if !strings.HasPrefix(token, "tok-") {
+				t.Errorf("mode %d: the login handed to the server = %s, want a live token", mode, body)
+			}
+			if status, got := do(p, http.MethodGet, "/v4/series/79126", token); status != http.StatusOK {
+				t.Errorf("mode %d: a call made with that token = %d %s, want it recorded as answered", mode, status, got)
+			}
+		}
+		if err := p.Close(); err != nil {
+			t.Fatal(err)
+		}
+		// the cassette holds the login redacted, and the call it authorised
+		// as answered
+		raw, err := os.ReadFile(filepath.Join(dir, hostFile(host))) //nolint:gosec // a path this test wrote
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(raw), "tok-") || strings.Contains(string(raw), "Unauthorized") || !strings.Contains(string(raw), redactedValue) {
+			t.Errorf("mode %d: the cassette = %s, want the login redacted and no 401", mode, raw)
+		}
 	}
 }
 

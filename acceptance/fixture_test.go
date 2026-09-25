@@ -5,6 +5,7 @@ package acceptance
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -55,6 +56,44 @@ func TestFixturesAreWhatTheScriptLaidOut(t *testing.T) {
 		slices.Sort(want)
 		if !slices.Equal(have, want) {
 			t.Errorf("%s holds %v, want %v", s.Title, have, want)
+		}
+	}
+
+	// the messy series, each at its own folder: the ids its nfo named and the
+	// episode files in that folder. Both servers answer a series' episodes
+	// with those of every entry sharing its ids, so a folder's own are read
+	// by path
+	for _, s := range messyShows {
+		path := "/media/messy-shows/" + s.Folder
+		var got map[string]any
+		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Shows", "query": s.Title, "limit": 50})["items"], "items") {
+			if str(it["path"]) == path {
+				got = call(t, "item_get", map[string]any{"id": str(it["id"])})
+			}
+		}
+		if got == nil {
+			t.Errorf("no series at %s", path)
+			continue
+		}
+		ids, _ := got["metadata_provider_ids"].(map[string]any)
+		if str(got["name"]) != s.Title || str(ids["tmdb"]) != s.TMDB || str(ids["tvdb"]) != s.TVDB || str(ids["imdb"]) != s.IMDB {
+			t.Errorf("%s = %v %v, want %s tmdb %s tvdb %s imdb %s", path, got["name"], ids, s.Title, s.TMDB, s.TVDB, s.IMDB)
+		}
+		var have, want []string
+		for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": str(got["id"])})["episodes"], "episodes") {
+			if strings.HasPrefix(str(e["path"]), path+"/") {
+				have = append(have, fmt.Sprintf("S%02dE%02d", num(t, e["season"], "season"), num(t, e["episode"], "episode")))
+			}
+		}
+		for season, numbers := range s.Episodes {
+			for _, n := range numbers {
+				want = append(want, fmt.Sprintf("S%02dE%02d", season, n))
+			}
+		}
+		slices.Sort(have)
+		slices.Sort(want)
+		if !slices.Equal(have, want) {
+			t.Errorf("%s holds %v, want %v", path, have, want)
 		}
 	}
 }

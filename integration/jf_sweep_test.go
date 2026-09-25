@@ -31,9 +31,16 @@ func TestJFReadSweep(t *testing.T) {
 	if len(musicArtists) == 0 {
 		t.Fatal("the music fixtures hold no artist")
 	}
-	// Jellyfin 12.1 documents no music genre listing, only a genre by name,
-	// so the genre comes back as an item like any other
-	musicGenre := jfFirst(t, musicID, jf.BaseItemKindMusicGenre)
+	// Jellyfin 12.1 documents no music genre listing, and /Genres of a music
+	// library lists the genres its tags name. Not the first music genre the
+	// server holds: those include what MusicBrainz says of an artist only the
+	// tags name (The Pink Floyd's acid rock), which no album in the library
+	// carries to make the genre's image from
+	musicGenres := must(jfc.GetGenres(ctx, jf.GetGenresOperationOptions{ParentId: musicID, UserId: adminID})).Model.Items
+	if len(musicGenres) == 0 {
+		t.Fatal("the music fixtures carry no genre")
+	}
+	musicGenre := musicGenres[0]
 	series := jfSeries(t, severance)
 	people := must(jfc.GetPersons(ctx, jf.GetPersonsOperationOptions{SearchTerm: ridleyScott})).Model.Items
 	studios := must(jfc.GetStudios(ctx, jf.GetStudiosOperationOptions{ParentId: moviesID})).Model.Items

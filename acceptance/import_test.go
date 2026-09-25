@@ -299,9 +299,9 @@ func TestAuditFilePathShows(t *testing.T) {
 		t.Errorf("diagnosis = %v, want the file's title placed at TMDB's S01E01", f)
 	}
 	// the files whose names claim no title at all are counted, not reported:
-	// the library's other eight
-	if num(t, out["unnamed"], "unnamed") != 8 {
-		t.Errorf("unnamed = %v, want the rest of the library's 8 episodes", out["unnamed"])
+	// the rest of the library's
+	if num(t, out["unnamed"], "unnamed") != showEpisodes()-1 {
+		t.Errorf("unnamed = %v, want the rest of the library's %d episodes", out["unnamed"], showEpisodes()-1)
 	}
 }
 
@@ -316,8 +316,8 @@ func TestAuditDuplicateSeries(t *testing.T) {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	out := call(t, "audit_duplicate_series", nil)
-	if n := num(t, out["items_scanned"], "items_scanned"); n != 3+messySeries {
-		t.Errorf("items_scanned = %d, want every series in the fixtures (%d)", n, 3+messySeries)
+	if n := num(t, out["items_scanned"], "items_scanned"); n != len(shows)+messySeries {
+		t.Errorf("items_scanned = %d, want every series in the fixtures (%d)", n, len(shows)+messySeries)
 	}
 	groups := rows(t, out["groups"], "groups")
 	if len(groups) != 1 || num(t, out["total_findings"], "total_findings") != 1 {

@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -240,5 +241,61 @@ func TestAuditAllReadsAMusicLibrary(t *testing.T) {
 				t.Errorf("an audit with nothing to say about music names types over every library: %v", row)
 			}
 		}
+	}
+}
+
+// A show's extras are not its episodes. Emby 4.10 reads a featurette in a
+// season's Extras folder as an episode with no number, and the audits that
+// judge episodes judged it: a 360p featurette was an episode worth replacing,
+// a three-minute one a truncated episode, and two seasons' featurettes one
+// episode filed twice. A show called Extras, its episodes in its own folder,
+// is still judged.
+func TestAuditsLeaveAShowsExtrasAlone(t *testing.T) {
+	t.Parallel()
+
+	show := &fakeSeries{id: "z", name: "Zzyzx Show", episodes: []ep{
+		{season: 1, number: 1, name: "One", path: "/media/shows/Zzyzx Show/Season 01/Zzyzx Show S01E01.mkv"},
+		{season: 1, number: 2, name: "Two", path: "/media/shows/Zzyzx Show/Season 01/Zzyzx Show S01E02.mkv"},
+		{season: 1, number: 3, name: "Three", path: "/media/shows/Zzyzx Show/Season 01/Zzyzx Show S01E03.mkv"},
+		// what Emby makes of each season's Extras folder
+		{season: 1, name: "Featurette", path: "/media/shows/Zzyzx Show/Season 01/Extras/Featurette.mkv", minutes: 3, width: 640, height: 360},
+		{season: 1, name: "Featurette", path: "/media/shows/Zzyzx Show/Season 02/extras/Featurette.mkv", minutes: 3, width: 640, height: 360},
+	}}
+	named := &fakeSeries{id: "x", name: "Extras", episodes: []ep{
+		{season: 1, number: 1, name: "Cut Short", path: "/media/shows/Extras/Extras S01E01.mkv", minutes: 5, width: 640, height: 360},
+		{season: 1, number: 2, name: "Two", path: "/media/shows/Extras/Extras S01E02.mkv"},
+		{season: 1, number: 3, name: "Three", path: "/media/shows/Extras/Extras S01E03.mkv"},
+		{season: 1, number: 4, name: "Four", path: "/media/shows/Extras/Extras S01E04.mkv"},
+	}}
+	f := tvServer(t, show, named)
+	f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"Items": []any{map[string]any{"Id": "u1", "Name": "Quux", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}}}, "TotalRecordCount": 1})
+	})
+	f.mux.HandleFunc("GET /Users/u1/Items", func(w http.ResponseWriter, r *http.Request) {
+		view := r.Clone(r.Context())
+		view.URL.Path = "/Items"
+		f.mux.ServeHTTP(w, view)
+	})
+	cs := session(t, f, Options{})
+
+	names := func(out map[string]any) []string {
+		rows := objects(t, out["findings"], "findings")
+		got := make([]string, 0, len(rows))
+		for _, row := range rows {
+			got = append(got, text(row["name"]))
+		}
+
+		return got
+	}
+	quality := mustCall(t, cs, "audit_quality", map[string]any{"types": "Episode"})
+	if got := names(quality); !slices.Equal(got, []string{"Extras S01E01 Cut Short"}) || number(t, quality["items_scanned"], "items_scanned") != 7 {
+		t.Errorf("audit_quality = %v of %v scanned, want the Extras episode alone of the seven episodes", got, quality["items_scanned"])
+	}
+	runtime := mustCall(t, cs, "audit_runtime", map[string]any{})
+	if got := names(runtime); !slices.Equal(got, []string{"Extras S01E01 Cut Short"}) || number(t, runtime["items_scanned"], "items_scanned") != 7 {
+		t.Errorf("audit_runtime = %v of %v scanned, want the Extras episode alone of the seven episodes", got, runtime["items_scanned"])
+	}
+	if dup := mustCall(t, cs, "audit_duplicate_episodes", map[string]any{}); number(t, dup["total_findings"], "total_findings") != 0 || number(t, dup["items_scanned"], "items_scanned") != 7 {
+		t.Errorf("audit_duplicate_episodes = %v, want the two featurettes no episode filed twice", dup)
 	}
 }

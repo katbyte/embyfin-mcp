@@ -97,10 +97,11 @@ func TestAuditProviderIDs(t *testing.T) {
 	// both checks, which is what a sweep runs unless told otherwise: the
 	// staged film fails both, on one row counted under each, and the one-
 	// second files fail the runtime check as TestAuditProviderRuntime reads
-	runtimeOff := 6
-	if !versionsMerged() {
-		runtimeOff = 7 // both Blade Runner files
-	}
+	// Alien twice, Arrival, Blade Runner, Dune and Interstellar, and a
+	// seventh for each server's own reason: Emby's second Blade Runner file,
+	// or Jellyfin's reading of the DVD kept whole, a second long. Emby never
+	// reads the disc, so it has no runtime to hold to TMDB's
+	runtimeOff := 7
 	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies"})
 	byCheck := object(t, out["by_check"], "by_check")
 	total := num(t, out["total_findings"], "total_findings")
@@ -125,11 +126,13 @@ func TestAuditProviderIDs(t *testing.T) {
 		t.Errorf("limit 1 = %v", capped)
 	}
 	// every library: the clean films' ids hold, and their one-second files
-	// are as far off TMDB's runtimes as the messy ones
+	// are as far off TMDB's runtimes as the messy ones - but Limitless's,
+	// which runs its real 106 minutes
 	whole := call(t, "audit_provider", nil)
-	if byCheck := object(t, whole["by_check"], "by_check"); num(t, byCheck["ids"], "ids") != 3 || num(t, byCheck["runtime"], "runtime") != 8+runtimeOff+1 ||
-		num(t, whole["items_scanned"], "items_scanned") != 8+messyMovies()+1 {
-		t.Errorf("every library: by_check %v of %v scanned, want ids 3 and runtime %d of %d", byCheck, whole["items_scanned"], 8+runtimeOff+1, 8+messyMovies()+1)
+	clean := len(movies) - 1
+	if byCheck := object(t, whole["by_check"], "by_check"); num(t, byCheck["ids"], "ids") != 3 || num(t, byCheck["runtime"], "runtime") != clean+runtimeOff+1 ||
+		num(t, whole["items_scanned"], "items_scanned") != len(movies)+messyMovies()+1 {
+		t.Errorf("every library: by_check %v of %v scanned, want ids 3 and runtime %d of %d", byCheck, whole["items_scanned"], clean+runtimeOff+1, len(movies)+messyMovies()+1)
 	}
 	if msg := callErr(t, "audit_provider", map[string]any{"checks": "ids,year"}); !strings.Contains(msg, `checks must be among ids, runtime, not "year"`) {
 		t.Errorf("an unknown check: %s", msg)

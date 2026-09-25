@@ -386,7 +386,7 @@ func TestDeletingASeason(t *testing.T) {
 	kept[filepath.Join(root, show, "tvshow.nfo")] = fixtureVideo(t, "seasons", show, "tvshow.nfo")
 	out := call(t, "item_delete", map[string]any{"id": seasons[3], "confirm": true})
 	got := removedPaths(t, out)
-	for _, want := range []string{server + "/", server + "/Star Trek Deep Space Nine S03E01.mp4", server + "/Star Trek Deep Space Nine S03E01.nfo"} {
+	for _, want := range []string{server + "/", server + "/Star Trek Deep Space Nine S03E01.mkv", server + "/Star Trek Deep Space Nine S03E01.nfo"} {
 		if !slices.Contains(got, want) {
 			t.Errorf("removed = %v, want %s among them", got, want)
 		}

@@ -144,10 +144,10 @@ func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l librar
 			last = fmt.Sprintf("%d albums, %d songs", a, s)
 			nudge(a + s)
 
-			return a == l.Albums && s == l.Songs
+			return a == l.albums() && s == l.Songs
 		})
 		if !ok {
-			t.Fatalf("%s never reached %d albums and %d songs; last saw %s", l.Name, l.Albums, l.Songs, last)
+			t.Fatalf("%s never reached %d albums and %d songs; last saw %s", l.Name, l.albums(), l.Songs, last)
 		}
 
 		return
@@ -158,10 +158,10 @@ func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l librar
 		last = fmt.Sprintf("%d movies, %d series, %d episodes", m, s, e)
 		nudge(m + s + e)
 
-		return m == l.films() && s == l.Series && e == l.Episodes
+		return m == l.films() && s == l.Series && e == l.episodes()
 	})
 	if !ok {
-		t.Fatalf("%s never reached %d movies, %d series, %d episodes; last saw %s", l.Name, l.films(), l.Series, l.Episodes, last)
+		t.Fatalf("%s never reached %d movies, %d series, %d episodes; last saw %s", l.Name, l.films(), l.Series, l.episodes(), last)
 	}
 }
 

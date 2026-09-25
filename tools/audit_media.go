@@ -150,6 +150,26 @@ func probed(it *embyfin.Item) bool {
 	return false
 }
 
+// extraFolders are the folders both servers keep what goes with a film or a
+// show in - its trailers, featurettes and deleted scenes - by the names they
+// read them by.
+var extraFolders = []string{"extras", "trailers", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "samples", "shorts", "clips", "other", "backdrops"}
+
+// extraEpisode says whether an episode is a file from an extras folder that the
+// server took for an episode. Emby 4.10 reads a season's Extras folder so:
+// the featurette in a season's Extras became an episode with no number, and
+// the quality audit reported it as an episode worth replacing. The folder
+// has to be the file's own and not named for the show, or a show called
+// Extras, its episodes held in its own folder, would be passed over.
+func extraEpisode(it *embyfin.Item) bool {
+	if it.Type != typeEpisode || it.Path == "" {
+		return false
+	}
+	folder := baseName(parentDir(it.Path))
+
+	return slices.Contains(extraFolders, strings.ToLower(folder)) && folderKey(folder) != folderKey(it.SeriesName)
+}
+
 // episodeOrItemName names an item the way a worklist wants it: an episode
 // by its series and number, anything else by its name.
 func episodeOrItemName(it *embyfin.Item) string {
@@ -184,6 +204,9 @@ func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (qu
 	}
 	for g := range groups {
 		shown := &groups[g].Item
+		if extraEpisode(shown) {
+			continue // not an episode to replace, whatever its size
+		}
 		out.Scanned++
 		for i := range groups[g].stored {
 			it := &groups[g].stored[i]
@@ -320,7 +343,7 @@ type missingEpisodesOut struct {
 	RunsKnown    bool         `json:"runs_known"              jsonschema:"whether any series' full run could be read, from the server's own records or, with provider, from the metadata provider. False means the findings are only the episode numbers skipped between the files on disk: a series absent from them is NOT known to be complete"`
 	Note         string       `json:"note,omitempty"`
 	TotalUnknown int          `json:"total_unknown,omitempty" jsonschema:"provider: series whose run could not be read"`
-	Unknown      []unknownRun `json:"unknown,omitempty"       jsonschema:"provider: series whose run could not be read, with why (no id a provider knows it by, or the provider could not be asked); capped at limit"`
+	Unknown      []unknownRun `json:"unknown,omitempty"       jsonschema:"provider: series whose run could not be read, with why (no id a provider knows it by, ids that name different titles there - a film's ids on a show - or the provider could not be asked); capped at limit"`
 	NextOffset   int          `json:"next_offset,omitempty"   jsonschema:"provider: pass back as offset to go on; absent when every series was asked about"`
 }
 
@@ -425,42 +448,70 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 		}
 	}
 
-	// by name, then by id: two series of one name (one show split across two
-	// entries is the usual reason) otherwise swap places with the map's
-	// order from one call to the next, and paged by offset one of them is
-	// asked about twice and the other never
+	// the series themselves, for the ids a provider knows them by and for the
+	// ids that make two entries one show
 	ids := make([]string, 0, len(bySeries))
 	for id := range bySeries {
 		ids = append(ids, id)
 	}
-	slices.SortFunc(ids, func(a, b string) int {
-		return cmp.Or(strings.Compare(bySeries[a].name, bySeries[b].name), strings.Compare(a, b))
+	items := map[string]*embyfin.Item{}
+	for chunk := range slices.Chunk(ids, 100) {
+		if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(chunk, ","), IncludeItemTypes: "Series", Fields: "ProviderIds,Path"}, func(rows []embyfin.Item) bool {
+			for i := range rows {
+				items[rows[i].ID] = &rows[i]
+			}
+
+			return true
+		}); err != nil {
+			return missingEpisodesOut{}, err
+		}
+	}
+
+	// one show split across two entries - a folder renamed and the old one
+	// left behind, both carrying the show's ids - is one show: judged alone,
+	// each entry was missing what the other holds, where both servers answer
+	// either entry with the other's episodes too (show_missing reads it so).
+	// Entries sharing a tmdb, tvdb or imdb id are judged together, named by
+	// the first, and the finding names the rest
+	shows := sameShows(ids, func(id string) *embyfin.Item { return items[id] })
+	for _, show := range shows {
+		lead := bySeries[show[0]]
+		for _, id := range show[1:] {
+			s := bySeries[id]
+			for season, eps := range s.onDisk {
+				lead.onDisk[season] = append(lead.onDisk[season], eps...)
+			}
+			for k := range s.held {
+				lead.held[k] = true
+			}
+			lead.records = lead.records || s.records
+			for _, e := range s.provider {
+				if !slices.Contains(lead.provider, e) {
+					lead.provider = append(lead.provider, e)
+				}
+			}
+		}
+	}
+
+	// by name, then by id: two series of one name (one show split across two
+	// entries is the usual reason) otherwise swap places with the map's
+	// order from one call to the next, and paged by offset one of them is
+	// asked about twice and the other never
+	slices.SortFunc(shows, func(a, b []string) int {
+		return cmp.Or(strings.Compare(bySeries[a[0]].name, bySeries[b[0]].name), strings.Compare(a[0], b[0]))
 	})
 
 	answer := missingEpisodesOut{auditOut: out}
 	if in.Provider {
-		// the series themselves, for the ids a provider knows them by; the
-		// window is the series asked about in this call
-		from := min(max(in.Offset, 0), len(ids))
-		to := min(from+maxLookups, len(ids))
-		if to < len(ids) {
+		// the window is the shows asked about in this call
+		from := min(max(in.Offset, 0), len(shows))
+		to := min(from+maxLookups, len(shows))
+		if to < len(shows) {
 			answer.NextOffset = to
 		}
-		window := ids[from:to]
-		items := map[string]*embyfin.Item{}
-		for chunk := range slices.Chunk(window, 100) {
-			if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(chunk, ","), IncludeItemTypes: "Series", Fields: "ProviderIds"}, func(rows []embyfin.Item) bool {
-				for i := range rows {
-					items[rows[i].ID] = &rows[i]
-				}
-
-				return true
-			}); err != nil {
-				return missingEpisodesOut{}, err
-			}
-		}
 		answer.Unknown = []unknownRun{}
-		for _, id := range window {
+		for _, show := range shows[from:to] {
+			id := show[0]
 			s := bySeries[id]
 			item := items[id]
 			if item == nil {
@@ -478,10 +529,11 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 			runs = true
 			s.guide = guideMissing(run, s.held)
 		}
-		ids = window
+		shows = shows[from:to]
 	}
 
-	for _, id := range ids {
+	for _, show := range shows {
+		id := show[0]
 		s := bySeries[id]
 		gaps := seasonGaps(s.onDisk)
 		var parts []string
@@ -500,7 +552,19 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 		}
 		answer.Found++
 		if len(answer.Findings) < limit {
-			answer.Findings = append(answer.Findings, auditFinding{ID: id, Name: s.name, Detail: strings.Join(parts, "; ")})
+			f := auditFinding{ID: id, Name: s.name, Detail: strings.Join(parts, "; ")}
+			if len(show) > 1 {
+				also := make([]string, 0, len(show)-1)
+				for _, other := range show[1:] {
+					where := ""
+					if it := items[other]; it != nil && it.Path != "" {
+						where = " at " + it.Path
+					}
+					also = append(also, "id "+other+where)
+				}
+				f.Warning = fmt.Sprintf("the library holds %q under %d entries sharing its ids (also %s), judged here as one show: what is listed is missing from all of them. audit_duplicates lists every show in this state", s.name, len(show), strings.Join(also, "; "))
+			}
+			answer.Findings = append(answer.Findings, f)
 		}
 	}
 
@@ -510,6 +574,76 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 	}
 
 	return answer, nil
+}
+
+// sameShows groups series ids into shows: entries sharing a tmdb, tvdb or
+// imdb id are one show, held under more than one entry. Each group is in
+// the order its entries sort by (name, then id), so the first names it, and
+// an entry that cannot be read (itemOf answers nil) is a show of its own.
+func sameShows(ids []string, itemOf func(string) *embyfin.Item) [][]string {
+	sorted := slices.Clone(ids)
+	slices.SortFunc(sorted, func(a, b string) int {
+		var na, nb string
+		if it := itemOf(a); it != nil {
+			na = it.Name
+		}
+		if it := itemOf(b); it != nil {
+			nb = it.Name
+		}
+
+		return cmp.Or(strings.Compare(na, nb), strings.Compare(a, b))
+	})
+	root := map[string]string{}
+	var find func(string) string
+	find = func(id string) string {
+		if r, ok := root[id]; ok && r != id {
+			root[id] = find(r)
+
+			return root[id]
+		}
+
+		return id
+	}
+	first := map[string]string{}
+	for _, id := range sorted {
+		root[id] = id
+		it := itemOf(id)
+		if it == nil {
+			continue
+		}
+		for _, p := range []string{"tmdb", "tvdb", "imdb"} {
+			v := providerID(it, p)
+			if v == "" {
+				continue
+			}
+			key := p + ":" + v
+			if other, ok := first[key]; ok {
+				// the earlier entry stays the root, so a show is named by
+				// the first of its entries
+				a, b := find(other), find(id)
+				if a != b {
+					root[b] = a
+				}
+			} else {
+				first[key] = id
+			}
+		}
+	}
+	byRoot := map[string][]string{}
+	var roots []string
+	for _, id := range sorted {
+		r := find(id)
+		if byRoot[r] == nil {
+			roots = append(roots, r)
+		}
+		byRoot[r] = append(byRoot[r], id)
+	}
+	out := make([][]string, 0, len(roots))
+	for _, r := range roots {
+		out = append(out, byRoot[r])
+	}
+
+	return out
 }
 
 type unwatchedIn struct {
@@ -533,7 +667,7 @@ func registerMediaAudits(r *registry) {
 
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_quality",
-		Description: "Find the films and episodes worth replacing with a better copy: video below a resolution (default 720 lines, so 480p and 576p rips), in a legacy codec (MPEG-2, XviD and DivX, WMV, VC-1...), or below a bitrate when one is given. An item is judged by its best file, every version the server shows it in together (Emby stores each version as an item of its own and merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it), so a 4K version beside a DVD rip is not reported. Lowest resolution first. " +
+		Description: "Find the films and episodes worth replacing with a better copy: video below a resolution (default 720 lines, so 480p and 576p rips), in a legacy codec (MPEG-2, XviD and DivX, WMV, VC-1...), or below a bitrate when one is given. A show's extras (a featurette in a season's Extras folder, which Emby 4.10 holds as an episode) are not episodes and are left out. An item is judged by its best file, every version the server shows it in together (Emby stores each version as an item of its own and merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it), so a 4K version beside a DVD rip is not reported. Lowest resolution first. " +
 			"Two more lists say which facts cannot be trusted: files the server holds no media facts for (never probed, so resolution, codec, bitrate and audio all read as nothing rather than as a measurement, and they are not judged) and, on Emby, files written over after the server first saw them, whose facts may still be the old file's until a scan re-reads them. Each of those rows carries the size the server believes, so a caller with the file in front of it can tell a re-read from a stale one; a scan of the library re-probes both.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in qualityIn) (*mcp.CallToolResult, qualityOut, error) {
 		out, err := auditQuality(ctx, client, in)
@@ -544,6 +678,7 @@ func registerMediaAudits(r *registry) {
 		Name: "audit_missing_episodes",
 		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have aired and have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). " +
 			"With provider true, each series' whole run is read from the configured metadata providers instead (TMDB, with EMBYFIN_TMDB_TOKEN set), one request a series and paged, so what a series lacks after its last file is seen too. " +
+			"A show held under two entries sharing its ids (a folder renamed and the old one left behind) is judged as one show, named by the first entry with the rest in its warning. " +
 			"Read 'runs_known': when it is false this sweep can only see gaps between files, so a series it does not list is not known to be complete.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in episodesIn) (*mcp.CallToolResult, missingEpisodesOut, error) {
 		out, err := auditMissingEpisodes(ctx, client, guide, in)

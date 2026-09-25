@@ -27,12 +27,12 @@ func fixtureVideo(t *testing.T, parts ...string) []byte {
 }
 
 // The fixtures were probed at their scan and never rewritten, and are all
-// 720p, so the audit proves its sweep: every one of Shows' nine episodes
+// 720p, so the audit proves its sweep: every one of Shows' episodes
 // counted, nothing reported.
 func TestAuditQualityTrustsTheFixtures(t *testing.T) {
 	out := call(t, "audit_quality", map[string]any{"library": "Shows"})
-	if n := num(t, out["items_scanned"], "items_scanned"); n != 9 {
-		t.Errorf("items_scanned = %d, want Shows' 9 episodes", n)
+	if n := num(t, out["items_scanned"], "items_scanned"); n != showEpisodes() {
+		t.Errorf("items_scanned = %d, want Shows' %d episodes", n, showEpisodes())
 	}
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("%d files reported: %v", n, out["findings"])
@@ -123,8 +123,9 @@ func TestAFolderRenamedWithAYear(t *testing.T) {
 	var paths, ids []string
 	groups, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Shows"})["groups"].([]any)
 	for _, g := range groups {
+		// The Wire, split the same way, is the other series group
 		group := rowsOf(g)
-		if len(group) == 0 || str(group[0]["type"]) != "Series" {
+		if len(group) == 0 || str(group[0]["type"]) != "Series" || str(group[0]["name"]) != "Severance" {
 			continue
 		}
 		for _, s := range group {
@@ -139,10 +140,15 @@ func TestAFolderRenamedWithAYear(t *testing.T) {
 	// what each entry holds: both servers key a show's episodes by the
 	// show's ids, so either entry lists both folders' six - a lookup by one
 	// entry can answer with the other's file, and show_episodes_exist names
-	// the other entry for it
+	// the other entry for it. Emby lists each folder's season featurette
+	// among them, which it takes for an episode
+	want := 6
+	if !isJellyfin() {
+		want = 8
+	}
 	for i, id := range ids {
-		if n := len(rows(t, call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes")); n != 6 {
-			t.Errorf("library_episodes lists %d episodes for the series at %s, want both folders' 6", n, paths[i])
+		if n := len(rows(t, call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes")); n != want {
+			t.Errorf("library_episodes lists %d episodes for the series at %s, want both folders' %d", n, paths[i], want)
 		}
 		out := call(t, "show_episodes_exist", map[string]any{"series_id": id, "episodes": []map[string]any{{"season": 1, "episode": 1}}})
 		if other := ids[1-i]; !slices.Contains(strs(t, out["duplicate_entries"], "duplicate_entries"), other) {

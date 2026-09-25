@@ -152,7 +152,7 @@ func (p comparePolicy) efficiency(codec string) float64 {
 // copyIn is one of the two copies being compared: a library item by id, or
 // the numbers off a file the library has never seen.
 type copyIn struct {
-	ItemID      string       `json:"item_id,omitempty"      jsonschema:"library item to read the facts from, in place of numbers"`
+	ItemID      string       `json:"item_id,omitempty"      jsonschema:"library item to read the facts from, in place of numbers: its best file, or, given the id item_get lists one of its versions by, that version's own file"`
 	Width       int          `json:"width,omitempty"`
 	Height      int          `json:"height,omitempty"`
 	AspectRatio string       `json:"aspect_ratio,omitempty" jsonschema:"the shape the picture is shown at, when the file states one (16:9, 4:3): an anamorphic DVD is 720x480 either way"`
@@ -353,14 +353,14 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 
 	var read *embyfin.Item
 	if in.ItemID != "" {
-		item, err := client.ItemByID(ctx, in.ItemID)
+		item, src, err := copyItem(ctx, client, in.ItemID)
 		if err != nil {
 			return copyFacts{}, nil, nil, fmt.Errorf("copy %s: %w", side, err)
 		}
 		read = item
 		// the same facts every other tool answers with, so the two sides of a
 		// comparison are read the same way
-		q := qualityOf(item)
+		q := sourceQuality(src)
 		facts = copyFacts{
 			Source:     fmt.Sprintf("%s (item %s)", item.Name, item.ID),
 			Width:      q.Width,
@@ -374,13 +374,11 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		// the item's one bitrate is its video stream's when the server read
 		// one, and the container's - the whole file - when it did not, so
 		// the two are kept apart rather than read as one number
-		if src := bestSource(item); src != nil {
-			if v := videoOf(src); v != nil && v.BitRate > 0 {
-				facts.video, facts.videoFrom = v.BitRate, fromItemVideo
-			}
-			if src.Bitrate > 0 {
-				facts.file, facts.fileFrom = src.Bitrate, fromContainer
-			}
+		if v := videoOf(src); v != nil && v.BitRate > 0 {
+			facts.video, facts.videoFrom = v.BitRate, fromItemVideo
+		}
+		if src.Bitrate > 0 {
+			facts.file, facts.fileFrom = src.Bitrate, fromContainer
 		}
 		audio = q.Audio
 		stated = q.AspectRatio
@@ -433,6 +431,39 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 	}
 
 	return facts, read, reasons, nil
+}
+
+// copyItem reads the item a side names, and the file that speaks for it: its
+// best, the rule every tool reads an item's facts by. An id no item query
+// finds can still be a version's: Jellyfin folds a film's second file into
+// the film, and item_get lists that version by an id of its own, which only
+// the single read in a user's view answers - and then it is that version's
+// own file that speaks, or the two versions of one film could never be told
+// apart.
+func copyItem(ctx context.Context, client *embyfin.Client, id string) (*embyfin.Item, *embyfin.MediaSource, error) {
+	item, err := client.ItemByID(ctx, id)
+	if err == nil {
+		if src := bestSource(item); src != nil {
+			return item, src, nil
+		}
+
+		return item, &embyfin.MediaSource{}, nil
+	}
+	admin, aerr := client.ResolveUser(ctx, "")
+	if aerr != nil {
+		return nil, nil, err
+	}
+	version, verr := client.UserItem(ctx, admin.ID, id)
+	if verr != nil || version == nil || version.ID != id {
+		return nil, nil, err
+	}
+	for i := range version.MediaSources {
+		if version.MediaSources[i].ItemID == id {
+			return version, &version.MediaSources[i], nil
+		}
+	}
+
+	return nil, nil, err
 }
 
 // decide weighs the two sides and says which is better, by how much, and on

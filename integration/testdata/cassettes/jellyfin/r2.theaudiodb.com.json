@@ -1,0 +1,107 @@
+{
+  "host": "r2.theaudiodb.com",
+  "interactions": [
+    {
+      "key": "GET r2.theaudiodb.com/images/media/artist/fanart/clv56e1650100617.jpg",
+      "method": "GET",
+      "host": "r2.theaudiodb.com",
+      "path": "/images/media/artist/fanart/clv56e1650100617.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "max-age=432000",
+        "Content-Type": "image/jpeg",
+        "Server": "cloudflare",
+        "Vary": "Accept-Encoding"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 194173
+    },
+    {
+      "key": "GET r2.theaudiodb.com/images/media/artist/fanart/gc8br01659325896.jpg",
+      "method": "GET",
+      "host": "r2.theaudiodb.com",
+      "path": "/images/media/artist/fanart/gc8br01659325896.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "max-age=432000",
+        "Content-Type": "image/jpeg",
+        "Server": "cloudflare",
+        "Vary": "Accept-Encoding"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 69360
+    },
+    {
+      "key": "GET r2.theaudiodb.com/images/media/artist/logo/rgm6wf1713812323.png",
+      "method": "GET",
+      "host": "r2.theaudiodb.com",
+      "path": "/images/media/artist/logo/rgm6wf1713812323.png",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "max-age=432000",
+        "Content-Type": "image/png",
+        "Server": "cloudflare",
+        "Vary": "Accept-Encoding"
+      },
+      "elided": true,
+      "elided_type": "image/png",
+      "elided_size": 41936
+    },
+    {
+      "key": "GET r2.theaudiodb.com/images/media/artist/logo/wponlz1679914062.png",
+      "method": "GET",
+      "host": "r2.theaudiodb.com",
+      "path": "/images/media/artist/logo/wponlz1679914062.png",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "max-age=432000",
+        "Content-Type": "image/png",
+        "Server": "cloudflare",
+        "Vary": "Accept-Encoding"
+      },
+      "elided": true,
+      "elided_type": "image/png",
+      "elided_size": 364320
+    },
+    {
+      "key": "GET r2.theaudiodb.com/images/media/artist/thumb/f8iqyf1757467507.jpg",
+      "method": "GET",
+      "host": "r2.theaudiodb.com",
+      "path": "/images/media/artist/thumb/f8iqyf1757467507.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "max-age=432000",
+        "Content-Type": "image/jpeg",
+        "Server": "cloudflare",
+        "Vary": "Accept-Encoding"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 43826
+    },
+    {
+      "key": "GET r2.theaudiodb.com/images/media/artist/thumb/uhsmur1713812514.jpg",
+      "method": "GET",
+      "host": "r2.theaudiodb.com",
+      "path": "/images/media/artist/thumb/uhsmur1713812514.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "max-age=432000",
+        "Content-Type": "image/jpeg",
+        "Server": "cloudflare",
+        "Vary": "Accept-Encoding"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 98158
+    }
+  ]
+}

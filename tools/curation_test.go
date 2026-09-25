@@ -409,6 +409,9 @@ func TestHDRFormatSaysWhenItDoesNotKnow(t *testing.T) {
 		{"jellyfin plain dolby vision", embyfin.MediaStream{VideoRangeType: "DOVI"}, "dovi"},
 		{"emby says only HDR, the transfer says which", embyfin.MediaStream{VideoRange: "HDR", ColourTransfer: "arib-std-b67"}, "hlg"},
 		{"emby says HDR and nothing else", embyfin.MediaStream{VideoRange: "HDR"}, "hdr10"},
+		// what Emby 4.10 answered for an HEVC file tagged with HDR10's colours
+		{"emby names HDR10 itself, with a space", embyfin.MediaStream{VideoRange: "HDR 10"}, "hdr10"},
+		{"emby names HDR10 and the transfer agrees", embyfin.MediaStream{VideoRange: "HDR 10", ColourTransfer: "smpte2084"}, "hdr10"},
 		{"emby says SDR", embyfin.MediaStream{VideoRange: "SDR", ColourTransfer: "bt709"}, "sdr"},
 		{"only a transfer, and it is an HDR one", embyfin.MediaStream{ColourTransfer: "smpte2084"}, "hdr10"},
 		{"only a transfer, and it is not", embyfin.MediaStream{ColourTransfer: "bt709"}, "sdr"},

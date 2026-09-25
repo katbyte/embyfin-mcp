@@ -376,12 +376,27 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 	k := key(r.Method, host, path, r.URL.Query())
 
 	if i, ok := p.store.lookup(k); ok && !p.stale(k) {
+		// a credential the recording blanked out is no credential: handed
+		// back while recording, every call the server makes with it that no
+		// cassette holds goes out unauthorised, and its refusal is what gets
+		// recorded. The server is handed a live one, and the recording kept
+		if p.recording() && i.redacted() {
+			live, err := p.fetch(r, host, k, path)
+			if err == nil {
+				p.logger.Printf("live %s -> %d (its recording holds a redacted credential)", k, live.Status)
+				writeInteraction(w, live)
+				return
+			}
+			p.logger.Printf("live %s: %v, replaying the recording", k, err)
+		}
 		p.logger.Printf("replay %s -> %d", k, i.Status)
 		if p.mode == Verify {
 			live, err := p.fetch(r, host, k, path)
 			if err != nil {
 				p.logger.Printf("verify %s: %v", k, err)
 			} else {
+				// held against the recording as the recording holds it
+				live.redact(p.redactBody)
 				p.compare(i, live)
 			}
 		}
@@ -531,7 +546,6 @@ func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, erro
 		Headers: keepHeaders(headers),
 	}
 	i.setBody(body, headers.Get("Content-Type"))
-	i.redact(p.redactBody)
 
 	return i, nil
 }
@@ -550,18 +564,31 @@ func gunzip(b []byte) ([]byte, error) {
 // record fetches and stores, replacing any recording of the same request.
 // fetch alone is what Verify uses, so that a verification run never writes to
 // the cassettes.
+//
+// What is stored is redacted and what is answered is not: the media server
+// is the one that asked, and a login it is handed with its token blanked
+// out is a login it cannot use. TheTVDB answered every call after a login
+// recorded that way with a 401, and those 401s were what went into the
+// cassettes. Replay hands the redacted token back, which is harmless there,
+// because every call it would authorise is answered from the recording; a
+// recording run fetches it again instead (respond).
 func (p *Proxy) record(r *http.Request, host, k, path string) (*interaction, error) {
 	i, err := p.fetch(r, host, k, path)
 	if err != nil {
 		return nil, err
 	}
-	p.store.put(i.Host, i)
+	stored := i.clone()
+	stored.redact(p.redactBody)
+	p.store.put(stored.Host, stored)
 	p.freshMu.Lock()
 	p.fresh[k] = true
 	p.freshMu.Unlock()
 
 	return i, nil
 }
+
+// recording reports whether this run writes to the cassettes.
+func (p *Proxy) recording() bool { return p.mode == Record || p.mode == Rerecord }
 
 // stale reports whether a recorded request is to be called for again rather
 // than replayed: in Rerecord mode, until this run has recorded it.
@@ -582,7 +609,7 @@ func writeInteraction(w http.ResponseWriter, i *interaction) {
 	}
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(i.Status)
-	_, _ = w.Write(body)
+	_, _ = w.Write(body) //nolint:gosec // a provider's answer relayed to the media server that asked for it, which is what the proxy is for
 }
 
 // loadOrNewCA returns the authority in the given PEM files, minting and

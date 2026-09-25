@@ -856,7 +856,7 @@ func registerRuntimeAudit(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_runtime",
 		Description: "Find episodes whose runtime disagrees with their season's: truncated downloads, wrong files, or wrong matches, each compared to the median of its season (needs 3+ episodes), with no external data. " +
-			fmt.Sprintf("A duration too long to be any episode's (%d hours or more) is broken metadata and reported wherever it is, whatever the season holds. A film's runtime against its provider's is audit_provider.", absurdRuntimeS/3600),
+			fmt.Sprintf("A duration too long to be any episode's (%d hours or more) is broken metadata and reported wherever it is, whatever the season holds. A show's extras, which Emby 4.10 holds as episodes when they sit in a season's Extras folder, are left out. A film's runtime against its provider's is audit_provider.", absurdRuntimeS/3600),
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in runtimeIn) (*mcp.CallToolResult, auditOut, error) {
 		if in.TolerancePct <= 0 {
 			in.TolerancePct = defaultRuntimeTolerancePct
@@ -930,6 +930,10 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 	}, func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
+			// a featurette Emby took for an episode runs as long as it runs
+			if extraEpisode(it) {
+				continue
+			}
 			out.Scanned++
 			if it.RunTimeTicks <= 0 {
 				continue

@@ -177,3 +177,47 @@ func TestTheLooseVOBsStatedShape(t *testing.T) {
 		t.Errorf("quality_compare reads the loose VOB's shape as %v from %v, want 1.5 as the stream states it", a["aspect"], a["aspect_from"])
 	}
 }
+
+// Moon is a DVD kept whole: VIDEO_TS with its IFO, BUP and VOB files, and its
+// nfo as VIDEO_TS/VIDEO_TS.nfo, the one place both servers read one beside a
+// disc from. Both hold it as one film at its folder, matched by the nfo, and
+// the disc audit leaves it alone as it does the Blu-ray kept whole. Jellyfin
+// reads the disc's video, and judges it as the DVD it is; Emby never probes
+// a disc, so it has no picture to judge and says so. (What deleting it would
+// take is TestWhatADeleteWouldTake's.)
+func TestADVDKeptWhole(t *testing.T) {
+	moon := findItem(t, "Messy Movies", "Movie", "Moon")
+	got := call(t, "item_get", map[string]any{"id": moon})
+	ids := object(t, got["metadata_provider_ids"], "metadata_provider_ids")
+	if str(got["path"]) != "/media/messy-movies/"+messyKeptDVD || num(t, got["year"], "year") != 2009 || str(ids["tmdb"]) != "17431" || str(ids["imdb"]) != "tt1182345" {
+		t.Errorf("item_get Moon = %v at %v, %v: want one film at its folder with the nfo's ids", got["name"], got["path"], ids)
+	}
+	if found := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "17431"})["items"], "items"); len(found) != 1 || str(found[0]["id"]) != moon {
+		t.Errorf("tmdb 17431 finds %v, want Moon alone", found)
+	}
+
+	for _, f := range rows(t, call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})["folders"], "folders") {
+		if strings.Contains(str(f["folder"]), messyKeptDVD) {
+			t.Errorf("the DVD kept whole was reported: %v", f)
+		}
+	}
+
+	quality := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
+	var finding string
+	for _, f := range rows(t, quality["findings"], "findings") {
+		if str(f["id"]) == moon {
+			finding = str(f["detail"])
+		}
+	}
+	unprobed := false
+	for _, u := range rows(t, quality["unprobed"], "unprobed") {
+		unprobed = unprobed || str(u["id"]) == moon
+	}
+	if isJellyfin() {
+		if finding != "mpeg2video 720x480: 480p, below 720p; legacy codec mpeg2video" || unprobed || str(got["video_codec"]) != "mpeg2video" {
+			t.Errorf("Jellyfin reads Moon as %v, and audit_quality says %q (unprobed %v): want the DVD's MPEG-2 judged", got["video_codec"], finding, unprobed)
+		}
+	} else if finding != "" || !unprobed || got["video_codec"] != nil {
+		t.Errorf("Emby reads Moon as %v, and audit_quality says %q (unprobed %v): want it listed as never probed", got["video_codec"], finding, unprobed)
+	}
+}

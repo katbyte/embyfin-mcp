@@ -56,8 +56,8 @@ func TestLibraryExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := num(t, out["rows"], "rows"); n != len(paged) || n != len(lines) || n != 9 || str(out["shape"]) != "episode row" || num(t, out["bytes"], "bytes") != int(st.Size()) {
-		t.Errorf("library_export = %v, for %d lines of %d bytes and %d library_episodes rows, want Shows' 9", out, len(lines), st.Size(), len(paged))
+	if n := num(t, out["rows"], "rows"); n != len(paged) || n != len(lines) || n != showEpisodes() || str(out["shape"]) != "episode row" || num(t, out["bytes"], "bytes") != int(st.Size()) {
+		t.Errorf("library_export = %v, for %d lines of %d bytes and %d library_episodes rows, want Shows' %d", out, len(lines), st.Size(), len(paged), showEpisodes())
 	}
 	for _, line := range lines {
 		if want := paged[str(line["id"])]; !reflect.DeepEqual(line, want) {
@@ -75,12 +75,12 @@ func TestLibraryExport(t *testing.T) {
 		}
 		return num(t, call(t, "library_export", args)["rows"], "rows")
 	}
-	if n := exportAlbums("albums-all.jsonl", false); n != len(albums) {
-		t.Errorf("with_file false wrote %d albums, want the %d", n, len(albums))
+	if n := exportAlbums("albums-all.jsonl", false); n != musicAlbums() {
+		t.Errorf("with_file false wrote %d albums, want the %d", n, musicAlbums())
 	}
 	want := 0
 	if isJellyfin() {
-		want = len(albums)
+		want = musicAlbums()
 	}
 	if n := exportAlbums("albums-held.jsonl", nil); n != want {
 		t.Errorf("with_file left to its default wrote %d albums, want %d", n, want)
@@ -94,8 +94,8 @@ func TestLibraryExport(t *testing.T) {
 		listed[str(row["id"])] = row
 	}
 	lines = jsonLines(t, films)
-	if n := num(t, out["rows"], "rows"); n != 8 || len(lines) != 8 || len(listed) != 8 || str(out["shape"]) != "item summary" {
-		t.Errorf("library_export types Movie = %v with %d lines, want the 8 films", out, len(lines))
+	if n := num(t, out["rows"], "rows"); n != len(movies) || len(lines) != len(movies) || len(listed) != len(movies) || str(out["shape"]) != "item summary" {
+		t.Errorf("library_export types Movie = %v with %d lines, want the %d films", out, len(lines), len(movies))
 	}
 	for _, line := range lines {
 		want := listed[str(line["id"])]

@@ -604,6 +604,38 @@ func TestInProgressSaysWhenPlayed(t *testing.T) {
 	}
 }
 
+// A play stopped part way through a film long enough to have a resume point
+// - Limitless runs its 106 minutes, and Jellyfin keeps none in a file under
+// five - leaves it in progress where it stopped, and not played: on both
+// servers, from the player's own report rather than a state set by hand.
+func TestAPlayStoppedPartWay(t *testing.T) {
+	film := findItem(t, "Movies", "Movie", "Limitless")
+	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": film, "user": "alice", "watched": false}) })
+	_, token := signInPlayer(t)
+	playTo(t, token, film, 10*60*10_000_000) // ten minutes in
+
+	var row map[string]any
+	if !eventually(func() bool {
+		row = nil
+		for _, it := range rows(t, call(t, "user_next_up", map[string]any{"user": "alice"})["in_progress"], "in_progress") {
+			if str(it["id"]) == film {
+				row = it
+			}
+		}
+		return row != nil
+	}) {
+		t.Fatal("Limitless, stopped ten minutes in, is not in progress for alice")
+	}
+	if num(t, row["position_s"], "position_s") != 600 || num(t, row["percent"], "percent") != 9 {
+		t.Errorf("in progress row = %v, want ten minutes in, 9%% of 106", row)
+	}
+	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": film})["users"], "users") {
+		if str(u["user"]) == "alice" && boolOf(u["played"]) {
+			t.Errorf("alice's row = %v, want it not played", u)
+		}
+	}
+}
+
 func TestUserStats(t *testing.T) {
 	mononoke := findItem(t, "Movies", "Movie", "Princess Mononoke")
 	series := findItem(t, "Shows", "Series", "Breaking Bad")

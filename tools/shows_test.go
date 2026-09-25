@@ -40,6 +40,8 @@ type ep struct {
 	// alt is a second version of the file, a 720p one, merged into the same
 	// item the way a server merges two files of one episode in one folder
 	alt string
+	// width and height are the file's frame, 1920x1080 when not given
+	width, height int
 }
 
 // fakeSeries is one series the canned server holds.
@@ -56,6 +58,10 @@ type fakeSeries struct {
 	path string
 	// film makes this a film rather than a series: path is then its file
 	film bool
+	// merged are other entries whose episodes the server answers this one's
+	// with, the way both servers answer a show split across two folders that
+	// share its ids
+	merged []*fakeSeries
 }
 
 // wireItem is an item as the MediaBrowser API spells one.
@@ -149,7 +155,7 @@ func (s *fakeSeries) items() []wireItem {
 			it.LocationType = "Virtual"
 		}
 		if e.path != "" && !e.missing {
-			it.MediaSources = []wireSource{probedSource(e.path, 1920, 1080, 700<<20)}
+			it.MediaSources = []wireSource{probedSource(e.path, cmp.Or(e.width, 1920), cmp.Or(e.height, 1080), 700<<20)}
 			if e.alt != "" {
 				it.MediaSources = append(it.MediaSources, probedSource(e.alt, 1280, 720, 350<<20))
 			}
@@ -220,6 +226,9 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		// Emby 4.10 takes a season number but no missing filter, and answers
 		// with every episode it holds; Jellyfin splits the two apart
 		rows := s.items()
+		for _, m := range s.merged {
+			rows = append(rows, m.items()...)
+		}
 		if season := param(r.URL.Query(), "Season"); season != "" {
 			n, _ := strconv.Atoi(season)
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.ParentIndexNumber != n })
@@ -909,5 +918,115 @@ func TestSummariesSayASpecialIsSeasonZero(t *testing.T) {
 	}
 	if _, ok := series[0]["season"]; ok {
 		t.Errorf("a series' summary carries a season: %v", series[0])
+	}
+}
+
+// filmIDsGuide is a canned TMDB for a series matched to a film: TMDB series
+// 11625 is a show of its own, the IMDb id tt0096842 is the film whose TMDB
+// number 11625 also is, tt0115142 is TMDB series 11625's own IMDb id, and
+// tt0306414 another series altogether. It counts the reads of a run, so a
+// test can see one was not read at all.
+func filmIDsGuide(t *testing.T) (rt http.RoundTripper, runs *int) {
+	t.Helper()
+
+	runs = new(int)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/3/tv/11625":
+			*runs++
+			_, _ = w.Write([]byte(`{"id":11625,"seasons":[{"season_number":1,"episode_count":4}]}`))
+		case "/3/tv/11625/season/1":
+			_, _ = w.Write([]byte(`{"season_number":1,"episodes":[` +
+				`{"season_number":1,"episode_number":1,"name":"one","air_date":"1996-09-28"},{"season_number":1,"episode_number":2,"name":"two","air_date":"1996-10-05"},` +
+				`{"season_number":1,"episode_number":3,"name":"three","air_date":"1996-10-12"},{"season_number":1,"episode_number":4,"name":"four","air_date":"1996-10-19"}]}`))
+		case "/3/find/tt0096842":
+			_, _ = w.Write([]byte(`{"movie_results":[{"id":11625,"title":"Asterix and the Big Fight"}],"tv_results":[]}`))
+		case "/3/find/tt0115142":
+			_, _ = w.Write([]byte(`{"tv_results":[{"id":11625,"name":"Common Law"}]}`))
+		case "/3/find/tt0306414":
+			_, _ = w.Write([]byte(`{"tv_results":[{"id":1438,"name":"The Wire"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	target, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return rewrite{target}, runs
+}
+
+// A series carrying a film's ids is not answered with another show's run.
+// TMDB numbers films and series apart, so the TMDB id of the film Asterix and
+// the Big Fight, read as a series', is Common Law - and its episodes came
+// back as what the 2025 series was missing. The IMDb id says what the ids
+// are: asked first, it names the film, and the run is not read at all.
+func TestShowMissingRefusesAFilmsIDs(t *testing.T) {
+	t.Parallel()
+
+	asterix := &fakeSeries{
+		id: "ax", name: "Asterix & Obelix: The Big Fight", year: 2025,
+		ids:      map[string]string{"Tmdb": "11625", "Imdb": "tt0096842"},
+		episodes: []ep{{season: 1, number: 1, name: "Episode I", path: "/m/ax/S01E01.mkv"}, {season: 1, number: 2, name: "Episode II", path: "/m/ax/S01E02.mkv"}},
+	}
+	rt, runs := filmIDsGuide(t)
+	cs := session(t, tvServer(t, asterix), Options{TMDBKey: "k", ProviderTransport: rt})
+
+	out := mustCall(t, cs, "show_missing", map[string]any{"series_id": "ax"})
+	if boolean(t, out["supported"], "supported") || out["missing"] != nil || out["source"] != sourceNone {
+		t.Errorf("a series holding a film's ids = supported %v, source %v, missing %v: another show's run", out["supported"], out["source"], out["missing"])
+	}
+	for _, want := range []string{"carries a film's ids", "IMDb id tt0096842 is Asterix and the Big Fight (TMDB film 11625), not a series", "its TMDB id 11625 is that film's number", "item_identify"} {
+		if !strings.Contains(text(out["reason"]), want) {
+			t.Errorf("reason = %q, want it saying %q", out["reason"], want)
+		}
+	}
+	if *runs != 0 {
+		t.Errorf("TMDB series 11625's run was read %d times, want none: the ids had already said it is not this series", *runs)
+	}
+
+	// the sweep lists it as unknown, with the same reason, and not as a
+	// series missing two episodes
+	sweep := mustCall(t, cs, "audit_missing_episodes", map[string]any{"provider": true})
+	if n := number(t, sweep["total_findings"], "total_findings"); n != 0 {
+		t.Errorf("findings = %v, want none", sweep["findings"])
+	}
+	unknown := objects(t, sweep["unknown"], "unknown")
+	if len(unknown) != 1 || text(unknown[0]["id"]) != "ax" || !strings.Contains(text(unknown[0]["reason"]), "carries a film's ids") {
+		t.Errorf("unknown = %v", unknown)
+	}
+}
+
+// An IMDb id naming another series is ids that disagree, and one naming the
+// series its TMDB id does is the run confirmed.
+func TestShowMissingChecksTheSeriesIDsAgree(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		imdb      string
+		supported bool
+		reason    string
+	}{
+		{"tt0115142", true, ""},
+		{"tt0306414", false, "the series' ids disagree: its IMDb id tt0306414 is The Wire, TMDB series 1438, and not TMDB series 11625"},
+		// an id TMDB cannot place is no evidence either way
+		{"tt9999999", true, ""},
+	} {
+		s := &fakeSeries{
+			id: "cl", name: "Common Law", year: 1996, ids: map[string]string{"Tmdb": "11625", "Imdb": tc.imdb},
+			episodes: []ep{{season: 1, number: 1, name: "one", path: "/m/cl/S01E01.mkv"}},
+		}
+		rt, _ := filmIDsGuide(t)
+		out := mustCall(t, session(t, tvServer(t, s), Options{TMDBKey: "k", ProviderTransport: rt}), "show_missing", map[string]any{"series_id": "cl"})
+		if boolean(t, out["supported"], "supported") != tc.supported || !strings.Contains(text(out["reason"]), tc.reason) {
+			t.Errorf("imdb %s = supported %v, reason %q; want %v, %q", tc.imdb, out["supported"], out["reason"], tc.supported, tc.reason)
+		}
+		if tc.supported {
+			if got := codes(t, out["missing"], "missing"); !slices.Equal(got, []string{"S01E02", "S01E03", "S01E04"}) {
+				t.Errorf("imdb %s: missing = %v", tc.imdb, got)
+			}
+		}
 	}
 }

@@ -51,17 +51,17 @@ func TestServerInfo(t *testing.T) {
 func TestServerStats(t *testing.T) {
 	out := call(t, "server_stats", nil)
 	// the clean movies and the messy ones
-	if got, want := num(t, out["movies"], "movies"), 8+messyMovies(); got != want {
+	if got, want := num(t, out["movies"], "movies"), len(movies)+messyMovies(); got != want {
 		t.Errorf("movies = %d, want %d", got, want)
 	}
-	if got, want := num(t, out["series"], "series"), 3+messySeries; got != want {
+	if got, want := num(t, out["series"], "series"), len(shows)+messySeries; got != want {
 		t.Errorf("series = %d, want %d", got, want)
 	}
-	if got, want := num(t, out["episodes"], "episodes"), 9+messyEpisodes; got != want {
+	if got, want := num(t, out["episodes"], "episodes"), showEpisodes()+messyEpisodes(); got != want {
 		t.Errorf("episodes = %d, want %d", got, want)
 	}
-	if got := num(t, out["albums"], "albums"); got != len(albums) {
-		t.Errorf("albums = %d, want %d", got, len(albums))
+	if got := num(t, out["albums"], "albums"); got != musicAlbums() {
+		t.Errorf("albums = %d, want %d", got, musicAlbums())
 	}
 	if got := num(t, out["songs"], "songs"); got != songs() {
 		t.Errorf("songs = %d, want %d", got, songs())

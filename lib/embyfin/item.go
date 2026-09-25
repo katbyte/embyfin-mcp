@@ -37,7 +37,8 @@ type MediaStream struct {
 	ColourTransfer  string `json:"ColorTransfer,omitempty"`
 	ColourPrimaries string `json:"ColorPrimaries,omitempty"`
 	// VideoRange and VideoRangeType are the servers' own reading: "SDR",
-	// "HDR", and on Jellyfin the narrower "HDR10", "HLG", "DOVI",
+	// "HDR" (Emby 4.10 writes "HDR 10" for a file tagged with HDR10's
+	// colours), and on Jellyfin the narrower "HDR10", "HLG", "DOVI",
 	// "DOVIWithHDR10". Emby answers only the first. Both are empty when the
 	// server has not probed the file, which is not the same as SDR.
 	VideoRange     string `json:"VideoRange,omitempty"`

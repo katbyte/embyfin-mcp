@@ -124,10 +124,15 @@ func TestJFMediaStreams(t *testing.T) {
 		}
 	})
 	t.Run("LegacyCodecAndLanguage", func(t *testing.T) {
-		// MPEG-4 part 2 at 360p, the sound tagged Japanese
+		// MPEG-4 part 2 at 360p, the sound Japanese and then English
 		src := &jfFile(t, messy, "Princess Mononoke (1997)/Princess Mononoke (1997).mp4").MediaSources[0]
 		jfVideo(t, "the messy Princess Mononoke", src, "mpeg4", 640, 360, 5, "16:9")
-		jfAudio(t, "the messy Princess Mononoke", src, "aac", "jpn", 1)
+		if a := jfStreams(src, jf.MediaStreamTypeAudio); len(a) != 2 || a[0].Language != "jpn" || a[1].Language != "eng" || a[0].Codec != "aac" || a[1].Codec != "aac" {
+			t.Errorf("the messy Princess Mononoke's audio = %+v, want a Japanese aac track and then an English one", a)
+		}
+		// and German, which a file tags ger and Jellyfin reads as deu
+		sw := &jfFile(t, messy, "Star Wars Episode IV - A New Hope Despecialized Edition (1977)/Star Wars Episode IV - A New Hope Despecialized Edition (1977).mp4").MediaSources[0]
+		jfAudio(t, "the Despecialized Edition", sw, "aac", "deu", 1)
 	})
 	t.Run("TwoVersions", func(t *testing.T) {
 		// Jellyfin folds the files of a film's folder into one film, at the
@@ -143,8 +148,13 @@ func TestJFMediaStreams(t *testing.T) {
 		if byName["1080p"] == nil || byName["2160p"] == nil {
 			t.Fatalf("Blade Runner's sources = %+v, want one named 1080p and one 2160p", it.MediaSources)
 		}
-		jfVideo(t, "Blade Runner's 2160p", byName["2160p"], "h264", 3840, 2160, 5, "16:9")
-		jfVideo(t, "Blade Runner's 1080p", byName["1080p"], "h264", 1920, 1080, 5, "16:9")
+		jfVideo(t, "Blade Runner's 1080p", byName["1080p"], "h264", 1920, 1080, 24, "16:9")
+		// the upscale: HEVC 10-bit at 60 frames a second, which Jellyfin reads
+		// as HDR, HDR10 narrowly, from its colour tags
+		if v := jfStreams(byName["2160p"], jf.MediaStreamTypeVideo); len(v) != 1 || v[0].Codec != "hevc" || v[0].Width != 3840 || v[0].Height != 2160 || v[0].AverageFrameRate != 60 || v[0].BitDepth != 10 ||
+			v[0].VideoRange != jf.VideoRangeHDR || v[0].VideoRangeType != jf.VideoRangeTypeHDR10 || v[0].ColorTransfer != "smpte2084" || v[0].ColorPrimaries != "bt2020" {
+			t.Errorf("Blade Runner's 2160p = %+v, want 10-bit HEVC at 60 fps, HDR10 by its colour tags", v)
+		}
 		if !strings.HasSuffix(byName["1080p"].Path, " - 1080p.mp4") || !strings.HasSuffix(byName["2160p"].Path, " - 2160p.mp4") {
 			t.Errorf("Blade Runner's sources = %+v, want one at each file", it.MediaSources)
 		}
@@ -165,6 +175,14 @@ func TestJFMediaStreams(t *testing.T) {
 		if src := &it.MediaSources[0]; src.VideoType != jf.VideoTypeBluRay || src.Container != "" || src.Path != sdkMessyMovies.Folder+"/Cube (1997)" || len(src.MediaStreams) != 0 {
 			t.Errorf("Cube's source = %+v, want the unprobed BluRay folder", src)
 		}
+		// a DVD kept as its VIDEO_TS tree is one film at its folder too, of
+		// the Dvd type, named by its nfo - and this one Jellyfin does probe,
+		// reading the title set's VOB as the DVD's picture
+		moon := jfFile(t, messy, "Moon (2009)")
+		if moon.Name != "Moon" || moon.VideoType != jf.VideoTypeDvd || len(moon.MediaSources) != 1 || moon.MediaSources[0].Path != sdkMessyMovies.Folder+"/Moon (2009)" {
+			t.Errorf("Moon = %s, a %s with sources %+v; want one Dvd film at its folder", moon.Name, moon.VideoType, moon.MediaSources)
+		}
+		jfVideo(t, "Moon", &moon.MediaSources[0], "mpeg2video", 720, 480, 25, "1.5:1")
 	})
 	t.Run("LooseDisc", func(t *testing.T) {
 		// a DVD's VOB copied in on its own is a film of that one file: MPEG-2
@@ -196,5 +214,19 @@ func TestJFMediaStreams(t *testing.T) {
 		}
 		// the OVA's episodes are the smallest files of all
 		jfVideo(t, ".hack//Liminality's first episode", &jfFile(t, episodes, "hack Liminality (2002)/Season 01/hack Liminality S01E01.mp4").MediaSources[0], "h264", 160, 90, 5, "16:9")
+		// a DVD rip kept anamorphic: 720x480 stated 16:9
+		rip := &jfFile(t, episodes, "Severance/Season 01/Severance S01E02.mp4").MediaSources[0]
+		jfVideo(t, "the anamorphic Severance S01E02", rip, "h264", 720, 480, 5, "16:9")
+		if v := jfStreams(rip, jf.MediaStreamTypeVideo); len(v) != 1 || !pointer.From(v[0].IsAnamorphic) {
+			t.Errorf("the anamorphic Severance S01E02 = %+v, want it read as anamorphic", v)
+		}
+		// a second of video whose duration claims twelve hours
+		if broken := jfFile(t, episodes, "Star Trek Deep Space Nine (1993)/Season 03/Star Trek Deep Space Nine S03E01.mkv"); broken.RunTimeTicks < 12*60*60*10_000_000 {
+			t.Errorf("Deep Space Nine S03E01 runs %d ticks, want the twelve hours its duration claims", broken.RunTimeTicks)
+		}
+		// and the featurette in a season's Extras folder is no episode here
+		if _, ok := episodes["Severance/Season 01/Extras/Featurette.mp4"]; ok {
+			t.Error("Jellyfin holds the season's featurette as an episode")
+		}
 	})
 }

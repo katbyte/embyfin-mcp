@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -136,6 +137,15 @@ func (i *interaction) setBody(b []byte, contentType string) {
 	i.BodyBase64 = base64.StdEncoding.EncodeToString(b)
 }
 
+// clone copies an interaction, so one copy can be redacted and the other
+// not.
+func (i *interaction) clone() *interaction {
+	c := *i
+	c.Headers = maps.Clone(i.Headers)
+
+	return &c
+}
+
 // redact replaces the value of each named JSON field in the body, and the
 // same value wherever a header carries it: TMDB answers a new request token
 // in the body and again in a link in Authentication-Callback.
@@ -149,6 +159,11 @@ func (i *interaction) redact(fields []string) {
 			}
 		}
 	}
+}
+
+// redacted reports whether a credential was blanked out of the recording.
+func (i *interaction) redacted() bool {
+	return strings.Contains(i.Body, redactedValue)
 }
 
 // cassette is every interaction recorded for one provider host.

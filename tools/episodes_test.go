@@ -1198,3 +1198,65 @@ func TestLibraryEpisodesRefusesAnIDThatIsAnotherShowsName(t *testing.T) {
 		t.Errorf("series_id 24 = %v, want Severance", out["series"])
 	}
 }
+
+// A show split across two entries that share its ids is answered whole by
+// both servers, either entry listing the other's episodes too, and an
+// episode in both folders comes back twice. The answer used to be whichever
+// copy the server listed last, and the other went unseen: here each row
+// answers for the asked entry's own copy where it has one, and names the
+// rest, with their facts when quality is asked for.
+func TestShowEpisodesExistNamesEveryCopy(t *testing.T) {
+	t.Parallel()
+
+	ids := map[string]string{"Tmdb": "1"}
+	before := &fakeSeries{id: "w1", name: "Zzyzx Wire", year: 2002, ids: ids, path: "/media/shows/Zzyzx Wire", episodes: []ep{
+		{season: 1, number: 1, name: "One", path: "/media/shows/Zzyzx Wire/Season 01/S01E01.mkv"},
+		{season: 1, number: 2, name: "Two", path: "/media/shows/Zzyzx Wire/Season 01/S01E02.mkv", width: 640, height: 360},
+	}}
+	after := &fakeSeries{id: "w2", name: "Zzyzx Wire", year: 2002, ids: ids, path: "/media/shows/Zzyzx Wire (2002)", episodes: []ep{
+		{season: 1, number: 2, name: "Two", path: "/media/shows/Zzyzx Wire (2002)/Season 01/S01E02.mkv", width: 1280, height: 720},
+		{season: 1, number: 3, name: "Three", path: "/media/shows/Zzyzx Wire (2002)/Season 01/S01E03.mkv"},
+	}}
+	before.merged, after.merged = []*fakeSeries{after}, []*fakeSeries{before}
+	cs := session(t, tvServer(t, before, after), Options{})
+
+	ask := []map[string]any{{"season": 1, "episode": 1}, {"season": 1, "episode": 2}, {"season": 1, "episode": 3}}
+	out := mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "w1", "episodes": ask, "quality": true})
+	rows := objects(t, out["episodes"], "episodes")
+	if len(rows) != 3 || number(t, out["absent"], "absent") != 0 {
+		t.Fatalf("rows = %v, absent %v: want all three held", rows, out["absent"])
+	}
+	// the asked entry's own copies speak; the third is only the other's
+	for i, want := range []string{"w1-1-1", "w1-1-2", "w2-1-3"} {
+		if text(rows[i]["id"]) != want {
+			t.Errorf("S01E%02d answered for %v, want %s", i+1, rows[i]["id"], want)
+		}
+	}
+	if rows[0]["other_copies"] != nil || rows[2]["other_copies"] != nil {
+		t.Errorf("an episode held once names other copies: %v, %v", rows[0]["other_copies"], rows[2]["other_copies"])
+	}
+	// the episode in both folders: the 360p copy speaks for the entry asked,
+	// and the 720p one in the renamed folder is named beside it
+	copies := objects(t, rows[1]["other_copies"], "other_copies")
+	if number(t, rows[1]["height"], "height") != 360 || len(copies) != 1 || text(copies[0]["id"]) != "w2-1-2" || text(copies[0]["series_id"]) != "w2" ||
+		number(t, copies[0]["height"], "height") != 720 || !strings.HasPrefix(text(copies[0]["path"]), "/media/shows/Zzyzx Wire (2002)/") {
+		t.Errorf("S01E02 = %v at %v, other copies %v: want the 360p copy with the 720p one named", rows[1]["id"], rows[1]["height"], copies)
+	}
+	if others := texts(out["duplicate_entries"]); !slices.Equal(others, []string{"w2"}) {
+		t.Errorf("duplicate_entries = %v, want w2", others)
+	}
+
+	// asked of the other entry, its own copy speaks; asked without quality,
+	// the copies are named without their facts; narrowed to one fact, they
+	// carry that one
+	out = mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "w2", "episodes": ask[1:2]})
+	rows = objects(t, out["episodes"], "episodes")
+	if copies := objects(t, rows[0]["other_copies"], "other_copies"); text(rows[0]["id"]) != "w2-1-2" || len(copies) != 1 || text(copies[0]["id"]) != "w1-1-2" || copies[0]["height"] != nil {
+		t.Errorf("S01E02 asked of w2 = %v, other copies %v", rows[0]["id"], rows[0]["other_copies"])
+	}
+	out = mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "w2", "episodes": ask[1:2], "fields": []string{"height"}})
+	rows = objects(t, out["episodes"], "episodes")
+	if copies := objects(t, rows[0]["other_copies"], "other_copies"); len(copies) != 1 || number(t, copies[0]["height"], "height") != 360 || copies[0]["path"] != nil || copies[0]["width"] != nil {
+		t.Errorf("S01E02 asked for its height = other copies %v, want the 360p copy's height alone", rows[0]["other_copies"])
+	}
+}

@@ -43,6 +43,13 @@
 - `server_stats` counted no collections on Emby.
 - Aspect ratios written as decimals ("1.5:1") are read.
 - Nine Emby routes the SDK couldn't call now work: they need parameters Emby's own document doesn't declare.
+- `show_missing` and `audit_missing_episodes` answered with another show's episodes when a series carried a film's ids, since TMDB numbers films and shows apart. They now say the ids disagree and suggest `item_identify`.
+- `audit_missing_episodes` reported a show split across two library entries as each missing the other's episodes. Entries sharing ids are judged as one show, and the row says so.
+- `show_episodes_exist` silently dropped the second copy of an episode held twice. It answers for the entry asked about and lists the rest in `other_copies`.
+- `audit_quality`, `audit_runtime` and `audit_duplicate_episodes` judged a season's extras (a featurette Emby lists as an episode) as episodes.
+- `quality_compare` refused the id `item_get` lists for a film's other version on Jellyfin.
+- `item_delete` says when a library scan was running: a scan that had read the folder can list the item again until the next scan.
+- Emby's "HDR 10" reads as HDR10.
 
 ## 0.2.0 (2026-09-23)
 

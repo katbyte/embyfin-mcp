@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,6 +58,7 @@ type missingOut struct {
 type seriesGuide interface {
 	SeriesEpisodes(ctx context.Context, id string) ([]tmdb.Episode, error)
 	SeriesID(ctx context.Context, source, id string) (string, error)
+	Find(ctx context.Context, source, id string) (tmdb.Found, error)
 }
 
 // guideSeriesID is the provider id to read a series' run by: its own tmdb id,
@@ -78,6 +80,55 @@ func guideSeriesID(ctx context.Context, guide seriesGuide, series *embyfin.Item)
 		}
 		if found != "" {
 			return found, nil
+		}
+	}
+
+	return "", nil
+}
+
+// seriesIDsDisagree checks the TMDB series id a run is to be read by against
+// the series' other ids, and says why the run cannot be trusted, "" when
+// nothing says so.
+//
+// A series matched by hand or by an nfo can carry a film's ids. TMDB numbers
+// films and series apart, so a film's TMDB number read as a series' is some
+// other show, and its run came back as what the series was missing: a series
+// holding the 1989 film Asterix and the Big Fight's ids (TMDB 11625, IMDb
+// tt0096842) was answered with Common Law's episodes, TMDB series 11625. An
+// IMDb or TVDB id names one title whatever its kind, so TMDB, asked what it
+// names, says whether it is this series, another one, or a film. An id TMDB
+// cannot place is no evidence either way.
+func seriesIDsDisagree(ctx context.Context, guide seriesGuide, series *embyfin.Item, id string) (string, error) {
+	for _, p := range []struct{ key, source, label string }{{"imdb", "imdb_id", "IMDb"}, {"tvdb", "tvdb_id", "TVDB"}} {
+		other := providerID(series, p.key)
+		if other == "" {
+			continue
+		}
+		found, err := guide.Find(ctx, p.source, other)
+		if err != nil {
+			return "", err
+		}
+		for _, s := range found.Series {
+			if strconv.Itoa(s.Id) == id {
+				return "", nil // the two ids name the same series
+			}
+		}
+		const identify = " Identify it (item_identify) before asking what it is missing."
+		switch {
+		case len(found.Series) > 0:
+			return fmt.Sprintf("the series' ids disagree: its %s id %s is %s, TMDB series %d, and not TMDB series %s, the one its TMDB id names, so the run either gives could be another show's.",
+				p.label, other, found.Series[0].Name, found.Series[0].Id, id) + identify, nil
+		case len(found.Movies) > 0:
+			m := found.Movies[0]
+			why := fmt.Sprintf("so TMDB series %s cannot be trusted to be this series", id)
+			if strconv.Itoa(m.Id) == id {
+				why = fmt.Sprintf("and its TMDB id %s is that film's number, which as a series' is another show altogether", id)
+			}
+			return fmt.Sprintf("the series carries a film's ids: its %s id %s is %s (TMDB film %d), not a series, %s.", p.label, other, m.Title, m.Id, why) + identify, nil
+		case len(found.Episodes) > 0:
+			e := found.Episodes[0]
+			return fmt.Sprintf("the series' %s id %s is an episode, %q (S%02dE%02d of TMDB series %d), not a series, so TMDB series %s cannot be trusted to be this series.",
+				p.label, other, e.Name, e.SeasonNumber, e.EpisodeNumber, e.ShowId, id) + identify, nil
 		}
 	}
 
@@ -203,6 +254,14 @@ func guideRun(ctx context.Context, guide seriesGuide, series *embyfin.Item) (run
 		return nil, "the metadata provider could not be asked: " + err.Error()
 	case id == "":
 		return nil, "the series carries no tmdb, tvdb or imdb id for a metadata provider to be asked by, and the server keeps no record of the run: identify it first with item_identify."
+	}
+	// asked before the run is read: a run read by the wrong id is some other
+	// show's, and says so with as much confidence as the right one
+	switch disagree, derr := seriesIDsDisagree(ctx, guide, series, id); {
+	case derr != nil:
+		return nil, "the metadata provider could not be asked: " + derr.Error()
+	case disagree != "":
+		return nil, disagree
 	}
 
 	run, err = guide.SeriesEpisodes(ctx, id)
@@ -543,7 +602,7 @@ func registerShowTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "show_missing",
-		Description: "Episodes a series has no file for. The run comes from the server's own records when it keeps them (stock Jellyfin needs the TheTVDB plugin and Emby 4.10 no longer imports them), else from TMDB read by the series' metadata provider id when EMBYFIN_TMDB_TOKEN is set. " +
+		Description: "Episodes a series has no file for. The run comes from the server's own records when it keeps them (stock Jellyfin needs the TheTVDB plugin and Emby 4.10 no longer imports them), else from TMDB read by the series' metadata provider id when EMBYFIN_TMDB_TOKEN is set - checked first against its other ids, so a series carrying a film's ids is unknown, with why, rather than answered with another show's run. " +
 			"Read 'supported' before 'missing': when it is false the run could not be established at all and 'missing' is null, which is unknown rather than complete. 'gaps_on_disk' is given either way and is weaker: it can only see episodes skipped between the files, never ones after the last episode held.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in missingIn) (*mcp.CallToolResult, missingOut, error) {
 		out, err := showMissing(ctx, client, guide, in.SeriesID, in.Unaired)

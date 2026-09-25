@@ -2,6 +2,7 @@ package tools
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -595,5 +596,64 @@ func TestQualityCompareShowsTheRatioItDecidedOn(t *testing.T) {
 	}
 	if reasons := strings.Join(texts(out["reasons"]), " | "); !strings.Contains(reasons, "1.65x, over the 1.60x margin") {
 		t.Errorf("the working does not show the ratio it decided on: %s", reasons)
+	}
+}
+
+// Jellyfin folds a film's second file into the film, and item_get lists that
+// version by an id of its own - which no item query finds, and quality_compare
+// refused as no item. Read in a user's view, the version is its own file, and
+// that file is what speaks for it: the two versions of one film are told
+// apart rather than both read as the better one.
+func TestQualityCompareReadsAVersionByItsID(t *testing.T) {
+	t.Parallel()
+
+	source := func(id, path string, width, height int, fps float32) map[string]any {
+		return map[string]any{"Id": id, "Path": path, "Container": "mp4", "Size": 1 << 20, "MediaStreams": []map[string]any{
+			{"Type": "Video", "Codec": "h264", "Width": width, "Height": height, "BitRate": 4_000_000, "AverageFrameRate": fps},
+		}}
+	}
+	const uhdPath, hdPath = "/m/Zzyzx (1982)/Zzyzx (1982) - 2160p.mp4", "/m/Zzyzx (1982)/Zzyzx (1982) - 1080p.mp4"
+	uhd := source("v1", uhdPath, 3840, 2160, 60)
+	hd := source("v2", hdPath, 1920, 1080, 24)
+	film := func(id, path string, sources ...map[string]any) map[string]any {
+		return map[string]any{"Id": id, "Name": "Zzyzx", "Type": "Movie", "ProductionYear": 1982, "Path": path, "LocationType": "FileSystem", "RunTimeTicks": 10_000_000, "MediaSources": sources}
+	}
+	f := newFakeServer(t)
+	f.jellyfin = true
+	f.mux.HandleFunc("GET /Users", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, []map[string]any{{"Id": "u1", "Name": "Quux", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}}})
+	})
+	// the item query knows the film, and not its second version
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		if slices.Contains(r.URL.Query()["ids"], "v1") {
+			writeJSON(t, w, page(film("v1", uhdPath, uhd, hd)))
+			return
+		}
+		writeJSON(t, w, page())
+	})
+	// the single read in a user's view answers for either, its own file first
+	f.mux.HandleFunc("GET /Items/{id}", func(w http.ResponseWriter, r *http.Request) {
+		switch r.PathValue("id") {
+		case "v1":
+			writeJSON(t, w, film("v1", uhdPath, uhd, hd))
+		case "v2":
+			writeJSON(t, w, film("v2", hdPath, hd, uhd))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	cs := session(t, f, Options{})
+
+	out := mustCall(t, cs, "quality_compare", map[string]any{"a": map[string]any{"item_id": "v1"}, "b": map[string]any{"item_id": "v2"}})
+	a, b := object(t, out["a"], "a"), object(t, out["b"], "b")
+	if number(t, a["resolution_class"], "resolution_class") != 2160 || number(t, b["resolution_class"], "resolution_class") != 1080 || decimal(t, b["frame_rate"], "frame_rate") != 24 {
+		t.Errorf("the film against its second version = %v against %v, want the 2160p file against the 1080p one", a, b)
+	}
+	if out["verdict"] != "a_better" || !strings.Contains(strings.Join(texts(out["caveats"]), " "), "interpolated") {
+		t.Errorf("verdict %v, caveats %v", out["verdict"], out["caveats"])
+	}
+	// and an id nothing answers for is still no item
+	if msg := mustRefuse(t, cs, "quality_compare", map[string]any{"a": map[string]any{"item_id": "v9"}, "b": map[string]any{"item_id": "v1"}}); !strings.Contains(msg, "copy a: no item with id v9") {
+		t.Errorf("an unknown id = %q", msg)
 	}
 }

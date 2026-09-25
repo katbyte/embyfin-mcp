@@ -76,6 +76,12 @@ type libraryFixture struct {
 	// its folder, which Jellyfin folds into that film and Emby lists as a
 	// film of its own
 	Versions int
+	// TagAlbums is how many more albums Emby builds from the tags than there
+	// are album folders (a track tagged with its album misspelt), and
+	// ExtraEpisodes how many extras it takes for episodes (a featurette in a
+	// season's Extras folder); Jellyfin builds albums from folders and keeps
+	// a season's extras as extras
+	TagAlbums, ExtraEpisodes int
 }
 
 // films is how many films a finished scan of the library lists on this
@@ -88,24 +94,44 @@ func (l libraryFixture) films() int {
 	return l.Movies
 }
 
+// albums is how many albums a finished scan of the library lists on this
+// backend.
+func (l libraryFixture) albums() int {
+	if backend == "jellyfin" {
+		return l.Albums
+	}
+
+	return l.Albums + l.TagAlbums
+}
+
+// episodes is how many episodes a finished scan of the library lists on
+// this backend.
+func (l libraryFixture) episodes() int {
+	if backend == "jellyfin" {
+		return l.Episodes
+	}
+
+	return l.Episodes + l.ExtraEpisodes
+}
+
 // The libraries. Only the movie library has providers on: it is what the
 // remote-image, remote-search and refresh tests need, and each library with
 // providers on costs a cassette full of provider traffic.
 var (
-	sdkMovies = libraryFixture{Name: "SDK Movies", CollectionType: "movies", Folder: "/media/movies", Providers: true, Movies: 8}
-	sdkShows  = libraryFixture{Name: "SDK Shows", CollectionType: "tvshows", Folder: "/media/shows", Series: 3, Episodes: 9}
+	sdkMovies = libraryFixture{Name: "SDK Movies", CollectionType: "movies", Folder: "/media/movies", Providers: true, Movies: 9}
+	sdkShows  = libraryFixture{Name: "SDK Shows", CollectionType: "tvshows", Folder: "/media/shows", Series: 4, Episodes: 11}
 	// sdkScratch sits over a folder the destructive test lays out itself,
 	// so the delete has something to remove that nothing else relies on
 	sdkScratch = libraryFixture{Name: "SDK Scratch", CollectionType: "movies", Folder: "/media/sdk-scratch", Movies: 1}
 	// sdkMusic is what the artist, album, song and music genre routes have to
 	// read: without it a fifth of each server's item surface cannot be called
-	sdkMusic = libraryFixture{Name: "SDK Music", CollectionType: "music", Folder: "/media/music", Albums: 5, Songs: 20}
+	sdkMusic = libraryFixture{Name: "SDK Music", CollectionType: "music", Folder: "/media/music", Albums: 5, TagAlbums: 1, Songs: 20}
 	// sdkMessyMovies and sdkMessyShows sit over the messy folders with the
 	// fetchers off, for what the servers read off the files themselves: a
 	// legacy codec, a language, a film held as two files, a disc kept whole,
 	// a file holding two episodes
-	sdkMessyMovies = libraryFixture{Name: "SDK Messy Movies", CollectionType: "movies", Folder: "/media/messy-movies", Movies: 12, Versions: 1}
-	sdkMessyShows  = libraryFixture{Name: "SDK Messy Shows", CollectionType: "tvshows", Folder: "/media/messy-shows", Series: 7, Episodes: 18}
+	sdkMessyMovies = libraryFixture{Name: "SDK Messy Movies", CollectionType: "movies", Folder: "/media/messy-movies", Movies: 13, Versions: 1}
+	sdkMessyShows  = libraryFixture{Name: "SDK Messy Shows", CollectionType: "tvshows", Folder: "/media/messy-shows", Series: 11, Episodes: 27, ExtraEpisodes: 1}
 	// sdkBulk sits over a folder the bulk delete test lays out itself
 	sdkBulk = libraryFixture{Name: "SDK Bulk Delete", CollectionType: "movies", Folder: "/media/sdk-bulk", Movies: len(bulkTitles)}
 )
@@ -133,6 +159,7 @@ var movies = []movieFixture{
 	{"Princess Mononoke", 1997, "128", "tt0119698", "Animation", "Hayao Miyazaki"},
 	{"Arrival", 2016, "329865", "tt2543164", "Drama", "Denis Villeneuve"},
 	{"The Thirteenth Floor", 1999, "1090", "tt0139809", "Science Fiction", "Josef Rusnak"},
+	{"Limitless", 2011, "51876", "tt1219289", "Thriller", "Neil Burger"},
 }
 
 // showFixture is a series in the clean shows folder.
@@ -147,7 +174,8 @@ type showFixture struct {
 var shows = []showFixture{
 	{"Severance", 2022, "95396", "371980", map[int][]int{1: {1, 2}, 2: {1, 2}}},
 	{"Breaking Bad", 2008, "1396", "81189", map[int][]int{1: {1, 2, 3}}},
-	{"The Expanse", 2015, "63639", "280619", map[int][]int{1: {1, 2}}},
+	{"The Expanse", 2015, "63639", "280619", map[int][]int{0: {1}, 1: {1, 2}}},
+	{"Limitless", 2015, "62687", "295743", map[int][]int{1: {1}}},
 }
 
 // The fixture facts the assertions lean on.

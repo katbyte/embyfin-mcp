@@ -139,35 +139,35 @@ func TestAVersionBesideABetterOne(t *testing.T) {
 	}
 }
 
-// A second copy of the messy Princess Mononoke, its Japanese audio beside an
-// English subtitle file, is a version of it: any version counts, so the film
-// can be watched in English, has English subtitles, and is one film with
-// Japanese audio, not two.
+// A second copy of the messy Despecialized Edition, its German audio beside
+// an English subtitle file, is a version of it: any version counts, so the
+// film can be watched in English, has English subtitles, and is one film with
+// German audio, not two.
 func TestALanguageInAnotherVersion(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
-	mononoke := findItem(t, "Messy Movies", "Movie", "Princess Mononoke")
+	restoration := findItem(t, "Messy Movies", "Movie", despecialized)
 	unwatchable := map[string]any{"language": "eng", "find": "unwatchable", "library": "Messy Movies"}
-	if got := findings(t, call(t, "audit_language", unwatchable)); !slices.Equal(got, []string{"Princess Mononoke"}) {
-		t.Fatalf("unwatchable in English before a version is staged = %v, want [Princess Mononoke]", got)
+	if got := findings(t, call(t, "audit_language", unwatchable)); !slices.Equal(got, []string{despecialized}) {
+		t.Fatalf("unwatchable in English before a version is staged = %v, want [%s]", got, despecialized)
 	}
 
-	t.Cleanup(func() { scanUntilTrue(t, "Messy Movies", func() bool { return versionCount(mononoke) == 1 }) })
-	dir := filepath.Join(dataDir(), "messy-movies", messyMononoke)
-	stageFile(t, filepath.Join(dir, messyMononoke+" - Subtitled.mp4"), fixtureVideo(t, "messy-movies", messyMononoke, messyMononoke+".mp4"))
-	stageFile(t, filepath.Join(dir, messyMononoke+" - Subtitled.eng.srt"), []byte("1\n00:00:00,000 --> 00:00:00,900\nA line.\n"))
-	scanUntilTrue(t, "Messy Movies", func() bool { return versionCount(mononoke) == 2 })
+	t.Cleanup(func() { scanUntilTrue(t, "Messy Movies", func() bool { return versionCount(restoration) == 1 }) })
+	dir := filepath.Join(dataDir(), "messy-movies", messyDespecialized)
+	stageFile(t, filepath.Join(dir, messyDespecialized+" - Subtitled.mp4"), fixtureVideo(t, "messy-movies", messyDespecialized, messyDespecialized+".mp4"))
+	stageFile(t, filepath.Join(dir, messyDespecialized+" - Subtitled.eng.srt"), []byte("1\n00:00:00,000 --> 00:00:00,900\nA line.\n"))
+	scanUntilTrue(t, "Messy Movies", func() bool { return versionCount(restoration) == 2 })
 
 	if got := findings(t, call(t, "audit_language", unwatchable)); len(got) != 0 {
 		t.Errorf("unwatchable in English = %v, want none: a version has English subtitles", got)
 	}
 	subtitled := call(t, "audit_language", map[string]any{"language": "eng", "find": "subtitles", "library": "Messy Movies"})
-	if got := findings(t, subtitled); !slices.Equal(got, []string{"Princess Mononoke"}) {
-		t.Errorf("English subtitles = %v, want [Princess Mononoke]", got)
+	if got := findings(t, subtitled); !slices.Equal(got, []string{despecialized}) {
+		t.Errorf("English subtitles = %v, want [%s]", got, despecialized)
 	}
-	if got := findings(t, call(t, "audit_language", map[string]any{"language": "jpn", "library": "Messy Movies"})); !slices.Equal(got, []string{"Princess Mononoke"}) {
-		t.Errorf("Japanese audio = %v, want Princess Mononoke once: two versions are one film", got)
+	if got := findings(t, call(t, "audit_language", map[string]any{"language": "deu", "library": "Messy Movies"})); !slices.Equal(got, []string{despecialized}) {
+		t.Errorf("German audio = %v, want the Despecialized Edition once: two versions are one film", got)
 	}
 }
 

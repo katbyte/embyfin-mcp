@@ -149,3 +149,55 @@ func TestAuditMissingEpisodesLeavesOutUnairedRecords(t *testing.T) {
 		t.Errorf("only upcoming records = %v", upcoming)
 	}
 }
+
+// One show split across two entries - a folder renamed and the old one left
+// behind, both carrying its ids - is judged as one show. Alone, each entry
+// was missing what the other holds, which is not missing from the library:
+// the gap in one is the other's file, and the provider's run past the
+// first two episodes is all either lacks.
+func TestAuditMissingEpisodesJudgesASplitShowAsOne(t *testing.T) {
+	t.Parallel()
+
+	ids := map[string]string{"Tmdb": guideTMDBID}
+	before := &fakeSeries{id: "w1", name: "Zzyzx Wire", ids: ids, path: "/media/shows/Zzyzx Wire", episodes: []ep{
+		{season: 1, number: 1, name: "one", path: "/m/w1/s01e01.mkv"},
+		{season: 1, number: 3, name: "three", path: "/m/w1/s01e03.mkv"},
+	}}
+	after := &fakeSeries{id: "w2", name: "Zzyzx Wire", ids: ids, path: "/media/shows/Zzyzx Wire (2002)", episodes: []ep{
+		{season: 1, number: 2, name: "two", path: "/m/w2/s01e02.mkv"},
+	}}
+	apart := &fakeSeries{id: "a1", name: "Zzyzx Apart", ids: map[string]string{"Tmdb": "7"}, episodes: []ep{
+		{season: 1, number: 1, name: "one", path: "/m/a1/s01e01.mkv"},
+		{season: 1, number: 3, name: "three", path: "/m/a1/s01e03.mkv"},
+	}}
+	run := map[int][]string{1: {"one", "two", "three", "four"}}
+	cs := session(t, tvServer(t, before, after, apart), Options{TMDBKey: "k", ProviderTransport: guideServer(t, run, aired2022)})
+
+	// from the files alone: the split show's E02 is in its other folder, and
+	// the show held once still has its gap
+	plain := mustCall(t, cs, "audit_missing_episodes", map[string]any{})
+	rows := objects(t, plain["findings"], "findings")
+	if len(rows) != 1 || text(rows[0]["id"]) != "a1" || text(rows[0]["detail"]) != "missing between the episodes on disk: S01E02" {
+		t.Errorf("from the files = %v, want Zzyzx Apart's gap alone", rows)
+	}
+
+	out := mustCall(t, cs, "audit_missing_episodes", map[string]any{"provider": true})
+	var wire map[string]any
+	for _, row := range objects(t, out["findings"], "findings") {
+		if text(row["name"]) == "Zzyzx Wire" {
+			if wire != nil {
+				t.Errorf("the split show is listed twice: %v", out["findings"])
+			}
+			wire = row
+		}
+	}
+	if wire == nil || text(wire["id"]) != "w1" || text(wire["detail"]) != "listed by TMDB without a file: S01E04" {
+		t.Fatalf("the split show = %v, want one row by w1 missing S01E04 alone", wire)
+	}
+	if w := text(wire["warning"]); !strings.Contains(w, `holds "Zzyzx Wire" under 2 entries sharing its ids (also id w2 at /media/shows/Zzyzx Wire (2002))`) {
+		t.Errorf("warning = %q", w)
+	}
+	if number(t, out["total_findings"], "total_findings") != 2 {
+		t.Errorf("total_findings = %v, want the split show once and Zzyzx Apart", out["total_findings"])
+	}
+}

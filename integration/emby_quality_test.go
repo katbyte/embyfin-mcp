@@ -121,17 +121,27 @@ func TestEmbyMediaStreams(t *testing.T) {
 		}
 	})
 	t.Run("LegacyCodecAndLanguage", func(t *testing.T) {
-		// MPEG-4 part 2 at 360p, the sound tagged Japanese
+		// MPEG-4 part 2 at 360p, the sound Japanese and then English
 		it := embyFile(t, messy, "Princess Mononoke (1997)/Princess Mononoke (1997).mp4")
 		embyVideo(t, "the messy Princess Mononoke", it, "mpeg4", 640, 360, 5, "16:9")
-		embyAudio(t, "the messy Princess Mononoke", it, "aac", "jpn")
+		if a := embyStreams(it, "Audio"); len(a) != 2 || a[0].Language != "jpn" || a[1].Language != "eng" || a[0].Codec != "aac" || a[1].Codec != "aac" {
+			t.Errorf("the messy Princess Mononoke's audio = %+v, want a Japanese aac track and then an English one", a)
+		}
+		// and German, as a file tags it: ger, the code the audits read as deu
+		sw := embyFile(t, messy, "Star Wars Episode IV - A New Hope Despecialized Edition (1977)/Star Wars Episode IV - A New Hope Despecialized Edition (1977).mp4")
+		embyAudio(t, "the Despecialized Edition", sw, "aac", "ger")
 	})
 	t.Run("TwoVersions", func(t *testing.T) {
 		// Emby lists each file of a film's folder as a film of its own
 		hd := embyFile(t, messy, "Blade Runner (1982)/Blade Runner (1982) - 1080p.mp4")
 		uhd := embyFile(t, messy, "Blade Runner (1982)/Blade Runner (1982) - 2160p.mp4")
-		embyVideo(t, "Blade Runner's 1080p", hd, "h264", 1920, 1080, 5, "16:9")
-		embyVideo(t, "Blade Runner's 2160p", uhd, "h264", 3840, 2160, 5, "16:9")
+		embyVideo(t, "Blade Runner's 1080p", hd, "h264", 1920, 1080, 24, "16:9")
+		// the upscale: HEVC 10-bit at 60 frames a second, which Emby reads as
+		// HDR10 from its colour tags and names "HDR 10"
+		if v := embyStreams(uhd, "Video"); len(v) != 1 || v[0].Codec != "hevc" || v[0].Width != 3840 || v[0].Height != 2160 || v[0].AverageFrameRate != 60 || v[0].BitDepth != 10 ||
+			v[0].VideoRange != "HDR 10" || v[0].ExtendedVideoType != "Hdr10" || v[0].ColorTransfer != "smpte2084" || v[0].ColorPrimaries != "bt2020" {
+			t.Errorf("Blade Runner's 2160p = %+v, want 10-bit HEVC at 60 fps, HDR10 by its colour tags", v)
+		}
 		if hd.Id == uhd.Id || hd.Name != bladeRunner || uhd.Name != bladeRunner {
 			t.Errorf("the two files are %s (%s) and %s (%s), want two films named %s", hd.Name, hd.Id, uhd.Name, uhd.Id, bladeRunner)
 		}
@@ -168,6 +178,11 @@ func TestEmbyMediaStreams(t *testing.T) {
 		if n := len(it.MediaSources[0].MediaStreams); n != 0 {
 			t.Errorf("Cube lists %d streams; the disc was never probed until now", n)
 		}
+		// and a DVD kept as its VIDEO_TS tree the same, named by its nfo
+		moon := embyFile(t, messy, "Moon (2009)")
+		if src := moon.MediaSources[0]; moon.Name != "Moon" || len(moon.MediaSources) != 1 || src.Container != "dvd" || src.Path != sdkMessyMovies.Folder+"/Moon (2009)" || len(src.MediaStreams) != 0 {
+			t.Errorf("Moon = %s, sources %+v; want one unprobed dvd source at its folder", moon.Name, moon.MediaSources)
+		}
 	})
 	t.Run("LooseDisc", func(t *testing.T) {
 		// a DVD's VOB copied in on its own is a film of that one file: MPEG-2
@@ -198,5 +213,20 @@ func TestEmbyMediaStreams(t *testing.T) {
 		}
 		// the OVA's episodes are the smallest files of all
 		embyVideo(t, ".hack//Liminality's first episode", embyFile(t, episodes, "hack Liminality (2002)/Season 01/hack Liminality S01E01.mp4"), "h264", 160, 90, 5, "16:9")
+		// a DVD rip kept anamorphic: 720x480 stated 16:9
+		rip := embyFile(t, episodes, "Severance/Season 01/Severance S01E02.mp4")
+		embyVideo(t, "the anamorphic Severance S01E02", rip, "h264", 720, 480, 5, "16:9")
+		if v := embyStreams(rip, "Video"); len(v) != 1 || !pointer.From(v[0].IsAnamorphic) {
+			t.Errorf("the anamorphic Severance S01E02 = %+v, want it read as anamorphic", v)
+		}
+		// a second of video whose duration claims twelve hours
+		if broken := embyFile(t, episodes, "Star Trek Deep Space Nine (1993)/Season 03/Star Trek Deep Space Nine S03E01.mkv"); broken.RunTimeTicks < 12*60*60*10_000_000 {
+			t.Errorf("Deep Space Nine S03E01 runs %d ticks, want the twelve hours its duration claims", broken.RunTimeTicks)
+		}
+		// and the featurette in a season's Extras folder, which Emby takes for
+		// an episode of the show with no number
+		if extra := embyFile(t, episodes, "Severance/Season 01/Extras/Featurette.mp4"); extra.SeriesName != severance || extra.IndexNumber != 0 {
+			t.Errorf("the season's featurette = %s of %s, number %d; want an episode of %s with none", extra.Name, extra.SeriesName, extra.IndexNumber, severance)
+		}
 	})
 }

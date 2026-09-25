@@ -370,9 +370,13 @@ func TestJFCatalogue(t *testing.T) {
 	// counts do not depend on what ran before). Jellyfin documents no music
 	// genre listing: /Genres of a music library lists its music genres.
 	for _, lib := range []string{moviesID, jfLibrary(t, sdkMusic)} {
-		wantArtists, wantGenres := []string{}, []string{}
+		wantArtists, wantAlbumArtists, wantGenres := []string{}, []string{}, []string{}
 		if lib != moviesID {
-			wantArtists = []string{"Battle Tapes", "Coyote Kisses", "Pink Floyd", "SirensCeol"}
+			// the tracks' artists, The Pink Floyd among them (one track's
+			// tag spells it so), and the albums': Various Artists over Battle
+			// Tapes' Polygon, which Jellyfin lists as an album artist alone
+			wantArtists = []string{"Battle Tapes", "Coyote Kisses", "Pink Floyd", "SirensCeol", "The Pink Floyd"}
+			wantAlbumArtists = []string{"Coyote Kisses", "Pink Floyd", "SirensCeol", "Various Artists"}
 			wantGenres = []string{"Electronic", "Electronica", progressiveRock}
 		}
 		names := func(items []jf.BaseItemDto) []string {
@@ -388,8 +392,8 @@ func TestJFCatalogue(t *testing.T) {
 			t.Errorf("GetArtists(%s) = %v (%d), want %v", lib, got, artists.TotalRecordCount, wantArtists)
 		}
 		albumArtists := must(jfc.GetAlbumArtists(ctx, jf.GetAlbumArtistsOperationOptions{ParentId: lib, UserId: adminID})).Model
-		if got := names(albumArtists.Items); !slices.Equal(got, wantArtists) {
-			t.Errorf("GetAlbumArtists(%s) = %v, want %v", lib, got, wantArtists)
+		if got := names(albumArtists.Items); !slices.Equal(got, wantAlbumArtists) || albumArtists.TotalRecordCount != len(wantAlbumArtists) {
+			t.Errorf("GetAlbumArtists(%s) = %v (%d), want %v", lib, got, albumArtists.TotalRecordCount, wantAlbumArtists)
 		}
 		if lib == moviesID {
 			continue // the film library's genres are the films'

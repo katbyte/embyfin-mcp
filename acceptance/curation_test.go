@@ -38,7 +38,7 @@ func TestLibraryItems(t *testing.T) {
 	// a movie library lists its films, by name unless told otherwise
 	out := call(t, "library_items", map[string]any{"library": "Movies", "limit": 50})
 	got := names(t, out["items"], "items")
-	if num(t, out["total"], "total") != 8 || len(got) != 8 {
+	if num(t, out["total"], "total") != len(movies) || len(got) != len(movies) {
 		t.Fatalf("Movies = %d of %v: %v", len(got), out["total"], got)
 	}
 	sorted := slices.Clone(got)
@@ -49,7 +49,7 @@ func TestLibraryItems(t *testing.T) {
 
 	// paging: the second page of three is the fourth to sixth
 	page := call(t, "library_items", map[string]any{"library": "Movies", "limit": 3, "offset": 3})
-	if p := names(t, page["items"], "items"); !slices.Equal(p, got[3:6]) || num(t, page["offset"], "offset") != 3 || num(t, page["total"], "total") != 8 {
+	if p := names(t, page["items"], "items"); !slices.Equal(p, got[3:6]) || num(t, page["offset"], "offset") != 3 || num(t, page["total"], "total") != len(movies) {
 		t.Errorf("page two = %v (offset %v total %v), want %v", p, page["offset"], page["total"], got[3:6])
 	}
 
@@ -120,8 +120,8 @@ func TestLibraryItems(t *testing.T) {
 		t.Errorf("alice has watched %v, want [Princess Mononoke]", got)
 	}
 	out = call(t, "library_items", map[string]any{"library": "Movies", "watched": "unwatched", "user": "alice"})
-	if n := num(t, out["total"], "total"); n != 7 {
-		t.Errorf("alice has %d unwatched, want 7", n)
+	if n := num(t, out["total"], "total"); n != len(movies)-1 {
+		t.Errorf("alice has %d unwatched, want %d", n, len(movies)-1)
 	}
 	out = call(t, "library_items", map[string]any{"library": "Movies", "watched": "watched"})
 	if n := num(t, out["total"], "total"); n != 0 {
@@ -156,11 +156,11 @@ func sortName(name string) string {
 
 func TestLibraryFilters(t *testing.T) {
 	out := call(t, "library_filters", map[string]any{"library": "Movies"})
-	if n := num(t, out["items_scanned"], "items_scanned"); n != 8 {
-		t.Errorf("scanned %d, want 8", n)
+	if n := num(t, out["items_scanned"], "items_scanned"); n != len(movies) {
+		t.Errorf("scanned %d, want %d", n, len(movies))
 	}
 	genres := valueCounts(t, out["genres"], "genres")
-	for genre, want := range map[string]int{"Science Fiction": 4, "Horror": 1, "Animation": 1, "Drama": 1, "Action": 1} {
+	for genre, want := range map[string]int{"Science Fiction": 4, "Horror": 1, "Animation": 1, "Drama": 1, "Action": 1, "Thriller": 1} {
 		if genres[genre] != want {
 			t.Errorf("genre %s on %d films, want %d: %v", genre, genres[genre], want, genres)
 		}
@@ -173,7 +173,7 @@ func TestLibraryFilters(t *testing.T) {
 	for _, row := range rows(t, out["years"], "years") {
 		years[num(t, row["year"], "year")] = num(t, row["items"], "items")
 	}
-	if years[1982] != 1 || years[1999] != 1 || len(years) != 8 {
+	if years[1982] != 1 || years[1999] != 1 || years[2011] != 1 || len(years) != len(movies) {
 		t.Errorf("years = %v", years)
 	}
 	if len(rows(t, out["official_ratings"], "official_ratings")) == 0 || len(rows(t, out["studios"], "studios")) == 0 {
@@ -181,11 +181,12 @@ func TestLibraryFilters(t *testing.T) {
 	}
 
 	// the messy series carry only what their nfo says, and nothing else:
-	// Severance's Drama, Andor's and Deep Space Nine's Science Fiction and
-	// .hack//Liminality's Science-Fiction
+	// Severance's and both The Wires' Drama, Andor's and Deep Space Nine's
+	// Science Fiction, .hack//Liminality's Science-Fiction, the Asterix
+	// series' Animation and Red Dwarf's Comedy
 	out = call(t, "library_filters", map[string]any{"library": "Messy Shows", "types": "Series"})
-	if g := valueCounts(t, out["genres"], "genres"); len(g) != 3 || g["Drama"] != 1 || g["Science Fiction"] != 2 || g["Science-Fiction"] != 1 {
-		t.Errorf("Messy Shows genres = %v, want Drama on one, Science Fiction on two and Science-Fiction on one", g)
+	if g := valueCounts(t, out["genres"], "genres"); len(g) != 5 || g["Drama"] != 3 || g["Science Fiction"] != 2 || g["Science-Fiction"] != 1 || g["Animation"] != 1 || g["Comedy"] != 1 {
+		t.Errorf("Messy Shows genres = %v, want Drama on three, Science Fiction on two, and Science-Fiction, Animation and Comedy on one each", g)
 	}
 	if n := num(t, out["items_scanned"], "items_scanned"); n != messySeries {
 		t.Errorf("Messy Shows filters read %d series, want %d", n, messySeries)
@@ -536,12 +537,16 @@ func TestAuditSpellingKinds(t *testing.T) {
 func TestAuditQuality(t *testing.T) {
 	// the messy films are 360p rips, Princess Mononoke's in MPEG-4 part 2,
 	// the loose DVD a 480p MPEG-2 VOB, and the Blade Runner files really are
-	// 1080p and 2160p
+	// 1080p and 2160p. Jellyfin reads the DVD kept whole as the 480p MPEG-2
+	// disc it is; Emby never probes it
 	out := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
 	got := findings(t, out)
-	want := []string{"Alien", "Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)"}
+	want := []string{"Alien", "Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Moon", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)"}
+	unprobedWant := []string{"Cube"}
 	if !isJellyfin() {
-		want = want[1:] // Emby shows the two Aliens as one film's versions
+		// Emby shows the two Aliens as one film's versions
+		want = []string{"Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)"}
+		unprobedWant = []string{"Cube", "Moon"}
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("low quality = %v, want %v", got, want)
@@ -549,7 +554,7 @@ func TestAuditQuality(t *testing.T) {
 	for _, f := range rows(t, out["findings"], "findings") {
 		detail := str(f["detail"])
 		switch title(str(f["name"])) {
-		case "Coyote vs. Acme":
+		case "Coyote vs. Acme", "Moon":
 			if detail != "mpeg2video 720x480: 480p, below 720p; legacy codec mpeg2video" {
 				t.Errorf("the DVD = %q", detail)
 			}
@@ -566,11 +571,18 @@ func TestAuditQuality(t *testing.T) {
 	if n := num(t, out["items_scanned"], "items_scanned"); n != messyMoviesShown() {
 		t.Errorf("scanned %d, want %d", n, messyMoviesShown())
 	}
-	// the Blu-ray kept whole was never probed, so it has no picture to judge,
-	// and it says so rather than passing for a good copy
-	unprobed := rows(t, out["unprobed"], "unprobed")
-	if len(unprobed) != 1 || num(t, out["total_unprobed"], "total_unprobed") != 1 || title(str(unprobed[0]["name"])) != "Cube" || !strings.Contains(str(unprobed[0]["detail"]), "never probed") {
-		t.Errorf("unprobed = %v, want the kept Blu-ray alone", unprobed)
+	// the Blu-ray kept whole was never probed, nor on Emby the DVD, so they
+	// have no picture to judge, and it says so rather than passing for a
+	// good copy
+	var unprobed []string
+	for _, u := range rows(t, out["unprobed"], "unprobed") {
+		unprobed = append(unprobed, title(str(u["name"])))
+		if !strings.Contains(str(u["detail"]), "never probed") {
+			t.Errorf("unprobed = %v", u)
+		}
+	}
+	if !slices.Equal(unprobed, unprobedWant) || num(t, out["total_unprobed"], "total_unprobed") != len(unprobedWant) {
+		t.Errorf("unprobed = %v, want %v", unprobed, unprobedWant)
 	}
 	// nothing was written over since the scan read it
 	if n := num(t, out["total_replaced"], "total_replaced"); n != 0 {
@@ -579,8 +591,12 @@ func TestAuditQuality(t *testing.T) {
 
 	// a lower bar leaves only the codecs
 	out = call(t, "audit_quality", map[string]any{"library": "Messy Movies", "min_height": 360})
-	if got := findings(t, out); !slices.Equal(got, []string{"Coyote vs. Acme", "Princess Mononoke"}) {
-		t.Errorf("at 360 lines = %v, want [Coyote vs. Acme Princess Mononoke]", got)
+	codecs := []string{"Coyote vs. Acme", "Moon", "Princess Mononoke"}
+	if !isJellyfin() {
+		codecs = []string{"Coyote vs. Acme", "Princess Mononoke"}
+	}
+	if got := findings(t, out); !slices.Equal(got, codecs) {
+		t.Errorf("at 360 lines = %v, want %v", got, codecs)
 	}
 	out = call(t, "audit_quality", map[string]any{"library": "Messy Movies", "min_height": 360, "legacy_codecs": false})
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
@@ -589,8 +605,8 @@ func TestAuditQuality(t *testing.T) {
 	// a bitrate floor nothing a one-second test pattern reaches, said in
 	// kilobits a second
 	out = call(t, "audit_quality", map[string]any{"library": "Movies", "min_bitrate": 1000000000})
-	if n := num(t, out["total_findings"], "total_findings"); n != 8 {
-		t.Errorf("a bitrate floor flagged %d films, want all 8", n)
+	if n := num(t, out["total_findings"], "total_findings"); n != len(movies) {
+		t.Errorf("a bitrate floor flagged %d films, want all %d", n, len(movies))
 	}
 	starved := regexp.MustCompile(`^h264 1280x720: [1-9]\d* kbps, below 1000000 kbps$`)
 	for _, f := range rows(t, out["findings"], "findings") {
@@ -604,10 +620,18 @@ func TestAuditQuality(t *testing.T) {
 	}
 
 	// episodes too, named by series and number, the lowest first:
-	// .hack//Liminality's 160x90 before the 360p rest
+	// .hack//Liminality's 160x90 before the 360p rest. Every messy episode
+	// is below 720p but the copy of The Wire's second in its renamed folder,
+	// which Emby shows as a version of the 360p one and so judges both by;
+	// the featurette Emby takes for an episode is no episode to replace
 	out = call(t, "audit_quality", map[string]any{"library": "Messy Shows"})
-	if n := num(t, out["total_findings"], "total_findings"); n != messyEpisodes {
-		t.Errorf("messy episodes = %d, want %d", n, messyEpisodes)
+	if n, scanned := num(t, out["total_findings"], "total_findings"), num(t, out["items_scanned"], "items_scanned"); n != messyEpisodesJudged()-1 || scanned != messyEpisodesJudged() {
+		t.Errorf("messy episodes = %d of %d, want all but one of %d", n, scanned, messyEpisodesJudged())
+	}
+	for _, f := range rows(t, out["findings"], "findings") {
+		if strings.Contains(str(f["path"]), "/The Wire (2002)/Season 01/The Wire S01E02.mp4") || strings.Contains(str(f["path"]), "/Extras/") {
+			t.Errorf("audit_quality lists %v", f)
+		}
 	}
 	episode := regexp.MustCompile(`^.+ S\d\dE\d\d `)
 	for i, f := range rows(t, out["findings"], "findings") {
@@ -620,7 +644,7 @@ func TestAuditQuality(t *testing.T) {
 	}
 	// and a limit caps each list, not the count
 	out = call(t, "audit_quality", map[string]any{"library": "Messy Shows", "types": "Episode", "limit": 2})
-	if len(rows(t, out["findings"], "findings")) != 2 || num(t, out["total_findings"], "total_findings") != messyEpisodes {
+	if len(rows(t, out["findings"], "findings")) != 2 || num(t, out["total_findings"], "total_findings") != messyEpisodesJudged()-1 {
 		t.Errorf("limit 2 = %v of %v", len(rows(t, out["findings"], "findings")), out["total_findings"])
 	}
 }
@@ -649,8 +673,8 @@ func TestAuditMissingEpisodes(t *testing.T) {
 			t.Errorf("finding = %v, want %q", f, want)
 		}
 	}
-	if n := num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes {
-		t.Errorf("scanned %d episodes, want %d", n, messyEpisodes)
+	if n := num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes() {
+		t.Errorf("scanned %d episodes, want %d", n, messyEpisodes())
 	}
 	if capped := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "limit": 1}); len(rows(t, capped["findings"], "findings")) != 1 || num(t, capped["total_findings"], "total_findings") != 3 {
 		t.Errorf("limit 1 = %v", capped)
@@ -672,8 +696,8 @@ func TestAuditMissingEpisodes(t *testing.T) {
 	// the clean shows hold their episodes from the first without gaps, and
 	// with no provider asked that is all that can be said of them
 	out = call(t, "audit_missing_episodes", map[string]any{"library": "Shows"})
-	if n := num(t, out["total_findings"], "total_findings"); n != 0 || boolOf(out["runs_known"]) || num(t, out["items_scanned"], "items_scanned") != 9 {
-		t.Errorf("the clean shows = %v, want no gap in 9 episodes and runs_known false", out)
+	if n := num(t, out["total_findings"], "total_findings"); n != 0 || boolOf(out["runs_known"]) || num(t, out["items_scanned"], "items_scanned") != showEpisodes() {
+		t.Errorf("the clean shows = %v, want no gap in %d episodes and runs_known false", out, showEpisodes())
 	}
 
 	// with the provider, TMDB's run says what the messy Severance lacks
@@ -696,23 +720,31 @@ func TestAuditMissingEpisodes(t *testing.T) {
 	if d := found["Star Trek The Next Generation"]; !strings.Contains(d, "between the episodes on disk: S01E02") || strings.Contains(d, "TMDB") {
 		t.Errorf("Star Trek = %q, want its gap alone", d)
 	}
-	// every messy series but Severance carries no id a provider knows it by
-	// (.hack//Liminality's AniDB id is not one TMDB is asked by)
+	// every messy series but Severance, The Wire and Red Dwarf carries no
+	// id a provider knows it by (.hack//Liminality's AniDB id is not one
+	// TMDB is asked by), bar the Asterix series, whose ids are a film's
 	var unknown []string
 	for _, u := range rows(t, out["unknown"], "unknown") {
-		unknown = append(unknown, title(str(u["name"])))
-		if !strings.Contains(str(u["reason"]), "carries no tmdb, tvdb or imdb id") {
-			t.Errorf("unknown = %v", u)
+		name := title(str(u["name"]))
+		unknown = append(unknown, name)
+		want := "carries no tmdb, tvdb or imdb id"
+		if name == "Asterix & Obelix: The Big Fight" {
+			want = "the series carries a film's ids"
+		}
+		if !strings.Contains(str(u["reason"]), want) {
+			t.Errorf("unknown = %v, want its reason saying %q", u, want)
 		}
 	}
 	slices.Sort(unknown)
-	wantUnknown := sorted(append([]string{".hack//Liminality"}, unmatchedShows...))
+	wantUnknown := sorted(append([]string{".hack//Liminality", "Asterix & Obelix: The Big Fight"}, unmatchedShows...))
 	if !slices.Equal(unknown, wantUnknown) || num(t, out["total_unknown"], "total_unknown") != len(wantUnknown) {
 		t.Errorf("unknown = %v, want %v", unknown, wantUnknown)
 	}
 
-	// paged a series at a time, the walk to the end asks after every series
-	// once and finds what the one call found
+	// paged two shows at a time, the walk to the end asks after every show
+	// once and finds what the one call found. The Wire's two entries are one
+	// show, asked after once
+	shows := messySeries - 1
 	var paged, pagedUnknown []string
 	offset, pages := 0, 0
 	for {
@@ -730,31 +762,31 @@ func TestAuditMissingEpisodes(t *testing.T) {
 			t.Fatalf("page at %d says go on from %d", offset, n)
 		}
 		offset += 2
-		if pages > messySeries {
+		if pages > shows {
 			t.Fatal("the pages never end")
 		}
 	}
 	slices.Sort(paged)
 	slices.Sort(pagedUnknown)
-	if pages != (messySeries+1)/2 || !slices.Equal(paged, findings(t, out)) || !slices.Equal(pagedUnknown, wantUnknown) {
-		t.Errorf("%d pages found %v and could not ask after %v, want %d pages, %v and %v", pages, paged, pagedUnknown, (messySeries+1)/2, findings(t, out), wantUnknown)
+	if pages != (shows+1)/2 || !slices.Equal(paged, findings(t, out)) || !slices.Equal(pagedUnknown, wantUnknown) {
+		t.Errorf("%d pages found %v and could not ask after %v, want %d pages, %v and %v", pages, paged, pagedUnknown, (shows+1)/2, findings(t, out), wantUnknown)
 	}
 }
 
 func TestAuditUnwatched(t *testing.T) {
 	out := call(t, "audit_unwatched", map[string]any{"library": "Movies"})
-	if n := num(t, out["total_findings"], "total_findings"); n != 8 {
-		t.Errorf("unwatched films = %d, want all 8", n)
+	if n := num(t, out["total_findings"], "total_findings"); n != len(movies) {
+		t.Errorf("unwatched films = %d, want all %d", n, len(movies))
 	}
 	if users := strs(t, out["users"], "users"); !slices.Contains(users, "root") || !slices.Contains(users, "alice") {
 		t.Errorf("users = %v", users)
 	}
 	// oldest additions first, and the films added together by name, so a
 	// limit keeps the same ones each call
-	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{"Alien", "Aliens", "Arrival", "Blade Runner", "Dune", "Dune: Part Two", "Princess Mononoke", "The Thirteenth Floor"}) {
+	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{"Alien", "Aliens", "Arrival", "Blade Runner", "Dune", "Dune: Part Two", "Limitless", "Princess Mononoke", "The Thirteenth Floor"}) {
 		t.Errorf("unwatched in order = %v", got)
 	}
-	if capped := call(t, "audit_unwatched", map[string]any{"library": "Movies", "limit": 2}); !slices.Equal(names(t, capped["findings"], "findings"), []string{"Alien", "Aliens"}) || num(t, capped["total_findings"], "total_findings") != 8 {
+	if capped := call(t, "audit_unwatched", map[string]any{"library": "Movies", "limit": 2}); !slices.Equal(names(t, capped["findings"], "findings"), []string{"Alien", "Aliens"}) || num(t, capped["total_findings"], "total_findings") != len(movies) {
 		t.Errorf("limit 2 = %v", capped)
 	}
 
@@ -764,7 +796,7 @@ func TestAuditUnwatched(t *testing.T) {
 		_, _ = invoke("item_set_state", map[string]any{"id": dune, "user": "alice", "watched": false})
 	})
 	out = call(t, "audit_unwatched", map[string]any{"library": "Movies"})
-	if got := findings(t, out); len(got) != 7 || slices.Contains(got, "Dune") {
+	if got := findings(t, out); len(got) != len(movies)-1 || slices.Contains(got, "Dune") {
 		t.Errorf("unwatched after alice watched Dune = %v", got)
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
@@ -780,8 +812,8 @@ func TestAuditUnwatched(t *testing.T) {
 	call(t, "item_set_state", map[string]any{"id": first, "watched": true})
 	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": first, "watched": false}) })
 	out = call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})
-	if got := findings(t, out); !slices.Equal(got, []string{"Breaking Bad", "The Expanse"}) {
-		t.Errorf("unwatched series = %v, want Breaking Bad and The Expanse", got)
+	if got := findings(t, out); !slices.Equal(got, []string{"Breaking Bad", "Limitless", "The Expanse"}) {
+		t.Errorf("unwatched series = %v, want Breaking Bad, Limitless and The Expanse", got)
 	}
 
 	// everything was added today, so nothing is older than a day

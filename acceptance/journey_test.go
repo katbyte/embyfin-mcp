@@ -1016,7 +1016,7 @@ func TestUserLibraryAccess(t *testing.T) {
 	if boolOf(got["all_libraries"]) || !slices.Contains(libs, "Movies") || slices.Contains(libs, "Shows") || slices.Contains(libs, "Messy Movies") {
 		t.Errorf("user_get alice: all_libraries %v, libraries %v, want Movies alone", got["all_libraries"], libs)
 	}
-	if n := num(t, call(t, "library_items", map[string]any{"library": "Movies", "user": "alice"})["total"], "total"); n != 8 {
+	if n := num(t, call(t, "library_items", map[string]any{"library": "Movies", "user": "alice"})["total"], "total"); n != len(movies) {
 		t.Errorf("alice sees %d films in Movies, want 8", n)
 	}
 	for tool, args := range map[string]map[string]any{
@@ -1480,17 +1480,29 @@ func TestParallelWrites(t *testing.T) {
 func copyFixture(t *testing.T, src, dst string) {
 	t.Helper()
 
+	copyRenamed(t, src, dst, filepath.Base(src), filepath.Base(dst))
+}
+
+// copyRenamed copies a folder and the folders in it, a film's extras among
+// them, renaming what is named after the film.
+func copyRenamed(t *testing.T, src, dst, from, to string) {
+	t.Helper()
+
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		t.Fatal(err)
 	}
 	mediaMkdir(t, dst)
 	for _, e := range entries {
+		name := strings.ReplaceAll(e.Name(), from, to)
+		if e.IsDir() {
+			copyRenamed(t, filepath.Join(src, e.Name()), filepath.Join(dst, name), from, to)
+			continue
+		}
 		raw, err := os.ReadFile(filepath.Join(src, e.Name())) //nolint:gosec // a fixture under the test data dir
 		if err != nil {
 			t.Fatal(err)
 		}
-		name := strings.ReplaceAll(e.Name(), filepath.Base(src), filepath.Base(dst))
 		mediaWrite(t, filepath.Join(dst, name), raw)
 	}
 }
@@ -1994,6 +2006,14 @@ func TestCopiesCountOnce(t *testing.T) {
 func playThrough(t *testing.T, token, id string) {
 	t.Helper()
 
+	playTo(t, token, id, 5_000_000)
+}
+
+// playTo plays an item as alice's player and stops it at a position, in
+// ticks.
+func playTo(t *testing.T, token, id string, stop int64) {
+	t.Helper()
+
 	status, raw := api(t, http.MethodPost, "/Items/"+id+"/PlaybackInfo?UserId="+os.Getenv("EMBYFIN_TEST_USER_ID"), token, map[string]any{})
 	var info struct {
 		PlaySessionID string `json:"PlaySessionId"`
@@ -2004,7 +2024,7 @@ func playThrough(t *testing.T, token, id string) {
 	for _, step := range []struct {
 		path  string
 		ticks int64
-	}{{"/Sessions/Playing", 0}, {"/Sessions/Playing/Progress", 5_000_000}, {"/Sessions/Playing/Stopped", 5_000_000}} {
+	}{{"/Sessions/Playing", 0}, {"/Sessions/Playing/Progress", stop}, {"/Sessions/Playing/Stopped", stop}} {
 		body := map[string]any{"ItemId": id, "PlaySessionId": info.PlaySessionID, "PositionTicks": step.ticks, "CanSeek": true, "PlayMethod": "DirectPlay"}
 		if status, raw := api(t, http.MethodPost, step.path, token, body); status/100 != 2 {
 			t.Fatalf("%s: HTTP %d: %s", step.path, status, raw)

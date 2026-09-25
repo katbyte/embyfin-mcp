@@ -184,7 +184,10 @@ func TestItemDelete(t *testing.T) {
 		// film alone in it, which the refusal rightly offered to take)
 		const gone = "the server cannot find the folder holding the item: the delete removes its record, and nothing on disk"
 		var msg string
-		if !eventually(func() bool { msg = callErr(t, "item_delete", map[string]any{"id": id}); return strings.Contains(msg, gone) }) {
+		if !eventually(func() bool {
+			msg = callErr(t, "item_delete", map[string]any{"id": id})
+			return strings.Contains(msg, gone)
+		}) {
 			t.Errorf("the refusal for a film whose folder is gone: %s", msg)
 		}
 		out := call(t, "item_delete", map[string]any{"id": id, "confirm": true})
@@ -451,6 +454,16 @@ func TestWhatADeleteWouldTake(t *testing.T) {
 		for _, id := range ids {
 			would(t, id, messy+messyBladeRunner, []string{"Blade Runner (1982) - 1080p.mp4", "Blade Runner (1982) - 2160p.mp4", "movie.nfo", "poster.jpg"})
 		}
+	})
+	t.Run("a DVD kept whole", func(t *testing.T) {
+		would(t, findItem(t, "Messy Movies", "Movie", "Moon"), messy+messyKeptDVD, []string{"VIDEO_TS", "VIDEO_TS/VIDEO_TS.BUP", "VIDEO_TS/VIDEO_TS.IFO", "VIDEO_TS/VIDEO_TS.nfo", "VIDEO_TS/VTS_01_0.BUP", "VIDEO_TS/VTS_01_0.IFO", "VIDEO_TS/VTS_01_1.VOB"})
+	})
+	t.Run("a film with its trailers and extras", func(t *testing.T) {
+		// a trailer named for the film is no second film in its folder, so the
+		// folder is the film's and goes whole, extras and all
+		would(t, findItem(t, "Messy Movies", "Movie", "Interstellar"), messy+messyInterstellar, []string{
+			"Extras", "Extras/Featurette.mp4", messyInterstellar + "-trailer.mp4", messyInterstellar + ".mp4", "Trailers", "Trailers/Trailer.mp4", "movie.nfo", "poster.jpg",
+		})
 	})
 	t.Run("a film with a subtitle", func(t *testing.T) {
 		const floor = "The Thirteenth Floor (1999)"

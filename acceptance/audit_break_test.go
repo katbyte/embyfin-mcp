@@ -447,8 +447,9 @@ func TestAuditDuplicateSeriesSpellings(t *testing.T) {
 
 // Runtimes against their season: specials have no season to be held to,
 // a file holding two episodes is held to twice the median, and the worst
-// comes first under a limit. Putting a whole copy over the one cut short
-// clears it.
+// comes first under a limit - after the one broken duration the fixtures
+// carry, Deep Space Nine's twelve-hour claim, which ranks above any
+// percentage. Putting a whole copy over the one cut short clears it.
 func TestAuditRuntimeStaged(t *testing.T) {
 	src := "messy-shows/hack Liminality (2002)/Season 01/"
 	long, short := fixture(t, src+"hack Liminality S01E01.mp4"), fixture(t, src+"hack Liminality S01E03.mp4")
@@ -477,11 +478,12 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	}
 	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})
 	want := []string{
+		"Star Trek Deep Space Nine S03E01.mkv: 720 min: not a runtime, the file's duration metadata is broken",
 		"hack Liminality S01E03.mp4: 0 min, season median 3 min (100% off)",
 		"hack Liminality S02E03.mp4: 0 min, season median 3 min (100% off)",
 		"hack Liminality S01E04E05.mp4: 3 min for 2 episodes, season median 3 min each, 6 expected (50% off)",
 	}
-	if got := byFile(out); !slices.Equal(got, want) || num(t, out["total_findings"], "total_findings") != 3 {
+	if got := byFile(out); !slices.Equal(got, want) || num(t, out["total_findings"], "total_findings") != 4 {
 		t.Errorf("runtimes off = %v, want %v", got, want)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_runtime"); n != before+2 {
@@ -489,21 +491,22 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	}
 	// the worst first, and a limit keeps it
 	capped := call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1})
-	if got := byFile(capped); !slices.Equal(got, want[:1]) || num(t, capped["total_findings"], "total_findings") != 3 {
+	if got := byFile(capped); !slices.Equal(got, want[:1]) || num(t, capped["total_findings"], "total_findings") != 4 {
 		t.Errorf("limit 1 = %v of %v, want %v", got, capped["total_findings"], want[:1])
 	}
 	// a tolerance past the run's 50% forgives it, and nothing short of 100
-	// forgives the files a second long
-	if got := byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "tolerance_percent": 60})); !slices.Equal(got, want[:2]) {
-		t.Errorf("tolerance 60 = %v, want %v", got, want[:2])
+	// forgives the files a second long; no tolerance forgives a duration
+	// that is no runtime at all
+	if got := byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "tolerance_percent": 60})); !slices.Equal(got, want[:3]) {
+		t.Errorf("tolerance 60 = %v, want %v", got, want[:3])
 	}
 
 	// the whole episode written over the one cut short
 	mediaWrite(t, filepath.Join(dataDir(), g+"Season 02/hack Liminality S02E03.mp4"), long)
 	rescanUntil(t, "the whole copy read", func() bool {
-		return len(byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows"}))) == 2
+		return len(byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows"}))) == 3
 	})
-	if got := byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})); !slices.Equal(got, []string{want[0], want[2]}) {
+	if got := byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})); !slices.Equal(got, []string{want[0], want[1], want[3]}) {
 		t.Errorf("after the fix = %v", got)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_runtime"); n != before+1 {
@@ -550,10 +553,21 @@ func TestAuditMultipleVersionsOfAnEpisode(t *testing.T) {
 		g + "hack Liminality S02E01 - 90p.mp4": long,
 	}, "messy-shows/hack Liminality (2002)/Season 02")
 
+	// beside the one Emby already shows in two versions: The Wire's second
+	// episode, a copy in each of the show's folders
+	twice := 0
+	if !isJellyfin() {
+		twice = 1
+	}
 	out := call(t, "audit_multiple_versions", map[string]any{"library": "Messy Shows"})
-	found := rows(t, out["findings"], "findings")
-	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
-		t.Fatalf("episodes in versions = %v", found)
+	var found []map[string]any
+	for _, f := range rows(t, out["findings"], "findings") {
+		if strings.Contains(str(f["path"]), "/hack Liminality (2002)/") {
+			found = append(found, f)
+		}
+	}
+	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != twice+1 {
+		t.Fatalf("episodes in versions = %v of %v, want the staged one", found, out["total_findings"])
 	}
 	if d := str(found[0]["detail"]); !strings.HasPrefix(d, "2 versions: ") || !strings.Contains(d, "hack Liminality S02E01 - 90p.mp4") || !strings.Contains(d, "hack Liminality S02E01.mp4") {
 		t.Errorf("detail = %q, want the two files", d)
@@ -562,8 +576,8 @@ func TestAuditMultipleVersionsOfAnEpisode(t *testing.T) {
 	if n := num(t, call(t, "audit_multiple_versions", map[string]any{"library": "Messy Shows", "types": "Movie"})["items_scanned"], "items_scanned"); n != 0 {
 		t.Errorf("types Movie swept %d items of a show library", n)
 	}
-	if n := auditRow(t, "Messy Shows", "audit_multiple_versions"); n != 1 {
-		t.Errorf("audit_all's row = %d, want 1", n)
+	if n := auditRow(t, "Messy Shows", "audit_multiple_versions"); n != twice+1 {
+		t.Errorf("audit_all's row = %d, want %d", n, twice+1)
 	}
 }
 
@@ -593,10 +607,16 @@ func TestAuditDiscFoldersLeaveHomeVideoAlone(t *testing.T) {
 		t.Errorf("audit_all's row = %d, want the loose DVD alone", n)
 	}
 
+	// beside the discs kept whole the server never probed: the Blu-ray, and
+	// on Emby the DVD
+	want := []string{"/media/messy-movies/" + messyKeptBluRay, "/media/messy-movies/Disc Rip (1999)/PRIVATE/AVCHD"}
+	if !isJellyfin() {
+		want = append(want, "/media/messy-movies/"+messyKeptDVD)
+	}
 	quality := call(t, "audit_quality", map[string]any{"library": "Messy Movies", "limit": 1})
 	unprobed := rows(t, quality["unprobed"], "unprobed")
-	if len(unprobed) != 1 || num(t, quality["total_unprobed"], "total_unprobed") != 2 {
-		t.Errorf("limit 1 unprobed = %v of %v, want one of the two", unprobed, quality["total_unprobed"])
+	if len(unprobed) != 1 || num(t, quality["total_unprobed"], "total_unprobed") != len(want) {
+		t.Errorf("limit 1 unprobed = %v of %v, want one of the %d", unprobed, quality["total_unprobed"], len(want))
 	}
 	all := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
 	var paths []string
@@ -604,7 +624,7 @@ func TestAuditDiscFoldersLeaveHomeVideoAlone(t *testing.T) {
 		paths = append(paths, str(u["path"]))
 	}
 	// by path, so a limit keeps the same one each call
-	if want := []string{"/media/messy-movies/" + messyKeptBluRay, "/media/messy-movies/Disc Rip (1999)/PRIVATE/AVCHD"}; !slices.Equal(paths, want) {
+	if !slices.Equal(paths, want) {
 		t.Errorf("unprobed = %v, want %v", paths, want)
 	}
 }
@@ -613,10 +633,10 @@ func TestAuditDiscFoldersLeaveHomeVideoAlone(t *testing.T) {
 // names none, so a film with it cannot be said to lack English; one named
 // .eng is English, and the film it sits beside can be watched in English.
 func TestAuditLanguageStaged(t *testing.T) {
-	folder := filepath.Join(dataDir(), "messy-movies", messyMononoke)
-	mononoke := findItem(t, "Messy Movies", "Movie", "Princess Mononoke")
+	folder := filepath.Join(dataDir(), "messy-movies", messyDespecialized)
+	restoration := findItem(t, "Messy Movies", "Movie", despecialized)
 	subtitles := func() int {
-		return len(strs(t, call(t, "item_get", map[string]any{"id": mononoke})["subtitles"], "subtitles"))
+		return len(strs(t, call(t, "item_get", map[string]any{"id": restoration})["subtitles"], "subtitles"))
 	}
 	line := []byte("1\n00:00:00,000 --> 00:00:00,900\nA line.\n")
 	written := []string{}
@@ -624,8 +644,8 @@ func TestAuditLanguageStaged(t *testing.T) {
 		for _, f := range written {
 			_ = os.Remove(f)
 		}
-		rescanUntil(t, "Princess Mononoke without subtitles", func() bool {
-			out, err := invoke("item_get", map[string]any{"id": mononoke})
+		rescanUntil(t, "the Despecialized Edition without subtitles", func() bool {
+			out, err := invoke("item_get", map[string]any{"id": restoration})
 			subs, _ := out["subtitles"].([]any)
 			return err == nil && len(subs) == 0
 		})
@@ -636,45 +656,45 @@ func TestAuditLanguageStaged(t *testing.T) {
 		written = append(written, path)
 		mediaWrite(t, path, line)
 		rescanUntil(t, name+" read", func() bool {
-			out, err := invoke("item_get", map[string]any{"id": mononoke})
+			out, err := invoke("item_get", map[string]any{"id": restoration})
 			subs, _ := out["subtitles"].([]any)
 			return err == nil && len(subs) == want
 		})
 	}
 	unwatchable := map[string]any{"language": "eng", "find": "unwatchable", "library": "Messy Movies"}
 	start := call(t, "audit_language", unwatchable)
-	if got := names(t, start["findings"], "findings"); !slices.Equal(got, []string{"Princess Mononoke"}) {
-		t.Fatalf("unwatchable in English = %v, want Princess Mononoke", got)
+	if got := names(t, start["findings"], "findings"); !slices.Equal(got, []string{despecialized}) {
+		t.Fatalf("unwatchable in English = %v, want the Despecialized Edition, its one track German", got)
 	}
 
-	add(messyMononoke+".srt", 1)
+	add(messyDespecialized+".srt", 1)
 	out := call(t, "audit_language", unwatchable)
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 || num(t, out["untagged"], "untagged") != num(t, start["untagged"], "untagged")+1 {
-		t.Errorf("with an untagged subtitle = %v, want Princess Mononoke counted untagged rather than reported", out)
+		t.Errorf("with an untagged subtitle = %v, want the Despecialized Edition counted untagged rather than reported", out)
 	}
 	if got := names(t, call(t, "audit_language", map[string]any{"language": "eng", "find": "subtitles"})["findings"], "findings"); !slices.Equal(got, []string{"The Thirteenth Floor"}) {
 		t.Errorf("English subtitles with an untagged one staged = %v", got)
 	}
 
-	add(messyMononoke+".eng.srt", 2)
+	add(messyDespecialized+".eng.srt", 2)
 	english := map[string]any{"language": "eng", "find": "subtitles"}
 	out = call(t, "audit_language", english)
-	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{"Princess Mononoke", "The Thirteenth Floor"}) || num(t, out["total_findings"], "total_findings") != 2 {
+	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{despecialized, "The Thirteenth Floor"}) || num(t, out["total_findings"], "total_findings") != 2 {
 		t.Errorf("English subtitles = %v", got)
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
-		if title(str(f["name"])) == "Princess Mononoke" && str(f["detail"]) != "audio: jpn; subtitles: eng, untagged" {
+		if title(str(f["name"])) == despecialized && str(f["detail"]) != "audio: deu; subtitles: eng, untagged" {
 			t.Errorf("detail = %q", f["detail"])
 		}
 	}
 	// a limit caps the rows, name order keeps the first, and the count is
 	// the whole
 	capped := call(t, "audit_language", map[string]any{"language": "en", "find": "subtitles", "limit": 1})
-	if got := names(t, capped["findings"], "findings"); !slices.Equal(got, []string{"Princess Mononoke"}) || num(t, capped["total_findings"], "total_findings") != 2 {
+	if got := names(t, capped["findings"], "findings"); !slices.Equal(got, []string{despecialized}) || num(t, capped["total_findings"], "total_findings") != 2 {
 		t.Errorf("limit 1 = %v of %v", got, capped["total_findings"])
 	}
 	if n := num(t, call(t, "audit_language", unwatchable)["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("with English subtitles Princess Mononoke is still unwatchable in English: %d", n)
+		t.Errorf("with English subtitles the Despecialized Edition is still unwatchable in English: %d", n)
 	}
 	if subtitles() != 2 {
 		t.Errorf("item_get's subtitles = %d, want both files", subtitles())
@@ -740,8 +760,8 @@ func TestAuditMissingEpisodesStaged(t *testing.T) {
 	if got := findings(t, out); !slices.Equal(got, []string{"Andor", "Star Trek The Next Generation", "Star Trek: Deep Space Nine"}) {
 		t.Errorf("with specials 1 and 4 staged = %v, want no gap among them", got)
 	}
-	if n := num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes+2 {
-		t.Errorf("scanned %d, want the specials counted too (%d)", n, messyEpisodes+2)
+	if n := num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes()+2 {
+		t.Errorf("scanned %d, want the specials counted too (%d)", n, messyEpisodes()+2)
 	}
 
 	needsTMDBRecording(t, "GET api.themoviedb.org/3/tv/95396")

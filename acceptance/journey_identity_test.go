@@ -282,7 +282,7 @@ func TestReidentifyingASeries(t *testing.T) {
 	wantGaps := expanse("audit_missing_episodes", map[string]any{"library": "Shows", "provider": true})
 	wantPaths := expanse("audit_file_path", map[string]any{"library": "Shows"})
 	wantImages := images()
-	if len(wantEpisodes) != 2 || !strings.HasPrefix(wantMissing, "tmdb") || !slices.Contains(wantImages, "Primary") {
+	if len(wantEpisodes) != 3 || !strings.HasPrefix(wantMissing, "tmdb") || !slices.Contains(wantImages, "Primary") {
 		t.Fatalf("The Expanse before: episodes %v, missing %s, images %v", wantEpisodes, wantMissing, wantImages)
 	}
 

@@ -388,9 +388,13 @@ func TestEmbyCatalogue(t *testing.T) {
 	// fixtures' in the music one (whatever else the server holds, so the
 	// counts do not depend on what ran before)
 	for _, lib := range []string{moviesID, embyLibrary(t, sdkMusic)} {
-		wantArtists, wantGenres := []string{}, []string{}
+		wantArtists, wantAlbumArtists, wantGenres := []string{}, []string{}, []string{}
 		if lib != moviesID {
-			wantArtists = []string{"Battle Tapes", "Coyote Kisses", "Pink Floyd", "SirensCeol"}
+			// the tracks' artists, The Pink Floyd among them (one track's
+			// tag spells it so), and the albums': Various Artists over Battle
+			// Tapes' Polygon, which Emby lists as an artist too
+			wantArtists = []string{"Battle Tapes", "Coyote Kisses", "Pink Floyd", "SirensCeol", "The Pink Floyd", "Various Artists"}
+			wantAlbumArtists = []string{"Coyote Kisses", "Pink Floyd", "SirensCeol", "Various Artists"}
 			wantGenres = []string{"Electronic", "Electronica", progressiveRock}
 		}
 		names := func(items []emby.BaseItemDto) []string {
@@ -406,8 +410,8 @@ func TestEmbyCatalogue(t *testing.T) {
 			t.Errorf("GetArtists(%s) = %v (%d), want %v", lib, got, artists.TotalRecordCount, wantArtists)
 		}
 		albumArtists := must(embyc.GetArtistsAlbumArtists(ctx, emby.GetArtistsAlbumArtistsOperationOptions{ParentId: lib, UserId: adminID})).Model
-		if got := names(albumArtists.Items); !slices.Equal(got, wantArtists) {
-			t.Errorf("GetArtistsAlbumArtists(%s) = %v, want %v", lib, got, wantArtists)
+		if got := names(albumArtists.Items); !slices.Equal(got, wantAlbumArtists) || albumArtists.TotalRecordCount != len(wantAlbumArtists) {
+			t.Errorf("GetArtistsAlbumArtists(%s) = %v (%d), want %v", lib, got, albumArtists.TotalRecordCount, wantAlbumArtists)
 		}
 		genres := must(embyc.GetMusicGenres(ctx, emby.GetMusicGenresOperationOptions{ParentId: lib, UserId: adminID})).Model
 		if got := names(genres.Items); !slices.Equal(got, wantGenres) || genres.TotalRecordCount != len(wantGenres) {

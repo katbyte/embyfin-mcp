@@ -78,9 +78,9 @@ func TestLibraryGet(t *testing.T) {
 		want := map[string]any{"Movie": float64(l.Items())}
 		switch l.Type {
 		case "tvshows":
-			want = map[string]any{"Series": float64(l.Items()), "Episode": float64(l.Episodes)}
+			want = map[string]any{"Series": float64(l.Items()), "Episode": float64(l.Episodes())}
 		case "music":
-			want = map[string]any{"MusicArtist": float64(artists()), "MusicAlbum": float64(len(albums)), "Audio": float64(songs())}
+			want = map[string]any{"MusicArtist": float64(artists()), "MusicAlbum": float64(musicAlbums()), "Audio": float64(songs())}
 		}
 		got := call(t, "library_get", map[string]any{"library": l.Name})
 		if counts := object(t, got["type_counts"], "type_counts"); !reflect.DeepEqual(counts, want) {
@@ -94,6 +94,13 @@ func TestLibraryGet(t *testing.T) {
 			sum += int(n.(float64)) //nolint:forcetypeassert // built above
 		}
 		seasons := num(t, call(t, "library_items", map[string]any{"library": l.Name, "types": "Season", "limit": 1})["total"], "total")
+		// Jellyfin keeps an artist with no folder of its own - one only the
+		// tags name, Various Artists and The Pink Floyd - among its metadata
+		// rather than under the library: counted among the library's kinds,
+		// and not among its items
+		if isJellyfin() && l.Type == "music" {
+			sum -= 2
+		}
 		switch n := num(t, got["item_count"], "item_count"); {
 		case isJellyfin() && n != sum+seasons:
 			t.Errorf("%s item_count = %d, want its %d counted items and %d seasons", l.Name, n, sum, seasons)
@@ -157,8 +164,8 @@ func TestLibrarySearch(t *testing.T) {
 			t.Errorf("Shows search returned a %v", it["type"])
 		}
 	}
-	if len(rows(t, out["items"], "items")) != 3 {
-		t.Errorf("Shows lists %d series, want 3", len(rows(t, out["items"], "items")))
+	if len(rows(t, out["items"], "items")) != len(shows) {
+		t.Errorf("Shows lists %d series, want %d", len(rows(t, out["items"], "items")), len(shows))
 	}
 
 	// episodes carry their series and numbering
@@ -200,7 +207,7 @@ func TestLibrarySearch(t *testing.T) {
 func TestLibraryItemsSorts(t *testing.T) {
 	all := call(t, "library_items", map[string]any{"library": "Movies", "limit": 50})
 	byName := names(t, all["items"], "items")
-	if len(byName) != 8 {
+	if len(byName) != len(movies) {
 		t.Fatalf("Movies = %v", byName)
 	}
 
@@ -213,7 +220,7 @@ func TestLibraryItemsSorts(t *testing.T) {
 	// premiered: TMDB's release dates, which for these films fall in the
 	// order of their years
 	out = call(t, "library_items", map[string]any{"library": "Movies", "sort": "premiered", "limit": 50})
-	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Alien", "Blade Runner", "Aliens", "Princess Mononoke", "The Thirteenth Floor", "Arrival", "Dune", "Dune: Part Two"}) {
+	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Alien", "Blade Runner", "Aliens", "Princess Mononoke", "The Thirteenth Floor", "Limitless", "Arrival", "Dune", "Dune: Part Two"}) {
 		t.Errorf("by premiere = %v", got)
 	}
 
@@ -223,24 +230,25 @@ func TestLibraryItemsSorts(t *testing.T) {
 	for _, it := range rows(t, out["items"], "items") {
 		ratings = append(ratings, decimal(t, call(t, "item_get", map[string]any{"id": str(it["id"])})["community_rating"], "community_rating"))
 	}
-	if len(ratings) != 8 || !slices.IsSortedFunc(ratings, func(a, b float64) int { return cmp.Compare(b, a) }) {
+	if len(ratings) != len(movies) || !slices.IsSortedFunc(ratings, func(a, b float64) int { return cmp.Compare(b, a) }) {
 		t.Errorf("by rating, highest first = %v", ratings)
 	}
 
-	// runtime: every clean film probes at one second, so the messy shows'
-	// episodes, which run three minutes, five seconds and one
+	// runtime: the messy shows' episodes, which run three minutes, five
+	// seconds and one - after Deep Space Nine's broken file, whose duration
+	// claims twelve hours
 	out = call(t, "library_items", map[string]any{"library": "Messy Shows", "types": "Episode", "sort": "runtime", "desc": true, "limit": 50})
 	var runtimes []int
 	for _, it := range rows(t, out["items"], "items") {
 		runtimes = append(runtimes, num(t, it["runtime_s"], "runtime_s"))
 	}
-	if len(runtimes) != messyEpisodes || !slices.Equal(runtimes[:3], []int{180, 180, 5}) || !slices.IsSortedFunc(runtimes, func(a, b int) int { return b - a }) {
+	if len(runtimes) != messyEpisodes() || !slices.Equal(runtimes[:4], []int{43200, 180, 180, 5}) || !slices.IsSortedFunc(runtimes, func(a, b int) int { return b - a }) {
 		t.Errorf("episodes by runtime, longest first = %v", runtimes)
 	}
 
 	// random: the same films in some order, all of them
 	out = call(t, "library_items", map[string]any{"library": "Movies", "sort": "random", "limit": 50})
-	if got := sorted(names(t, out["items"], "items")); !slices.Equal(got, sorted(byName)) || num(t, out["total"], "total") != 8 {
+	if got := sorted(names(t, out["items"], "items")); !slices.Equal(got, sorted(byName)) || num(t, out["total"], "total") != len(movies) {
 		t.Errorf("at random = %v of %v, want every film once", got, out["total"])
 	}
 
@@ -311,8 +319,8 @@ func TestLibraryRecent(t *testing.T) {
 		t.Fatalf("recent = %d items, want 3 (the limit)", len(items))
 	}
 	all := rows(t, call(t, "library_recent", map[string]any{"library": "Movies", "limit": 50})["items"], "items")
-	if len(all) != 8 {
-		t.Fatalf("Movies' recent additions = %d, want its 8 films", len(all))
+	if len(all) != len(movies) {
+		t.Fatalf("Movies' recent additions = %d, want its %d films", len(all), len(movies))
 	}
 	for i := range items {
 		if got, want := stamp(t, items[i]["added"]), stamp(t, all[i]["added"]); !got.Equal(want) {
@@ -332,20 +340,20 @@ func TestLibraryRecent(t *testing.T) {
 			series++
 		}
 	}
-	if episodes != 9 || series != 3 {
-		t.Errorf("recent in Shows has %d episodes and %d series, want 9 and 3", episodes, series)
+	if episodes != showEpisodes() || series != len(shows) {
+		t.Errorf("recent in Shows has %d episodes and %d series, want %d and %d", episodes, series, showEpisodes(), len(shows))
 	}
 
 	// days=0 is the default of 60, which the whole catalogue falls within;
 	// across libraries
 	out = call(t, "library_recent", map[string]any{"types": "Movie", "days": 0, "limit": 100})
-	if got, want := len(rows(t, out["items"], "items")), 8+messyMovies(); got != want {
+	if got, want := len(rows(t, out["items"], "items")), len(movies)+messyMovies(); got != want {
 		t.Errorf("recent movies across libraries = %d, want %d", got, want)
 	}
 	// music by its own kinds
 	out = call(t, "library_recent", map[string]any{"library": "Music", "types": "MusicAlbum"})
-	if got := sorted(names(t, out["items"], "items")); len(got) != len(albums) {
-		t.Errorf("recent albums = %v, want the %d", got, len(albums))
+	if got := sorted(names(t, out["items"], "items")); len(got) != musicAlbums() {
+		t.Errorf("recent albums = %v, want the %d", got, musicAlbums())
 	}
 	if msg := callErr(t, "library_recent", map[string]any{"library": "Nope"}); !strings.Contains(msg, `no library named "Nope"`) {
 		t.Errorf("an unknown library: %s", msg)
@@ -403,13 +411,13 @@ func TestLibraryGenres(t *testing.T) {
 	// the messy shows carry only what their nfo says, the two spellings of
 	// one genre as two
 	out = call(t, "library_genres", map[string]any{"library": "Messy Shows", "types": "Series"})
-	if genres := strs(t, out["genres"], "genres"); !slices.Equal(genres, []string{"Drama", "Science Fiction", "Science-Fiction"}) {
-		t.Errorf("Messy Shows genres = %v, want Drama, Science Fiction and Science-Fiction", genres)
+	if genres := strs(t, out["genres"], "genres"); !slices.Equal(genres, []string{"Animation", "Comedy", "Drama", "Science Fiction", "Science-Fiction"}) {
+		t.Errorf("Messy Shows genres = %v, want Animation, Comedy, Drama, Science Fiction and Science-Fiction", genres)
 	}
 	// across every library, the films and series: the music is left out
 	// unless asked for by its kind
 	out = call(t, "library_genres", nil)
-	if genres := strs(t, out["genres"], "genres"); !slices.Equal(genres, []string{"Action", "Animation", "Drama", "Horror", "Mystery", "Science Fiction", "Science-Fiction"}) {
+	if genres := strs(t, out["genres"], "genres"); !slices.Equal(genres, []string{"Action", "Animation", "Comedy", "Drama", "Horror", "Mystery", "Science Fiction", "Science-Fiction", "Thriller"}) {
 		t.Errorf("every library's genres = %v", genres)
 	}
 	var music []string
@@ -431,7 +439,7 @@ func TestLibraryGenres(t *testing.T) {
 // and an unknown library is refused.
 func TestLibraryFiltersEverywhere(t *testing.T) {
 	out := call(t, "library_filters", nil)
-	if n, want := num(t, out["items_scanned"], "items_scanned"), 8+messyMovies()+3+messySeries; n != want {
+	if n, want := num(t, out["items_scanned"], "items_scanned"), len(movies)+messyMovies()+len(shows)+messySeries; n != want {
 		t.Errorf("every library's filters read %d items, want the %d films and series", n, want)
 	}
 	// Science Fiction on four clean films and The Expanse; on the messy Dune,

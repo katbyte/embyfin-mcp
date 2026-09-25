@@ -157,8 +157,8 @@ func assertQualityFacts(t *testing.T, row map[string]any) {
 func TestLibraryEpisodes(t *testing.T) {
 	out := call(t, "library_episodes", map[string]any{"library": "Shows"})
 	total := num(t, out["total"], "total")
-	if total != 9 {
-		t.Fatalf("total = %d, want the Shows library's nine episode files", total)
+	if total != showEpisodes() {
+		t.Fatalf("total = %d, want the Shows library's %d episode files", total, showEpisodes())
 	}
 	for _, row := range rows(t, out["episodes"], "episodes") {
 		if str(row["series"]) == "" || str(row["path"]) == "" {
@@ -183,8 +183,8 @@ func TestLibraryEpisodes(t *testing.T) {
 			seen[key] = true
 		}
 	}
-	if len(seen) != 9 {
-		t.Errorf("paging returned %d episodes, want the library's 9: %v", len(seen), seen)
+	if len(seen) != showEpisodes() {
+		t.Errorf("paging returned %d episodes, want the library's %d: %v", len(seen), showEpisodes(), seen)
 	}
 	// past the end is an empty page, not an error
 	if past := call(t, "library_episodes", map[string]any{"library": "Shows", "offset": total}); len(rows(t, past["episodes"], "episodes")) != 0 || num(t, past["offset"], "offset") != total {
@@ -195,8 +195,8 @@ func TestLibraryEpisodes(t *testing.T) {
 	// A limit past the most one page holds is not refused; the page is capped
 	// at a thousand, which the whole server here does not reach
 	everything := call(t, "library_episodes", map[string]any{"quality": false, "limit": 5000})
-	if n := num(t, everything["total"], "total"); n != 9+messyEpisodes || len(rows(t, everything["episodes"], "episodes")) != n {
-		t.Errorf("every library's episodes = %d rows of %d, want %d", len(rows(t, everything["episodes"], "episodes")), n, 9+messyEpisodes)
+	if n := num(t, everything["total"], "total"); n != showEpisodes()+messyEpisodes() || len(rows(t, everything["episodes"], "episodes")) != n {
+		t.Errorf("every library's episodes = %d rows of %d, want %d", len(rows(t, everything["episodes"], "episodes")), n, showEpisodes()+messyEpisodes())
 	}
 
 	// one series on its own, and one season of it, counted
@@ -258,7 +258,9 @@ func TestLibraryEpisodesRuntimeMultiples(t *testing.T) {
 		{sev, 1, []float64{1, 1, 5}},
 		{hack, 180, []float64{1, 1, 0.01}},
 	} {
-		out := call(t, "library_episodes", map[string]any{"series_id": c.series, "fields": []string{"runtime_s", "runtime_multiple"}})
+		// season one: on Emby the messy Severance's season Extras featurette
+		// is an episode too, of no season it can be held to
+		out := call(t, "library_episodes", map[string]any{"series_id": c.series, "season": 1, "fields": []string{"runtime_s", "runtime_multiple"}})
 		var got []float64
 		for _, row := range rows(t, out["episodes"], "episodes") {
 			got = append(got, decimal(t, row["runtime_multiple"], "runtime_multiple"))
@@ -667,4 +669,51 @@ func typeCounts(library string) map[string]int {
 	}
 
 	return counts
+}
+
+// The clean The Expanse holds the first of TMDB's specials, in Season 00,
+// beside its first two episodes. Season 0 is a season like the others to the
+// tools that list them, and no part of a run to the ones that look for what
+// is missing: the specials have no order for a gap to be in, and TMDB lists
+// dozens the library is not missing in any sense a caller acts on.
+func TestSpecialsInAShow(t *testing.T) {
+	expanse := findItem(t, "Shows", "Series", "The Expanse")
+	names := map[int]string{}
+	for _, s := range rows(t, call(t, "show_seasons", map[string]any{"series_id": expanse})["seasons"], "seasons") {
+		names[num(t, s["season"], "season")] = str(s["name"])
+	}
+	// Emby names a season as TMDB does, Jellyfin by its number
+	first := "Season 1"
+	if !isJellyfin() {
+		first = "Leviathan Wakes"
+	}
+	if len(names) != 2 || names[0] != "Specials" || names[1] != first {
+		t.Errorf("The Expanse's seasons = %v, want Specials and %s", names, first)
+	}
+	specials := call(t, "library_episodes", map[string]any{"series_id": expanse, "season": 0})
+	eps := rows(t, specials["episodes"], "episodes")
+	if len(eps) != 1 || num(t, eps[0]["season"], "season") != 0 || num(t, eps[0]["episode"], "episode") != 1 || str(eps[0]["title"]) != "Inside The Expanse: Episode 1" {
+		t.Errorf("the specials = %v, want TMDB's first", eps)
+	}
+	exists := rows(t, call(t, "show_episodes_exist", map[string]any{"series_id": expanse, "episodes": []map[string]any{{"season": 0, "episode": 1}, {"season": 0, "episode": 2}}})["episodes"], "episodes")
+	if len(exists) != 2 || exists[0]["exists"] != true || exists[1]["exists"] != false {
+		t.Errorf("specials 1 and 2 = %v, want the first held", exists)
+	}
+
+	// nothing on disk is a gap, and nothing TMDB lists among the specials is
+	// missing
+	plain := call(t, "audit_missing_episodes", map[string]any{"library": "Shows"})
+	if num(t, plain["total_findings"], "total_findings") != 0 || num(t, plain["items_scanned"], "items_scanned") != showEpisodes() {
+		t.Errorf("from the files = %v, want none of the %d episodes a gap", plain, showEpisodes())
+	}
+	needsTMDBRecording(t, "GET api.themoviedb.org/3/tv/63639")
+	missing := call(t, "show_missing", map[string]any{"series_id": expanse})
+	if got := missingKeys(t, missing); len(got) == 0 || got[0] != "S01E03" || slices.ContainsFunc(got, func(k string) bool { return strings.HasPrefix(k, "S00") }) {
+		t.Errorf("show_missing The Expanse = %v, want the run from S01E03 and no special", got)
+	}
+	for _, f := range rows(t, call(t, "audit_missing_episodes", map[string]any{"library": "Shows", "provider": true})["findings"], "findings") {
+		if strings.Contains(str(f["detail"]), "S00") {
+			t.Errorf("audit_missing_episodes lists a special: %v", f)
+		}
+	}
 }

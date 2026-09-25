@@ -190,10 +190,13 @@ func hdrFormat(st *embyfin.MediaStream) string {
 		return hdrDOVI10
 	}
 
-	// then the broad one both servers answer: Emby says only SDR or HDR
+	// then the broad one both servers answer: Jellyfin says SDR or HDR, and
+	// Emby 4.10 the same or, for a file tagged with HDR10's colours, "HDR 10"
 	switch strings.ToLower(st.VideoRange) {
 	case "sdr":
 		return hdrSDR
+	case "hdr 10", "hdr10":
+		return hdr10
 	case "hdr":
 		if format := hdrFromTransfer(st.ColourTransfer); format != "" {
 			return format
@@ -508,6 +511,22 @@ type existsRow struct {
 	RuntimeMultiple float64 `json:"runtime_multiple,omitempty"        jsonschema:"this file's runtime over its season's median"`
 	SeasonMedian    int     `json:"season_median_runtime_s,omitempty" jsonschema:"the median it was compared against, in seconds"`
 	qualityFacts
+
+	// the episode held more than once: two entries for one show (both
+	// servers answer either with the other's episodes when they share their
+	// ids), or one episode filed twice. The row speaks for the asked entry's
+	// own copy, or the first, and the rest are named here rather than
+	// dropped: which of two copies was read used to depend on the order the
+	// server answered in, and the other went unseen
+	OtherCopies []heldCopy `json:"other_copies,omitempty" jsonschema:"the episode's other files, when the library holds it more than once (a show split across two entries, or one episode filed twice): each by id and path, with its facts when quality was asked for, so which copy is the better is plain. The row itself answers for the asked entry's own copy, or the first"`
+}
+
+// heldCopy is another file an episode is held in.
+type heldCopy struct {
+	ID       string `json:"id"`
+	SeriesID string `json:"series_id,omitempty" jsonschema:"the entry this copy belongs to"`
+	Path     string `json:"path,omitempty"`
+	qualityFacts
 }
 
 // existsGroup is one series' answer within a batch.
@@ -528,9 +547,10 @@ type existsGroup struct {
 const existsBatchMax = 50
 
 // episodesHeld reads the episodes a series holds, keyed by season and
-// episode number. A file holding several (S01E01E02) is keyed under each of
-// them, because each of those episodes is one the library has.
-func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, seasons []int, fields string) (map[[2]int]*embyfin.Item, error) {
+// episode number, every copy of each in the order the server gave them. A
+// file holding several (S01E01E02) is keyed under each of them, because each
+// of those episodes is one the library has.
+func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, seasons []int, fields string) (map[[2]int][]*embyfin.Item, error) {
 	// one read per season is cheaper than the whole series until enough
 	// seasons are asked about that the whole series is the cheaper read
 	queries := seasons
@@ -538,7 +558,7 @@ func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, 
 		queries = []int{0}
 	}
 
-	held := map[[2]int]*embyfin.Item{}
+	held := map[[2]int][]*embyfin.Item{}
 	for _, season := range queries {
 		opts := embyfin.EpisodeOptions{Fields: fields}
 		if len(queries) > 1 || season > 0 {
@@ -552,12 +572,45 @@ func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, 
 			e := &episodes[i]
 			last := max(e.IndexNumberEnd, e.IndexNumber)
 			for n := e.IndexNumber; n <= last; n++ {
-				held[[2]int{e.ParentIndexNumber, n}] = e
+				key := [2]int{e.ParentIndexNumber, n}
+				held[key] = append(held[key], e)
 			}
 		}
 	}
 
 	return held, nil
+}
+
+// answeringCopy picks the copy of an episode a row answers for, and the
+// others: one with a file before a record of one without, the asked entry's
+// own before another entry's, and otherwise the first the server gave. A
+// record is no copy, so it is not listed beside a file.
+func answeringCopy(copies []*embyfin.Item, seriesID string) (answer *embyfin.Item, others []*embyfin.Item) {
+	rank := func(e *embyfin.Item) int {
+		r := 0
+		if !e.HasFile() {
+			r += 2
+		}
+		if e.SeriesID != "" && e.SeriesID != seriesID {
+			r++
+		}
+
+		return r
+	}
+	best := 0
+	for i := range copies {
+		if rank(copies[i]) < rank(copies[best]) {
+			best = i
+		}
+	}
+	answer = copies[best]
+	for i, e := range copies {
+		if i != best && e.ID != answer.ID && (e.HasFile() || !answer.HasFile()) {
+			others = append(others, e)
+		}
+	}
+
+	return answer, others
 }
 
 // existsAnswer answers one series' query. The error it returns is the
@@ -586,11 +639,18 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 	}
 
 	// the season's median, from every episode the read returned rather than
-	// only the ones asked after
+	// only the ones asked after, each file once however many numbers it holds
 	medians := map[int][]int{}
-	for _, e := range held {
-		if runtime := int(e.RunTimeTicks / ticksPerSecond); runtime > 0 && runtime < absurdRuntimeS {
-			medians[e.ParentIndexNumber] = append(medians[e.ParentIndexNumber], runtime)
+	counted := map[string]bool{}
+	for _, copies := range held {
+		for _, e := range copies {
+			if counted[e.ID] {
+				continue
+			}
+			counted[e.ID] = true
+			if runtime := int(e.RunTimeTicks / ticksPerSecond); runtime > 0 && runtime < absurdRuntimeS {
+				medians[e.ParentIndexNumber] = append(medians[e.ParentIndexNumber], runtime)
+			}
 		}
 	}
 	for season, runtimes := range medians {
@@ -606,7 +666,8 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 	out := existsGroup{Series: series.Name, SeriesID: series.ID, Match: match, Episodes: []existsRow{}}
 	for _, p := range q.Episodes {
 		row := existsRow{Season: p.Season, Episode: p.Episode}
-		if e, ok := held[[2]int{p.Season, p.Episode}]; ok {
+		if copies, ok := held[[2]int{p.Season, p.Episode}]; ok {
+			e, others := answeringCopy(copies, series.ID)
 			row.Known, row.ID, row.Title, row.Path = true, e.ID, e.Name, e.Path
 			row.Exists = e.HasFile()
 			if e.IndexNumberEnd > e.IndexNumber {
@@ -628,6 +689,19 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 					}
 					row.keepOnly(keep)
 				}
+			}
+			for _, o := range others {
+				c := heldCopy{ID: o.ID, SeriesID: o.SeriesID, Path: o.Path}
+				if quality {
+					c.qualityFacts = qualityOf(o)
+					if keep != nil {
+						if !keep["path"] {
+							c.Path = ""
+						}
+						c.keepOnly(keep)
+					}
+				}
+				row.OtherCopies = append(row.OtherCopies, c)
 			}
 		}
 		if !row.Exists {
@@ -797,7 +871,7 @@ func registerEpisodeTools(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "show_episodes_exist",
 		Description: "Does the library hold these episodes? Give series_id or series with episodes, or up to 50 series in queries. A multi-episode file counts for each episode. quality or fields add the held copy's facts to hits. " +
-			"A group with an error could not be looked up, which is not the same as absent. A name match below 0.9 in matched is a guess. duplicate_entries means the show is split across library entries, so an absence may be held by another.",
+			"A group with an error could not be looked up, which is not the same as absent. A name match below 0.9 in matched is a guess. duplicate_entries means the show is split across library entries, so an absence may be held by another. An episode held in more than one file (two entries sharing the show's ids, which both servers answer as one show, or an episode filed twice) names the rest in other_copies.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in existsIn) (*mcp.CallToolResult, existsOut, error) {
 		keep, err := keptFacts(in.Fields)
 		if err != nil {

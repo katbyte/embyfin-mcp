@@ -89,7 +89,7 @@ func TestAuditsLeaveTheCleanLibrariesAlone(t *testing.T) {
 		t.Errorf("the repeated title in Shows = %v, want Breaking Bad's", g)
 	}
 	// nothing kept apart that the anime list folds into another show
-	if out := call(t, "audit_anime_ids", map[string]any{"library": "Shows"}); num(t, out["items_scanned"], "items_scanned") != 3 ||
+	if out := call(t, "audit_anime_ids", map[string]any{"library": "Shows"}); num(t, out["items_scanned"], "items_scanned") != len(shows) ||
 		num(t, out["total_ids_disagree"], "total_ids_disagree")+num(t, out["total_split_out"], "total_split_out")+num(t, out["total_kept_separate"], "total_kept_separate") != 0 {
 		t.Errorf("audit_anime_ids on Shows = %v", out)
 	}
@@ -170,15 +170,22 @@ func TestAuditMissingMetadataProvider(t *testing.T) {
 	}
 	// the anime providers: only .hack//Liminality carries an AniDB id, and
 	// nothing a MyAnimeList one, so every other series is listed with the
-	// ids it does have - Severance's three, in the order they are named
+	// ids it does have, in the order they are named - the Asterix series the
+	// film's two
+	has := map[string]string{
+		"Severance":                       "tmdb:95396 imdb:tt11280740 tvdb:371980",
+		"The Wire":                        "tmdb:1438 imdb:tt0306414 tvdb:79126",
+		"Red Dwarf":                       "tmdb:326 imdb:tt0094535 tvdb:71326",
+		"Asterix & Obelix: The Big Fight": "tmdb:11625 imdb:tt0096842",
+	}
 	out = call(t, "audit_missing_metadata_provider", map[string]any{"library": "Messy Shows", "missing": "anidb"})
-	if got, want := findings(t, out), sorted(append([]string{"Severance"}, unmatchedShows...)); !slices.Equal(got, want) {
+	if got, want := findings(t, out), sorted(append([]string{"Severance", "The Wire", "The Wire", "Red Dwarf", "Asterix & Obelix: The Big Fight"}, unmatchedShows...)); !slices.Equal(got, want) {
 		t.Errorf("missing anidb = %v, want %v", got, want)
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
 		want := "no anidb id"
-		if str(f["name"]) == "Severance" {
-			want = "no anidb id; has tmdb:95396 imdb:tt11280740 tvdb:371980"
+		if ids := has[str(f["name"])]; ids != "" {
+			want += "; has " + ids
 		}
 		if str(f["detail"]) != want {
 			t.Errorf("%v = %q, want %q", f["name"], f["detail"], want)
@@ -196,16 +203,16 @@ func TestAuditMissingMetadataProvider(t *testing.T) {
 	// the messy episodes' sidecars name no ids at all, so each is an episode
 	// matched nowhere; the clean show library's were all matched
 	out = call(t, "audit_missing_metadata_provider", map[string]any{"library": "Messy Shows", "types": "Episode"})
-	if n, scanned := num(t, out["total_findings"], "total_findings"), num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes || scanned != messyEpisodes {
-		t.Errorf("messy episodes matched nowhere = %d of %d, want all %d", n, scanned, messyEpisodes)
+	if n, scanned := num(t, out["total_findings"], "total_findings"), num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes() || scanned != messyEpisodes() {
+		t.Errorf("messy episodes matched nowhere = %d of %d, want all %d", n, scanned, messyEpisodes())
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
 		if str(f["detail"]) != "no provider id" || !strings.HasPrefix(str(f["path"]), "/media/messy-shows/") {
 			t.Errorf("episode finding = %v", f)
 		}
 	}
-	if out := call(t, "audit_missing_metadata_provider", map[string]any{"library": "Shows", "types": "Series,Episode"}); num(t, out["total_findings"], "total_findings") != 0 || num(t, out["items_scanned"], "items_scanned") != 3+9 {
-		t.Errorf("the clean show library = %v, want its 3 series and 9 episodes all matched", out)
+	if out := call(t, "audit_missing_metadata_provider", map[string]any{"library": "Shows", "types": "Series,Episode"}); num(t, out["total_findings"], "total_findings") != 0 || num(t, out["items_scanned"], "items_scanned") != len(shows)+showEpisodes() {
+		t.Errorf("the clean show library = %v, want its %d series and %d episodes all matched", out, len(shows), showEpisodes())
 	}
 	// and a misspelling is refused rather than flagging every item
 	if msg := callErr(t, "audit_missing_metadata_provider", map[string]any{"missing": "tmbd"}); !strings.Contains(msg, "tmdb, imdb, tvdb") {
@@ -232,6 +239,10 @@ func TestAuditMissingMetadataProvider(t *testing.T) {
 // else, and the three no nfo names at all.
 var messyBare = sorted(append([]string{"Arrival"}, messyUnmatched...))
 
+// The films with no poster: those, and Moon, the DVD kept whole, whose nfo
+// has its plot and nothing beside it is a poster.
+var messyPosterless = sorted(append([]string{"Moon"}, messyBare...))
+
 func TestAuditMissingOverview(t *testing.T) {
 	out := call(t, "audit_missing_overview", map[string]any{"library": "Messy Movies"})
 	if got := findings(t, out); !slices.Equal(got, messyBare) {
@@ -248,11 +259,15 @@ func TestAuditMissingOverview(t *testing.T) {
 		t.Errorf("series with no overview = %v, want %v", got, want)
 	}
 	// and the episodes with no nfo beside them: the Knight pair, named by
-	// the server after their files. Every other messy episode's nfo has a
-	// plot
+	// the server after their files, and on Emby the featurette it takes for
+	// an episode. Every other messy episode's nfo has a plot
+	want := []string{"A Knight of the Seven Kingdoms S01E01", "A Knight of the Seven Kingdoms S01E02"}
+	if !isJellyfin() {
+		want = append(want, "Featurette")
+	}
 	out = call(t, "audit_missing_overview", map[string]any{"library": "Messy Shows", "types": "Episode"})
-	if got, want := findings(t, out), []string{"A Knight of the Seven Kingdoms S01E01", "A Knight of the Seven Kingdoms S01E02"}; !slices.Equal(got, want) || num(t, out["items_scanned"], "items_scanned") != messyEpisodes {
-		t.Errorf("episodes with no overview = %v of %v scanned, want %v of %d", got, out["items_scanned"], want, messyEpisodes)
+	if got := findings(t, out); !slices.Equal(got, want) || num(t, out["items_scanned"], "items_scanned") != messyEpisodes() {
+		t.Errorf("episodes with no overview = %v of %v scanned, want %v of %d", got, out["items_scanned"], want, messyEpisodes())
 	}
 
 	// an overview of nothing but spaces is no overview: Jellyfin keeps one
@@ -271,8 +286,8 @@ func TestAuditMissingOverview(t *testing.T) {
 
 func TestAuditMissingPoster(t *testing.T) {
 	out := call(t, "audit_missing_poster", map[string]any{"library": "Messy Movies"})
-	if got := findings(t, out); !slices.Equal(got, messyBare) {
-		t.Errorf("no poster = %v, want %v", got, messyBare)
+	if got := findings(t, out); !slices.Equal(got, messyPosterless) {
+		t.Errorf("no poster = %v, want %v", got, messyPosterless)
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
 		if str(f["detail"]) != "no primary image" {
@@ -282,18 +297,18 @@ func TestAuditMissingPoster(t *testing.T) {
 	// no messy series has a poster.jpg, and with the fetchers off nothing
 	// gave it one
 	out = call(t, "audit_missing_poster", map[string]any{"library": "Messy Shows"})
-	if got, want := findings(t, out), sorted(append([]string{".hack//Liminality", "Severance"}, unmatchedShows...)); !slices.Equal(got, want) {
-		t.Errorf("series with no poster = %v, want %v", got, want)
+	if got, want := findings(t, out), sorted(append([]string{".hack//Liminality", "Severance", "The Wire", "The Wire", "Red Dwarf", "Asterix & Obelix: The Big Fight"}, unmatchedShows...)); !slices.Equal(got, want) || len(want) != messySeries {
+		t.Errorf("series with no poster = %v, want every one of the %d: %v", got, messySeries, want)
 	}
 	// nor any messy episode an image, where the clean show library's were
 	// all given one
 	out = call(t, "audit_missing_poster", map[string]any{"library": "Messy Shows", "types": "Episode"})
-	if n := num(t, out["total_findings"], "total_findings"); n != messyEpisodes || num(t, out["items_scanned"], "items_scanned") != messyEpisodes {
-		t.Errorf("messy episodes with no image = %d of %v, want all %d", n, out["items_scanned"], messyEpisodes)
+	if n := num(t, out["total_findings"], "total_findings"); n != messyEpisodes() || num(t, out["items_scanned"], "items_scanned") != messyEpisodes() {
+		t.Errorf("messy episodes with no image = %d of %v, want all %d", n, out["items_scanned"], messyEpisodes())
 	}
 	out = call(t, "audit_missing_poster", map[string]any{"library": "Shows", "types": "Series,Episode"})
-	if n := num(t, out["total_findings"], "total_findings"); n != 0 || num(t, out["items_scanned"], "items_scanned") != 3+9 {
-		t.Errorf("the clean show library = %d missing of %v, want none of 12", n, out["items_scanned"])
+	if n := num(t, out["total_findings"], "total_findings"); n != 0 || num(t, out["items_scanned"], "items_scanned") != len(shows)+showEpisodes() {
+		t.Errorf("the clean show library = %d missing of %v, want none of %d", n, out["items_scanned"], len(shows)+showEpisodes())
 	}
 }
 
@@ -508,6 +523,8 @@ func TestAuditDuplicates(t *testing.T) {
 		"Movie Blade Runner + Movie Blade Runner",
 		"Movie Memento + Series Breaking Bad",
 		"Series Severance + Series Severance",
+		// one show split by a folder rename
+		"Series The Wire + Series The Wire",
 	}
 	if !slices.Equal(sorted(got), want) {
 		t.Errorf("duplicates across every kind = %v, want %v", sorted(got), want)
@@ -559,22 +576,35 @@ func TestAuditMultipleVersions(t *testing.T) {
 // .hack//Liminality's episodes run three minutes but the last, cut to a second.
 // The messy Severance's five-second third episode among one-second ones is
 // not a finding: 0 minutes against a 0 minute median is under the two-minute
-// floor, which is what the floor is for.
+// floor, which is what the floor is for. Deep Space Nine's season 3 file
+// claims twelve hours for a second of video: broken metadata, reported first
+// and for what it is, with no season to hold it to.
 func TestAuditRuntimeEpisodes(t *testing.T) {
 	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})
-	if got := num(t, out["items_scanned"], "items_scanned"); got != messyEpisodes {
-		t.Errorf("scanned %d episodes, want %d", got, messyEpisodes)
+	if got := num(t, out["items_scanned"], "items_scanned"); got != messyEpisodeFiles {
+		t.Errorf("scanned %d episodes, want the %d episode files, the featurette Emby takes for one left out", got, messyEpisodeFiles)
 	}
 	found := rows(t, out["findings"], "findings")
-	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
-		t.Fatalf("findings = %v, want the one cut short", found)
+	if len(found) != 2 || num(t, out["total_findings"], "total_findings") != 2 {
+		t.Fatalf("findings = %v, want the broken duration and the one cut short", found)
 	}
-	if f := found[0]; str(f["name"]) != ".hack//Liminality S01E03 In the Case of Kyoko Tohno" || str(f["detail"]) != "0 min, season median 3 min (100% off)" || !strings.HasSuffix(str(f["path"]), "/hack Liminality S01E03.mp4") {
+	if f := found[0]; str(f["name"]) != "Star Trek: Deep Space Nine S03E01 The Search (1)" || str(f["detail"]) != "720 min: not a runtime, the file's duration metadata is broken" || !strings.HasSuffix(str(f["path"]), "/Season 03/Star Trek Deep Space Nine S03E01.mkv") {
+		t.Errorf("the broken duration = %v", f)
+	}
+	if f := found[1]; str(f["name"]) != ".hack//Liminality S01E03 In the Case of Kyoko Tohno" || str(f["detail"]) != "0 min, season median 3 min (100% off)" || !strings.HasSuffix(str(f["path"]), "/hack Liminality S01E03.mp4") {
 		t.Errorf("finding = %v", f)
 	}
-	// a tolerance of 100% forgives a file that runs none of its median
-	if n := num(t, call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "tolerance_percent": 100})["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("tolerance 100 found %d", n)
+	// the broken file's own row says what the file claims: twelve hours
+	ds9 := findItem(t, "Messy Shows", "Series", "Star Trek: Deep Space Nine")
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": ds9, "season": 3})["episodes"], "episodes") {
+		if num(t, e["runtime_s"], "runtime_s") != 43200 || e["runtime_multiple"] != nil {
+			t.Errorf("the broken file's row = %v runtime_s, multiple %v: want 43200 and no multiple to hold it to", e["runtime_s"], e["runtime_multiple"])
+		}
+	}
+	// a tolerance of 100% forgives a file that runs none of its median, and
+	// not a duration that is no runtime at all
+	if got := findings(t, call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "tolerance_percent": 100})); !slices.Equal(got, []string{"Star Trek: Deep Space Nine S03E01 The Search (1)"}) {
+		t.Errorf("tolerance 100 found %v, want the broken duration alone", got)
 	}
 	// and the clean shows, their episodes all a second, have nothing off
 	if n := num(t, call(t, "audit_runtime", map[string]any{"library": "Shows", "limit": 1})["total_findings"], "total_findings"); n != 0 {
@@ -589,11 +619,14 @@ func TestAuditProviderRuntime(t *testing.T) {
 	needsTMDBCassette(t)
 	out := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime"})
 	got := findings(t, out)
-	// every file is a second long, and five films are passed over for three
-	// reasons: Princess Mononoke and the two discs hold no id at all, Memento
-	// holds an IMDb id and no TMDB one to read a runtime by, and TMDB has no
-	// film for the Despecialized Edition's id, so no runtime to hold it to
-	want := []string{"Alien", "Alien", "Arrival", "Blade Runner", "Dune", "Interstellar"}
+	// every file is a second long, and the films passed over are passed
+	// over for what they hold: Princess Mononoke and the loose and Blu-ray
+	// discs no id at all, Memento an IMDb id and no TMDB one to read a
+	// runtime by, and the Despecialized Edition a TMDB id TMDB has no film
+	// for. The DVD kept whole runs as long as the server read it: a second on
+	// Jellyfin, which reads the disc, and not at all on Emby, which does not,
+	// so there it has no runtime to hold to TMDB's
+	want := []string{"Alien", "Alien", "Arrival", "Blade Runner", "Dune", "Interstellar", "Moon"}
 	if !versionsMerged() {
 		want = []string{"Alien", "Alien", "Arrival", "Blade Runner", "Blade Runner", "Dune", "Interstellar"}
 	}
@@ -631,6 +664,29 @@ func TestAuditProviderRuntime(t *testing.T) {
 	// only TMDB yet, said plainly
 	if msg := callErr(t, "audit_provider", map[string]any{"provider": "tvdb"}); !strings.Contains(msg, "provider must be tmdb") {
 		t.Errorf("another provider: %s", msg)
+	}
+}
+
+// Limitless runs its real length, 106 minutes of a still frame a second,
+// which costs next to nothing: among the clean films, whose files run a
+// second, it is the one the runtime check must leave alone, TMDB's runtime
+// for it being the same 106 minutes.
+func TestAFilmRunningItsRealLength(t *testing.T) {
+	needsTMDBCassette(t)
+	limitless := findItem(t, "Movies", "Movie", "Limitless")
+	if got := call(t, "item_get", map[string]any{"id": limitless}); num(t, got["runtime_s"], "runtime_s") != 106*60 || num(t, got["height"], "height") != 720 {
+		t.Errorf("Limitless = %vs at %vp, want its 106 minutes at 720p", got["runtime_s"], got["height"])
+	}
+	out := call(t, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime"})
+	var want []string
+	for _, m := range movies {
+		if m.Title != "Limitless" {
+			want = append(want, m.Title)
+		}
+	}
+	slices.Sort(want)
+	if got := findings(t, out); !slices.Equal(got, want) || num(t, out["items_scanned"], "items_scanned") != len(movies) {
+		t.Errorf("runtime off in Movies = %v of %v, want every film but Limitless: %v", got, out["items_scanned"], want)
 	}
 }
 
@@ -673,7 +729,7 @@ func TestAuditAll(t *testing.T) {
 	}
 	want := map[string]int{
 		"audit_missing_metadata_provider": len(messyUnmatched),
-		"audit_missing_poster":            len(messyBare),
+		"audit_missing_poster":            len(messyPosterless),
 		"audit_missing_overview":          len(messyBare),
 		// Dune's year
 		"audit_file_path": 1,
@@ -684,9 +740,10 @@ func TestAuditAll(t *testing.T) {
 		"audit_duplicate_series":   0,
 		"audit_disc_folders":       1,
 		"audit_runtime":            0,
-		// every film but the Blade Runner cuts and the Blu-ray kept whole,
-		// which the server never probed and so is not judged
-		"audit_quality":          9,
+		// every film but the Blade Runner cuts and the discs kept whole,
+		// which Emby never probes and so does not judge; Jellyfin reads the
+		// DVD, and it is a 480p MPEG-2 one
+		"audit_quality":          10,
 		"audit_missing_episodes": 0,
 		// the Despecialized Edition's Science-Fiction
 		"audit_spelling": 1,
@@ -695,7 +752,7 @@ func TestAuditAll(t *testing.T) {
 		// Emby shows the two messy Aliens, sharing a TMDB id, as one film's
 		// versions as well, which leaves no duplicates in the library
 		want["audit_multiple_versions"], want["audit_duplicates"] = 2, 0
-		want["audit_quality"] = 8 // and judges them as one film
+		want["audit_quality"] = 8 // and judges them as one film, and the DVD not at all
 	}
 	for audit, n := range want {
 		if counts[audit] != n {
@@ -776,7 +833,7 @@ func TestAuditAll(t *testing.T) {
 	// 0 that reads as a clean library.
 	covers := 1
 	if !isJellyfin() {
-		covers = len(albums)
+		covers = musicAlbums()
 	}
 	music := call(t, "audit_all", map[string]any{"library": "Music"})
 	ran := map[string]bool{}
@@ -793,8 +850,8 @@ func TestAuditAll(t *testing.T) {
 		switch {
 		case !applies:
 			t.Errorf("Music %s ran: %v", name, row)
-		case num(t, row["findings"], "findings") != want || num(t, row["items_scanned"], "items_scanned") != len(albums) || str(row["types"]) != "MusicAlbum":
-			t.Errorf("Music %s = %v, want %d of the %d albums, read as MusicAlbum", name, row, want, len(albums))
+		case num(t, row["findings"], "findings") != want || num(t, row["items_scanned"], "items_scanned") != musicAlbums() || str(row["types"]) != "MusicAlbum":
+			t.Errorf("Music %s = %v, want %d of the %d albums, read as MusicAlbum", name, row, want, musicAlbums())
 		}
 		// and it is the audit's own count, asked for the albums
 		own := call(t, name, map[string]any{"library": "Music", "types": str(row["types"])})
@@ -826,18 +883,24 @@ func TestAuditAll(t *testing.T) {
 	if isJellyfin() {
 		pathRows = 4 // and the run Jellyfin reads from the nfo
 	}
+	// The Wire's second episode, one copy in each of its folders, is one
+	// episode's two versions to Emby, which shows them so
+	twice := 0
+	if !isJellyfin() {
+		twice = 1
+	}
 	for audit, n := range map[string]int{
 		"audit_missing_metadata_provider": len(unmatchedShows),
 		"audit_missing_poster":            messySeries,
 		"audit_missing_overview":          3,
 		"audit_file_path":                 pathRows,
-		"audit_multiple_versions":         0,
-		"audit_duplicates":                0,
+		"audit_multiple_versions":         twice,
+		"audit_duplicates":                1, // The Wire's two entries
 		"audit_duplicate_episodes":        0,
 		"audit_duplicate_series":          1,
 		"audit_disc_folders":              0,
-		"audit_runtime":                   1,
-		"audit_quality":                   messyEpisodes,
+		"audit_runtime":                   2, // .hack//Liminality's short one, and Deep Space Nine's broken duration
+		"audit_quality":                   messyEpisodesJudged() - 1,
 		"audit_missing_episodes":          3, // Andor, Deep Space Nine and The Next Generation
 		"audit_spelling":                  1,
 	} {
@@ -869,9 +932,10 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 }
 
 // audit_language against files whose streams the servers probed: the messy
-// Princess Mononoke carries Japanese audio, The Thirteenth Floor an English
-// subtitle beside it, and every other fixture an audio track with no language
-// tag - which is what most real rips carry too.
+// Princess Mononoke carries Japanese audio and then English, the messy
+// Despecialized Edition German alone, tagged ger, The Thirteenth Floor an
+// English subtitle beside it, and every other fixture an audio track with no
+// language tag - which is what most real rips carry too.
 func TestAuditLanguage(t *testing.T) {
 	names := func(out map[string]any) []string {
 		var got []string
@@ -881,52 +945,71 @@ func TestAuditLanguage(t *testing.T) {
 
 		return got
 	}
-
-	japanese := call(t, "audit_language", map[string]any{"language": "ja", "library": "Messy Movies"})
-	if got := names(japanese); !slices.Equal(got, []string{"Princess Mononoke"}) {
-		t.Errorf("japanese audio = %v, want [Princess Mononoke]", got)
+	// the films the servers hold no audio track for: the Blu-ray kept whole,
+	// which neither probes, and on Emby the DVD kept whole, which it does not
+	// probe either
+	noTrack := 2
+	if isJellyfin() {
+		noTrack = 1
 	}
-	if f := rows(t, japanese["findings"], "findings"); len(f) == 1 && str(f[0]["detail"]) != "audio: jpn; subtitles: none" {
-		t.Errorf("detail = %q, want the Japanese track and no subtitles", f[0]["detail"])
+
+	// any track counts: Princess Mononoke's English is its second, and it has
+	// Japanese audio and English audio alike
+	for _, language := range []string{"ja", "eng"} {
+		out := call(t, "audit_language", map[string]any{"language": language, "library": "Messy Movies"})
+		f := rows(t, out["findings"], "findings")
+		if got := names(out); !slices.Equal(got, []string{"Princess Mononoke"}) || len(f) != 1 || str(f[0]["detail"]) != "audio: jpn, eng; subtitles: none" {
+			t.Errorf("%s audio = %v, want Princess Mononoke's two tracks", language, f)
+		}
+	}
+	// German is ger in one file and deu in the next, and the audit reads the
+	// two as one language whichever is asked for
+	for _, language := range []string{"deu", "ger", "de"} {
+		out := call(t, "audit_language", map[string]any{"language": language, "library": "Messy Movies"})
+		f := rows(t, out["findings"], "findings")
+		if len(f) != 1 || title(str(f[0]["name"])) != despecialized || str(f[0]["detail"]) != "audio: deu; subtitles: none" {
+			t.Errorf("%s audio = %v, want the Despecialized Edition's German track", language, f)
+		}
 	}
 	// and that film is the one the messy library cannot be watched in, or
 	// heard, in English: its one track is tagged, and tagged something else.
-	// The rest carry untagged audio, which may be English, and the Blu-ray
-	// kept whole no audio track the server knows of
+	// Princess Mononoke's English is no longer "no audio" for being second;
+	// the rest carry untagged audio, which may be English, and the discs kept
+	// whole no audio track the server knows of
 	for _, find := range []string{"no_audio", "unwatchable"} {
 		out := call(t, "audit_language", map[string]any{"language": "eng", "find": find, "library": "Messy Movies"})
 		scanned := num(t, out["items_scanned"], "items_scanned")
 		f := rows(t, out["findings"], "findings")
-		if len(f) != 1 || title(str(f[0]["name"])) != "Princess Mononoke" || str(f[0]["detail"]) != "audio: jpn; subtitles: none" || num(t, out["total_findings"], "total_findings") != 1 {
-			t.Errorf("%s in English = %v, want Princess Mononoke alone", find, f)
+		if len(f) != 1 || title(str(f[0]["name"])) != despecialized || str(f[0]["detail"]) != "audio: deu; subtitles: none" || num(t, out["total_findings"], "total_findings") != 1 {
+			t.Errorf("%s in English = %v, want the Despecialized Edition alone", find, f)
 		}
 		// the films as people are shown them: Emby's versions judged together
-		if scanned != messyMoviesShown() || num(t, out["untagged"], "untagged") != scanned-2 || num(t, out["no_audio_track"], "no_audio_track") != 1 {
-			t.Errorf("%s in English: untagged %v and no_audio_track %v of %d scanned, want all but two, and one", find, out["untagged"], out["no_audio_track"], scanned)
+		if scanned != messyMoviesShown() || num(t, out["untagged"], "untagged") != scanned-2-noTrack || num(t, out["no_audio_track"], "no_audio_track") != noTrack {
+			t.Errorf("%s in English: untagged %v and no_audio_track %v of %d scanned, want all but the two tagged and the %d with none, and %d", find, out["untagged"], out["no_audio_track"], scanned, noTrack, noTrack)
 		}
 	}
 	// episodes are swept too, and every messy one is untagged: nothing to
 	// report, and each counted
 	out := call(t, "audit_language", map[string]any{"language": "eng", "find": "unwatchable", "library": "Messy Shows"})
-	if num(t, out["total_findings"], "total_findings") != 0 || num(t, out["items_scanned"], "items_scanned") != messyEpisodes || num(t, out["untagged"], "untagged") != messyEpisodes {
-		t.Errorf("the messy episodes = %v, want all %d scanned and untagged", out, messyEpisodes)
+	if num(t, out["total_findings"], "total_findings") != 0 || num(t, out["items_scanned"], "items_scanned") != messyEpisodesShown() || num(t, out["untagged"], "untagged") != messyEpisodesShown() {
+		t.Errorf("the messy episodes = %v, want all %d scanned and untagged", out, messyEpisodesShown())
 	}
 	// a series is not a file: asked for series alone, there is nothing to read
 	if out := call(t, "audit_language", map[string]any{"language": "eng", "library": "Messy Shows", "types": "Series"}); num(t, out["total_findings"], "total_findings")+num(t, out["untagged"], "untagged")+num(t, out["no_audio_track"], "no_audio_track") != 0 {
 		t.Errorf("types=Series = %v, want nothing judged", out)
 	}
 
-	// the rest carry untagged audio, so nothing is reported as lacking
-	// Japanese: an untagged track may be it. The Blu-ray kept whole has no
-	// audio track the server knows of - it never probed the disc - which is
-	// counted apart rather than judged
+	// lacking Japanese: the German film, whose one track is tagged and not
+	// Japanese; the rest carry untagged audio, which may be Japanese, and the
+	// discs kept whole none the server knows of, each counted apart rather
+	// than judged
 	lacking := call(t, "audit_language", map[string]any{"language": "jpn", "find": "no_audio", "library": "Messy Movies"})
 	scanned := num(t, lacking["items_scanned"], "items_scanned")
-	if n := num(t, lacking["total_findings"], "total_findings"); n != 0 || scanned != messyMoviesShown() {
-		t.Errorf("of %d scanned, lacking japanese: %v", scanned, lacking["findings"])
+	if got := names(lacking); !slices.Equal(got, []string{despecialized}) || scanned != messyMoviesShown() {
+		t.Errorf("of %d scanned, lacking japanese: %v, want the Despecialized Edition", scanned, got)
 	}
-	if n, none := num(t, lacking["untagged"], "untagged"), num(t, lacking["no_audio_track"], "no_audio_track"); none != 1 || n != scanned-2 {
-		t.Errorf("untagged = %d and no_audio_track %d of %d scanned, want all but Princess Mononoke and the kept Blu-ray, and that one", n, none, scanned)
+	if n, none := num(t, lacking["untagged"], "untagged"), num(t, lacking["no_audio_track"], "no_audio_track"); none != noTrack || n != scanned-2-noTrack {
+		t.Errorf("untagged = %d and no_audio_track %d of %d scanned, want all but the two tagged and the %d with no track, and those", n, none, scanned, noTrack)
 	}
 
 	// the subtitle is read off the file beside the film, language from its name
@@ -936,7 +1019,7 @@ func TestAuditLanguage(t *testing.T) {
 	}
 	// the films alone are the whole library (a limit is read where there
 	// are two to cap, TestAuditLanguageStaged)
-	if films := call(t, "audit_language", map[string]any{"language": "eng", "find": "subtitles", "library": "Movies", "types": "Movie"}); !slices.Equal(names(films), []string{"The Thirteenth Floor"}) || num(t, films["items_scanned"], "items_scanned") != 8 {
+	if films := call(t, "audit_language", map[string]any{"language": "eng", "find": "subtitles", "library": "Movies", "types": "Movie"}); !slices.Equal(names(films), []string{"The Thirteenth Floor"}) || num(t, films["items_scanned"], "items_scanned") != len(movies) {
 		t.Errorf("types Movie = %v of %v", names(films), films["items_scanned"])
 	}
 
