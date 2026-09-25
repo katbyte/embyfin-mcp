@@ -1198,33 +1198,7 @@
           "Name": "Value",
           "JsonName": "value",
           "Type": {
-            "Type": "Reference",
-            "ReferenceName": "MovieChangesResponseChangesItemsValue"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "MovieChangesResponseChangesItemsValue",
-      "Fields": [
-        {
-          "Name": "Poster",
-          "JsonName": "poster",
-          "Type": {
-            "Type": "Reference",
-            "ReferenceName": "MovieChangesResponseChangesItemsValuePoster"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "MovieChangesResponseChangesItemsValuePoster",
-      "Fields": [
-        {
-          "Name": "FilePath",
-          "JsonName": "file_path",
-          "Type": {
-            "Type": "String"
+            "Type": "Any"
           }
         }
       ]

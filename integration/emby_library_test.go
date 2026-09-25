@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 	"github.com/katbyte/go-kt/pointer"
@@ -159,10 +158,10 @@ func embyWaitForItems(ctx context.Context, t *testing.T, parentID string, l libr
 		m, s, e := embyCount(ctx, parentID, "Movie"), embyCount(ctx, parentID, "Series"), embyCount(ctx, parentID, "Episode")
 		last = fmt.Sprintf("%d movies, %d series, %d episodes", m, s, e)
 
-		return m == l.Movies && s == l.Series && e == l.Episodes
+		return m == l.films() && s == l.Series && e == l.Episodes
 	})
 	if !ok {
-		t.Fatalf("%s never reached %d movies, %d series, %d episodes; last saw %s", l.Name, l.Movies, l.Series, l.Episodes, last)
+		t.Fatalf("%s never reached %d movies, %d series, %d episodes; last saw %s", l.Name, l.films(), l.Series, l.Episodes, last)
 	}
 }
 
@@ -190,7 +189,7 @@ func embyScanEnded(ctx context.Context) string {
 func embyWaitForScan(ctx context.Context, t *testing.T, since string) {
 	t.Helper()
 
-	ok := poll(4*time.Minute, func() bool {
+	ok := poll(scanPatience, func() bool {
 		tasks, err := embyc.GetScheduledTasks(ctx, emby.GetScheduledTasksOperationOptions{})
 		if err != nil {
 			return false
@@ -225,13 +224,14 @@ func embyScanTask(ctx context.Context, t *testing.T) emby.TaskInfo {
 	return emby.TaskInfo{}
 }
 
-// embyMovie finds one of the fixture movies by title.
+// embyMovie finds one of the fixture movies by title. (By search term: Emby
+// matches NameStartsWith against the sort name, which drops a leading "The".)
 func embyMovie(t *testing.T, title string) emby.BaseItemDto {
 	t.Helper()
 
 	res := must(embyc.GetItems(t.Context(), emby.GetItemsOperationOptions{
 		ParentId: embyLibrary(t, sdkMovies), Recursive: new(true), IncludeItemTypes: "Movie",
-		NameStartsWith: title, Fields: "ProviderIds,Path,ProductionYear",
+		SearchTerm: title, Fields: "ProviderIds,Path,ProductionYear",
 	})).Model
 	for i := range res.Items {
 		if res.Items[i].Name == title {
@@ -258,13 +258,31 @@ func embyFirst(t *testing.T, parentID, kind string) emby.BaseItemDto {
 	return res.Items[0]
 }
 
-// embySeries finds one of the fixture series by title.
+// embyAlbum finds one of the fixture albums by title.
+func embyAlbum(t *testing.T, parentID, title string) emby.BaseItemDto {
+	t.Helper()
+
+	res := must(embyc.GetItems(t.Context(), emby.GetItemsOperationOptions{
+		ParentId: parentID, Recursive: new(true), IncludeItemTypes: "MusicAlbum", SearchTerm: title,
+	})).Model
+	for i := range res.Items {
+		if res.Items[i].Name == title {
+			return res.Items[i]
+		}
+	}
+	t.Fatalf("no album titled %q in %s", title, sdkMusic.Name)
+
+	return emby.BaseItemDto{}
+}
+
+// embySeries finds one of the fixture series by title (by search term, as
+// embyMovie does).
 func embySeries(t *testing.T, title string) emby.BaseItemDto {
 	t.Helper()
 
 	res := must(embyc.GetItems(t.Context(), emby.GetItemsOperationOptions{
 		ParentId: embyLibrary(t, sdkShows), Recursive: new(true), IncludeItemTypes: "Series",
-		NameStartsWith: title, Fields: "ProviderIds,ProductionYear",
+		SearchTerm: title, Fields: "ProviderIds,ProductionYear",
 	})).Model
 	for i := range res.Items {
 		if res.Items[i].Name == title {
@@ -417,7 +435,7 @@ func TestEmbyScanTask(t *testing.T) {
 	embyWaitForScan(ctx, t, since)
 	after := must(embyc.GetScheduledTasksById(ctx, scan.Id)).Model
 	if after.LastExecutionResult == nil || after.LastExecutionResult.Status == "" || after.LastExecutionResult.StartTimeUtc == "" {
-		t.Errorf("after running the scan its LastExecutionResult = %+v", after.LastExecutionResult)
+		t.Fatalf("after running the scan its LastExecutionResult = %+v", after.LastExecutionResult)
 	}
 	if !strings.EqualFold(string(after.LastExecutionResult.Status), "Completed") {
 		t.Errorf("the scan finished %s", after.LastExecutionResult.Status)

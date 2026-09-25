@@ -163,4 +163,103 @@ func TestAuditAnimeIDs(t *testing.T) {
 	if capped := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows", "limit": 1}); len(rows(t, capped["split_out"], "split_out")) != 1 || num(t, capped["total_split_out"], "total_split_out") != 1 {
 		t.Errorf("limit 1 = %v", capped)
 	}
+
+	// More of the show's specials, as a library holding them all would:
+	// where the list gives an entry only its first special, the entry runs
+	// over the specials held after it, and stops at a gap, at a special too
+	// short to be one (an opening, a trailer), or where the next entry
+	// begins. The History of Trunks' place, 11, is the next entry, and the
+	// library holds that one as a series of its own as well.
+	dbz, trunks := str(split["series_id"]), str(named("ids_disagree", "Dragon Ball Z: The History of Trunks")["id"])
+	season0 := filepath.Join(root, staged[0], "Season 00")
+	short := fixture(t, "messy-shows/Severance/Season 01/Severance S01E01.mp4")
+	// lays specials out, or takes them away, and scans until the library
+	// holds that many episodes
+	lay := func(files map[string][]byte, remove ...string) {
+		t.Helper()
+		want := typeCount(t, "Messy Shows", "Episode") + len(files) - len(remove)
+		for _, f := range remove {
+			if err := os.Remove(filepath.Join(season0, f)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for f, raw := range files {
+			mediaWrite(t, filepath.Join(season0, f), raw)
+		}
+		rescanUntil(t, "Dragon Ball Z's specials", func() bool { return typeCount(t, "Messy Shows", "Episode") == want })
+	}
+	splits := func() []string {
+		t.Helper()
+		out := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
+		var got []string
+		for _, row := range rows(t, out["split_out"], "split_out") {
+			var eps []string
+			for _, s := range rows(t, row["specials"], "specials") {
+				eps = append(eps, fmt.Sprint(num(t, s["episode"], "episode")))
+			}
+			entry, _, _ := strings.Cut(strings.TrimPrefix(str(row["anidb"]), "AniDB "), " ")
+			line := fmt.Sprintf("%s %s: %s", entry, row["where"], strings.Join(eps, " "))
+			switch held := str(row["held_also"]); {
+			case held == trunks:
+				line += ", held also"
+			case held != "":
+				line += ", held also as " + held
+			}
+			if str(row["series_id"]) != dbz {
+				line += " in " + str(row["series"])
+			}
+			got = append(got, line)
+		}
+		if n := num(t, out["total_split_out"], "total_split_out"); n != len(got) {
+			t.Errorf("total_split_out = %d for %d rows", n, len(got))
+		}
+
+		return got
+	}
+
+	lay(map[string][]byte{
+		"Dragon Ball Z S00E05.mp4": special,
+		"Dragon Ball Z S00E06.mp4": short,
+		"Dragon Ball Z S00E07.mp4": special,
+		"Dragon Ball Z S00E11.mp4": special,
+	})
+	if got, want := splits(), []string{"2336 TVDB specials from 4: 4 5", "1474 TVDB specials from 11: 11, held also"}; !slices.Equal(got, want) {
+		t.Errorf("with specials 4 to 7 and 11 held, the sixth a second long = %v, want %v", got, want)
+	}
+	// specials are no season to be missing episodes from: 4 to 7 and 11
+	// leave 8 to 10 out, and that is not a gap
+	if got := findings(t, call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})); slices.Contains(got, "Dragon Ball Z") {
+		t.Errorf("series with gaps = %v, want Dragon Ball Z's specials left out of it", got)
+	}
+
+	lay(nil, "Dragon Ball Z S00E06.mp4")
+	lay(map[string][]byte{
+		"Dragon Ball Z S00E06.mp4": special,
+		"Dragon Ball Z S00E08.mp4": special,
+		"Dragon Ball Z S00E09.mp4": special,
+		"Dragon Ball Z S00E10.mp4": special,
+	})
+	whole := []string{"2336 TVDB specials from 4: 4 5 6 7 8 9 10", "1474 TVDB specials from 11: 11, held also"}
+	if got := splits(); !slices.Equal(got, whole) {
+		t.Errorf("with specials 4 to 11 held = %v, want %v", got, whole)
+	}
+
+	// placed by TMDB's numbers where the show holds no TVDB id: the list
+	// gives both entries the same places there
+	t.Run("by TMDB", func(t *testing.T) {
+		setIDs(t, dbz, map[string]any{"Tmdb": "12971", "AniDB": "1530"})
+		if got, want := splits(), []string{"2336 TMDB specials from 4: 4 5 6 7 8 9 10", "1474 TMDB specials from 11: 11, held also"}; !slices.Equal(got, want) {
+			t.Errorf("by TMDB = %v, want %v", got, want)
+		}
+	})
+	// The History of Trunks holding the show's TVDB id rather than its TMDB
+	// one disagrees with its AniDB id the same way, said of TVDB
+	t.Run("by TVDB", func(t *testing.T) {
+		setIDs(t, trunks, map[string]any{"Tvdb": "81472", "AniDB": "1474"})
+		out := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
+		disagree := rows(t, out["ids_disagree"], "ids_disagree")
+		if len(disagree) != 1 || str(disagree[0]["id"]) != trunks || str(disagree[0]["detail"]) != "its TVDB id is the whole show (series 81472), but its AniDB id is one of that show's specials: one of the two is wrong" {
+			t.Errorf("ids_disagree = %v", disagree)
+		}
+	})
 }

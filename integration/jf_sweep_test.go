@@ -5,6 +5,8 @@ package integration
 import (
 	"context"
 	"maps"
+	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/lib/jf"
@@ -29,7 +31,7 @@ func TestJFReadSweep(t *testing.T) {
 	if len(musicArtists) == 0 {
 		t.Fatal("the music fixtures hold no artist")
 	}
-	// Jellyfin 12.0 documents no music genre listing, only a genre by name,
+	// Jellyfin 12.1 documents no music genre listing, only a genre by name,
 	// so the genre comes back as an item like any other
 	musicGenre := jfFirst(t, musicID, jf.BaseItemKindMusicGenre)
 	series := jfSeries(t, severance)
@@ -43,9 +45,42 @@ func TestJFReadSweep(t *testing.T) {
 			len(people), len(studios), len(logs), len(plugins), len(devices), len(item.MediaSources))
 	}
 
-	// a playlist to read
+	// the film with a subtitle, for the routes that hand one out
+	subtitled := must(jfc.GetItem(ctx, jfMovie(t, thirteenthFloor).Id, jf.GetItemOperationOptions{UserId: adminID})).Model
+	if len(subtitled.MediaSources) == 0 {
+		t.Fatalf("%s has no media source", thirteenthFloor)
+	}
+	srt := slices.IndexFunc(subtitled.MediaSources[0].MediaStreams, func(s jf.MediaStream) bool { return s.Type == jf.MediaStreamTypeSubtitle })
+	if srt < 0 {
+		t.Fatalf("%s lists no subtitle stream: %+v", thirteenthFloor, subtitled.MediaSources[0].MediaStreams)
+	}
+	srtIndex := strconv.Itoa(subtitled.MediaSources[0].MediaStreams[srt].Index)
+	// the catalogue the package routes read
+	packages := must(jfc.GetPackages(ctx)).Model
+	if len(packages) == 0 {
+		t.Fatal("GetPackages listed nothing")
+	}
+	tmdbPlugin := slices.IndexFunc(plugins, func(p jf.PluginInfo) bool { return p.Name == "TMDb" })
+	if tmdbPlugin < 0 {
+		t.Fatalf("no TMDb plugin among %+v", plugins)
+	}
+
+	// a playlist to read, and one of music for the mix made from a playlist
 	created := must(jfc.CreatePlaylist(ctx, jf.CreatePlaylistDto{Name: "SDK Sweep", Ids: []string{movie.Id}, MediaType: jf.MediaTypeVideo, UserId: adminID})).Model
 	t.Cleanup(func() { _, _ = jfc.DeleteItem(context.WithoutCancel(ctx), created.Id) })
+	music := must(jfc.CreatePlaylist(ctx, jf.CreatePlaylistDto{Name: "SDK Sweep Music", Ids: []string{song.Id}, MediaType: jf.MediaTypeAudio, UserId: adminID})).Model
+	t.Cleanup(func() { _, _ = jfc.DeleteItem(context.WithoutCancel(ctx), music.Id) })
+	// and a collection holding the film, once its member has landed (a scan's
+	// refresh can write over it; see TestJFCollections)
+	jfScanIdle(ctx, t)
+	collection := must(jfc.CreateCollection(ctx, jf.CreateCollectionOperationOptions{Name: "SDK Sweep", Ids: []string{movie.Id}})).Model.Id
+	t.Cleanup(func() { jfDeleteCollection(context.WithoutCancel(ctx), t, collection) })
+	if !poll(editPatience, func() bool {
+		res := must(jfc.GetItems(ctx, jf.GetItemsOperationOptions{ParentId: collection, UserId: adminID})).Model
+		return len(res.Items) == 1 && res.Items[0].Id == movie.Id
+	}) {
+		t.Fatalf("the sweep's collection never held %s", alien)
+	}
 
 	fixtures := sweepFixtures{
 		path: map[string]string{
@@ -106,6 +141,27 @@ func TestJFReadSweep(t *testing.T) {
 	cases["GetUniversalAudioStream"] = sweepCase{Options: map[string]any{"Container": "mp3", "UserId": adminID}}
 	// the genre mix is the one route that takes the genre as a required id
 	cases["GetInstantMixFromMusicGenreById"] = sweepCase{Options: map[string]any{"Id": musicGenre.Id}}
+	// a mix is made from music, and an album is like another by its
+	// artist's other album
+	cases["GetInstantMixFromItem"] = sweepCase{Path: map[string]string{"itemId": album.Id}}
+	cases["GetInstantMixFromPlaylist"] = sweepCase{Path: map[string]string{"itemId": music.Id}}
+	cases["GetSimilarAlbums"] = sweepCase{Path: map[string]string{"itemId": jfAlbum(t, musicID, darkSide).Id}}
+	// the subtitle routes read the film with one
+	subtitle := map[string]string{"routeItemId": subtitled.Id, "routeMediaSourceId": subtitled.MediaSources[0].Id, "routeIndex": srtIndex, "routeFormat": "srt", "routeStartPositionTicks": "0"}
+	cases["GetSubtitle"] = sweepCase{Path: subtitle}
+	cases["GetSubtitleWithTicks"] = sweepCase{Path: subtitle}
+	cases["GetSubtitlePlaylist"] = sweepCase{
+		Path:    map[string]string{"itemId": subtitled.Id, "mediaSourceId": subtitled.MediaSources[0].Id, "index": srtIndex},
+		Options: map[string]any{"SegmentLength": 30},
+	}
+	// a package from the catalogue, and the TMDb plugin's settings (the
+	// first plugin's are one false flag)
+	cases["GetPackageInfo"] = sweepCase{Path: map[string]string{"name": packages[0].Name}}
+	cases["GetPluginConfiguration"] = sweepCase{Path: map[string]string{"pluginId": plugins[tmdbPlugin].Id}}
+	// the folder listing lists files only unless asked for folders (/media
+	// holds none), and the legacy filters answer for a library
+	cases["GetDirectoryContents"] = sweepCase{Options: map[string]any{"IncludeDirectories": true}}
+	cases["GetQueryFiltersLegacy"] = sweepCase{Options: map[string]any{"ParentId": moviesID}}
 
 	sweep(t, "jellyfin", jfc, fixtures, cases)
 }
@@ -118,6 +174,8 @@ const (
 	jfNoChannel       = "no channel plugin is installed, so there is no channel to ask about"
 	jfNoSyncPlay      = "SyncPlay needs a group, which needs a second connected client"
 	jfKeyNotUser      = "Jellyfin checks a playlist's access against the calling user, and an API key acts as none, whatever userId says"
+	jfNoBranding      = "no branding is set on a fresh server"
+	jfNoExtras        = "the fixture films have no intros, trailers, extras or additional parts"
 )
 
 // jfSweepCases classifies the Jellyfin GETs that do not simply answer.
@@ -147,13 +205,9 @@ var jfSweepCases = map[string]sweepCase{
 	"GetLineups":                    {Skip: jfNoTuner},
 	"GetSchedulesDirectCountries":   {Skip: jfNoTuner + " (it asks Schedules Direct, through the provider proxy)"},
 	"GetRecordingFolders":           {Skip: jfNoTuner},
-	"GetPackageInfo":                {Skip: "the package catalogue comes from Jellyfin's repository through the provider proxy; GetPackages covers it"},
 	"GetQuickConnectState":          {Skip: "QuickConnect needs a secret from a second device's pairing request"},
 	"GetFallbackFont":               {Skip: "no fallback font directory is configured, so there is no font to fetch"},
 	"GetRemoteSubtitles":            {Skip: "needs a subtitle id from a provider search, and no subtitle provider is installed"},
-	"GetSubtitle":                   {Skip: "the fixture videos carry no subtitle stream"},
-	"GetSubtitleWithTicks":          {Skip: "the fixture videos carry no subtitle stream"},
-	"GetSubtitlePlaylist":           {Skip: "the fixture videos carry no subtitle stream"},
 	"GetTrickplayHlsPlaylist":       {Skip: "no trickplay tiles are generated for the one-second fixtures"},
 	"GetTrickplayTileImage":         {Skip: "no trickplay tiles are generated for the one-second fixtures"},
 	"GetAttachment":                 {Skip: "the fixture videos carry no attachments"},
@@ -169,4 +223,36 @@ var jfSweepCases = map[string]sweepCase{
 	"GetPlaylistUsers":              {Status: 400, Why: jfKeyNotUser},
 	"GetPlaylistUser":               {Status: 400, Why: jfKeyNotUser},
 	"GetTrailers":                   {Status: 500, Why: "the trailers route reads the calling user's claims, which an API key does not have (a NullReferenceException in GetIsApiKey), even with a userId"},
+
+	// the GETs that answer, with nothing in it, on a fresh server and the
+	// fixtures: what they read is not there to read
+	"DiscoverTuners":             {Empty: jfNoTuner},
+	"DiscvoverTuners":            {Empty: jfNoTuner},
+	"GetLiveTvChannels":          {Empty: jfNoTuner},
+	"GetLiveTvPrograms":          {Empty: jfNoTuner},
+	"GetRecommendedPrograms":     {Empty: jfNoTuner},
+	"GetRecordings":              {Empty: jfNoTuner},
+	"GetSeriesTimers":            {Empty: jfNoTuner},
+	"GetTimers":                  {Empty: jfNoTuner},
+	"GetAllChannelFeatures":      {Empty: jfNoChannel},
+	"GetChannels":                {Empty: jfNoChannel},
+	"GetLatestChannelItems":      {Empty: jfNoChannel},
+	"ListBackups":                {Empty: "no backup has been made"},
+	"GetBrandingCss":             {Empty: jfNoBranding},
+	"GetBrandingCss2":            {Empty: jfNoBranding},
+	"GetBrandingOptions":         {Empty: jfNoBranding},
+	"GetDefaultDirectoryBrowser": {Empty: "the default browser path is empty on Linux"},
+	"GetDefaultMetadataOptions":  {Empty: "the defaults a new item type starts from are blank"},
+	"GetFallbackFontList":        {Empty: "no fallback font folder is set"},
+	"GetPublicUsers":             {Empty: "every user is hidden from the login screen (the users test shows one and hides her again)"},
+	"GetResumeItems":             {Empty: "nothing is in progress (the played and resume test clears the position it sets)"},
+	"GetNextUp":                  {Empty: "no episode is played (the shows test unmarks the one it marks)"},
+	"GetUpcomingEpisodes":        {Empty: "the show library has its fetchers off, so no episode is known to be coming"},
+	"GetMovieRecommendations":    {Empty: "no film is watched or liked, which recommendations start from"},
+	"SearchRemoteSubtitles":      {Empty: "no subtitle provider is installed"},
+	"GetItemSegments":            {Empty: "no media segment provider is installed, so no film has an intro or credits marked"},
+	"GetIntros":                  {Empty: jfNoExtras},
+	"GetLocalTrailers":           {Empty: jfNoExtras},
+	"GetSpecialFeatures":         {Empty: jfNoExtras},
+	"GetAdditionalPart":          {Empty: jfNoExtras},
 }

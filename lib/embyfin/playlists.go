@@ -419,7 +419,8 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 		return err
 	}
 	if newIndex < 0 || newIndex >= len(entries) {
-		return fmt.Errorf("position %d is outside the playlist's %d entries", newIndex, len(entries))
+		// counted from 1, as the caller asked for it
+		return fmt.Errorf("position %d is outside the playlist's %d entries", newIndex+1, len(entries))
 	}
 	from := slices.IndexFunc(entries, func(e Item) bool { return e.PlaylistItemID == entryID })
 	if from == newIndex {

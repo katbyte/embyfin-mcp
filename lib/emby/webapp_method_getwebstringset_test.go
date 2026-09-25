@@ -13,13 +13,16 @@ func TestOperationGetWebStringset(t *testing.T) {
 	t.Parallel()
 
 	c, s := newOperationServer(t, 200, "application/json", "[\"s\"]")
-	result, err := c.GetWebStringset(t.Context())
+	result, err := c.GetWebStringset(t.Context(), GetWebStringsetOperationOptions{
+		PluginId: "v-PluginId",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	r, body := s.only(t)
 	_ = body
 	expectRequest(t, r, http.MethodGet, "/web/stringset")
+	expectQuery(t, r, "PluginId", "v-PluginId")
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}
@@ -29,21 +32,27 @@ func TestOperationGetWebStringset(t *testing.T) {
 
 	// a 204 is a null result, with no model
 	c, _ = newOperationServer(t, http.StatusNoContent, "", "")
-	result, err = c.GetWebStringset(t.Context())
+	result, err = c.GetWebStringset(t.Context(), GetWebStringsetOperationOptions{
+		PluginId: "v-PluginId",
+	})
 	if err != nil || result.Model != nil {
 		t.Errorf("a 204 = %v, model %v", err, result.Model)
 	}
 
 	// an answer that does not decode is an error, with the response
 	c, _ = newOperationServer(t, 200, "application/json", "<html>")
-	result, err = c.GetWebStringset(t.Context())
+	result, err = c.GetWebStringset(t.Context(), GetWebStringsetOperationOptions{
+		PluginId: "v-PluginId",
+	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
 	}
 
 	// a status the operation does not document is an error, with the response
 	c, _ = newOperationServer(t, 418, "text/plain", "no")
-	result, err = c.GetWebStringset(t.Context())
+	result, err = c.GetWebStringset(t.Context(), GetWebStringsetOperationOptions{
+		PluginId: "v-PluginId",
+	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)
 	}

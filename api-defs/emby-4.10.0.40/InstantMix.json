@@ -1829,6 +1829,15 @@
           "Type": {
             "Type": "String"
           }
+        },
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "The artist the mix is made from",
+          "Type": {
+            "Type": "String"
+          }
         }
       ],
       "Response": {
@@ -4728,6 +4737,15 @@
           "Field": "NameLessThan",
           "In": "Query",
           "Description": "Optional filter by items whose name is equally or lesser than a given input string.",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Id",
+          "Field": "Id",
+          "In": "Query",
+          "Description": "The music genre the mix is made from",
           "Type": {
             "Type": "String"
           }

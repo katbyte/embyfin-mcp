@@ -27,6 +27,7 @@ func itemFromJF(d *jf.BaseItemDto) Item {
 		ID:                d.Id,
 		Name:              d.Name,
 		OriginalTitle:     d.OriginalTitle,
+		SortName:          d.SortName,
 		Type:              string(d.Type),
 		ProductionYear:    d.ProductionYear,
 		PremiereDate:      d.PremiereDate,
@@ -52,6 +53,7 @@ func itemFromJF(d *jf.BaseItemDto) Item {
 		IsMissing:         d.LocationType == locationVirtual,
 		IsFolder:          pointer.From(d.IsFolder),
 		UserData:          userDataFromJF(d.UserData),
+		MediaSourceCount:  d.MediaSourceCount,
 	}
 	if len(d.MediaSources) > 0 {
 		it.MediaSources = make([]MediaSource, 0, len(d.MediaSources))
@@ -70,7 +72,7 @@ func itemFromJF(d *jf.BaseItemDto) Item {
 }
 
 func mediaSourceFromJF(d *jf.MediaSourceInfo) MediaSource {
-	ms := MediaSource{Container: d.Container, Size: d.Size, Bitrate: int64(d.Bitrate), Path: d.Path}
+	ms := MediaSource{ItemID: d.Id, Name: d.Name, Container: d.Container, Size: d.Size, Bitrate: int64(d.Bitrate), Path: d.Path, RunTimeTicks: d.RunTimeTicks}
 	if len(d.MediaStreams) > 0 {
 		ms.MediaStreams = make([]MediaStream, 0, len(d.MediaStreams))
 		for i := range d.MediaStreams {
@@ -225,7 +227,7 @@ func remoteSearchResultToJF(r *RemoteSearchResult) jf.RemoteSearchResult {
 }
 
 func imageInfoFromJF(d *jf.ImageInfo) ImageInfo {
-	return ImageInfo{ImageType: string(d.ImageType), Width: d.Width, Height: d.Height, Size: d.Size}
+	return ImageInfo{ImageType: string(d.ImageType), Width: d.Width, Height: d.Height, Size: d.Size, Path: d.Path}
 }
 
 func remoteImageFromJF(d *jf.RemoteImageInfo) RemoteImage {

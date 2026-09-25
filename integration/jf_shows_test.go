@@ -101,6 +101,6 @@ func TestJFShows(t *testing.T) {
 		t.Errorf("GetUpcomingEpisodes = %+v", up.Items)
 	}
 	if similar := must(jfc.GetSimilarShows(ctx, sev.Id, jf.GetSimilarShowsOperationOptions{UserId: adminID, Limit: new(2)})).Model; len(similar.Items) == 0 {
-		t.Error("GetSimilarShows found nothing among two other dramas")
+		t.Error("GetSimilarShows found nothing among the other two shows, one of them a drama too")
 	}
 }

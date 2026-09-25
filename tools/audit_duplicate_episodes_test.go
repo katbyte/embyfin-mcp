@@ -15,7 +15,9 @@ func TestAuditDuplicateEpisodesKeepsItsOrderAcrossCalls(t *testing.T) {
 		{season: 2, number: 1, name: "Pilot", path: "/m/s2e1.mkv", minutes: 45},
 		{season: 2, number: 2, name: "Pilot", path: "/m/s2e2.mkv", minutes: 45},
 	}}
-	cs := session(t, tvServer(t, s), Options{})
+	f := tvServer(t, s)
+	adminView(t, f)
+	cs := session(t, f, Options{})
 
 	for range 20 {
 		out := mustCall(t, cs, "audit_duplicate_episodes", map[string]any{"limit": 1})

@@ -9,5 +9,5 @@ type PersonChangesResponseChangesItems struct {
 	Iso31661 string `json:"iso_3166_1,omitempty"`
 	Iso6391  string `json:"iso_639_1,omitempty"`
 	Time     string `json:"time,omitempty"`
-	Value    string `json:"value,omitempty"`
+	Value    any    `json:"value,omitempty"`
 }

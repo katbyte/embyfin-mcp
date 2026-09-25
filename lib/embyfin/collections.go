@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
 
@@ -195,30 +196,101 @@ const (
 	collectionGoneChecks  = 12
 )
 
+// collectionRefreshPolls is how many settle intervals after a collection was
+// last saved a refresh of it may still be running on Jellyfin, to save it
+// back when it ends: 75 seconds at the default interval. Jellyfin refreshes a
+// collection it has made or whose members changed; the refresh takes about a
+// second when the provider answers, and a collection made under a name TMDB
+// could not be asked about was saved back sixty seconds after it was made,
+// when the refresh gave up (seen on Jellyfin 12.1).
+const collectionRefreshPolls = 300
+
+// providerSlowPolls is how many settle intervals the provider a collection's
+// refresh asks may take to answer before it is taken to be failing: ten
+// seconds at the default interval. It answers a search for a collection in
+// a moment when it is well (seen on Jellyfin 12.1: the same request the
+// refresh makes, answered in milliseconds), and in a minute when it fails.
+const providerSlowPolls = 40
+
+// CollectionDelete is what DeleteCollection saw: how long it watched for the
+// collection to stay gone, why, and how often it came back.
+type CollectionDelete struct {
+	// Watched is how long the collection was watched after the delete
+	Watched time.Duration
+	// Recent is whether the collection was saved recently enough for a
+	// refresh of it to be running, and SavedAgo how long before the delete
+	// that was, to the second
+	Recent   bool
+	SavedAgo time.Duration
+	// ProviderSlow is whether the provider the refresh asks was failing or
+	// slow, asked the same question just before the delete, for a recent
+	// collection: then the watch runs to the end of the window
+	ProviderSlow bool
+	// Back is how many times it came back and was deleted again
+	Back int
+}
+
 // DeleteCollection deletes a collection and reads back that it is gone and
 // stays gone. Jellyfin refreshes a collection it has just made (and one whose
 // members changed), and a delete that lands while that refresh runs is undone
-// when the refresh saves the collection again: the delete answers 204 and
-// the collection is back a moment later. So the collection is looked for
-// until it has stayed gone a while, deleted again when it comes back, and an
-// error says so when it keeps coming back.
-func (c *Client) DeleteCollection(ctx context.Context, id string) error {
-	for range collectionDeleteTries {
+// when the refresh saves the collection again: the delete answers 204 and the
+// collection is back when the refresh ends - half a second later, or a
+// minute. A refresh only queued when the collection goes is dropped, and one
+// can only be running for a while after the change that started it, which
+// saved the collection. So on Jellyfin, for a collection saved within the
+// last collectionRefreshPolls intervals (the server says when it last saved
+// an item only to the second, found by halving: lastSavedWithin), the
+// provider its refresh asks is asked the same question first: answering in a
+// moment, a refresh running now ends in a moment too, and the watch is a
+// few times that; slow or failing, the collection is watched until the
+// window has passed since the save. Any other gets a few seconds. It is
+// deleted again whenever it comes back, and an error says so when it keeps
+// coming back. Emby has not been seen to bring one back, and gets the short
+// watch.
+func (c *Client) DeleteCollection(ctx context.Context, id string) (CollectionDelete, error) {
+	var out CollectionDelete
+	watch := collectionGoneChecks * c.settle
+	if !c.isEmby() {
+		window := collectionRefreshPolls * c.settle
+		last, now, err := c.lastSavedWithin(ctx, id, window)
+		if err != nil {
+			return out, err
+		}
+		if !last.IsZero() {
+			out.Recent, out.SavedAgo = true, now.Sub(last)
+			took, ok := c.collectionProviderAnswers(ctx, id)
+			out.ProviderSlow = !ok
+			if ok {
+				watch += 3 * took
+			} else {
+				watch = max(watch, window-out.SavedAgo)
+			}
+		}
+	}
+
+	start := time.Now()
+	for try := range collectionDeleteTries {
 		if err := c.DeleteItem(ctx, id); err != nil {
 			held, herr := c.holds(ctx, id)
 			if herr != nil || held {
-				return err
+				return out, err
 			}
 			// already gone: a delete that raced another
 		}
+		if try > 0 {
+			out.Back++
+		}
 		back := false
-		for range collectionGoneChecks {
+		// the first delete is watched for the whole window, a delete again
+		// for the rest of it or a few seconds, whichever is longer
+		until := time.Now().Add(max(time.Until(start.Add(watch)), collectionGoneChecks*c.settle))
+		for time.Now().Before(until) {
 			if err := c.pause(ctx); err != nil {
-				return err
+				return out, err
 			}
 			held, err := c.holds(ctx, id)
 			if err != nil {
-				return err
+				return out, err
 			}
 			if held {
 				back = true
@@ -227,11 +299,30 @@ func (c *Client) DeleteCollection(ctx context.Context, id string) error {
 			}
 		}
 		if !back {
-			return nil
+			out.Watched = time.Since(start)
+
+			return out, nil
 		}
 	}
 
-	return fmt.Errorf("collection %s came back after each of %d deletes: the server saves it again from a refresh still running on it; try again in a minute", id, collectionDeleteTries)
+	return out, fmt.Errorf("collection %s came back after each of %d deletes: the server saves it again from a refresh still running on it; try again in a minute", id, collectionDeleteTries)
+}
+
+// collectionProviderAnswers asks the provider a Jellyfin collection's
+// refresh asks - a search for a collection of its name - and says how long it
+// took, and whether it answered within providerSlowPolls intervals.
+func (c *Client) collectionProviderAnswers(ctx context.Context, id string) (time.Duration, bool) {
+	col, err := c.ItemByID(ctx, id)
+	if err != nil {
+		return 0, false
+	}
+	asked, cancel := context.WithTimeout(ctx, providerSlowPolls*c.settle)
+	defer cancel()
+	start := time.Now()
+	_, err = c.jf.GetBoxSetRemoteSearchResults(asked, jf.BoxSetInfoRemoteSearchQuery{SearchInfo: &jf.BoxSetInfo{Name: col.Name}})
+	took := time.Since(start)
+
+	return took, err == nil && took < providerSlowPolls*c.settle
 }
 
 // holds says whether the server has an item of this id. Emby answers an Ids

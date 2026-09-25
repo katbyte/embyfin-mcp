@@ -3,12 +3,16 @@
 package acceptance
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -19,25 +23,285 @@ import (
 
 // Journeys: the tools chained the way a session uses them, against state
 // the servers change underneath (a scan), across users, and repeated. Each
-// puts back what it changes.
+// puts back what it changes, and says so when it cannot: a change left
+// behind fails the tests after it rather than this one.
 
-// deleteLater removes what a test created once it ends, retrying a delete the
-// server refuses while a refresh holds the item (both servers answer a 500
-// then), and reports one that never succeeds rather than leaving it for the
+// retried calls a tool until it succeeds, a second apart and ten times at
+// most: the servers refuse a write while a refresh holds the item (both
+// answer a 500 then). It returns the last error.
+func retried(tool string, args map[string]any) error {
+	var err error
+	for range 10 {
+		if _, err = invoke(tool, args); err == nil {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+
+	return err
+}
+
+// putBack calls a tool once the test ends, to undo what the test changed,
+// and reports one that never succeeds rather than leaving the change for the
 // tests after.
-func deleteLater(t *testing.T, tool, field, id string) {
+func putBack(t *testing.T, tool string, args map[string]any) {
 	t.Helper()
 
 	t.Cleanup(func() {
-		var err error
+		if err := retried(tool, args); err != nil {
+			t.Errorf("putting back with %s %v: %v", tool, args, err)
+		}
+	})
+}
+
+// deleteLater removes what a test created once it ends.
+func deleteLater(t *testing.T, tool, field, id string) {
+	t.Helper()
+	putBack(t, tool, map[string]any{field: id})
+}
+
+// unmarkLater clears a user's watched mark and favourite on items once the
+// test ends.
+func unmarkLater(t *testing.T, user string, ids ...string) {
+	t.Helper()
+	for _, id := range ids {
+		putBack(t, "item_set_state", map[string]any{"id": id, "user": user, "watched": false, "favourite": false})
+	}
+}
+
+// clearable are the metadata fields an item read without them had empty:
+// the servers leave a field out of an item they hold nothing for, and keep a
+// field a post leaves out, so putting an item back sets them empty.
+var clearable = map[string]any{
+	"Overview": "", "OfficialRating": "", "CustomRating": "", "OriginalTitle": "", "ForcedSortName": "",
+	"Taglines": []any{}, "Genres": []any{}, "GenreItems": []any{}, "Tags": []any{}, "TagItems": []any{},
+	"Studios": []any{}, "People": []any{}, "ProviderIds": map[string]any{},
+}
+
+// restoreLater puts an item back as it is now once the test ends: the whole
+// item, so what no tool puts back (people, studios, a rating, provider ids,
+// the fields a refresh filled) goes back too, and a field it had empty is
+// emptied again. A post the server refuses while a refresh of the item is
+// still writing it (Emby answers a 500 then) is tried again. It returns the
+// item as read.
+func restoreLater(t *testing.T, id string) map[string]any {
+	t.Helper()
+
+	before := fullItem(t, id)
+	t.Cleanup(func() {
+		item := maps.Clone(before)
+		for field, empty := range clearable {
+			if _, had := item[field]; !had {
+				item[field] = empty
+			}
+		}
+		// people and studios by name: the ids they had may name nothing
+		// once a refresh has replaced them, which Emby refuses (a foreign
+		// key the database cannot follow)
+		for _, field := range []string{"People", "Studios", "GenreItems", "TagItems"} {
+			var named []any
+			for _, e := range rowsOf(item[field]) {
+				e = maps.Clone(e)
+				delete(e, "Id")
+				named = append(named, e)
+			}
+			if named != nil {
+				item[field] = named
+			}
+		}
+		var status int
+		var raw []byte
 		for range 10 {
-			if _, err = invoke(tool, map[string]any{field: id}); err == nil {
+			if status, raw = postItem(t, id, item); status/100 == 2 {
 				return
 			}
 			time.Sleep(time.Second)
 		}
-		t.Errorf("cleanup %s %s: %v", tool, id, err)
+		t.Errorf("putting item %s back: HTTP %d: %.200s", id, status, raw)
 	})
+
+	return before
+}
+
+// keepFiles puts the folders' files back as they are now once the test ends:
+// what a server wrote there since goes (Jellyfin saves an nfo, and artwork,
+// beside every item it edits), and what it changed or removed is written
+// back. Registered before restoreLater, it runs after it, so the nfo a
+// restore writes is the one replaced.
+func keepFiles(t *testing.T, dirs ...string) {
+	t.Helper()
+
+	files, folders := map[string][]byte{}, map[string]bool{}
+	for _, dir := range dirs {
+		_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			switch {
+			case err != nil:
+			case d.IsDir():
+				folders[path] = true
+			default:
+				raw, rerr := os.ReadFile(path) //nolint:gosec // a fixture under the test data dir
+				if rerr != nil {
+					t.Fatal(rerr)
+				}
+				files[path] = raw
+			}
+			return nil
+		})
+	}
+	t.Cleanup(func() {
+		for _, dir := range dirs {
+			_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+				switch {
+				case err != nil:
+				case d.IsDir() && !folders[path]:
+					if rerr := os.RemoveAll(path); rerr != nil {
+						t.Errorf("removing %s: %v", path, rerr)
+					}
+					return filepath.SkipDir
+				case d.IsDir():
+				default:
+					if _, ours := files[path]; !ours {
+						if rerr := os.Remove(path); rerr != nil {
+							t.Errorf("removing %s: %v", path, rerr)
+						}
+					}
+				}
+				return nil
+			})
+		}
+		for path, raw := range files {
+			if now, err := os.ReadFile(path); err == nil && bytes.Equal(now, raw) { //nolint:gosec // same
+				continue
+			}
+			mediaMkdir(t, filepath.Dir(path))
+			mediaWrite(t, path, raw)
+		}
+	})
+}
+
+// itemFolder is where an item's files sit on this machine.
+func itemFolder(t *testing.T, id string) string {
+	t.Helper()
+
+	return filepath.Dir(hostPath(str(call(t, "item_get", map[string]any{"id": id})["path"])))
+}
+
+// itemEtag is an item's etag, which moves whenever the server saves the item.
+func itemEtag(t *testing.T, id string) string {
+	t.Helper()
+
+	return str(fullItem(t, id)["Etag"])
+}
+
+// savedSince waits for the server to save an item after it read with the
+// etag given: a refresh or a scan's re-read is queued, not done, when the
+// call that asked for it answers, and a check made before it runs proves
+// nothing about it.
+func savedSince(t *testing.T, id, was string) bool {
+	t.Helper()
+
+	return eventuallyWithin(time.Minute, func() bool { return itemEtag(t, id) != was })
+}
+
+// refreshed asks for a refresh of an item and says whether it ran:
+// item_refresh waits for the refresh to save the item, and says whether it
+// saw it do so (TestAnEditRightAfterARefreshStays holds it to that).
+func refreshed(t *testing.T, id string) bool {
+	t.Helper()
+
+	return boolOf(call(t, "item_refresh", map[string]any{"id": id})["landed"])
+}
+
+// serverNow is the server's clock, from the Date header it answers with: a
+// date the server wrote is compared against the server's time, not this
+// machine's, which a container's virtual machine drifts from.
+func serverNow(t *testing.T) time.Time {
+	t.Helper()
+
+	resp, err := http.Get(os.Getenv("EMBYFIN_SERVER") + "/System/Info/Public") //nolint:noctx // a test's one read
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	now, err := http.ParseTime(resp.Header.Get("Date"))
+	if err != nil {
+		t.Fatalf("the server's Date header %q: %v", resp.Header.Get("Date"), err)
+	}
+
+	return now
+}
+
+// rescanOrReport asks for a scan until check holds, asking again whenever the
+// scan goes idle short of it, as scanUntil does for a count; it reports a
+// check that never holds rather than stopping the test, so it serves a
+// clean-up as well.
+func rescanOrReport(t *testing.T, library string, check func() bool) {
+	t.Helper()
+
+	deadline := time.Now().Add(scanPatience)
+	for {
+		if err := waitForScan(); err != nil {
+			t.Error(err)
+			return
+		}
+		if _, err := invoke("library_scan", nil); err != nil {
+			t.Error(err)
+			return
+		}
+		for range 22 {
+			if check() {
+				if err := waitForScan(); err != nil {
+					t.Error(err)
+				}
+				return
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if time.Now().After(deadline) {
+			t.Errorf("a scan of %s never brought about what the test waits for", library)
+			return
+		}
+	}
+}
+
+// slowScan lays forty short files in a folder of the messy film library, so
+// the next scan has them to read and runs for seconds rather than the
+// fraction of one a scan with nothing new takes: long enough for what a test
+// does while one runs to land inside it. They go again once the test ends.
+// It returns what gives the scan after that the files to read again: their
+// times moved on, as a download writing them over would.
+func slowScan(t *testing.T) (again func()) {
+	t.Helper()
+
+	const name = "The Lord of the Rings The Two Towers (2002)"
+	dir := filepath.Join(dataDir(), "messy-movies", name)
+	t.Cleanup(func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Error(err)
+		}
+		rescanOrReport(t, "Messy Movies", func() bool {
+			out, err := invoke("library_items", map[string]any{"library": "Messy Movies", "query": "Two Towers", "limit": 100})
+			return err == nil && !slices.ContainsFunc(rowsOf(out["items"]), func(it map[string]any) bool {
+				return strings.Contains(str(it["path"]), "/"+name+"/")
+			})
+		})
+	})
+	raw := fixtureVideo(t, "messy-movies", messyAlien, messyAlien+".mp4")
+	mediaMkdir(t, dir)
+	var files []string
+	for i := range 40 {
+		files = append(files, filepath.Join(dir, fmt.Sprintf("%s - part%d.mp4", name, i+1)))
+		mediaWrite(t, files[i], raw)
+	}
+
+	return func() {
+		now := time.Now()
+		for _, f := range files {
+			if err := os.Chtimes(f, now, now); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 }
 
 // entryNamed returns the entry id of the first entry of a playlist that is
@@ -57,48 +321,86 @@ func entryNamed(t *testing.T, playlist, name string) string {
 
 // A library scan validates every playlist and collection and, on Emby, saves
 // each as it found it: edits made while one runs must all be there once it
-// has finished.
+// has finished. The scan is given files to read so it runs for seconds, and
+// is checked to be running still once the last edit has landed; one that
+// finished first raced nothing, and the edits go again under a fresh scan.
 func TestEditsDuringAScan(t *testing.T) {
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	dune2 := findItem(t, "Movies", "Movie", "Dune: Part Two")
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	alien := findItem(t, "Movies", "Movie", "Alien")
+	again := slowScan(t)
+	t.Cleanup(func() {
+		if err := waitForScan(); err != nil {
+			t.Error(err)
+		}
+	})
 
-	if out := call(t, "library_scan", nil); !boolOf(out["started"]) {
-		t.Fatalf("library_scan = %v", out)
-	}
-	t.Cleanup(func() { _ = waitForScan() })
+	// one playlist a try, the last kept to check; one collection for every
+	// try, put back to Alien alone between them (Emby cannot make a
+	// collection again under a name it has deleted)
+	var pl, col string
+	t.Cleanup(func() {
+		if pl == "" {
+			return
+		}
+		if err := retried("playlist_delete", map[string]any{"playlist": pl}); err != nil {
+			t.Errorf("deleting the playlist: %v", err)
+		}
+	})
+	for try := 1; ; try++ {
+		if out := call(t, "library_scan", nil); !boolOf(out["started"]) {
+			t.Fatalf("library_scan = %v", out)
+		}
 
-	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{dune}, "media_type": "Video"})["id"])
-	deleteLater(t, "playlist_delete", "playlist", pl)
-	if add := call(t, "playlist_add", map[string]any{"playlist": pl, "item_ids": []any{dune2, arrival}}); num(t, add["added"], "added") != 2 {
-		t.Errorf("playlist_add = %v", add)
-	}
-	// a scan can renumber Emby's entries between reading one and using it,
-	// which the tool reports; a caller reads the playlist again
-	move := func() map[string]any {
+		pl = str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{dune}, "media_type": "Video"})["id"])
+		if add := call(t, "playlist_add", map[string]any{"playlist": pl, "item_ids": []any{dune2, arrival}}); num(t, add["added"], "added") != 2 {
+			t.Errorf("playlist_add = %v", add)
+		}
+		// a scan can renumber Emby's entries between reading one and using
+		// it, which the tool reports; a caller reads the playlist again
 		args := map[string]any{"playlist": pl, "move_entry_id": entryNamed(t, pl, "Arrival"), "position": 1}
-		out, err := invoke("playlist_edit", args)
+		_, err := invoke("playlist_edit", args)
 		if err != nil && strings.Contains(err.Error(), "no entry") {
 			args["move_entry_id"] = entryNamed(t, pl, "Arrival")
-			out, err = invoke("playlist_edit", args)
+			_, err = invoke("playlist_edit", args)
 		}
 		if err != nil {
 			t.Fatalf("playlist_edit: %v", err)
 		}
-		return out
-	}
-	move()
-	if rm := call(t, "playlist_remove", map[string]any{"playlist": pl, "entry_ids": []any{entryNamed(t, pl, "Dune: Part Two")}}); num(t, rm["removed"], "removed") != 1 {
-		t.Errorf("playlist_remove = %v", rm)
-	}
+		if rm := call(t, "playlist_remove", map[string]any{"playlist": pl, "entry_ids": []any{entryNamed(t, pl, "Dune: Part Two")}}); num(t, rm["removed"], "removed") != 1 {
+			t.Errorf("playlist_remove = %v", rm)
+		}
 
-	col := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{alien}})["id"])
-	deleteLater(t, "collection_delete", "collection", col)
-	if add := call(t, "collection_add", map[string]any{"collection": col, "item_ids": []any{dune, arrival}}); num(t, add["added"], "added") != 2 {
-		t.Errorf("collection_add = %v", add)
+		if col == "" {
+			col = str(call(t, "collection_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{alien}})["id"])
+			deleteLater(t, "collection_delete", "collection", col)
+		}
+		if add := call(t, "collection_add", map[string]any{"collection": col, "item_ids": []any{dune, arrival}}); num(t, add["added"], "added") != 2 {
+			t.Errorf("collection_add = %v", add)
+		}
+		if rm := call(t, "collection_remove", map[string]any{"collection": col, "item_ids": []any{dune}}); num(t, rm["removed"], "removed") != 1 {
+			t.Errorf("collection_remove = %v", rm)
+		}
+
+		if idle, err := scanIdle(); err == nil && !idle {
+			break
+		}
+		if try == 3 {
+			t.Fatal("the scan had finished before the last edit, three times: the edits raced nothing")
+		}
+		// the scan finished first: once it has, put the lists back as the
+		// try found them and go again
+		if err := waitForScan(); err != nil {
+			t.Fatal(err)
+		}
+		if err := retried("playlist_delete", map[string]any{"playlist": pl}); err != nil {
+			t.Fatalf("deleting the try's playlist: %v", err)
+		}
+		pl = ""
+		call(t, "collection_remove", map[string]any{"collection": col, "item_ids": []any{arrival}})
+		again()
 	}
-	call(t, "collection_remove", map[string]any{"collection": col, "item_ids": []any{dune}})
 
 	if err := waitForScan(); err != nil {
 		t.Fatal(err)
@@ -144,17 +446,53 @@ func fullItem(t *testing.T, id string) map[string]any {
 func updateItem(t *testing.T, id string, change map[string]any) {
 	t.Helper()
 
-	item := fullItem(t, id)
-	for k, v := range change {
-		item[k] = v
-	}
-	if status, raw := api(t, http.MethodPost, "/Items/"+id, "", item); status/100 != 2 {
+	if status, raw := postItem(t, id, change); status/100 != 2 {
 		t.Errorf("updating item %s: HTTP %d: %.200s", id, status, raw)
 	}
 }
 
+// postItem posts an item back with fields changed and returns the answer.
+func postItem(t *testing.T, id string, change map[string]any) (int, []byte) {
+	t.Helper()
+
+	item := fullItem(t, id)
+	maps.Copy(item, change)
+
+	return api(t, http.MethodPost, "/Items/"+id, "", item)
+}
+
+// withoutName is a sorted list of names with one taken out, once.
+func withoutName(names []string, name string) []string {
+	out := slices.Clone(names)
+	if i := slices.Index(out, name); i >= 0 {
+		out = slices.Delete(out, i, i+1)
+	}
+
+	return out
+}
+
+// movedBy checks audit_all's counts after a fix against the counts before
+// it: the rows named move by exactly what they are given, and every other
+// row, and the total, by nothing else. A fix that shifted another audit's
+// count, or a total that did not follow its row, shows here.
+func movedBy(t *testing.T, library string, before, want map[string]int) {
+	t.Helper()
+
+	after := auditCounts(t, map[string]any{"library": library})
+	for audit, n := range after {
+		if n != before[audit]+want[audit] {
+			t.Errorf("audit_all %s: %d before the fix and %d after, want %+d", audit, before[audit], n, want[audit])
+		}
+	}
+	if len(after) != len(before) {
+		t.Errorf("audit_all rows before %v, after %v", before, after)
+	}
+}
+
 // Every audit whose findings a tool can clear: audit, fix with the tool the
-// finding points at, audit again, and put the defect back.
+// finding points at, audit again, and put the defect back. Each fix takes
+// its own item off the worklist and leaves the rest of it as it was, and in
+// audit_all it moves that audit's row and the total by one and nothing else.
 func TestAuditsAreFixable(t *testing.T) {
 	arrival := findItem(t, "Messy Movies", "Movie", "Arrival")
 	mononoke := findItem(t, "Messy Movies", "Movie", "Princess Mononoke")
@@ -162,20 +500,28 @@ func TestAuditsAreFixable(t *testing.T) {
 	messy := map[string]any{"library": "Messy Movies"}
 
 	t.Run("missing overview", func(t *testing.T) {
-		if got := findings(t, call(t, "audit_missing_overview", messy)); !slices.Contains(got, "Arrival") {
-			t.Fatalf("audit_missing_overview = %v, want Arrival among them", got)
+		before := findings(t, call(t, "audit_missing_overview", messy))
+		if !slices.Contains(before, "Arrival") {
+			t.Fatalf("audit_missing_overview = %v, want Arrival among them", before)
 		}
+		counts := auditCounts(t, messy)
+		keepFiles(t, itemFolder(t, arrival))
+		restoreLater(t, arrival)
+
 		call(t, "item_edit", map[string]any{"ids": []any{arrival}, "overview": "A linguist is recruited to talk to the visitors."})
-		t.Cleanup(func() { updateItem(t, arrival, map[string]any{"Overview": ""}) })
-		if got := findings(t, call(t, "audit_missing_overview", messy)); slices.Contains(got, "Arrival") {
-			t.Errorf("after item_edit audit_missing_overview = %v", got)
+		if got := findings(t, call(t, "audit_missing_overview", messy)); !slices.Equal(got, withoutName(before, "Arrival")) {
+			t.Errorf("after item_edit audit_missing_overview = %v, want %v", got, withoutName(before, "Arrival"))
 		}
+		movedBy(t, "Messy Movies", counts, map[string]int{"audit_missing_overview": -1, "total_findings": -1})
 	})
 
 	t.Run("missing poster", func(t *testing.T) {
-		if got := findings(t, call(t, "audit_missing_poster", messy)); !slices.Contains(got, "Arrival") {
-			t.Fatalf("audit_missing_poster = %v, want Arrival among them", got)
+		before := findings(t, call(t, "audit_missing_poster", messy))
+		if !slices.Contains(before, "Arrival") {
+			t.Fatalf("audit_missing_poster = %v, want Arrival among them", before)
 		}
+		counts := auditCounts(t, messy)
+		keepFiles(t, itemFolder(t, arrival))
 		// the providers are off in the messy library, so the poster comes from
 		// the clean copy's candidates
 		clean := findItem(t, "Movies", "Movie", "Arrival")
@@ -189,34 +535,62 @@ func TestAuditsAreFixable(t *testing.T) {
 				t.Errorf("removing the poster: HTTP %d: %s", status, raw)
 			}
 		})
-		ok := false
-		for range 20 {
-			if ok = !slices.Contains(findings(t, call(t, "audit_missing_poster", messy)), "Arrival"); ok {
-				break
-			}
-			time.Sleep(500 * time.Millisecond)
+		if !eventually(func() bool { return !slices.Contains(findings(t, call(t, "audit_missing_poster", messy)), "Arrival") }) {
+			t.Fatal("after item_artwork_set Arrival still has no poster")
 		}
-		if !ok {
-			t.Error("after item_artwork_set Arrival still has no poster")
+		if got := findings(t, call(t, "audit_missing_poster", messy)); !slices.Equal(got, withoutName(before, "Arrival")) {
+			t.Errorf("after item_artwork_set audit_missing_poster = %v, want %v", got, withoutName(before, "Arrival"))
 		}
+		movedBy(t, "Messy Movies", counts, map[string]int{"audit_missing_poster": -1, "total_findings": -1})
 	})
 
+	// the messy Dune's folder says 2021 and its metadata Lynch's 1984 film,
+	// ids and all: the fix is the identity, not the year alone, which would
+	// leave a 2021 film holding the 1984 film's ids
 	t.Run("year mismatch", func(t *testing.T) {
 		years := map[string]any{"library": "Messy Movies", "checks": "year"}
 		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune"}) {
 			t.Fatalf("audit_file_path = %v, want [Dune]", got)
 		}
-		call(t, "item_edit", map[string]any{"ids": []any{dune}, "year": 2021})
-		t.Cleanup(func() { _, _ = invoke("item_edit", map[string]any{"ids": []any{dune}, "year": 1984}) })
-		if n := num(t, call(t, "audit_file_path", years)["total_findings"], "total_findings"); n != 0 {
-			t.Errorf("after item_edit audit_file_path found %d", n)
+		counts := auditCounts(t, messy)
+		keepFiles(t, itemFolder(t, dune))
+		restoreLater(t, dune)
+
+		idx := -1
+		for i, c := range rows(t, call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
+			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && str(ids["tmdb"]) == "438631" {
+				idx = i
+			}
 		}
+		if idx < 0 {
+			t.Fatal("the 2021 Dune is not a candidate")
+		}
+		// the fetchers are off, so the apply sets the ids and the answer says
+		// the rest is item_edit's to set: the year is still the old film's
+		out := call(t, "item_identify_apply", map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021})
+		if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" || num(t, out["year"], "year") != 1984 || !strings.Contains(str(out["note"]), "set what is missing or wrong with item_edit") {
+			t.Errorf("item_identify_apply = %v", out)
+		}
+		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune"}) {
+			t.Errorf("with the new ids alone audit_file_path = %v, want [Dune] still", got)
+		}
+		call(t, "item_edit", map[string]any{"ids": []any{dune}, "year": 2021})
+		if n := num(t, call(t, "audit_file_path", years)["total_findings"], "total_findings"); n != 0 {
+			t.Errorf("after the match and the year audit_file_path found %d", n)
+		}
+		if got := call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841"}); boolOf(got["found"]) || len(rowsOf(got["items"])) != 0 {
+			t.Errorf("tmdb 841 still finds %v", got)
+		}
+		movedBy(t, "Messy Movies", counts, map[string]int{"audit_file_path": -1, "total_findings": -1})
 	})
 
 	t.Run("unmatched", func(t *testing.T) {
 		if got := findings(t, call(t, "audit_missing_metadata_provider", messy)); !slices.Equal(got, messyUnmatched) {
 			t.Fatalf("audit_missing_metadata_provider = %v, want %v", got, messyUnmatched)
 		}
+		counts := auditCounts(t, messy)
+		keepFiles(t, itemFolder(t, mononoke))
+		restoreLater(t, mononoke)
 		// the messy library has its fetchers off, so the search runs without
 		// the item and the match still sets its ids
 		cands := rows(t, call(t, "item_identify", map[string]any{"id": mononoke, "kind": "movie"})["candidates"], "candidates")
@@ -232,31 +606,32 @@ func TestAuditsAreFixable(t *testing.T) {
 			t.Fatalf("no Princess Mononoke (tmdb 128, imdb tt0119698) among the candidates: %v", cands)
 		}
 		call(t, "item_identify_apply", map[string]any{"id": mononoke, "kind": "movie", "candidate": idx})
-		t.Cleanup(func() { updateItem(t, mononoke, map[string]any{"ProviderIds": map[string]any{}, "Overview": ""}) })
 		// the two discs are still unmatched; the film is not
-		ok := false
-		for range 20 {
-			if ok = !slices.Contains(findings(t, call(t, "audit_missing_metadata_provider", messy)), "Princess Mononoke"); ok {
-				break
-			}
-			time.Sleep(500 * time.Millisecond)
+		discs := withoutName(messyUnmatched, "Princess Mononoke")
+		if !eventually(func() bool {
+			return slices.Equal(findings(t, call(t, "audit_missing_metadata_provider", messy)), discs)
+		}) {
+			t.Errorf("after item_identify_apply the unmatched are %v, want %v", findings(t, call(t, "audit_missing_metadata_provider", messy)), discs)
 		}
-		if got := findings(t, call(t, "audit_missing_metadata_provider", messy)); !ok || len(got) != len(messyUnmatched)-1 {
-			t.Errorf("after item_identify_apply the unmatched are %v, want the two discs alone", got)
-		}
+		movedBy(t, "Messy Movies", counts, map[string]int{"audit_missing_metadata_provider": -1, "total_findings": -1})
 	})
 
+	// what TestAuditUnwatched does not see: audit_all counts the unwatched as
+	// a row and leaves them out of its total, which is of defects
 	t.Run("unwatched", func(t *testing.T) {
 		movies := map[string]any{"library": "Movies"}
-		if got := findings(t, call(t, "audit_unwatched", movies)); !slices.Contains(got, "Princess Mononoke") {
-			t.Fatalf("audit_unwatched = %v, want Princess Mononoke among them", got)
+		before := findings(t, call(t, "audit_unwatched", movies))
+		if !slices.Contains(before, "Princess Mononoke") {
+			t.Fatalf("audit_unwatched = %v, want Princess Mononoke among them", before)
 		}
+		counts := auditCounts(t, movies)
 		id := findItem(t, "Movies", "Movie", "Princess Mononoke")
+		unmarkLater(t, "alice", id)
 		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true})
-		t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false}) })
-		if got := findings(t, call(t, "audit_unwatched", movies)); slices.Contains(got, "Princess Mononoke") {
-			t.Errorf("after item_set_state audit_unwatched = %v", got)
+		if got := findings(t, call(t, "audit_unwatched", movies)); !slices.Equal(got, withoutName(before, "Princess Mononoke")) {
+			t.Errorf("after item_set_state audit_unwatched = %v, want %v", got, withoutName(before, "Princess Mononoke"))
 		}
+		movedBy(t, "Movies", counts, map[string]int{"audit_unwatched": -1})
 	})
 }
 
@@ -267,9 +642,9 @@ func TestPlaybackIsRecorded(t *testing.T) {
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	dune2 := findItem(t, "Movies", "Movie", "Dune: Part Two")
 	aliceBefore := call(t, "user_stats", map[string]any{"user": "alice"})
-	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": dune, "user": "alice", "watched": false})
-	})
+	unmarkLater(t, "alice", dune)
+	// a second early, for the Date header's whole seconds
+	started := serverNow(t).Add(-time.Second)
 
 	// a play session the way a client starts one: Emby answers a report
 	// without the PlaySessionId PlaybackInfo hands out with a 400
@@ -330,21 +705,23 @@ func TestPlaybackIsRecorded(t *testing.T) {
 	}
 
 	// the activity log: the playback is Dune's and alice's, and not Dune: Part
-	// Two's, whose title contains Dune's
+	// Two's, whose title contains Dune's. It is this run's, stopped since the
+	// test began: a run before this one left a row for Dune too.
 	var history []map[string]any
 	var hist map[string]any
-	for range 20 {
+	this := func(row map[string]any) bool {
+		at, err := time.Parse(time.RFC3339Nano, str(row["last_played"]))
+		return err == nil && !at.Before(started) && str(row["name"]) == "Dune" && str(row["event"]) == "stop"
+	}
+	if !eventually(func() bool {
 		hist = call(t, "user_history", map[string]any{"user": "alice", "days": 1})
-		if history = rows(t, hist["items"], "items"); len(history) > 0 {
-			break
-		}
-		time.Sleep(250 * time.Millisecond)
+		history = rows(t, hist["items"], "items")
+		return len(history) > 0 && this(history[0])
+	}) {
+		t.Errorf("user_history alice has no stop of Dune since %s first: %v", started, history)
 	}
 	if num(t, hist["total"], "total") != len(history) || num(t, hist["offset"], "offset") != 0 {
 		t.Errorf("user_history total %v offset %v for %d items", hist["total"], hist["offset"], len(history))
-	}
-	if len(history) == 0 || str(history[0]["name"]) != "Dune" || str(history[0]["event"]) == "" {
-		t.Errorf("user_history alice = %v", history)
 	}
 	entries := strs(t, call(t, "item_watch_history", map[string]any{"id": dune, "days": 1})["entries"], "entries")
 	if !slices.ContainsFunc(entries, func(e string) bool { return strings.Contains(e, "alice") }) {
@@ -380,9 +757,14 @@ func TestAuditAllMatchesEachAudit(t *testing.T) {
 			}
 			// audit_orphans takes no library and runs in audit_all only
 			// without one; the rest take the same arguments
-			own := args
+			own := maps.Clone(args)
 			if name == "audit_orphans" {
 				own = nil
+			}
+			// a row read over other types than the audit's default names
+			// them (albums beside films and series, across the server)
+			if types := str(row["types"]); types != "" && own != nil {
+				own["types"] = types
 			}
 			out := call(t, name, own)
 			// every audit names its count and its sweep the same way
@@ -409,23 +791,37 @@ func TestAuditAllMatchesEachAudit(t *testing.T) {
 	}
 }
 
-// The lookups change nothing: a snapshot of the items, users and lists they
-// touch is the same after every read-only lookup has run over them.
+// The lookups change nothing: a snapshot of what they could change - each
+// item's metadata, its images and every user's watch state on it, the
+// users and alice's counts, a playlist, a collection and the libraries - is
+// the same after every read-only tool has run over them. The tools run are
+// the ones the server marks read-only, so one added without a lookup here
+// fails the test rather than going unchecked.
 func TestLookupsChangeNothing(t *testing.T) {
 	blade := findItem(t, "Movies", "Movie", "Blade Runner")
 	mononoke := findItem(t, "Movies", "Movie", "Princess Mononoke")
+	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	messyMononoke := findItem(t, "Messy Movies", "Movie", "Princess Mononoke")
 	messyArrival := findItem(t, "Messy Movies", "Movie", "Arrival")
 	severance := findItem(t, "Shows", "Series", "Severance")
+	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Lookups", "item_ids": []any{blade, arrival}, "media_type": "Video"})["id"])
+	deleteLater(t, "playlist_delete", "playlist", pl)
+	col := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Lookups", "item_ids": []any{blade, mononoke}})["id"])
+	deleteLater(t, "collection_delete", "collection", col)
 
 	snapshot := func() map[string]any {
 		s := map[string]any{}
-		for _, id := range []string{blade, mononoke, messyMononoke, messyArrival, severance} {
+		for _, id := range []string{blade, mononoke, arrival, messyMononoke, messyArrival, severance} {
 			s["item "+id] = call(t, "item_get", map[string]any{"id": id})
+			s["watch state "+id] = call(t, "item_last_watched", map[string]any{"id": id})
+			s["images "+id] = call(t, "item_artwork", map[string]any{"id": id, "limit": 1})["current"]
 		}
 		for _, u := range []string{"root", "alice"} {
 			s["user "+u] = call(t, "user_get", map[string]any{"user": u})
 		}
+		s["alice's counts"] = call(t, "user_stats", map[string]any{"user": "alice"})
+		s["playlist"] = call(t, "playlist_get", map[string]any{"playlist": pl})
+		s["collection"] = call(t, "collection_get", map[string]any{"collection": col})
 		s["playlists"] = call(t, "playlist_list", nil)
 		s["collections"] = call(t, "collection_list", nil)
 		s["libraries"] = call(t, "library_list", nil)
@@ -434,30 +830,93 @@ func TestLookupsChangeNothing(t *testing.T) {
 	}
 	before := snapshot()
 
-	for _, c := range []struct {
-		tool string
-		args map[string]any
-	}{
-		{"item_identify", map[string]any{"id": blade, "kind": "movie"}},
-		{"item_identify", map[string]any{"id": messyMononoke, "kind": "movie"}},
-		{"item_artwork", map[string]any{"id": blade, "type": "Primary", "limit": 2}},
-		{"item_similar", map[string]any{"id": blade, "limit": 5}},
-		{"item_instant_mix", map[string]any{"id": blade, "limit": 5}},
-		{"item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "78"}},
-		{"item_last_watched", map[string]any{"id": mononoke}},
-		{"item_watch_history", map[string]any{"id": mononoke, "days": 7}},
-		{"library_items", map[string]any{"library": "Movies", "user": "alice", "watched": "unwatched"}},
-		{"library_items", map[string]any{"query": "Princess"}},
-		{"person_get", map[string]any{"person": "Scott"}},
-		{"person_get", map[string]any{"person": "Ridley Scott"}},
-		{"show_missing", map[string]any{"series_id": severance}},
-		{"library_episodes", map[string]any{"series": severance}},
-		{"audit_all", nil},
-		{"audit_unwatched", map[string]any{"types": "Movie,Series"}},
-		{"user_stats", map[string]any{"user": "alice"}},
-		{"user_next_up", map[string]any{"user": "alice"}},
-	} {
-		call(t, c.tool, c.args)
+	lookups := map[string][]map[string]any{
+		"audit_all":                       {nil, {"library": "Messy Movies"}},
+		"audit_anime_ids":                 {{"library": "Messy Shows"}},
+		"audit_disc_folders":              {{"library": "Messy Movies"}},
+		"audit_duplicate_episodes":        {{"library": "Messy Shows"}},
+		"audit_duplicate_series":          {{"library": "Messy Shows"}},
+		"audit_duplicates":                {{"library": "Messy Movies"}},
+		"audit_file_path":                 {{"library": "Messy Movies"}},
+		"audit_language":                  {{"language": "jpn", "find": "no_audio", "library": "Messy Movies"}},
+		"audit_missing_episodes":          {{"library": "Shows"}},
+		"audit_missing_metadata_provider": {{"library": "Messy Movies"}},
+		"audit_missing_overview":          {{"library": "Messy Movies"}},
+		"audit_missing_poster":            {{"library": "Messy Movies"}},
+		"audit_multiple_versions":         {{"library": "Messy Movies"}},
+		"audit_orphans":                   {nil},
+		"audit_provider":                  {{"library": "Movies", "checks": "ids", "types": "Movie"}},
+		"audit_quality":                   {{"library": "Messy Movies"}},
+		"audit_runtime":                   {{"library": "Messy Shows"}},
+		"audit_spelling":                  {nil},
+		"audit_unwatched":                 {{"types": "Movie,Series"}},
+		"collection_get":                  {{"collection": col}},
+		"collection_list":                 {nil},
+		"item_artwork":                    {{"id": blade, "type": "Primary", "limit": 2}},
+		"item_find_by_metadata_id":        {{"metadata_provider": "tmdb", "id": "78"}},
+		"item_get":                        {{"id": blade}},
+		"item_identify":                   {{"id": blade, "kind": "movie"}, {"id": messyMononoke, "kind": "movie"}},
+		"item_instant_mix":                {{"id": blade, "limit": 5}},
+		"item_last_watched":               {{"id": mononoke}},
+		"item_similar":                    {{"id": blade, "limit": 5}},
+		"item_subtitle_search":            {{"id": blade, "language": "eng"}},
+		"item_watch_history":              {{"id": mononoke, "days": 7}},
+		"library_episodes":                {{"series_id": severance}},
+		// writes a file on this machine, and never over one: the server is
+		// what must not change
+		"library_export":      {{"path": filepath.Join(t.TempDir(), "movies.jsonl"), "library": "Movies"}},
+		"library_filters":     {{"library": "Movies"}},
+		"library_genres":      {nil},
+		"library_get":         {{"library": "Movies"}},
+		"library_items":       {{"library": "Movies", "user": "alice", "watched": "unwatched"}, {"query": "Princess"}},
+		"library_list":        {nil},
+		"library_recent":      {{"library": "Movies", "limit": 3}},
+		"person_get":          {{"person": "Scott"}, {"person": "Ridley Scott"}},
+		"plan_check":          {{"library": "Movies", "entries": []map[string]any{{"path": str(call(t, "item_get", map[string]any{"id": arrival})["path"])}}}},
+		"playlist_get":        {{"playlist": pl}},
+		"playlist_list":       {nil},
+		"quality_compare":     {{"a": map[string]any{"item_id": arrival}, "b": map[string]any{"item_id": messyArrival}}},
+		"server_activity":     {{"days": 1, "limit": 5}},
+		"server_devices":      {nil},
+		"server_info":         {nil},
+		"server_log":          {{"lines": 5}},
+		"server_logs":         {nil},
+		"server_stats":        {nil},
+		"session_list":        {nil},
+		"show_episodes_exist": {{"series_id": severance, "episodes": []map[string]any{{"season": 1, "episode": 1}}}},
+		"show_missing":        {{"series_id": severance}},
+		"show_resolve":        {{"title": "Severance.S02E07.1080p.ATVP.WEB-DL.H264-GROUP", "library": "Shows"}},
+		"show_seasons":        {{"series_id": severance}},
+		"task_list":           {nil},
+		"user_get":            {{"user": "alice"}},
+		"user_history":        {{"user": "alice"}},
+		"user_list":           {nil},
+		"user_next_up":        {{"user": "alice"}},
+		"user_stats":          {{"user": "alice"}},
+	}
+	res, err := session.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var readOnly []string
+	for _, tool := range res.Tools {
+		if kindOf(tool) == "read" {
+			readOnly = append(readOnly, tool.Name)
+		}
+	}
+	for _, name := range readOnly {
+		if _, ok := lookups[name]; !ok {
+			t.Errorf("%s is read-only and has no lookup here: give it one", name)
+		}
+	}
+	for name, calls := range lookups {
+		if !slices.Contains(readOnly, name) {
+			t.Errorf("%s has a lookup here, but the server does not mark it read-only", name)
+			continue
+		}
+		for _, args := range calls {
+			call(t, name, args)
+		}
 	}
 
 	after := snapshot()
@@ -577,9 +1036,7 @@ func TestWritesTwice(t *testing.T) {
 		// Aliens: its tmdb id is its own, and Emby keeps watch state by
 		// provider id, so marking a film with a copy elsewhere marks both
 		before := call(t, "user_stats", map[string]any{"user": "alice"})
-		t.Cleanup(func() {
-			_, _ = invoke("item_set_state", map[string]any{"id": aliens, "user": "alice", "watched": false, "favourite": false})
-		})
+		unmarkLater(t, "alice", aliens)
 		for range 2 {
 			// both in one call
 			if out := call(t, "item_set_state", map[string]any{"id": aliens, "user": "alice", "watched": true, "favourite": true}); !boolOf(out["watched"]) || !boolOf(out["favourite"]) || str(out["item"]) != "Aliens" {
@@ -633,16 +1090,18 @@ func TestWritesTwice(t *testing.T) {
 	})
 
 	t.Run("metadata rename", func(t *testing.T) {
+		keepFiles(t, itemFolder(t, arrival))
+		putBack(t, "item_edit", map[string]any{"ids": []any{arrival}, "remove_tags": []any{"zzyzx-twice", "zzyzx-once"}})
 		call(t, "item_edit", map[string]any{"ids": []any{arrival}, "add_tags": []any{"zzyzx-twice"}})
-		t.Cleanup(func() {
-			_, _ = invoke("item_edit", map[string]any{"ids": []any{arrival}, "remove_tags": []any{"zzyzx-twice", "zzyzx-once"}})
-		})
 		rename := map[string]any{"field": "tags", "from": "zzyzx-twice", "to": "zzyzx-once", "library": "Movies"}
 		if out := call(t, "metadata_rename", rename); num(t, out["updated"], "updated") != 1 {
 			t.Errorf("the rename = %v", out)
 		}
 		if out := call(t, "metadata_rename", rename); num(t, out["updated"], "updated") != 0 {
 			t.Errorf("the rename again = %v", out)
+		}
+		if tags := strs(t, call(t, "item_get", map[string]any{"id": arrival})["tags"], "tags"); !slices.Contains(tags, "zzyzx-once") || slices.Contains(tags, "zzyzx-twice") {
+			t.Errorf("after the rename Arrival's tags are %v, want zzyzx-once and no zzyzx-twice", tags)
 		}
 	})
 }
@@ -682,8 +1141,13 @@ func TestResolveByIDAndName(t *testing.T) {
 		t.Errorf("person_get by name = %v, want %s", byName["id"], ridley)
 	}
 
-	// the films named Dune, across libraries, each resolve to themselves
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"query": "Dune", "types": "Movie"})["items"], "items") {
+	// the films named Dune, across libraries - the clean Dune and Dune: Part
+	// Two and the messy Dune - each resolve to themselves
+	dunes := rows(t, call(t, "library_items", map[string]any{"query": "Dune", "types": "Movie"})["items"], "items")
+	if len(dunes) != 3 {
+		t.Errorf("the films named Dune are %v, want the three", dunes)
+	}
+	for _, it := range dunes {
 		got := call(t, "item_get", map[string]any{"id": str(it["id"])})
 		if str(got["name"]) != str(it["name"]) || str(got["path"]) != str(it["path"]) {
 			t.Errorf("item %v: item_get says %v at %v", it["id"], got["name"], got["path"])
@@ -784,24 +1248,42 @@ func eventuallyWithin(patience time.Duration, check func() bool) bool {
 	return false
 }
 
+// plotOf reads the plot an nfo gives.
+var plotOf = regexp.MustCompile(`(?s)<plot>(.*?)</plot>`)
+
 // An edit is kept until someone replaces it: a refresh fills only what is
-// missing and a scan re-reads only what changed on disk, so an edit survives
-// both, on a film the providers matched and on one built from its nfo alone.
+// missing, so an edit survives one, on a film the providers matched and on
+// one built from its nfo alone. A film whose file is written over is read
+// again whole by the next scan, and there the servers differ: Jellyfin saved
+// the edit into the nfo beside the file and reads it back, and Emby, whose
+// libraries here save no nfo, reads the nfo's own metadata back over the
+// edit - an upgrade written in place loses what was typed on Emby unless the
+// nfo carries it. Each step is waited on until the server has done it, so
+// the check comes after the refresh or re-read rather than before it.
 // replace_all puts the providers' metadata back, and is refused where there
 // are no providers to ask.
 func TestEditsSurviveARefreshAndAScan(t *testing.T) {
 	for _, c := range []struct{ library, title string }{{"Movies", "Princess Mononoke"}, {"Messy Movies", "Interstellar"}} {
 		t.Run(c.library, func(t *testing.T) {
 			id := findItem(t, c.library, "Movie", c.title)
-			before := call(t, "item_get", map[string]any{"id": id})
-			t.Cleanup(func() {
-				_, _ = invoke("item_edit", map[string]any{"ids": []any{id}, "genres": before["genres"], "tags": before["tags"]})
-				updateItem(t, id, map[string]any{"Overview": before["overview"]})
-			})
+			folder := itemFolder(t, id)
+			var plot string
+			for _, nfo := range nfos(t, folder) {
+				raw, _ := os.ReadFile(nfo) //nolint:gosec // a fixture under the test data dir
+				if m := plotOf.FindSubmatch(raw); m != nil {
+					plot = string(m[1])
+				}
+			}
+			keepFiles(t, folder)
+			restoreLater(t, id)
 
 			const overview = "Zzyzx: an overview typed by hand."
-			call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": overview})
-			call(t, "item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{"zzyzx-kept"}, "add_genres": []any{"Zzyzx Kept"}})
+			edit := func() {
+				t.Helper()
+				call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": overview})
+				call(t, "item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{"zzyzx-kept"}, "add_genres": []any{"Zzyzx Kept"}})
+			}
+			edit()
 			edited := func() bool {
 				got := call(t, "item_get", map[string]any{"id": id})
 				return str(got["overview"]) == overview && slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept") && slices.Contains(strs(t, got["genres"], "genres"), "Zzyzx Kept")
@@ -810,16 +1292,45 @@ func TestEditsSurviveARefreshAndAScan(t *testing.T) {
 				t.Fatalf("the edit did not land: %v", call(t, "item_get", map[string]any{"id": id}))
 			}
 
-			call(t, "item_refresh", map[string]any{"id": id})
+			if !refreshed(t, id) {
+				t.Fatal("the refresh never ran")
+			}
 			if !holds(edited) {
 				t.Errorf("item_refresh undid the edit: %v", call(t, "item_get", map[string]any{"id": id}))
 			}
-			call(t, "library_scan", nil)
+
+			// the file written again, as a download that replaces it would:
+			// the scan re-reads it and saves the film
+			file := hostPath(str(call(t, "item_get", map[string]any{"id": id})["path"]))
+			now := time.Now()
+			if err := os.Chtimes(file, now, now); err != nil {
+				t.Fatal(err)
+			}
+			was := itemEtag(t, id)
 			if err := waitForScan(); err != nil {
 				t.Fatal(err)
 			}
-			if !holds(edited) {
-				t.Errorf("a library scan undid the edit: %v", call(t, "item_get", map[string]any{"id": id}))
+			call(t, "library_scan", nil)
+			if !savedSince(t, id, was) {
+				t.Fatal("the scan never re-read the film whose file changed")
+			}
+			if err := waitForScan(); err != nil {
+				t.Fatal(err)
+			}
+			if isJellyfin() {
+				if !holds(edited) {
+					t.Errorf("a scan that re-read the film undid the edit: %v", call(t, "item_get", map[string]any{"id": id}))
+				}
+			} else {
+				got := call(t, "item_get", map[string]any{"id": id})
+				if str(got["overview"]) != plot || plot == "" || slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept") {
+					t.Errorf("after a scan re-read the film its overview is %q and tags %v, want the nfo's plot %q back over the edit", got["overview"], got["tags"], plot)
+				}
+				// typed again, for what follows
+				edit()
+				if !edited() {
+					t.Fatalf("the edit did not land again: %v", call(t, "item_get", map[string]any{"id": id}))
+				}
 			}
 
 			if c.library == "Messy Movies" {
@@ -832,12 +1343,13 @@ func TestEditsSurviveARefreshAndAScan(t *testing.T) {
 				}
 				return
 			}
-			call(t, "item_refresh", map[string]any{"id": id, "replace_all": true})
-			if !eventuallyWithin(2*time.Minute, func() bool {
-				got := call(t, "item_get", map[string]any{"id": id})
-				return str(got["overview"]) != overview && str(got["overview"]) != "" && !slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept")
-			}) {
-				t.Errorf("replace_all kept the edit: %v", call(t, "item_get", map[string]any{"id": id}))
+			// and item_refresh answers once the refresh has run: what it
+			// replaced is gone at the first read after
+			if out := call(t, "item_refresh", map[string]any{"id": id, "replace_all": true}); !boolOf(out["landed"]) {
+				t.Fatalf("item_refresh replace_all = %v, want it seen to land", out)
+			}
+			if got := call(t, "item_get", map[string]any{"id": id}); str(got["overview"]) == overview || str(got["overview"]) == "" || slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept") {
+				t.Errorf("replace_all kept the edit: %v", got)
 			}
 		})
 	}
@@ -855,15 +1367,12 @@ func TestParallelWrites(t *testing.T) {
 
 	t.Run("edits of one item", func(t *testing.T) {
 		id := findItem(t, "Messy Movies", "Movie", "Arrival")
-		before := call(t, "item_get", map[string]any{"id": id})
+		keepFiles(t, itemFolder(t, id))
+		restoreLater(t, id)
 		var tags []any
 		for i := range 6 {
 			tags = append(tags, fmt.Sprintf("zzyzx-parallel-%d", i))
 		}
-		t.Cleanup(func() {
-			_, _ = invoke("item_edit", map[string]any{"ids": []any{id}, "remove_tags": tags})
-			updateItem(t, id, map[string]any{"Overview": before["overview"]})
-		})
 
 		var wg sync.WaitGroup
 		for _, tag := range tags {
@@ -1046,22 +1555,40 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		}
 	}
 
+	// the copy staged beside the two messy Aliens: on Emby the three are one
+	// film's versions, and the server's view of the copy lists the other two
+	// folders' files, so the delete must still reach no further than the
+	// copy's own folder
 	t.Run("a duplicate pruned", func(t *testing.T) {
 		have := movieCount(t, "Messy Movies")
 		copies, group := alienCopies(), alienGroup()
-		dst := filepath.Join(dataDir(), "messy-movies", "Alien (1979) Copy")
-		copyFixture(t, filepath.Join(dataDir(), "messy-movies", messyAlien), dst)
-		t.Cleanup(func() { _ = os.RemoveAll(dst) })
-		call(t, "library_scan", nil)
-		if err := waitForItems("Messy Movies", have+1); err != nil {
-			t.Fatal(err)
+		const copyName = "Alien (1979) Copy"
+		dst := filepath.Join(dataDir(), "messy-movies", copyName)
+		// every other copy's files, on disk, to hold them to after the delete
+		kept := map[string][]byte{}
+		for _, dir := range []string{filepath.Join(dataDir(), "messy-movies", messyAlien), filepath.Join(dataDir(), "messy-movies", messyAlienCut), filepath.Join(dataDir(), "movies", "Alien (1979)")} {
+			_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+				if err == nil && !d.IsDir() {
+					kept[path], _ = os.ReadFile(path) //nolint:gosec // a fixture under the test data dir
+				}
+				return nil
+			})
 		}
-		if err := waitForScan(); err != nil {
+		copyFixture(t, filepath.Join(dataDir(), "messy-movies", messyAlien), dst)
+		t.Cleanup(func() {
+			if err := os.RemoveAll(dst); err != nil {
+				t.Error(err)
+			}
+			if err := scanUntil("Messy Movies", have); err != nil {
+				t.Error(err)
+			}
+		})
+		if err := scanUntil("Messy Movies", have+1); err != nil {
 			t.Fatal(err)
 		}
 		var id string
 		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Alien", "limit": 50})["items"], "items") {
-			if strings.Contains(str(it["path"]), "/Alien (1979) Copy/") {
+			if strings.Contains(str(it["path"]), "/"+copyName+"/") {
 				id = str(it["id"])
 			}
 		}
@@ -1073,7 +1600,27 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		}
 		hold(t, "Zzyzx Pruned", id, false)
 
-		call(t, "item_delete", map[string]any{"id": id, "confirm": true})
+		server := "/media/messy-movies/" + copyName
+		msg := callErr(t, "item_delete", map[string]any{"id": id})
+		if !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || strings.Contains(msg, messyAlienCut) || strings.Contains(msg, "/media/movies/") {
+			t.Errorf("the refusal names more than the copy's folder: %s", msg)
+		}
+		out := call(t, "item_delete", map[string]any{"id": id, "confirm": true})
+		got := removedPaths(t, out)
+		if !slices.Contains(got, server+"/") || !slices.Contains(got, server+"/"+copyName+".mp4") {
+			t.Errorf("removed = %v, want the copy's folder and file", got)
+		}
+		for _, p := range got {
+			if !strings.HasPrefix(p, server+"/") {
+				t.Errorf("removed names %s, outside the copy's folder", p)
+			}
+		}
+		// every other copy's every file is where it was, as it was
+		for path, raw := range kept {
+			if now, err := os.ReadFile(path); err != nil || !bytes.Equal(now, raw) { //nolint:gosec // same
+				t.Errorf("%s went or changed with the copy's delete: %v", path, err)
+			}
+		}
 		if err := waitForItems("Messy Movies", have); err != nil {
 			t.Fatal(err)
 		}
@@ -1086,6 +1633,13 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		if msg := callErr(t, "item_get", map[string]any{"id": id}); !strings.Contains(msg, "no item") {
 			t.Errorf("item_get of the deleted copy: %s", msg)
 		}
+		// and a scan finds nothing to bring back: the counts hold
+		if err := scanUntil("Messy Movies", have); err != nil {
+			t.Fatal(err)
+		}
+		if alienCopies() != copies || alienGroup() != group {
+			t.Errorf("after a scan: %d copies in a group of %d, want %d in %d", alienCopies(), alienGroup(), copies, group)
+		}
 	})
 
 	t.Run("a library removed", func(t *testing.T) {
@@ -1094,12 +1648,25 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 			t.Fatal(err)
 		}
 		dir := filepath.Join(dataDir(), "ripple", "The Lord of the Rings The Return of the King (2003)")
+		file := filepath.Join(dir, "The Lord of the Rings The Return of the King (2003).mp4")
 		mediaMkdir(t, dir)
-		mediaWrite(t, filepath.Join(dir, "The Lord of the Rings The Return of the King (2003).mp4"), raw)
-		t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), "ripple")) })
+		mediaWrite(t, file, raw)
 		t.Cleanup(func() {
-			_, _ = invoke("library_delete", map[string]any{"library": "Ripple", "confirm": true})
-			_ = waitForScan()
+			if err := os.RemoveAll(filepath.Join(dataDir(), "ripple")); err != nil {
+				t.Error(err)
+			}
+		})
+		t.Cleanup(func() {
+			// gone already when the test got as far as removing it
+			if !slices.ContainsFunc(rows(t, call(t, "library_list", nil)["libraries"], "libraries"), func(l map[string]any) bool { return str(l["name"]) == "Ripple" }) {
+				return
+			}
+			if err := retried("library_delete", map[string]any{"library": "Ripple", "confirm": true}); err != nil {
+				t.Errorf("removing the library: %v", err)
+			}
+			if err := waitForScan(); err != nil {
+				t.Error(err)
+			}
 		})
 		call(t, "library_create", map[string]any{"name": "Ripple", "type": "movies", "paths": []any{"/media/ripple"}, "scan": true})
 		var id string
@@ -1116,12 +1683,22 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false})
+			// the film goes with its library; one still there is unmarked
+			if _, err := invoke("item_get", map[string]any{"id": id}); err != nil {
+				return
+			}
+			if err := retried("item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false}); err != nil {
+				t.Errorf("unmarking the film: %v", err)
+			}
 		})
 		hold(t, "Zzyzx Removed", id, true)
 		favourites := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["favourites"], "favourites")
 
 		call(t, "library_delete", map[string]any{"library": "Ripple", "confirm": true})
+		// the library goes; its folder and film stay on disk
+		if _, err := os.Stat(file); err != nil {
+			t.Errorf("removing the library took its film off the disk: %v", err)
+		}
 		// Jellyfin lets go of the items on the library scan the removal starts
 		if !eventually(func() bool {
 			p, c, f := held("Zzyzx Removed", id)
@@ -1137,19 +1714,40 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		if err := waitForScan(); err != nil {
 			t.Fatal(err)
 		}
+		// and the scans since have not taken it either
+		if _, err := os.Stat(file); err != nil {
+			t.Errorf("after the removal's scan the film is off the disk: %v", err)
+		}
 	})
 }
 
-// auditCounts is audit_all's findings by audit.
+// auditCounts is audit_all's findings by audit, and its total under
+// total_findings.
 func auditCounts(t *testing.T, args map[string]any) map[string]int {
 	t.Helper()
 
-	counts := map[string]int{}
-	for _, row := range rows(t, call(t, "audit_all", args)["audits"], "audits") {
+	out := call(t, "audit_all", args)
+	counts := map[string]int{"total_findings": num(t, out["total_findings"], "total_findings")}
+	for _, row := range rows(t, out["audits"], "audits") {
 		counts[str(row["audit"])] = num(t, row["findings"], "findings")
 	}
 
 	return counts
+}
+
+// plotless matches the plot an nfo gives, and its outline.
+var plotless = regexp.MustCompile(`(?s)\s*<(?:plot|outline)>.*?</(?:plot|outline)>|\s*<(?:plot|outline)\s*/>`)
+
+// nfos are the nfo files in a folder, failing when it holds none.
+func nfos(t *testing.T, folder string) []string {
+	t.Helper()
+
+	found, err := filepath.Glob(filepath.Join(folder, "*.nfo"))
+	if err != nil || len(found) == 0 {
+		t.Fatalf("no nfo in %s: %v", folder, err)
+	}
+
+	return found
 }
 
 // The fixes the audits point to, where they can work and where they cannot.
@@ -1158,11 +1756,23 @@ func auditCounts(t *testing.T, args map[string]any) map[string]int {
 // the wrong match made. With them off, the tools say what they could not do
 // rather than claiming it.
 func TestAuditFixesWhereTheyPoint(t *testing.T) {
+	// the film's nfo holds its plot, and on Emby, whose library saves no
+	// nfo, it still does after the overview is cleared: a refresh re-reading
+	// it would fill the overview with no provider asked. So the nfo loses its
+	// plot for the test, and the overview can only come from TMDB.
 	t.Run("a refresh fills a missing overview", func(t *testing.T) {
 		arrival := findItem(t, "Movies", "Movie", "Arrival")
-		before := fullItem(t, arrival)
-		t.Cleanup(func() { updateItem(t, arrival, map[string]any{"Overview": before["Overview"]}) })
+		folder := itemFolder(t, arrival)
+		keepFiles(t, folder)
+		restoreLater(t, arrival)
 		updateItem(t, arrival, map[string]any{"Overview": ""})
+		for _, nfo := range nfos(t, folder) {
+			raw, err := os.ReadFile(nfo) //nolint:gosec // a fixture under the test data dir
+			if err != nil {
+				t.Fatal(err)
+			}
+			mediaWrite(t, nfo, plotless.ReplaceAll(raw, nil))
+		}
 		if got := findings(t, call(t, "audit_missing_overview", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Arrival"}) {
 			t.Fatalf("audit_missing_overview = %v, want [Arrival]", got)
 		}
@@ -1176,13 +1786,22 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 
 	t.Run("identify re-matches a wrong edition", func(t *testing.T) {
 		dune := findItem(t, "Movies", "Movie", "Dune")
-		before := fullItem(t, dune)
 		// the whole item goes back: the re-match replaces what the nfo gave
 		// the film (its people, its genres) with TMDB's, and a later run's
 		// item_get would read TMDB's cast where the nfo put the director
-		t.Cleanup(func() { updateItem(t, dune, before) })
-		// matched to David Lynch's film, which the messy Dune's nfo names too
+		folder := itemFolder(t, dune)
+		keepFiles(t, folder)
+		restoreLater(t, dune)
+		// matched to David Lynch's film, which the messy Dune's nfo names too.
+		// The nfo beside the file still names the 2021 film on Emby, which
+		// saves none, and Emby's apply re-reads it: it goes for the test, so
+		// what puts the film right is the match and not the nfo
 		updateItem(t, dune, map[string]any{"ProviderIds": map[string]any{"Tmdb": "841", "Imdb": "tt0087182"}, "ProductionYear": 1984})
+		for _, nfo := range nfos(t, folder) {
+			if err := os.Remove(nfo); err != nil {
+				t.Fatal(err)
+			}
+		}
 		counts := auditCounts(t, nil)
 		if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Dune"}) {
 			t.Fatalf("audit_file_path = %v, want [Dune]", got)
@@ -1202,8 +1821,13 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 		}
 		applied := call(t, "item_identify_apply", map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021})
 		ids, _ := applied["metadata_provider_ids"].(map[string]any)
-		if str(ids["tmdb"]) != "438631" || num(t, applied["year"], "year") != 2021 || str(applied["note"]) != "" {
+		if str(ids["tmdb"]) != "438631" || num(t, applied["year"], "year") != 2021 {
 			t.Errorf("item_identify_apply = %v", applied)
+		}
+		// no nfo is left to warn of; on Emby the watch state follows the ids,
+		// and the answer says so
+		if note := str(applied["note"]); strings.Contains(note, "nfo") || isJellyfin() != (note == "") {
+			t.Errorf("item_identify_apply's note = %q", note)
 		}
 
 		if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Movies"})); len(got) != 0 {
@@ -1222,8 +1846,8 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 
 	t.Run("with the fetchers off", func(t *testing.T) {
 		dune := findItem(t, "Messy Movies", "Movie", "Dune")
-		before := fullItem(t, dune)
-		t.Cleanup(func() { updateItem(t, dune, before) })
+		keepFiles(t, itemFolder(t, dune))
+		restoreLater(t, dune)
 
 		idx := -1
 		for i, c := range rows(t, call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
@@ -1253,7 +1877,11 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 			if strings.Contains(note, "does not save nfo") {
 				t.Errorf("the note warns of an nfo on a library that saves them: %q", note)
 			}
+			was := itemEtag(t, dune)
 			call(t, "item_refresh", map[string]any{"id": dune})
+			if !savedSince(t, dune, was) {
+				t.Fatal("the refresh never saved the film")
+			}
 			if !holds(func() bool { return tmdb() == "438631" }) {
 				t.Errorf("a refresh after the apply left tmdb %s", tmdb())
 			}
@@ -1276,9 +1904,7 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 // carries it.
 func TestGenresFollowEdits(t *testing.T) {
 	ids := []any{findItem(t, "Movies", "Movie", "Alien"), findItem(t, "Movies", "Movie", "Aliens")}
-	t.Cleanup(func() {
-		_, _ = invoke("item_edit", map[string]any{"ids": ids, "remove_genres": []any{"Zzyzx Franchise", "Zzyzx Saga"}})
-	})
+	putBack(t, "item_edit", map[string]any{"ids": ids, "remove_genres": []any{"Zzyzx Franchise", "Zzyzx Saga"}})
 	carried := func(genre string, want ...string) {
 		t.Helper()
 		if n := valueCounts(t, call(t, "library_filters", map[string]any{"library": "Movies"})["genres"], "genres")[genre]; n != len(want) {
@@ -1318,17 +1944,16 @@ func TestCopiesCountOnce(t *testing.T) {
 	if len(copies) != 3 {
 		t.Fatalf("tmdb 348 has %d copies, want 3", len(copies))
 	}
-	t.Cleanup(func() {
-		for _, c := range copies {
-			_, _ = invoke("item_set_state", map[string]any{"id": str(c["id"]), "user": "alice", "watched": false})
-			_, _ = invoke("item_set_state", map[string]any{"id": str(c["id"]), "user": "alice", "favourite": false})
-		}
-	})
+	for _, c := range copies {
+		unmarkLater(t, "alice", str(c["id"]))
+	}
 	unwatchedAliens := func(library string) int {
 		return len(slices.DeleteFunc(findings(t, call(t, "audit_unwatched", map[string]any{"library": library})), func(n string) bool { return n != "Alien" }))
 	}
-	if n := unwatchedAliens("Messy Movies"); n != 2 {
-		t.Fatalf("audit_unwatched lists %d messy Aliens before, want 2", n)
+	for library, want := range map[string]int{"Movies": 1, "Messy Movies": 2} {
+		if n := unwatchedAliens(library); n != want {
+			t.Fatalf("audit_unwatched lists %d Aliens in %s before, want %d", n, library, want)
+		}
 	}
 	stats := call(t, "user_stats", map[string]any{"user": "alice"})
 
@@ -1390,11 +2015,7 @@ func TestFinishingASeries(t *testing.T) {
 		byNumber[num(t, e["episode"], "episode")] = str(e["id"])
 	}
 	e1, e2, e3 := byNumber[1], byNumber[2], byNumber[3]
-	t.Cleanup(func() {
-		for _, id := range []string{e1, e2, e3} {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
-		}
-	})
+	unmarkLater(t, "alice", e1, e2, e3)
 	ids := func(tool, field string) []string {
 		var out []string
 		for _, it := range rows(t, call(t, tool, map[string]any{"user": "alice"})[field], field) {
@@ -1440,8 +2061,10 @@ func TestFinishingASeries(t *testing.T) {
 	}
 
 	call(t, "item_set_state", map[string]any{"id": e3, "user": "alice", "watched": true})
-	if next := ids("user_next_up", "next_up"); slices.ContainsFunc(next, func(id string) bool { return id == e1 || id == e2 || id == e3 }) {
-		t.Errorf("after the last episode next up is %v", next)
+	for _, row := range rows(t, call(t, "user_next_up", map[string]any{"user": "alice"})["next_up"], "next_up") {
+		if str(row["series"]) == "Breaking Bad" {
+			t.Errorf("after the last episode next up still has Breaking Bad: %v", row)
+		}
 	}
 	if bb := breakingBad(); bb == nil || num(t, bb["episodes_watched"], "episodes_watched") != 3 || !boolOf(bb["finished"]) {
 		t.Errorf("Breaking Bad in the stats after the last episode = %v", bb)
@@ -1459,16 +2082,49 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	eps := rows(t, call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
 	pilot, second := str(eps[0]["id"]), str(eps[1]["id"])
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
-	t.Cleanup(func() {
-		for _, id := range []string{pilot, second, arrival} {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false})
-		}
-	})
+	unmarkLater(t, "alice", pilot, second, arrival)
 	// watched and favourited while alice could see everything
 	call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "watched": true})
 	call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "favourite": true})
 	call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "position_s": 1})
+
+	// what each tool says of her while she can see it all, so what goes
+	// once she cannot is known to have been there
+	nextUp := func() []string {
+		var out []string
+		for _, e := range rows(t, call(t, "user_next_up", map[string]any{"user": "alice"})["next_up"], "next_up") {
+			out = append(out, str(e["id"]))
+		}
+		return out
+	}
+	// episodes too: with no library the default is films and series, which
+	// would find no favourite episode whoever could see it
+	favourites := func() []string {
+		var out []string
+		for _, it := range rows(t, call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite", "types": "Movie,Series,Episode"})["items"], "items") {
+			out = append(out, str(it["id"]))
+		}
+		return out
+	}
+	watchers := func() map[string]bool {
+		out := map[string]bool{}
+		for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": pilot})["users"], "users") {
+			out[str(u["user"])] = boolOf(u["played"])
+		}
+		return out
+	}
+	if got := nextUp(); !slices.Equal(got, []string{second}) {
+		t.Fatalf("before the restriction alice's next up is %v, want episode two alone", got)
+	}
+	if got := favourites(); !slices.Equal(got, []string{pilot}) {
+		t.Fatalf("before the restriction alice's favourites are %v, want the pilot alone", got)
+	}
+	if got := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, got["episodes_watched"], "episodes_watched") != 1 || num(t, got["favourites"], "favourites") != 1 {
+		t.Fatalf("before the restriction user_stats alice = %v, want one episode and one favourite", got)
+	}
+	if got := watchers(); !got["alice"] {
+		t.Fatalf("before the restriction item_last_watched of the pilot = %v, want alice played", got)
+	}
 
 	restrictAlice(t, "Movies")
 
@@ -1479,16 +2135,27 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	if got := names(t, next["in_progress"], "in_progress"); !slices.Equal(got, []string{"Arrival"}) {
 		t.Errorf("user_next_up in_progress = %v, want [Arrival]", got)
 	}
-	if got := names(t, call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite"})["items"], "items"); len(got) != 0 {
+	if got := favourites(); len(got) != 0 {
 		t.Errorf("alice's favourites = %v, want none she can see", got)
 	}
 	if got := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, got["episodes_watched"], "episodes_watched") != 0 || num(t, got["favourites"], "favourites") != 0 {
 		t.Errorf("user_stats alice counts what she cannot see: %v", got)
 	}
+	// root, who can still see the pilot, is reported; so is alice, who
+	// watched it before she lost the library, marked as one who has - as
+	// audit_unwatched below still counts her watch
+	got := watchers()
+	if _, ok := got["root"]; !ok {
+		t.Errorf("item_last_watched of the pilot = %v, want root's row", got)
+	}
+	var aliceRow map[string]any
 	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": pilot})["users"], "users") {
 		if str(u["user"]) == "alice" {
-			t.Errorf("item_last_watched reports alice on an episode she cannot see: %v", u)
+			aliceRow = u
 		}
+	}
+	if aliceRow == nil || !boolOf(aliceRow["played"]) || !boolOf(aliceRow["no_access"]) {
+		t.Errorf("item_last_watched of the pilot for alice = %v, want her watch, marked no_access", aliceRow)
 	}
 	for _, args := range []map[string]any{
 		{"id": second, "user": "alice", "watched": true},
@@ -1499,8 +2166,9 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 			t.Errorf("item_set_state %v on an episode alice cannot see: %s", args, msg)
 		}
 	}
-	// alice's watch of the pilot is not hers to count while she cannot see it
-	if got := findings(t, call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})); !slices.Contains(got, "Breaking Bad") {
-		t.Errorf("audit_unwatched = %v, want Breaking Bad among them", got)
+	// alice watched the pilot before she lost the library, and a series
+	// someone has watched is not one nobody has
+	if got := findings(t, call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})); slices.Contains(got, "Breaking Bad") {
+		t.Errorf("audit_unwatched = %v: alice's watch of the pilot stopped counting when she lost the library", got)
 	}
 }

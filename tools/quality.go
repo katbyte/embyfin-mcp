@@ -256,7 +256,7 @@ func registerQualityTools(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "quality_compare",
 		Description: "Which of two copies is better, by how much, and why. Each side is an item_id or a file's numbers. Decides on resolution class, then bitrate with the codec taken out, measured alike on both sides - both video streams, or both whole files, as bitrate_basis says - and unknown where they cannot be; the working and every constant come back with it. " +
-			"Caveats flag what the numbers cannot see: frames of different shapes (black bars), an interpolated frame rate, a starved bitrate. Audio is reported beside the verdict, never folded in. It compares; it does not say what to do.",
+			"Caveats flag what the numbers cannot see: frames of different shapes (black bars), an interpolated frame rate, a starved bitrate, and two items that may be two different films (a file naming another title, years more than one apart, runtimes far apart). Audio is reported beside the verdict, never folded in. It compares; it does not say what to do.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in compareIn) (*mcp.CallToolResult, compareOut, error) {
 		// a margin under 1 calls the worse copy better: identical copies
 		// measure 1.00x, which clears any margin below it
@@ -265,11 +265,11 @@ func registerQualityTools(r *registry) {
 		}
 		policy := in.Policy.resolve()
 
-		a, reasonsA, err := readCopy(ctx, client, in.A, "a")
+		a, itemA, reasonsA, err := readCopy(ctx, client, in.A, "a")
 		if err != nil {
 			return nil, compareOut{}, err
 		}
-		b, reasonsB, err := readCopy(ctx, client, in.B, "b")
+		b, itemB, reasonsB, err := readCopy(ctx, client, in.B, "b")
 		if err != nil {
 			return nil, compareOut{}, err
 		}
@@ -277,14 +277,59 @@ func registerQualityTools(r *registry) {
 		out := compareOut{A: a, B: b, Policy: policy, Reasons: append(reasonsA, reasonsB...)}
 		out.Audio = compareAudio(a, b)
 		out.Verdict, out.Margin, out.DecidedBy = decide(&out)
+		if caveat := notOneFilm(itemA, itemB); caveat != "" {
+			out.Caveats = append(out.Caveats, caveat)
+		}
 
 		return nil, out, nil
 	})
 }
 
+// notOneFilm is the caveat for two library items that may be two films
+// rather than two copies of one, "" when nothing says so: a file naming
+// another title than its item goes by, or a year more than one off; two items
+// whose titles are none of each other's; or runtimes far apart, which a
+// director's cut explains as well, so it is said as a question. It is never a
+// verdict: the comparison stands, and says nothing about which to keep.
+func notOneFilm(a, b *embyfin.Item) string {
+	if a == nil || b == nil {
+		return ""
+	}
+	var why []string
+	for _, it := range []*embyfin.Item{a, b} {
+		if w, other := otherFilm(it, it.Path); other {
+			why = append(why, w)
+		}
+	}
+	if a.Type == typeMovie && b.Type == typeMovie {
+		best := -1.0
+		for _, ka := range knownTitles(a) {
+			for _, kb := range knownTitles(b) {
+				if s, _ := titleScore(ka.title, kb.title); s > best {
+					best = s
+				}
+			}
+		}
+		if best >= 0 && best < seriesConfident {
+			why = append(why, fmt.Sprintf("the items are %q and %q", a.Name, b.Name))
+		}
+		if a.ProductionYear > 0 && b.ProductionYear > 0 && abs(a.ProductionYear-b.ProductionYear) > 1 {
+			why = append(why, fmt.Sprintf("the items are dated %d and %d", a.ProductionYear, b.ProductionYear))
+		}
+	}
+	if runtimesApart(a.RunTimeTicks, b.RunTimeTicks) {
+		why = append(why, fmt.Sprintf("they run %s and %s: a different cut, or a different film", runtimeText(a.RunTimeTicks), runtimeText(b.RunTimeTicks)))
+	}
+	if len(why) == 0 {
+		return ""
+	}
+
+	return "these may not be the same film: " + strings.Join(why, "; ") + ". Which measures better says nothing about which to keep until that is settled"
+}
+
 // readCopy turns one side into facts, reading them off the library when it
 // was given an id, and says what it derived on the way.
-func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side string) (copyFacts, []string, error) {
+func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side string) (copyFacts, *embyfin.Item, []string, error) {
 	facts := copyFacts{
 		Source:     "given",
 		Width:      in.Width,
@@ -303,14 +348,16 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 	stated := in.AspectRatio
 
 	if in.ItemID == "" && in.Width <= 0 && in.Height <= 0 {
-		return copyFacts{}, nil, fmt.Errorf("copy %s: %w", side, errNoCopy)
+		return copyFacts{}, nil, nil, fmt.Errorf("copy %s: %w", side, errNoCopy)
 	}
 
+	var read *embyfin.Item
 	if in.ItemID != "" {
 		item, err := client.ItemByID(ctx, in.ItemID)
 		if err != nil {
-			return copyFacts{}, nil, fmt.Errorf("copy %s: %w", side, err)
+			return copyFacts{}, nil, nil, fmt.Errorf("copy %s: %w", side, err)
 		}
+		read = item
 		// the same facts every other tool answers with, so the two sides of a
 		// comparison are read the same way
 		q := qualityOf(item)
@@ -338,12 +385,12 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		audio = q.Audio
 		stated = q.AspectRatio
 		if !item.HasFile() {
-			return copyFacts{}, nil, fmt.Errorf("copy %s: %q is a record with no file, so there is nothing to compare", side, item.Name)
+			return copyFacts{}, nil, nil, fmt.Errorf("copy %s: %q is a record with no file, so there is nothing to compare", side, item.Name)
 		}
 		if facts.Width <= 0 && facts.Height <= 0 {
 			// a series or a season holds episodes rather than a file: the
 			// id is one level up from the thing being compared
-			return copyFacts{}, nil, fmt.Errorf("copy %s: %q is a %s, which has no frame of its own - compare the episodes (library_episodes with series lists them with their ids)", side, item.Name, strings.ToLower(item.Type))
+			return copyFacts{}, nil, nil, fmt.Errorf("copy %s: %q is a %s, which has no frame of its own - compare the episodes (library_episodes with series lists them with their ids)", side, item.Name, strings.ToLower(item.Type))
 		}
 	}
 
@@ -375,7 +422,7 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		facts.AspectFrom = "frame"
 	}
 	if w, h, ok := embyfin.ParseAspect(stated); ok {
-		facts.Aspect = math.Round(float64(w)/float64(h)*100) / 100
+		facts.Aspect = math.Round(w/h*100) / 100
 		facts.AspectFrom = "stated"
 	}
 
@@ -385,7 +432,7 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		facts.AudioCodec, facts.AudioChannels, facts.AudioBitrate = best.Codec, best.Channels, best.Bitrate
 	}
 
-	return facts, reasons, nil
+	return facts, read, reasons, nil
 }
 
 // decide weighs the two sides and says which is better, by how much, and on

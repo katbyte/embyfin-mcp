@@ -63,7 +63,7 @@ func registerDuplicateEpisodesAudit(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_duplicate_episodes",
 		Description: "Find one episode's content filed under two episode numbers: a season holding the same episode title twice. " +
-			"Neither other duplicate audit sees this - audit_duplicates matches provider ids, which differ because the server believes they are different episodes, and audit_multiple_versions finds several files under one item. " +
+			"Neither other duplicate audit sees this - audit_duplicates matches provider ids, which differ because the server believes they are different episodes, and audit_multiple_versions finds several files under one item (so two files the server shows as one episode's versions are not a finding here; on Emby, which merges them only in what it shows people, this reads the library as the first administrator is shown it). " +
 			"Runtimes within 5% make it near certain; matching titles alone are a lead, because a season can reuse a title and generic ones repeat by nature. It does not pick a winner: the larger file can be the worse copy.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in dupTitlesIn) (*mcp.CallToolResult, dupTitlesOut, error) {
 		out, err := auditDuplicateEpisodes(ctx, client, in)
@@ -88,21 +88,22 @@ func auditDuplicateEpisodes(ctx context.Context, client *embyfin.Client, in dupT
 	}
 	seasons := map[key][]embyfin.Item{}
 	out := dupTitlesOut{Groups: []titleGroup{}}
-	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
-		for i := range items {
-			it := &items[i]
-			out.Scanned++
-			title := strings.TrimSpace(strings.ToLower(it.Name))
-			if it.SeriesID == "" || title == "" || !it.HasFile() {
-				continue
-			}
-			k := key{series: it.SeriesID, season: it.ParentIndexNumber, title: title}
-			seasons[k] = append(seasons[k], *it)
-		}
-
-		return true
-	}); err != nil {
+	// as people are shown them: two files Emby shows as one episode's
+	// versions are one episode (audit_multiple_versions), where a sweep of
+	// what it stores holds each as an entry carrying the same title
+	items, err := shownItems(ctx, client, opts)
+	if err != nil {
 		return dupTitlesOut{}, err
+	}
+	for i := range items {
+		it := &items[i]
+		out.Scanned++
+		title := strings.TrimSpace(strings.ToLower(it.Name))
+		if it.SeriesID == "" || title == "" || !it.HasFile() {
+			continue
+		}
+		k := key{series: it.SeriesID, season: it.ParentIndexNumber, title: title}
+		seasons[k] = append(seasons[k], *it)
 	}
 
 	var groups []titleGroup

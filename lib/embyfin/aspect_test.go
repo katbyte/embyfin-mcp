@@ -24,6 +24,12 @@ func TestDisplayWidth(t *testing.T) {
 		{"", 720, 480, 0},           // the file says nothing
 		{"widescreen", 720, 480, 0}, // not a ratio
 		{"16:9", 720, 0, 0},         // no height to scale
+		// stated as a decimal against 1, as both servers state a VOB's
+		{"1.78:1", 720, 480, 854},    // an anamorphic 16:9 DVD
+		{"1.33:1", 720, 576, 766},    // a 4:3 PAL DVD
+		{"1.5:1", 720, 480, 0},       // the frame's own shape
+		{"2.35:1", 1920, 817, 0},     // a scope encode, cropped to its shape
+		{"2.39:1", 1440, 1080, 2581}, // anamorphic scope
 	} {
 		s := MediaStream{AspectRatio: tc.ratio, Width: tc.width, Height: tc.height}
 		if got := s.DisplayWidth(); got != tc.want {
@@ -31,10 +37,15 @@ func TestDisplayWidth(t *testing.T) {
 		}
 	}
 	if w, h, ok := ParseAspect("16:9"); !ok || w != 16 || h != 9 {
-		t.Errorf("ParseAspect = %d %d %v", w, h, ok)
+		t.Errorf("ParseAspect = %v %v %v", w, h, ok)
 	}
-	if _, _, ok := ParseAspect("0:9"); ok {
-		t.Error("a zero side parsed")
+	if w, h, ok := ParseAspect("1.5:1"); !ok || w != 1.5 || h != 1 {
+		t.Errorf("ParseAspect(1.5:1) = %v %v %v", w, h, ok)
+	}
+	for _, bad := range []string{"0:9", "1.5:0", "-1:1", "NaN:1", "Inf:1", "1.5", ":", "a:b"} {
+		if _, _, ok := ParseAspect(bad); ok {
+			t.Errorf("ParseAspect(%q) parsed", bad)
+		}
 	}
 }
 

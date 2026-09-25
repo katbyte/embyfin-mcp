@@ -2,15 +2,47 @@
 
 ## Unreleased
 
+**New**
+
+- `audit_file_path` checks a film is the film its file says it is. It compares the path with every title the film goes by (its name, original title, sort name and, with a TMDB token, TMDB's alternative titles) and takes a year either side as the same film. With a token it says which film a mismatched path names and whether the file's runtime backs it.
+- `audit_file_path` reports a name spelled with a letter from another alphabet that only looks Latin ("Еden" with a Cyrillic Е, which a search for "Eden" never finds), and a film renamed by hand.
+- `audit_file_path` and `audit_provider` take `ids`, to check a handful of items rather than a library.
+- `item_get` lists every version of an item with its own file facts, and warns when a version's file names another film: two films matched to one id, which Emby merges into one. `audit_multiple_versions` and `audit_duplicates` mark such groups, and `quality_compare` adds a caveat.
+- `item_get` and `library_items` show `original_title` when it differs from the name.
+- `audit_all` counts a music library's missing album covers and genre spellings.
+- `task_list` shows each task's id.
+
 **Changed**
 
 - `show_episodes` is gone: `library_episodes` takes the show by name or id (`series`) and a `season`, so one tool reads a show's episodes, a season's or a library's.
 - `user_in_progress` is gone: `user_next_up` answers what to watch next and everything part way through (`in_progress`, was `resume`), with where each resumes. 87 tools: 60 read, 22 write, 5 delete.
+- `--allow-tools` without `--toolsets` chooses from every tool, so `essential` loads all five. Beside `--toolsets`, naming a tool the sets don't hold is refused, naming the set to add.
+- `item_refresh` waits for the refresh to land and says whether it did, so an edit made straight after is no longer undone.
+- `item_identify_apply` sets every id the chosen title goes by when the library's fetchers are off. It warns when an nfo beside the file may bring the old title back and, on Emby, that watch state follows the ids.
+- `item_delete`'s preview lists everything the server will take, including another item's nfo, subtitles and images whose names start with the same name.
+- `item_artwork_set` says when Emby deletes the poster file beside the media.
+- `audit_unwatched` and `item_last_watched` count watches by accounts that have since lost access to the library.
+- `collection_delete` on Jellyfin watches a just-changed collection long enough for a slow refresh to come back, and says why.
+- `audit_provider` pages in its own order, so every film is asked about once; the other paged lists break ties by date added.
 
 **Fixed**
 
 - `audit_file_path` no longer flags a film Jellyfin could not match, which it names after its folder, year and all ("Cube (1997)").
 - A series name that only half-matches several shows is refused as a guess, rather than as a tie to narrow with `library`.
+- Audits judged each version of an Emby film on its own: a 360p copy beside a 4K one was reported, a subtitle in another version didn't count, and an episode's two versions read as duplicates.
+- `show_seasons`, `show_missing`, `show_episodes_exist` and `library_episodes` took a film's id as a show's and answered for an unrelated show. They now refuse it and say what the id is.
+- An unknown id read as "nobody has watched this" or "nothing similar". `item_last_watched`, `item_similar`, `item_instant_mix`, `item_refresh`, `playlist_add` and `session_play` now say no item has it.
+- On Emby, `user_next_up` lost in-progress films behind never-started episodes and never said when an item was last played, and `user_stats`' most played was always empty.
+- Sort name edits on Emby were reported as saved and silently lost.
+- `library_edit` could rename a library onto another library's name, and on Jellyfin answered a rename with no id.
+- `library_items` ignored the sort when searching.
+- `audit_quality` on Jellyfin missed a file it couldn't read.
+- `plan_check` left out a size ratio or claim similarity of 0, the answer that matters most.
+- `item_instant_mix` from a playlist returned nothing on Emby, and more tracks than the limit.
+- `show_resolve` read a name of nothing but season, episode and encode markers as a title.
+- `server_stats` counted no collections on Emby.
+- Aspect ratios written as decimals ("1.5:1") are read.
+- Nine Emby routes the SDK couldn't call now work: they need parameters Emby's own document doesn't declare.
 
 ## 0.2.0 (2026-09-23)
 

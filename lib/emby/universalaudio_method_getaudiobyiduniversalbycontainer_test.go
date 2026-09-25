@@ -17,6 +17,7 @@ func TestOperationGetAudioByIdUniversalByContainer(t *testing.T) {
 	result, err := c.GetAudioByIdUniversalByContainer(t.Context(), "p/id", "p/container", GetAudioByIdUniversalByContainerOperationOptions{
 		DeviceId:       "v-DeviceId",
 		StartTimeTicks: new(int64(7)),
+		UserId:         "v-UserId",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -26,6 +27,7 @@ func TestOperationGetAudioByIdUniversalByContainer(t *testing.T) {
 	expectRequest(t, r, http.MethodGet, "/Audio/p%2Fid/universal.p%2Fcontainer")
 	expectQuery(t, r, "DeviceId", "v-DeviceId")
 	expectQuery(t, r, "StartTimeTicks", "7")
+	expectQuery(t, r, "UserId", "v-UserId")
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}
@@ -40,6 +42,7 @@ func TestOperationGetAudioByIdUniversalByContainer(t *testing.T) {
 	result, err = c.GetAudioByIdUniversalByContainer(t.Context(), "p/id", "p/container", GetAudioByIdUniversalByContainerOperationOptions{
 		DeviceId:       "v-DeviceId",
 		StartTimeTicks: new(int64(7)),
+		UserId:         "v-UserId",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

@@ -15,15 +15,37 @@ type GetWebStringsetOperationResponse struct {
 	Model        []string
 }
 
+// GetWebStringsetOperationOptions holds the query and header parameters of GetWebStringset.
+type GetWebStringsetOperationOptions struct {
+	// The plugin whose translations to list
+	PluginId string
+}
+
+// ToHeaders returns the header parameters the options set.
+func (o GetWebStringsetOperationOptions) ToHeaders() *client.Headers {
+	out := client.Headers{}
+	return &out
+}
+
+// ToQuery returns the query parameters the options set.
+func (o GetWebStringsetOperationOptions) ToQuery() *client.QueryParams {
+	out := client.QueryParams{}
+	if o.PluginId != "" {
+		out.Append("PluginId", o.PluginId)
+	}
+	return &out
+}
+
 // GetWebStringset calls GET /web/stringset. Requires authentication as user.
-func (c Client) GetWebStringset(ctx context.Context) (result GetWebStringsetOperationResponse, err error) {
+func (c Client) GetWebStringset(ctx context.Context, options GetWebStringsetOperationOptions) (result GetWebStringsetOperationResponse, err error) {
 	opts := client.RequestOptions{
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HTTPMethod: http.MethodGet,
-		Path:       "/web/stringset",
+		HTTPMethod:    http.MethodGet,
+		OptionsObject: options,
+		Path:          "/web/stringset",
 	}
 
 	req, err := c.Client.NewRequest(ctx, opts)

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -97,6 +98,19 @@ func sweepOptions(ctx context.Context, client *embyfin.Client, library, types, d
 	return opts, nil
 }
 
+// nonEmpty is a list of ids or names as given, less the blank ones and the
+// spaces around the rest.
+func nonEmpty(list []string) []string {
+	out := make([]string, 0, len(list))
+	for _, s := range list {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
+		}
+	}
+
+	return out
+}
+
 // sweepPage is how many items one sweep request reads. A server pays for a
 // page mostly in walking past the ones before it, and about the same for ten
 // thousand rows as for one thousand, so a sweep of a few hundred thousand
@@ -156,16 +170,83 @@ var watchFilters = map[string]string{
 	"favourite":   "IsFavorite",
 }
 
-// itemSorts maps library_items' sort names onto the servers' sort keys.
+// itemSorts maps library_items' sort names onto the servers' sort keys. Each
+// ends in the keys that settle a tie: two items of one name (a remake, a
+// second copy) otherwise come back in either order, and paged by offset one
+// is listed twice and the other never. Neither server sorts by anything that
+// tells every item apart, so the order is as settled as its keys allow.
 var itemSorts = map[string]string{
-	"name":      "SortName",
+	"name":      "SortName,DateCreated",
 	"added":     "DateCreated,SortName",
-	"premiered": "PremiereDate,SortName",
-	"year":      "ProductionYear,SortName",
-	"runtime":   "Runtime,SortName",
-	"rating":    "CommunityRating,SortName",
-	"played":    "DatePlayed,SortName",
+	"premiered": "PremiereDate,SortName,DateCreated",
+	"year":      "ProductionYear,SortName,DateCreated",
+	"runtime":   "Runtime,SortName,DateCreated",
+	"rating":    "CommunityRating,SortName,DateCreated",
+	"played":    "DatePlayed,SortName,DateCreated",
 	"random":    "Random",
+}
+
+// searchSortMax is the most matches a search with a sort reads to sort them
+// itself: a title search names a handful, and one that matches more than
+// this is too broad to be worth sorting.
+const searchSortMax = 2000
+
+// sortedMatches reads every item a search matches and sorts them by one of
+// library_items' sorts, with the same keys settling a tie as the servers'
+// (itemSorts).
+func sortedMatches(ctx context.Context, client *embyfin.Client, opts embyfin.SearchOptions, sort string, desc bool) ([]embyfin.Item, error) {
+	all := opts
+	all.SortBy, all.SortOrder = "", ""
+	all.Fields = embyfin.FieldsDefault + ",SortName,CommunityRating"
+	var items []embyfin.Item
+	if err := client.SearchAll(ctx, all, func(page []embyfin.Item) bool {
+		items = append(items, page...)
+		return len(items) <= searchSortMax
+	}); err != nil {
+		return nil, err
+	}
+	if len(items) > searchSortMax {
+		return nil, fmt.Errorf("%q matches more than %d items, too many to sort (neither server sorts a search, so it is sorted here): narrow the search, or leave out the sort", opts.SearchTerm, searchSortMax)
+	}
+	if sort == "random" {
+		rand.Shuffle(len(items), func(i, j int) { items[i], items[j] = items[j], items[i] }) //nolint:gosec // an order to browse in, not a secret
+		return items, nil
+	}
+
+	name := func(it *embyfin.Item) string { return strings.ToLower(cmp.Or(it.SortName, it.Name)) }
+	played := func(it *embyfin.Item) string {
+		if it.UserData == nil {
+			return ""
+		}
+		return it.UserData.LastPlayedDate
+	}
+	key := func(a, b *embyfin.Item) int {
+		switch sort {
+		case "added":
+			return strings.Compare(a.DateCreated, b.DateCreated)
+		case "premiered":
+			return strings.Compare(a.PremiereDate, b.PremiereDate)
+		case "year":
+			return cmp.Compare(a.ProductionYear, b.ProductionYear)
+		case "runtime":
+			return cmp.Compare(a.RunTimeTicks, b.RunTimeTicks)
+		case "rating":
+			return cmp.Compare(a.CommunityRating, b.CommunityRating)
+		case "played":
+			return strings.Compare(played(a), played(b))
+		}
+
+		return 0
+	}
+	slices.SortStableFunc(items, func(a, b embyfin.Item) int {
+		c := cmp.Or(key(&a, &b), strings.Compare(name(&a), name(&b)), strings.Compare(a.DateCreated, b.DateCreated))
+		if desc {
+			return -c
+		}
+		return c
+	})
+
+	return items, nil
 }
 
 func registerLibraryBrowseTools(r *registry) {
@@ -280,6 +361,20 @@ func registerLibraryBrowseTools(r *registry) {
 				return nil, itemsOut{}, fmt.Errorf("no person named %q in the library (person_get lists the near names)", in.Person)
 			}
 			opts.PersonIDs = found.ID
+		}
+
+		// both servers answer a search in their own order of how well each
+		// item matches, and ignore a sort asked for with it (seen on Emby
+		// 4.10 and Jellyfin 12.1: "Dune", newest first, came back oldest
+		// first), so the matches are read whole and sorted here
+		if opts.SearchTerm != "" && sortBy != "" {
+			matches, merr := sortedMatches(ctx, client, opts, sort, in.Desc)
+			if merr != nil {
+				return nil, itemsOut{}, merr
+			}
+			page := matches[min(offset, len(matches)):min(offset+limit, len(matches))]
+
+			return nil, itemsOut{Total: len(matches), Offset: offset, Items: summariseAll(page)}, nil
 		}
 
 		items, total, err := client.Search(ctx, opts)

@@ -3,9 +3,9 @@
 package acceptance
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -17,8 +17,9 @@ import (
 // kept whole as its BDMV tree. Both servers hold the kept one as one film at
 // its folder - neither reaches past BDMV into the streams, so the "inside a
 // disc structure" kind never arises from a disc laid out whole - and the
-// audit leaves it alone. The Blu-ray's streams, flattened, are staged here and
-// taken away again, being two more films for every count.
+// audit leaves it alone. A Blu-ray's streams, flattened into Pi's folder, are
+// staged here: found, matched one stream at a time to two films, and then
+// remuxed into the one file they should have been, which the audit lets go of.
 func TestAuditDiscFolders(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
@@ -43,56 +44,136 @@ func TestAuditDiscFolders(t *testing.T) {
 	}
 
 	have := movieCount(t, "Messy Movies")
-	dir := filepath.Join(dataDir(), "messy-movies", "Disc Rip (1999)")
+	const name = "Pi (1998)"
+	dir := filepath.Join(dataDir(), "messy-movies", name)
+	server := "/media/messy-movies/" + name
+	streams := []string{"00000.m2ts", "00001.m2ts"}
 	mediaMkdir(t, dir)
-	for _, name := range []string{"00000.m2ts", "00001.m2ts"} {
-		raw, err := os.ReadFile(filepath.Join(dataDir(), "disc-src", name)) //nolint:gosec // a fixture under the test data dir
-		if err != nil {
-			t.Fatal(err)
-		}
-		mediaWrite(t, filepath.Join(dir, name), raw)
+	for _, s := range streams {
+		mediaWrite(t, filepath.Join(dir, s), fixtureVideo(t, "disc-src", s))
 	}
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
-		if _, err := invoke("library_scan", nil); err == nil {
-			_ = waitForItems("Messy Movies", have)
+		if err := scanUntil("Messy Movies", have); err != nil {
+			t.Error(err)
 		}
 	})
-
-	call(t, "library_scan", nil)
 	// both servers read the two streams as two films, which is the defect
-	if err := waitForItems("Messy Movies", have+2); err != nil {
-		t.Fatal(err)
-	}
-	if err := waitForScan(); err != nil {
+	if err := scanUntil("Messy Movies", have+2); err != nil {
 		t.Fatal(err)
 	}
 
-	out := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})
-	folders = rows(t, out["folders"], "folders")
-	// most items first: the two streams, then the one VOB
-	if len(folders) != 2 || num(t, out["total_findings"], "total_findings") != 2 || !strings.HasSuffix(str(folders[0]["folder"]), "Disc Rip (1999)") {
-		t.Fatalf("folders = %v, want the staged disc then the loose DVD", folders)
+	pi := func() map[string]any {
+		t.Helper()
+		out := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})
+		folders := rows(t, out["folders"], "folders")
+		// most items first: the two streams, then the one VOB
+		if len(folders) != 2 || num(t, out["total_findings"], "total_findings") != 2 || str(folders[0]["folder"]) != server {
+			t.Fatalf("folders = %v, want the staged disc then the loose DVD", folders)
+		}
+		// the sweep reads the library, not just this folder
+		if num(t, out["items_scanned"], "items_scanned") != have+2 {
+			t.Errorf("items_scanned = %v, want the library's %d films", out["items_scanned"], have+2)
+		}
+		return folders[0]
 	}
-	group := folders[0]
-	if str(group["kind"]) != "flattened blu-ray" {
-		t.Errorf("kind = %v", group["kind"])
+	group := pi()
+	if str(group["kind"]) != "flattened blu-ray" || group["note"] != nil {
+		t.Errorf("the staged disc = %v", group)
 	}
 	entries = rows(t, group["entries"], "entries")
 	if len(entries) != 2 || num(t, group["items"], "items") != 2 {
 		t.Fatalf("entries = %v", entries)
 	}
+	ids := make([]string, len(entries))
 	for i, e := range entries {
-		if str(e["file"]) != fmt.Sprintf("0000%d.m2ts", i) || str(e["id"]) == "" {
+		if str(e["file"]) != streams[i] || str(e["id"]) == "" || str(e["matched_to"]) != "" {
 			t.Errorf("entry = %v", e)
 		}
+		ids[i] = str(e["id"])
 	}
-	// a limit caps the folders, not the count
-	if capped := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies", "limit": 1}); len(rows(t, capped["folders"], "folders")) != 1 || num(t, capped["total_findings"], "total_findings") != 2 {
-		t.Errorf("limit 1 = %v", capped)
+	// a limit caps the folders, most items first, and not the count
+	capped := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies", "limit": 1})
+	if first := rows(t, capped["folders"], "folders"); len(first) != 1 || str(first[0]["folder"]) != server || num(t, capped["total_findings"], "total_findings") != 2 {
+		t.Errorf("limit 1 = %v, want the staged disc alone and a count of 2", capped)
 	}
-	// the sweep reads the library, not just this folder
-	if num(t, out["items_scanned"], "items_scanned") != have+2 {
-		t.Errorf("items_scanned = %v, want the library's %d films", out["items_scanned"], have+2)
+	// a stream is one film of two in the folder: deleting it would take that
+	// stream and nothing else
+	if folder, names := wouldRemove(t, callErr(t, "item_delete", map[string]any{"id": ids[0]})); folder != "" || !slices.Equal(names, []string{server + "/" + streams[0]}) {
+		t.Errorf("the refusal for one stream would take %q %v, want that stream alone", folder, names)
+	}
+
+	// each stream matched on its own, as a scan with an nfo beside each would:
+	// one to Pi and one to Arrival. One disc is one film, so the audit says at
+	// least one of them is wrong
+	nfos := map[string][]byte{"00000.nfo": movieNfo("Pi", 1998, "473", "tt0138704"), "00001.nfo": movieNfo("Arrival", 2016, "329865", "tt2543164")}
+	for file, raw := range nfos {
+		mediaWrite(t, filepath.Join(dir, file), raw)
+	}
+	for _, id := range ids {
+		call(t, "item_refresh", map[string]any{"id": id})
+	}
+	matched := func() []string {
+		var out []string
+		for _, e := range rows(t, pi()["entries"], "entries") {
+			out = append(out, str(e["matched_to"]))
+		}
+		return out
+	}
+	if !eventually(func() bool {
+		return slices.Equal(matched(), []string{"imdb:tt0138704 tmdb:473", "imdb:tt2543164 tmdb:329865"})
+	}) {
+		t.Errorf("the streams are matched to %v, want Pi's ids and Arrival's", matched())
+	}
+	if note := str(pi()["note"]); note != "matched to 2 different titles, so at least 1 of these are the wrong film" {
+		t.Errorf("note = %q", note)
+	}
+
+	// remuxed into one file in the same folder: one film again, and nothing
+	// for the audit
+	for _, f := range []string{streams[0], streams[1], "00000.nfo", "00001.nfo"} {
+		if err := os.Remove(filepath.Join(dir, f)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mediaWrite(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
+	if err := scanUntil("Messy Movies", have+1); err != nil {
+		t.Fatal(err)
+	}
+	after := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})
+	var left []string
+	for _, f := range rows(t, after["folders"], "folders") {
+		left = append(left, str(f["folder"]))
+	}
+	if want := []string{"/media/messy-movies/" + messyLooseDVD}; !slices.Equal(left, want) || num(t, after["total_findings"], "total_findings") != 1 {
+		t.Errorf("after the remux audit_disc_folders = %v, want %v alone", left, want)
+	}
+	var remux []string
+	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "limit": 50})["items"], "items") {
+		if strings.HasPrefix(str(it["path"]), server+"/") {
+			remux = append(remux, str(it["path"]))
+		}
+	}
+	if !slices.Equal(remux, []string{server + "/" + name + ".mp4"}) {
+		t.Errorf("the folder holds %v, want the remux alone", remux)
+	}
+}
+
+// The loose VOB's shape as its stream states it. Both servers state a DVD
+// stream's ratio as a decimal against 1 - this one, a 720x480 frame of
+// square pixels, as 1.5:1 - which read as no ratio at all, so the copy's
+// aspect came from the frame, and an anamorphic DVD stated that way got no
+// display width. It is read as stated now; this one's shape is its frame's,
+// so it is shown at its stored width and needs no display width.
+func TestTheLooseVOBsStatedShape(t *testing.T) {
+	vob := findItem(t, "Messy Movies", "Movie", "Coyote vs. Acme")
+	got := call(t, "item_get", map[string]any{"id": vob})
+	if ratio := str(got["aspect_ratio"]); !strings.Contains(ratio, ":") || got["display_width"] != nil || num(t, got["width"], "width") != 720 || num(t, got["height"], "height") != 480 {
+		t.Errorf("item_get of the loose VOB = aspect %v, display width %v, %vx%v: want its stated ratio, and no display width for a frame of its own shape", got["aspect_ratio"], got["display_width"], got["width"], got["height"])
+	}
+	out := call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": vob}, "b": map[string]any{"item_id": vob}})
+	a := object(t, out["a"], "a")
+	if decimal(t, a["aspect"], "aspect") != 1.5 || str(a["aspect_from"]) != "stated" {
+		t.Errorf("quality_compare reads the loose VOB's shape as %v from %v, want 1.5 as the stream states it", a["aspect"], a["aspect_from"])
 	}
 }

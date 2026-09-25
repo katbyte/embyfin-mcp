@@ -95,7 +95,7 @@ func registerPersonTools(r *registry) {
 		}
 		if err := client.SearchAll(ctx, embyfin.SearchOptions{
 			PersonIDs: found.ID, IncludeItemTypes: types, Fields: embyfin.FieldsDefault + ",People",
-			SortBy: "ProductionYear,SortName", SortOrder: "Ascending",
+			SortBy: "ProductionYear,SortName,DateCreated", SortOrder: "Ascending",
 		}, func(items []embyfin.Item) bool {
 			for i := range items {
 				it := &items[i]

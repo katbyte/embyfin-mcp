@@ -207,6 +207,15 @@
           "Type": {
             "Type": "String"
           }
+        },
+        {
+          "Name": "ItemId",
+          "Field": "ItemId",
+          "In": "Query",
+          "Description": "The playlist or collection whose sharing to list",
+          "Type": {
+            "Type": "String"
+          }
         }
       ],
       "Response": {

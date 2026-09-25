@@ -141,7 +141,7 @@ func registerUserDetailTools(r *registry) {
 		SeriesFinished  int          `json:"series_finished"`
 		TopGenres       []valueCount `json:"top_genres"       jsonschema:"across the films and series watched, a series once"`
 		TopSeries       []seriesRow  `json:"top_series"       jsonschema:"most episodes watched, top 10"`
-		MostPlayed      []playsRow   `json:"most_played"      jsonschema:"highest play counts, top 10 (Emby does not count a mark as watched as a play)"`
+		MostPlayed      []playsRow   `json:"most_played"      jsonschema:"highest play counts, top 10: a play through and a mark as watched each count one, on both servers"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_stats",

@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"context"
 	"slices"
 	"testing"
 
@@ -33,16 +34,33 @@ func TestJFUsers(t *testing.T) {
 	if alice.Name != "alice" || alice.Policy == nil || pointer.From(alice.Policy.IsAdministrator) {
 		t.Errorf("GetUserById(alice) = %+v", alice)
 	}
-	// new users are hidden from the login screen by default, so the public
-	// list is empty; it has to decode all the same
-	for _, u := range must(jfc.GetPublicUsers(ctx)).Model {
-		if u.Id == "" || u.Name == "" {
-			t.Errorf("public user = %+v", u)
+	// the public list is the users shown on the login screen, which new
+	// users are hidden from: empty until alice is shown, and empty again once
+	// she is hidden
+	if public := must(jfc.GetPublicUsers(ctx)).Model; len(public) != 0 {
+		t.Errorf("GetPublicUsers = %+v, with every user hidden", public)
+	}
+	hidden := func(ctx context.Context, to bool) {
+		t.Helper()
+		policy := *alice.Policy
+		policy.IsHidden = new(to)
+		if _, err := jfc.UpdateUserPolicy(ctx, aliceID, policy); err != nil {
+			t.Fatal(err)
 		}
 	}
+	hidden(ctx, false)
+	t.Cleanup(func() { hidden(context.WithoutCancel(ctx), true) })
+	public := must(jfc.GetPublicUsers(ctx)).Model
+	if len(public) != 1 || public[0].Id != aliceID || public[0].Name != "alice" || !pointer.From(public[0].HasPassword) {
+		t.Errorf("GetPublicUsers with alice shown = %+v, want alice", public)
+	}
+	hidden(ctx, true)
+	if public := must(jfc.GetPublicUsers(ctx)).Model; len(public) != 0 {
+		t.Errorf("GetPublicUsers with alice hidden again = %+v", public)
+	}
 	// an API key has no user behind it
-	if _, err := jfc.GetCurrentUser(ctx); client.StatusCode(err) == 0 {
-		t.Errorf("GetCurrentUser with an API key = %v, want an HTTP error", err)
+	if _, err := jfc.GetCurrentUser(ctx); client.StatusCode(err) != 400 {
+		t.Errorf("GetCurrentUser with an API key = %v, want a 400", err)
 	}
 
 	auth := must(jfc.AuthenticateUserByName(ctx, jf.AuthenticateUserByName{Username: "root", Pw: password})).Model

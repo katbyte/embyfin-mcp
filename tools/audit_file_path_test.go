@@ -156,12 +156,50 @@ func TestAuditQualityCountsUnprobed(t *testing.T) {
 			{"Id": "3", "Name": "Zzyzx Unprobed", "Type": "Movie", "Path": "/m/c.mkv", "LocationType": "FileSystem", "MediaSources": []map[string]any{{"Size": 0}}},
 		}})
 	})
+	adminView(t, f)
 	out := mustCall(t, session(t, f, Options{}), "audit_quality", map[string]any{"library": "Films"})
 	if number(t, out["items_scanned"], "items_scanned") != 3 || number(t, out["total_findings"], "total_findings") != 1 || number(t, out["total_unprobed"], "total_unprobed") != 1 || len(objects(t, out["unprobed"], "unprobed")) != 1 {
 		t.Errorf("out = %v", out)
 	}
 	if rows := objects(t, out["findings"], "findings"); len(rows) != 1 || text(rows[0]["name"]) != "Zzyzx Rip" {
 		t.Errorf("findings = %v", rows)
+	}
+}
+
+// A size is not a probe. Jellyfin gives a file it could not read - cut short
+// in the copying - its size and no streams, and taking the size for a probe
+// listed that file nowhere: not judged, and not among the files it could not
+// judge either. Nor is a subtitle file beside it, which a server lists as a
+// stream without opening the video.
+func TestAuditQualityTakesNoSizeForAProbe(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"Items":[{"Name":"Films","ItemId":"lib","CollectionType":"movies","Locations":["/m"]}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"TotalRecordCount": 3, "Items": []map[string]any{
+			{
+				"Id": "1", "Name": "Zzyzx Fine", "Type": "Movie", "Path": "/m/a.mkv", "LocationType": "FileSystem",
+				"MediaSources": []map[string]any{{"Size": 5, "MediaStreams": []map[string]any{{"Type": "Audio", "Codec": "aac"}}}},
+			},
+			{"Id": "2", "Name": "Zzyzx Cut", "Type": "Movie", "Path": "/m/b.mkv", "LocationType": "FileSystem", "MediaSources": []map[string]any{{"Size": 4096, "MediaStreams": []map[string]any{}}}},
+			{
+				"Id": "3", "Name": "Zzyzx Subtitled", "Type": "Movie", "Path": "/m/c.mkv", "LocationType": "FileSystem",
+				"MediaSources": []map[string]any{{"Size": 4096, "MediaStreams": []map[string]any{{"Type": "Subtitle", "Codec": "srt", "IsExternal": true}}}},
+			},
+		}})
+	})
+	adminView(t, f)
+	out := mustCall(t, session(t, f, Options{}), "audit_quality", map[string]any{"library": "Films"})
+	rows := objects(t, out["unprobed"], "unprobed")
+	unprobed := make([]string, 0, len(rows))
+	for _, row := range rows {
+		unprobed = append(unprobed, text(row["name"]))
+	}
+	if !slices.Equal(unprobed, []string{"Zzyzx Cut", "Zzyzx Subtitled"}) || number(t, out["total_unprobed"], "total_unprobed") != 2 {
+		t.Errorf("unprobed = %v (%v), want the cut file and the subtitled one, a size and an outside subtitle being no probe", unprobed, out["total_unprobed"])
 	}
 }
 

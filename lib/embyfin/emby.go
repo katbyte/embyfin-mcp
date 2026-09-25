@@ -51,6 +51,7 @@ func itemFromEmby(d *emby.BaseItemDto) Item {
 		ID:                d.Id,
 		Name:              d.Name,
 		OriginalTitle:     d.OriginalTitle,
+		SortName:          d.SortName,
 		Type:              d.Type,
 		ProductionYear:    d.ProductionYear,
 		PremiereDate:      d.PremiereDate,
@@ -96,7 +97,7 @@ func itemFromEmby(d *emby.BaseItemDto) Item {
 }
 
 func mediaSourceFromEmby(d *emby.MediaSourceInfo) MediaSource {
-	ms := MediaSource{Container: d.Container, Size: d.Size, Bitrate: int64(d.Bitrate), Path: d.Path}
+	ms := MediaSource{ItemID: d.ItemId, Name: d.Name, Container: d.Container, Size: d.Size, Bitrate: int64(d.Bitrate), Path: d.Path, RunTimeTicks: d.RunTimeTicks}
 	if len(d.MediaStreams) > 0 {
 		ms.MediaStreams = make([]MediaStream, 0, len(d.MediaStreams))
 		for i := range d.MediaStreams {
@@ -249,7 +250,7 @@ func remoteSearchResultToEmby(r *RemoteSearchResult) emby.RemoteSearchResult {
 }
 
 func imageInfoFromEmby(d *emby.ImageInfo) ImageInfo {
-	return ImageInfo{ImageType: string(d.ImageType), Width: d.Width, Height: d.Height, Size: d.Size}
+	return ImageInfo{ImageType: string(d.ImageType), Width: d.Width, Height: d.Height, Size: d.Size, Path: d.Path}
 }
 
 func remoteImageFromEmby(d *emby.RemoteImageInfo) RemoteImage {

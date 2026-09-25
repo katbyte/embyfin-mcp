@@ -45,6 +45,26 @@
       "Method": "GET",
       "Path": "/web/strings",
       "Description": "Requires authentication as user",
+      "Options": [
+        {
+          "Name": "PluginId",
+          "Field": "PluginId",
+          "In": "Query",
+          "Description": "The plugin whose strings to read",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Locale",
+          "Field": "Locale",
+          "In": "Query",
+          "Description": "The language of the strings, one of those /web/stringset lists (en-US); without it the answer is empty",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
       "Response": {
         "ContentType": "application/json",
         "Type": {
@@ -62,6 +82,17 @@
       "Method": "GET",
       "Path": "/web/stringset",
       "Description": "Requires authentication as user",
+      "Options": [
+        {
+          "Name": "PluginId",
+          "Field": "PluginId",
+          "In": "Query",
+          "Description": "The plugin whose translations to list",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
       "Response": {
         "ContentType": "application/json",
         "Type": {

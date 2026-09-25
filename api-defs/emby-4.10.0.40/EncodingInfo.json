@@ -54,7 +54,7 @@
         "ContentType": "application/json",
         "Type": {
           "Type": "Reference",
-          "ReferenceName": "ConfigurationToneMappingToneMapOptionsVisibility"
+          "ReferenceName": "ConfigurationToneMappingToneMapOptions"
         }
       },
       "ExpectedStatusCodes": [
@@ -243,6 +243,82 @@
           "JsonName": "VendorName",
           "Type": {
             "Type": "String"
+          }
+        }
+      ]
+    },
+    {
+      "Name": "ConfigurationToneMappingToneMapOptions",
+      "SchemaName": "Configuration.ToneMapping.ToneMapOptions",
+      "Fields": [
+        {
+          "Name": "EditorDescription",
+          "JsonName": "EditorDescription",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EditorTitle",
+          "JsonName": "EditorTitle",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "EnableHardwareToneMapping",
+          "JsonName": "EnableHardwareToneMapping",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "EnableSoftwareToneMapping",
+          "JsonName": "EnableSoftwareToneMapping",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "FeatureRequiresPremiere",
+          "JsonName": "FeatureRequiresPremiere",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "HardwareToneMapOptions",
+          "JsonName": "HardwareToneMapOptions",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "Any"
+            }
+          }
+        },
+        {
+          "Name": "IsNewItem",
+          "JsonName": "IsNewItem",
+          "Type": {
+            "Type": "Boolean"
+          }
+        },
+        {
+          "Name": "OptionsVisibility",
+          "JsonName": "OptionsVisibility",
+          "Type": {
+            "Type": "Reference",
+            "ReferenceName": "ConfigurationToneMappingToneMapOptionsVisibility"
+          }
+        },
+        {
+          "Name": "SoftwareToneMapOptions",
+          "JsonName": "SoftwareToneMapOptions",
+          "Type": {
+            "Type": "Dictionary",
+            "NestedItem": {
+              "Type": "Any"
+            }
           }
         }
       ]

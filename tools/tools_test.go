@@ -151,6 +151,39 @@ func TestRegisterAllFilters(t *testing.T) {
 	}
 }
 
+// Beside toolsets an allow list narrows them, and a name or pattern reaching
+// no tool they hold is refused: the binary's default core narrowed
+// essential to three of its five tools, and user_* to none, and said nothing.
+func TestAnAllowListBesideToolsets(t *testing.T) {
+	t.Parallel()
+
+	refused := func(opts Options) string {
+		t.Helper()
+		_, err := RegisterAll(mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil), newTestClient(t), opts)
+		if err == nil {
+			t.Errorf("%+v was accepted", opts)
+			return ""
+		}
+		return err.Error()
+	}
+	if msg := refused(Options{Toolsets: []string{"core"}, Allow: []string{"essential"}}); !strings.Contains(msg, `allow-tools "essential" names user_next_up, item_set_state, which the toolsets asked for (core) do not hold: add watching to --toolsets`) {
+		t.Errorf("essential beside core = %q", msg)
+	}
+	if msg := refused(Options{Toolsets: []string{"core"}, Allow: []string{"library_*,item_get,user_*"}}); !strings.Contains(msg, `allow-tools "user_*" names user_get, user_history, user_list, user_next_up, user_stats`) || !strings.Contains(msg, "add watching to --toolsets") {
+		t.Errorf("user_* beside core = %q", msg)
+	}
+	if msg := refused(Options{Toolsets: []string{"core"}, Allow: []string{"item_delete"}}); !strings.Contains(msg, "add admin to --toolsets") {
+		t.Errorf("item_delete beside core = %q", msg)
+	}
+	// what the sets do hold is narrowed to, as before
+	if got := register(t, Options{Toolsets: []string{"watching"}, Allow: []string{"essential"}}); len(got) != len(EssentialTools) {
+		t.Errorf("essential beside watching = %v", got)
+	}
+	if got := register(t, Options{Toolsets: []string{"core"}, Allow: []string{"library_*"}}); !slices.Equal(got, []string{"library_get", "library_items", "library_list"}) {
+		t.Errorf("library_* beside core = %v, want core's three", got)
+	}
+}
+
 // Every tool belongs to exactly one toolset, every toolset names only real
 // tools, and core comes along with whatever else is asked for.
 func TestToolsetsPartition(t *testing.T) {

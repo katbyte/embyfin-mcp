@@ -140,9 +140,18 @@ func TestJFItemsQuery(t *testing.T) {
 		}
 	})
 	t.Run("Counts", func(t *testing.T) {
+		// the counts are the whole server's, which may hold more libraries
+		// than these (the messy ones, a run's that crashed): each is what the
+		// user's own item query counts, and at least the fixtures'
 		counts := must(jfc.GetItemCounts(ctx, jf.GetItemCountsOperationOptions{UserId: adminID})).Model
-		if counts.MovieCount < len(movies) || counts.SeriesCount != len(shows) || counts.EpisodeCount != sdkShows.Episodes {
-			t.Errorf("counts = %+v", counts)
+		count := func(kind jf.BaseItemKind) int {
+			return must(jfc.GetItems(ctx, jf.GetItemsOperationOptions{UserId: adminID, Recursive: new(true), IncludeItemTypes: []jf.BaseItemKind{kind}, Limit: new(1)})).Model.TotalRecordCount
+		}
+		if m, s, e := count(jf.BaseItemKindMovie), count(jf.BaseItemKindSeries), count(jf.BaseItemKindEpisode); counts.MovieCount != m || counts.SeriesCount != s || counts.EpisodeCount != e {
+			t.Errorf("counts = %+v, and the user's items count %d films, %d series, %d episodes", counts, m, s, e)
+		}
+		if counts.MovieCount < len(movies) || counts.SeriesCount < len(shows) || counts.EpisodeCount < sdkShows.Episodes {
+			t.Errorf("counts = %+v, fewer than the fixtures", counts)
 		}
 	})
 }
@@ -154,6 +163,9 @@ func TestJFItemsQuery(t *testing.T) {
 func TestJFItem(t *testing.T) {
 	ctx := skipUnlessJellyfin(t)
 	id := jfMovie(t, aliens).Id
+	// the album the instant mix is made from
+	musicID := jfLibrary(t, sdkMusic)
+	album := jfAlbum(t, musicID, darkSide)
 
 	full := must(jfc.GetItem(ctx, id, jf.GetItemOperationOptions{UserId: adminID})).Model
 	if full.Name != aliens || full.ProductionYear != 1986 || full.Path == "" || full.Overview == "" || len(full.MediaSources) == 0 || full.RunTimeTicks == 0 {
@@ -208,11 +220,30 @@ func TestJFItem(t *testing.T) {
 		}
 	})
 	t.Run("InstantMix", func(t *testing.T) {
-		res := must(jfc.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{UserId: adminID, Limit: new(5)})).Model
-		for _, it := range res.Items {
-			if it.Id == "" || it.Name == "" {
-				t.Errorf("instant mix item = %+v", it)
+		// a mix is music: from a film there is none
+		if res := must(jfc.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{UserId: adminID, Limit: new(5)})).Model; len(res.Items) != 0 {
+			t.Errorf("an instant mix from a film = %+v, want nothing", res.Items)
+		}
+		// from an album it is the songs of the album's genre, the other
+		// album by the same artist's included
+		mix := must(jfc.GetInstantMixFromItem(ctx, album.Id, jf.GetInstantMixFromItemOperationOptions{UserId: adminID, Limit: new(50)})).Model
+		genre := must(jfc.GetItems(ctx, jf.GetItemsOperationOptions{ParentId: musicID, Recursive: new(true), IncludeItemTypes: []jf.BaseItemKind{jf.BaseItemKindAudio}, Genres: []string{progressiveRock}})).Model
+		if len(genre.Items) == 0 {
+			t.Fatalf("no song in %s", progressiveRock)
+		}
+		want := map[string]bool{}
+		for _, s := range genre.Items {
+			want[s.Id] = true
+		}
+		got := map[string]bool{}
+		for _, it := range mix.Items {
+			if it.Type != jf.BaseItemKindAudio || !want[it.Id] {
+				t.Errorf("the mix from %s holds %s (%s), which is not a %s song", darkSide, it.Name, it.Type, progressiveRock)
 			}
+			got[it.Id] = true
+		}
+		if len(got) != len(want) {
+			t.Errorf("the mix from %s holds %d of the %d %s songs", darkSide, len(got), len(want), progressiveRock)
 		}
 	})
 	t.Run("Images", func(t *testing.T) {
@@ -324,24 +355,48 @@ func TestJFCatalogue(t *testing.T) {
 		t.Errorf("GetUserViews = %+v, want %s", views.Items, sdkMovies.Name)
 	}
 
-	// the families that are empty on a video-only server still answer in
-	// shape. /Trailers is the exception: with no trailer library the server
-	// throws (a NullReferenceException behind a 500), so either an empty
-	// result or that error is what a client has to expect.
-	if res, err := jfc.GetTrailers(ctx, jf.GetTrailersOperationOptions{UserId: adminID}); err != nil {
-		if client.StatusCode(err) != 500 {
-			t.Errorf("GetTrailers = %v", err)
-		}
-	} else if res.Model.TotalRecordCount != 0 {
-		t.Errorf("GetTrailers = %+v", res.Model)
+	// /Trailers reads the calling user's claims, which an API key has none
+	// of: a NullReferenceException behind a 500, userId or not
+	if _, err := jfc.GetTrailers(ctx, jf.GetTrailersOperationOptions{UserId: adminID}); client.StatusCode(err) != 500 {
+		t.Errorf("GetTrailers with an API key = %v, want a 500", err)
 	}
-	if res := must(jfc.GetArtists(ctx, jf.GetArtistsOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 {
-		t.Errorf("GetArtists = %+v", res)
-	}
-	if res := must(jfc.GetAlbumArtists(ctx, jf.GetAlbumArtistsOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 {
-		t.Errorf("GetAlbumArtists = %+v", res)
-	}
-	if res := must(jfc.GetChannels(ctx, jf.GetChannelsOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 {
+	// no channel plugin is installed
+	if res := must(jfc.GetChannels(ctx, jf.GetChannelsOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 || len(res.Items) != 0 {
 		t.Errorf("GetChannels = %+v", res)
+	}
+
+	// the music families, read by library: none in the film library, and the
+	// fixtures' in the music one (whatever else the server holds, so the
+	// counts do not depend on what ran before). Jellyfin documents no music
+	// genre listing: /Genres of a music library lists its music genres.
+	for _, lib := range []string{moviesID, jfLibrary(t, sdkMusic)} {
+		wantArtists, wantGenres := []string{}, []string{}
+		if lib != moviesID {
+			wantArtists = []string{"Battle Tapes", "Coyote Kisses", "Pink Floyd", "SirensCeol"}
+			wantGenres = []string{"Electronic", "Electronica", progressiveRock}
+		}
+		names := func(items []jf.BaseItemDto) []string {
+			out := make([]string, 0, len(items))
+			for i := range items {
+				out = append(out, items[i].Name)
+			}
+			slices.Sort(out)
+			return out
+		}
+		artists := must(jfc.GetArtists(ctx, jf.GetArtistsOperationOptions{ParentId: lib, UserId: adminID})).Model
+		if got := names(artists.Items); !slices.Equal(got, wantArtists) || artists.TotalRecordCount != len(wantArtists) {
+			t.Errorf("GetArtists(%s) = %v (%d), want %v", lib, got, artists.TotalRecordCount, wantArtists)
+		}
+		albumArtists := must(jfc.GetAlbumArtists(ctx, jf.GetAlbumArtistsOperationOptions{ParentId: lib, UserId: adminID})).Model
+		if got := names(albumArtists.Items); !slices.Equal(got, wantArtists) {
+			t.Errorf("GetAlbumArtists(%s) = %v, want %v", lib, got, wantArtists)
+		}
+		if lib == moviesID {
+			continue // the film library's genres are the films'
+		}
+		genres := must(jfc.GetGenres(ctx, jf.GetGenresOperationOptions{ParentId: lib, UserId: adminID})).Model
+		if got := names(genres.Items); !slices.Equal(got, wantGenres) || genres.Items[0].Type != jf.BaseItemKindMusicGenre {
+			t.Errorf("GetGenres(%s) = %v (%+v), want the music genres %v", lib, got, genres.Items, wantGenres)
+		}
 	}
 }

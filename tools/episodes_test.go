@@ -972,7 +972,9 @@ func TestItemGetReportsAudioTheWayEpisodeRowsDo(t *testing.T) {
 
 	s := severance()
 	s.episodes = []ep{{season: 1, number: 1, name: "Good News About Hell", path: "/m/s01e01.mkv"}}
-	cs := session(t, tvServer(t, s), Options{})
+	f := tvServer(t, s)
+	adminView(t, f) // item_get reads every version where Emby lists them
+	cs := session(t, f, Options{})
 
 	item := mustCall(t, cs, "item_get", map[string]any{"id": "sev-1-1"})
 	row := objects(t, mustCall(t, cs, "library_episodes", map[string]any{"series_id": "sev"})["episodes"], "episodes")[0]

@@ -59,7 +59,7 @@ func (s *MediaStream) DisplayWidth() int {
 	if !ok || s.Height <= 0 {
 		return 0
 	}
-	display := int(math.Round(float64(s.Height) * float64(w) / float64(h)))
+	display := int(math.Round(float64(s.Height) * w / h))
 	if diff := display - s.Width; diff < 0 {
 		diff = -diff
 		if diff*50 <= s.Width { // within 2%
@@ -72,26 +72,37 @@ func (s *MediaStream) DisplayWidth() int {
 	return display
 }
 
-// ParseAspect reads a stated ratio, "16:9", as 16 and 9.
-func ParseAspect(ratio string) (w, h int, ok bool) {
+// ParseAspect reads a stated ratio, "16:9" as 16 and 9, and one written as
+// a decimal against 1, "1.5:1" or "2.35:1" - as both servers state a DVD's
+// VOB they read the ratio of from its stream - as 1.5 and 1.
+func ParseAspect(ratio string) (w, h float64, ok bool) {
 	a, b, found := strings.Cut(ratio, ":")
 	if !found {
 		return 0, 0, false
 	}
-	w, err1 := strconv.Atoi(strings.TrimSpace(a))
-	h, err2 := strconv.Atoi(strings.TrimSpace(b))
-	if err1 != nil || err2 != nil || w <= 0 || h <= 0 {
+	w, err1 := strconv.ParseFloat(strings.TrimSpace(a), 64)
+	h, err2 := strconv.ParseFloat(strings.TrimSpace(b), 64)
+	if err1 != nil || err2 != nil || !(w > 0) || !(h > 0) || math.IsInf(w, 0) || math.IsInf(h, 0) {
 		return 0, 0, false
 	}
 
 	return w, h, true
 }
 
+// MediaSource is one file an item is played from: one of its versions.
 type MediaSource struct {
+	// ItemID is the item the version is held as. Emby stores every version
+	// as an item of its own and names it here; Jellyfin gives the version's
+	// own id, which is the item's for its first version.
+	ItemID string `json:"ItemId,omitempty"`
+	// Name is the server's label for the version: "1080p" for a file named
+	// as a version of the one beside it, else the file's or folder's name.
+	Name         string        `json:"Name,omitempty"`
 	Container    string        `json:"Container"`
 	Size         int64         `json:"Size"`
 	Bitrate      int64         `json:"Bitrate"`
 	Path         string        `json:"Path"`
+	RunTimeTicks int64         `json:"RunTimeTicks,omitempty"` // this file's own runtime, 1 tick = 100ns
 	MediaStreams []MediaStream `json:"MediaStreams"`
 }
 
@@ -123,7 +134,8 @@ type Item struct {
 	ID             string `json:"Id"`
 	Name           string `json:"Name"`
 	OriginalTitle  string `json:"OriginalTitle,omitempty"`
-	Type           string `json:"Type"` // Movie, Series, Episode...
+	SortName       string `json:"SortName,omitempty"` // only answered when asked for (Fields=SortName)
+	Type           string `json:"Type"`               // Movie, Series, Episode...
 	ProductionYear int    `json:"ProductionYear,omitempty"`
 	PremiereDate   string `json:"PremiereDate,omitempty"`
 	DateCreated    string `json:"DateCreated,omitempty"`
@@ -146,19 +158,24 @@ type Item struct {
 	OfficialRating  string  `json:"OfficialRating,omitempty"` // the parental rating, e.g. PG-13
 	CommunityRating float64 `json:"CommunityRating,omitempty"`
 
-	RunTimeTicks      int64             `json:"RunTimeTicks,omitempty"` // 1 tick = 100ns
-	ProviderIDs       map[string]string `json:"ProviderIds,omitempty"`
-	ImageTags         map[string]string `json:"ImageTags,omitempty"`
-	MediaSources      []MediaSource     `json:"MediaSources,omitempty"`
-	People            []Person          `json:"People,omitempty"`
-	UserData          *UserData         `json:"UserData,omitempty"`
-	SeriesName        string            `json:"SeriesName,omitempty"`
-	SeriesID          string            `json:"SeriesId,omitempty"`
-	ParentIndexNumber int               `json:"ParentIndexNumber,omitempty"` // season number for episodes
-	IndexNumber       int               `json:"IndexNumber,omitempty"`       // episode number
-	IndexNumberEnd    int               `json:"IndexNumberEnd,omitempty"`    // last episode number of a file holding several (S01E01E02)
-	PlaylistItemID    string            `json:"PlaylistItemId,omitempty"`    // entry id within a playlist
-	IsMissing         bool              `json:"IsMissing,omitempty"`         // virtual episode the library lacks
+	RunTimeTicks int64             `json:"RunTimeTicks,omitempty"` // 1 tick = 100ns
+	ProviderIDs  map[string]string `json:"ProviderIds,omitempty"`
+	ImageTags    map[string]string `json:"ImageTags,omitempty"`
+	MediaSources []MediaSource     `json:"MediaSources,omitempty"`
+	// MediaSourceCount is how many versions Jellyfin holds the item in,
+	// when that is more than one and asked for (Fields=MediaSourceCount):
+	// the cheap way to know an item has files beyond its own path. Emby
+	// has no such field, and holds each version as an item of its own.
+	MediaSourceCount  int       `json:"MediaSourceCount,omitempty"`
+	People            []Person  `json:"People,omitempty"`
+	UserData          *UserData `json:"UserData,omitempty"`
+	SeriesName        string    `json:"SeriesName,omitempty"`
+	SeriesID          string    `json:"SeriesId,omitempty"`
+	ParentIndexNumber int       `json:"ParentIndexNumber,omitempty"` // season number for episodes
+	IndexNumber       int       `json:"IndexNumber,omitempty"`       // episode number
+	IndexNumberEnd    int       `json:"IndexNumberEnd,omitempty"`    // last episode number of a file holding several (S01E01E02)
+	PlaylistItemID    string    `json:"PlaylistItemId,omitempty"`    // entry id within a playlist
+	IsMissing         bool      `json:"IsMissing,omitempty"`         // virtual episode the library lacks
 	// IsFolder is whether the server holds the item as a folder of others (a
 	// series, a season, an album, a collection), which is what a playlist
 	// add expands into the items beneath it
@@ -210,7 +227,7 @@ func (i *Item) RuntimeMinutes() int {
 const FieldsDefault = "Path,ProviderIds,ProductionYear,PremiereDate,OriginalTitle,MediaSources,DateCreated"
 
 // FieldsDetail adds the expensive fields used for single-item views.
-const FieldsDetail = FieldsDefault + ",People,Overview,Genres,Tags,TagItems,Studios,OfficialRating,CommunityRating"
+const FieldsDetail = FieldsDefault + ",SortName,People,Overview,Genres,Tags,TagItems,Studios,OfficialRating,CommunityRating"
 
 // FieldsVocabulary is what the vocabulary sweeps (filters, spellings,
 // renames) read: the free-text lists and the parental rating.
@@ -277,7 +294,15 @@ func (c *Client) Search(ctx context.Context, opts SearchOptions) ([]Item, int, e
 	return c.searchJF(ctx, opts, fields)
 }
 
+// embyPlayFields are the fields that make Emby's lists carry a user's play
+// count and when they last played an item, which they otherwise leave out of
+// UserData (seen on 4.10: 0 and nothing, where the single-item read has both).
+const embyPlayFields = "UserDataPlayCount,UserDataLastPlayedDate"
+
 func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields string) ([]Item, int, error) {
+	if opts.EnableUserData {
+		fields += "," + embyPlayFields
+	}
 	o := emby.GetItemsOperationOptions{
 		Recursive:        new(true),
 		Fields:           fields,
@@ -521,8 +546,31 @@ func (c *Client) InstantMix(ctx context.Context, id string, limit int) ([]Item, 
 		if err != nil {
 			return nil, err
 		}
+		items := itemsFromEmby(orEmpty(res.Model).Items)
+		if len(items) > 0 {
+			return items, nil
+		}
+		// Emby answers a mix asked of a playlist with nothing, through the
+		// items' route and its playlists' own alike (seen on 4.10: it reads a
+		// playlist's genres off children a playlist does not have), so a
+		// playlist's mix is made of its songs' mixes, taken in turn
+		if seed, serr := c.ItemByID(ctx, id); serr != nil || seed.Type != "Playlist" {
+			return items, nil //nolint:nilerr // a seed that cannot be read has no mix, as the route said
+		}
+		songs, _, err := c.Search(ctx, SearchOptions{ParentID: id, IncludeItemTypes: "Audio", Fields: FieldsLean, Limit: playlistMixSeeds})
+		if err != nil {
+			return nil, err
+		}
+		mixes := make([][]Item, 0, len(songs))
+		for i := range songs {
+			res, err := c.emby.GetItemsByIdInstantMix(ctx, songs[i].ID, emby.GetItemsByIdInstantMixOperationOptions{Fields: FieldsDefault, Limit: nz(limit)})
+			if err != nil {
+				return nil, err
+			}
+			mixes = append(mixes, itemsFromEmby(orEmpty(res.Model).Items))
+		}
 
-		return itemsFromEmby(orEmpty(res.Model).Items), nil
+		return interleave(mixes, limit), nil
 	}
 
 	res, err := c.jf.GetInstantMixFromItem(ctx, id, jf.GetInstantMixFromItemOperationOptions{Fields: list[jf.ItemFields](FieldsDefault), Limit: nz(limit)})
@@ -533,31 +581,79 @@ func (c *Client) InstantMix(ctx context.Context, id string, limit int) ([]Item, 
 	return itemsFromJF(res.Model.Items), nil
 }
 
-// RefreshItem asks the server to re-fetch metadata and images for one item.
-func (c *Client) RefreshItem(ctx context.Context, id string, replaceAll bool) error {
+// playlistMixSeeds is how many of a playlist's songs its mix is made from on
+// Emby.
+const playlistMixSeeds = 5
+
+// interleave takes lists in turn, the first of each, then the second, each
+// item once, until limit (0 for all of them).
+func interleave(lists [][]Item, limit int) []Item {
+	out := []Item{}
+	seen := map[string]bool{}
+	for i := 0; ; i++ {
+		more := false
+		for _, l := range lists {
+			if i >= len(l) {
+				continue
+			}
+			more = true
+			if seen[l[i].ID] {
+				continue
+			}
+			seen[l[i].ID] = true
+			out = append(out, l[i])
+			if limit > 0 && len(out) == limit {
+				return out
+			}
+		}
+		if !more {
+			return out
+		}
+	}
+}
+
+// RefreshItem asks the server to re-fetch metadata and images for one item,
+// and waits for the refresh to land: both servers answer once it is queued,
+// and a change made to the item before it has run is undone by it (a
+// replace_all refresh put the providers' tags back over an edit made straight
+// after it answered, in about half of tries on both servers). It answers
+// whether the refresh was seen to save the item within the wait (see
+// awaitSave); a refresh queued behind a scan can take longer. A series' or a
+// season's own record is what is waited on: the refresh reaches the episodes
+// under it after. An edit of the item from this process waits for it.
+func (c *Client) RefreshItem(ctx context.Context, id string, replaceAll bool) (bool, error) {
+	unlock := c.items.lock(id)
+	defer unlock()
+
+	_, before, err := c.unsavedFor(ctx, id)
+	if err != nil {
+		return false, err
+	}
 	var replace *bool
 	if replaceAll {
 		replace = new(true)
 	}
 	if c.isEmby() {
-		_, err := c.emby.PostItemsByIdRefresh(ctx, id, emby.BaseRefreshRequest{}, emby.PostItemsByIdRefreshOperationOptions{
+		_, err = c.emby.PostItemsByIdRefresh(ctx, id, emby.BaseRefreshRequest{}, emby.PostItemsByIdRefreshOperationOptions{
 			MetadataRefreshMode: emby.MetadataRefreshModeFullRefresh,
 			ImageRefreshMode:    emby.MetadataRefreshModeFullRefresh,
 			ReplaceAllMetadata:  replace,
 			ReplaceAllImages:    replace,
 		})
-
-		return err
+	} else {
+		_, err = c.jf.RefreshItem(ctx, id, jf.RefreshItemOperationOptions{
+			MetadataRefreshMode: jf.MetadataRefreshModeFullRefresh,
+			ImageRefreshMode:    jf.MetadataRefreshModeFullRefresh,
+			ReplaceAllMetadata:  replace,
+			ReplaceAllImages:    replace,
+		})
 	}
+	if err != nil {
+		return false, err
+	}
+	_, landed, err := c.awaitSave(ctx, id, before)
 
-	_, err := c.jf.RefreshItem(ctx, id, jf.RefreshItemOperationOptions{
-		MetadataRefreshMode: jf.MetadataRefreshModeFullRefresh,
-		ImageRefreshMode:    jf.MetadataRefreshModeFullRefresh,
-		ReplaceAllMetadata:  replace,
-		ReplaceAllImages:    replace,
-	})
-
-	return err
+	return landed, err
 }
 
 // DeleteItem permanently removes an item AND its media file from disk.
@@ -592,8 +688,8 @@ func (c *Client) DeleteItems(ctx context.Context, ids []string) error {
 }
 
 // UserItem fetches one item in a user's context, with that user's watch
-// state complete: Emby's list endpoints leave LastPlayedDate and PlayCount
-// out of UserData, and only the single-item read has them.
+// state complete (Emby's lists carry the play count and last played date
+// only when asked for them: embyPlayFields).
 func (c *Client) UserItem(ctx context.Context, userID, itemID string) (*Item, error) {
 	if c.isEmby() {
 		res, err := c.emby.GetUsersByUserIdItemsById(ctx, userID, itemID)
@@ -697,9 +793,18 @@ func (c *Client) EditItem(ctx context.Context, userID, itemID string, edit func(
 // it out, so Emby asks that too. That list leaves out music albums and
 // artists unless their kind is asked for, even for an administrator (seen
 // live on Emby 4.10), so it is asked for the item's own kind.
+//
+// A 404 is also both servers' answer for an id no item has, which is not an
+// item the user cannot see: read as one, a mistyped id was "nobody has
+// watched this". So a 404 is checked against the library, and an id nothing
+// has is an error.
 func (c *Client) VisibleUserItem(ctx context.Context, userID, itemID string) (*Item, bool, error) {
 	it, err := c.UserItem(ctx, userID, itemID)
 	if apiclient.IsNotFound(err) {
+		if _, err := c.ItemByID(ctx, itemID); err != nil {
+			return nil, false, err
+		}
+
 		return nil, false, nil
 	}
 	if err != nil {

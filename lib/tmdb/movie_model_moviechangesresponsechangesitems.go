@@ -4,10 +4,10 @@ package tmdb
 
 // MovieChangesResponseChangesItems is an object the document declares inline.
 type MovieChangesResponseChangesItems struct {
-	Action   string                                 `json:"action,omitempty"`
-	Id       string                                 `json:"id,omitempty"`
-	Iso31661 string                                 `json:"iso_3166_1,omitempty"`
-	Iso6391  string                                 `json:"iso_639_1,omitempty"`
-	Time     string                                 `json:"time,omitempty"`
-	Value    *MovieChangesResponseChangesItemsValue `json:"value,omitempty"`
+	Action   string `json:"action,omitempty"`
+	Id       string `json:"id,omitempty"`
+	Iso31661 string `json:"iso_3166_1,omitempty"`
+	Iso6391  string `json:"iso_639_1,omitempty"`
+	Time     string `json:"time,omitempty"`
+	Value    any    `json:"value,omitempty"`
 }

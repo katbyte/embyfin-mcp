@@ -46,4 +46,6 @@
 //   - tmdb-string-ids
 //   - tmdb-whole-numbers
 //   - tmdb-list-ids
+//   - tmdb-change-values
+//   - tmdb-display-priorities
 package tmdb

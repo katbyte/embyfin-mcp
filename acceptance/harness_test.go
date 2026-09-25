@@ -92,25 +92,26 @@ const (
 func versionsMerged() bool { return isJellyfin() }
 
 // movieFixture is a film in the clean Movies library, as its nfo describes it.
+// The nfo's runtime is left out: the file's own, a second, is what both
+// servers hold.
 type movieFixture struct {
 	Title    string
 	Year     int
 	TMDB     string
 	IMDB     string
-	Runtime  int
 	Genre    string
 	Director string
 }
 
 var movies = []movieFixture{
-	{"Alien", 1979, "348", "tt0078748", 117, "Horror", "Ridley Scott"},
-	{"Aliens", 1986, "679", "tt0090605", 137, "Action", "James Cameron"},
-	{"Blade Runner", 1982, "78", "tt0083658", 117, "Science Fiction", "Ridley Scott"},
-	{"Dune", 2021, "438631", "tt1160419", 155, "Science Fiction", "Denis Villeneuve"},
-	{"Dune: Part Two", 2024, "693134", "tt15239678", 167, "Science Fiction", "Denis Villeneuve"},
-	{"Princess Mononoke", 1997, "128", "tt0119698", 134, "Animation", "Hayao Miyazaki"},
-	{"Arrival", 2016, "329865", "tt2543164", 116, "Drama", "Denis Villeneuve"},
-	{"The Thirteenth Floor", 1999, "1090", "tt0139809", 100, "Science Fiction", "Josef Rusnak"},
+	{"Alien", 1979, "348", "tt0078748", "Horror", "Ridley Scott"},
+	{"Aliens", 1986, "679", "tt0090605", "Action", "James Cameron"},
+	{"Blade Runner", 1982, "78", "tt0083658", "Science Fiction", "Ridley Scott"},
+	{"Dune", 2021, "438631", "tt1160419", "Science Fiction", "Denis Villeneuve"},
+	{"Dune: Part Two", 2024, "693134", "tt15239678", "Science Fiction", "Denis Villeneuve"},
+	{"Princess Mononoke", 1997, "128", "tt0119698", "Animation", "Hayao Miyazaki"},
+	{"Arrival", 2016, "329865", "tt2543164", "Drama", "Denis Villeneuve"},
+	{"The Thirteenth Floor", 1999, "1090", "tt0139809", "Science Fiction", "Josef Rusnak"},
 }
 
 // showFixture is a series in the clean Shows library.
@@ -140,16 +141,19 @@ type albumFixture struct {
 	// Cover is false for the one album with no art, which is what
 	// audit_missing_poster looks for in a music library.
 	Cover bool
+	// the MusicBrainz ids the tracks' tags carry, which come through as
+	// their provider ids
+	MBArtist, MBAlbum string
 }
 
 var albums = []albumFixture{
-	{"Battle Tapes", "Polygon", 2015, "Electronic", []string{"Belgrade", "Valkyrie", "Solid Gold", "Private Dancer"}, true},
-	{"Coyote Kisses", "Thundercolor", 2013, "Electronic", []string{"Diving At Night", "Stay With You", "This Is How You Know", "Changing Guard"}, false},
-	{"Pink Floyd", "The Dark Side of the Moon", 1973, "Progressive Rock", []string{"Speak to Me", "Breathe", "On the Run", "Time"}, true},
-	{"Pink Floyd", "Wish You Were Here", 1975, "Progressive Rock", []string{"Shine On You Crazy Diamond, Parts I-V", "Welcome to the Machine", "Have a Cigar", "Wish You Were Here"}, true},
+	{"Battle Tapes", "Polygon", 2015, "Electronic", []string{"Belgrade", "Valkyrie", "Solid Gold", "Private Dancer"}, true, "82178603-e97b-4d60-b521-82582545a0a8", "0e715a3a-8461-4620-8843-6c4324c64d49"},
+	{"Coyote Kisses", "Thundercolor", 2013, "Electronic", []string{"Diving At Night", "Stay With You", "This Is How You Know", "Changing Guard"}, false, "09c08ae4-0b3e-4e06-9892-c6a1ec3c9d6c", "aa89ebe0-8c11-427d-8929-46812063be90"},
+	{"Pink Floyd", "The Dark Side of the Moon", 1973, "Progressive Rock", []string{"Speak to Me", "Breathe", "On the Run", "Time"}, true, "83d91898-7763-47d7-b03b-b92132375c47", "b84ee12a-09ef-421b-82de-0441a926375b"},
+	{"Pink Floyd", "Wish You Were Here", 1975, "Progressive Rock", []string{"Shine On You Crazy Diamond, Parts I-V", "Welcome to the Machine", "Have a Cigar", "Wish You Were Here"}, true, "83d91898-7763-47d7-b03b-b92132375c47", "f4a8aa35-da90-33d8-9307-c630d38a2bed"},
 	// tagged a letter apart from the other electronic acts, which is what
 	// audit_spelling looks for
-	{"SirensCeol", "Afterworld", 2016, "Electronica", []string{"Welcome to the Afterworld", "The Future We Built", "Afterworld", "A Grand Illusion"}, true},
+	{"SirensCeol", "Afterworld", 2016, "Electronica", []string{"Welcome to the Afterworld", "The Future We Built", "Afterworld", "A Grand Illusion"}, true, "621dac65-5eac-4ad3-a630-05f282bbe4e2", "00cc6656-b7c3-4c33-8df3-5909e46979b2"},
 }
 
 // songs is how many audio files the music library holds.
@@ -218,8 +222,17 @@ func configured() bool {
 }
 
 // dataDir is the host path the container's /media is bind-mounted from, so a
-// test can add or remove files and rescan.
-func dataDir() string { return filepath.Join(os.Getenv("EMBYFIN_TEST_DATA"), "media") }
+// test can add or remove files and rescan. It is "" when EMBYFIN_TEST_DATA is
+// not set, which every test that lays files out skips on: joined onto
+// nothing, the path was ./media, and those tests wrote into the checkout.
+func dataDir() string {
+	env := os.Getenv("EMBYFIN_TEST_DATA")
+	if env == "" {
+		return ""
+	}
+
+	return filepath.Join(env, "media")
+}
 
 // isJellyfin lets a test say where the two servers legitimately differ;
 // everything else is asserted the same way for both.
@@ -257,20 +270,29 @@ func testMain(m *testing.M) {
 		}
 	}
 
-	// every registered tool must have been called by something above. Only a
-	// whole-suite run can say that, so a -run filter skips the check.
+	// every registered tool must have answered something above, not only
+	// refused it. Only a whole-suite run can say that, so a -run filter skips
+	// the check.
 	if f := flag.Lookup("test.run"); f == nil || f.Value.String() == "" {
-		missing, err := uncovered()
+		never, onlyRefused, err := uncovered()
 		switch {
 		case err != nil:
 			fmt.Fprintln(os.Stderr, "\ntool coverage: could not list tools:", err)
 			code = 1
-		case len(missing) > 0:
-			fmt.Fprintf(os.Stderr, "\n%d registered tool(s) are never called by this suite:\n", len(missing))
-			for _, name := range missing {
-				fmt.Fprintln(os.Stderr, "  "+name)
+		case len(never)+len(onlyRefused) > 0:
+			if len(never) > 0 {
+				fmt.Fprintf(os.Stderr, "\n%d registered tool(s) are never called by this suite:\n", len(never))
+				for _, name := range never {
+					fmt.Fprintln(os.Stderr, "  "+name)
+				}
 			}
-			fmt.Fprintln(os.Stderr, "every tool needs a test; add one or remove the tool")
+			if len(onlyRefused) > 0 {
+				fmt.Fprintf(os.Stderr, "\n%d registered tool(s) only ever failed in this suite, so nothing shows they work:\n", len(onlyRefused))
+				for _, name := range onlyRefused {
+					fmt.Fprintf(os.Stderr, "  %s (%d failed calls)\n", name, calls(name).failed)
+				}
+			}
+			fmt.Fprintln(os.Stderr, "every tool needs a test that it answers; add one or remove the tool")
 			code = 1
 		}
 	}
@@ -296,32 +318,63 @@ var (
 	proxyDrifts []providerproxy.Drift
 )
 
+// toolCalls is how a tool's calls through invoke went: the ones that
+// answered, and the ones that failed - a refusal the test asked for, or an
+// error it did not.
+type toolCalls struct {
+	answered, failed int
+}
+
 var (
 	calledMu sync.Mutex
-	called   = map[string]bool{}
+	called   = map[string]toolCalls{}
 )
 
-// uncovered names the registered tools no test called. A tool that is only
-// listed is not tested, so adding one without a test fails the suite rather
-// than quietly widening the untested surface.
-func uncovered() ([]string, error) {
+// calls is how a tool's calls have gone so far.
+func calls(name string) toolCalls {
+	calledMu.Lock()
+	defer calledMu.Unlock()
+
+	return called[name]
+}
+
+// cannotAnswer are the tools a throwaway server gives nothing to answer
+// with, so a call that fails is the only one a test can make, and why.
+var cannotAnswer = map[string]string{
+	"item_subtitle_download": "no subtitle provider is installed on a test server, so nothing is ever offered to download",
+}
+
+// uncovered names the registered tools no test has seen answer: those never
+// called at all, and those whose every call failed. A tool that is only
+// listed is not tested, and nor is one only ever refused - that proves it
+// checks what it is given, not that it does its job - so adding a tool
+// without a test of it working fails the suite rather than quietly widening
+// the untested surface. The few that cannot answer here (cannotAnswer) need
+// a call all the same.
+func uncovered() (never, onlyFailed []string, err error) {
 	res, err := session.ListTools(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	calledMu.Lock()
 	defer calledMu.Unlock()
 
-	var missing []string
 	for _, tool := range res.Tools {
-		if !called[tool.Name] {
-			missing = append(missing, tool.Name)
+		c := called[tool.Name]
+		switch {
+		case c.answered > 0:
+		case c.failed > 0 && cannotAnswer[tool.Name] != "":
+		case c.failed > 0:
+			onlyFailed = append(onlyFailed, tool.Name)
+		default:
+			never = append(never, tool.Name)
 		}
 	}
-	slices.Sort(missing)
+	slices.Sort(never)
+	slices.Sort(onlyFailed)
 
-	return missing, nil
+	return never, onlyFailed, nil
 }
 
 // cassetteDir is where this backend's recordings live: Emby and Jellyfin ask
@@ -396,9 +449,10 @@ func stopProxy() {
 	proxy = nil
 }
 
-// providerTransport routes embyfin-mcp's own provider calls (the TMDB runtime
-// lookup) through the proxy, trusting its CA, so the movie runtime audit
-// replays like everything else.
+// providerTransport routes embyfin-mcp's own provider calls (TMDB, which
+// audit_provider, audit_missing_episodes, audit_file_path and show_missing
+// ask) through the proxy, trusting its CA, so they replay like everything
+// else.
 func providerTransport() (http.RoundTripper, error) {
 	proxyURL, err := url.Parse("http://" + proxy.Addr())
 	if err != nil {
@@ -421,8 +475,10 @@ func providerTransport() (http.RoundTripper, error) {
 	}, nil
 }
 
-// tmdbKey is what audit_runtime uses for movies. Recording needs a real one;
-// replay matches with any, because the proxy redacts api_key.
+// tmdbKey is the TMDB token the tools are given: audit_provider checks films'
+// ids and runtimes with it, and show_missing reads a series' run. Recording
+// needs a real one; replay matches with any, because the proxy redacts
+// api_key.
 func tmdbKey() string {
 	if k := cmp.Or(os.Getenv("EMBYFIN_TMDB_TOKEN"), os.Getenv("EMBYFIN_TMDB_KEY")); k != "" {
 		return k
@@ -661,12 +717,25 @@ func waitForExpectedScan() error {
 }
 
 // invoke calls a tool and returns its structured result. Every tool call in
-// the suite comes through here, so this is also where coverage is recorded.
+// the suite comes through here, so this is also where coverage is recorded:
+// an answer and a failure are counted apart (see uncovered).
 func invoke(name string, args map[string]any) (map[string]any, error) {
+	out, err := invokeTool(name, args)
+
 	calledMu.Lock()
-	called[name] = true
+	c := called[name]
+	if err != nil {
+		c.failed++
+	} else {
+		c.answered++
+	}
+	called[name] = c
 	calledMu.Unlock()
 
+	return out, err
+}
+
+func invokeTool(name string, args map[string]any) (map[string]any, error) {
 	if args == nil {
 		args = map[string]any{}
 	}

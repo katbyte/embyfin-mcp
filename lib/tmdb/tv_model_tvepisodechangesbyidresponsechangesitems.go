@@ -7,5 +7,5 @@ type TvEpisodeChangesByIdResponseChangesItems struct {
 	Action string `json:"action,omitempty"`
 	Id     string `json:"id,omitempty"`
 	Time   string `json:"time,omitempty"`
-	Value  string `json:"value,omitempty"`
+	Value  any    `json:"value,omitempty"`
 }

@@ -114,6 +114,7 @@ func TestOperationGetArtistsInstantMix(t *testing.T) {
 		AlbumArtistStartsWithOrGreater: "v-AlbumArtistStartsWithOrGreater",
 		NameStartsWith:                 "v-NameStartsWith",
 		NameLessThan:                   "v-NameLessThan",
+		Id:                             "v-Id",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -220,6 +221,7 @@ func TestOperationGetArtistsInstantMix(t *testing.T) {
 	expectQuery(t, r, "AlbumArtistStartsWithOrGreater", "v-AlbumArtistStartsWithOrGreater")
 	expectQuery(t, r, "NameStartsWith", "v-NameStartsWith")
 	expectQuery(t, r, "NameLessThan", "v-NameLessThan")
+	expectQuery(t, r, "Id", "v-Id")
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}
@@ -329,6 +331,7 @@ func TestOperationGetArtistsInstantMix(t *testing.T) {
 		AlbumArtistStartsWithOrGreater: "v-AlbumArtistStartsWithOrGreater",
 		NameStartsWith:                 "v-NameStartsWith",
 		NameLessThan:                   "v-NameLessThan",
+		Id:                             "v-Id",
 	})
 	if err != nil || result.Model != nil {
 		t.Errorf("a 204 = %v, model %v", err, result.Model)
@@ -436,6 +439,7 @@ func TestOperationGetArtistsInstantMix(t *testing.T) {
 		AlbumArtistStartsWithOrGreater: "v-AlbumArtistStartsWithOrGreater",
 		NameStartsWith:                 "v-NameStartsWith",
 		NameLessThan:                   "v-NameLessThan",
+		Id:                             "v-Id",
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -543,6 +547,7 @@ func TestOperationGetArtistsInstantMix(t *testing.T) {
 		AlbumArtistStartsWithOrGreater: "v-AlbumArtistStartsWithOrGreater",
 		NameStartsWith:                 "v-NameStartsWith",
 		NameLessThan:                   "v-NameLessThan",
+		Id:                             "v-Id",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

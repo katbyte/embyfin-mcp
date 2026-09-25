@@ -6,6 +6,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"strconv"
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/lib/emby"
@@ -18,8 +19,7 @@ import (
 func TestEmbyReadSweep(t *testing.T) {
 	ctx := skipUnlessEmby(t)
 	moviesID := embyLibrary(t, sdkMovies)
-	embyLibrary(t, sdkShows)
-
+	showsID := embyLibrary(t, sdkShows)
 	musicID := embyLibrary(t, sdkMusic)
 
 	movie := embyMovie(t, alien)
@@ -44,6 +44,36 @@ func TestEmbyReadSweep(t *testing.T) {
 	}
 
 	director := people[slices.IndexFunc(people, func(p emby.BaseItemDto) bool { return p.Name == ridleyScott })]
+	// the Webhooks plugin Emby bundles is the one notification service, and
+	// has strings for its settings page
+	webhooks := slices.IndexFunc(plugins, func(p emby.PluginsPluginInfo) bool { return p.Name == "Webhooks" })
+	if webhooks < 0 {
+		t.Fatalf("no Webhooks plugin among %+v", plugins)
+	}
+	// the film with a subtitle, for the routes that hand one out
+	subtitled := must(embyc.GetUsersByUserIdItemsById(ctx, adminID, embyMovie(t, thirteenthFloor).Id)).Model
+	if len(subtitled.MediaSources) == 0 {
+		t.Fatalf("%s has no media source", thirteenthFloor)
+	}
+	srt := slices.IndexFunc(subtitled.MediaSources[0].MediaStreams, func(s emby.MediaStream) bool { return s.Type == "Subtitle" })
+	if srt < 0 {
+		t.Fatalf("%s lists no subtitle stream: %+v", thirteenthFloor, subtitled.MediaSources[0].MediaStreams)
+	}
+	subtitle := map[string]string{
+		"Id":            subtitled.Id,
+		"MediaSourceId": subtitled.MediaSources[0].Id,
+		"Index":         strconv.Itoa(subtitled.MediaSources[0].MediaStreams[srt].Index),
+		"Format":        "srt",
+	}
+	// the catalogue the package routes read, once the server will fetch it
+	packages := embyPackages(ctx, t)
+	// the Live TV folder answers 500 (a null reference as it attaches the
+	// folder's people) until something has read the channel manager, and
+	// with the folder from then on: whatever the sweep's order, the manager
+	// is read first
+	if _, err := embyc.GetLiveTvManageChannels(ctx, emby.GetLiveTvManageChannelsOperationOptions{}); err != nil {
+		t.Fatal(err)
+	}
 
 	// a playlist to read
 	var playlist string
@@ -140,9 +170,24 @@ func TestEmbyReadSweep(t *testing.T) {
 
 	cases := maps.Clone(embySweepCases)
 	// the similar-item routes need a user (a 500 without one)
-	for _, name := range []string{"GetItemsByIdSimilar", "GetMoviesByIdSimilar", "GetShowsByIdSimilar", "GetTrailersByIdSimilar"} {
+	for _, name := range []string{"GetItemsByIdSimilar", "GetMoviesByIdSimilar", "GetTrailersByIdSimilar"} {
 		cases[name] = sweepCase{Options: map[string]any{"UserId": adminID}}
 	}
+	cases["GetShowsByIdSimilar"] = sweepCase{Options: map[string]any{"UserId": adminID}, Empty: "Emby finds no show like another among the fixtures, two of which are dramas"}
+	// an album is like another by its artist's other album, and a mix is
+	// made from music
+	cases["GetAlbumsByIdSimilar"] = sweepCase{Path: map[string]string{"Id": embyAlbum(t, musicID, darkSide).Id}, Options: map[string]any{"UserId": adminID}}
+	cases["GetItemsByIdInstantMix"] = sweepCase{Path: map[string]string{"Id": album.Id}}
+	// the by-name lists answer for a library read recursively: without one
+	// they list the names empty ({} for each), and /Trailers lists the
+	// user's libraries rather than nothing
+	for _, name := range []string{"GetOfficialRatings", "GetContainers", "GetYears"} {
+		cases[name] = sweepCase{Options: map[string]any{"ParentId": moviesID, "Recursive": true}}
+	}
+	cases["GetTags"] = sweepCase{Options: map[string]any{"ParentId": showsID, "Recursive": true}, Empty: "nothing tags a show (Emby does not fill tags from TMDB, and the tag tests tag films)"}
+	cases["GetTrailers"] = sweepCase{Options: map[string]any{"UserId": adminID}}
+	cases["GetDlnaProfilesById"] = sweepCase{Path: map[string]string{"Id": must(embyc.GetDlnaProfileInfos(ctx)).Model[0].Id}}
+	cases["GetEnvironmentDirectoryContents"] = sweepCase{Options: map[string]any{"IncludeDirectories": true}}
 	cases["GetMoviesRecommendations"] = sweepCase{Options: map[string]any{"UserId": adminID}}
 	cases["GetVideosByIdStream"] = sweepCase{Options: map[string]any{"Container": "mp4", "Static": true}}
 	cases["GetVideosByIdStreamByContainer"] = sweepCase{Options: map[string]any{"Static": true}}
@@ -150,7 +195,32 @@ func TestEmbyReadSweep(t *testing.T) {
 	cases["GetAudioByIdStream"] = sweepCase{Options: map[string]any{"Container": "mp3", "Static": true}}
 	cases["GetAudioByIdStreamByContainer"] = sweepCase{Path: map[string]string{"Container": "mp3"}, Options: map[string]any{"Static": true}}
 	cases["GetAudioByIdByStreamFileName"] = sweepCase{Path: map[string]string{"StreamFileName": "stream.mp3"}, Options: map[string]any{"Static": true}}
-	cases["GetAudioByIdUniversalByContainer"] = sweepCase{Path: map[string]string{"Container": "mp3"}, Status: 500, Why: embyUndeclared + " (it answers 200 the moment a UserId is added by hand)"}
+	// universal audio needs a user, the instant mixes the artist or genre they
+	// are made from (UserId and Id, which the emby-undeclared-query workaround
+	// declares)
+	cases["GetAudioByIdUniversal"] = sweepCase{Options: map[string]any{"UserId": adminID}}
+	cases["GetAudioByIdUniversalByContainer"] = sweepCase{Path: map[string]string{"Container": "mp3"}, Options: map[string]any{"UserId": adminID}}
+	cases["GetArtistsInstantMix"] = sweepCase{Options: map[string]any{"Id": musicArtists[0].Id}}
+	cases["GetMusicGenresInstantMix"] = sweepCase{Options: map[string]any{"Id": musicGenres[0].Id}}
+	// the subtitle routes read the film with one, and the HLS subtitle
+	// playlist its media source (MediaSourceId, which the workaround declares)
+	for _, name := range []string{
+		"GetItemsByIdByMediaSourceIdSubtitlesByIndexStreamByFormat", "GetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat",
+		"GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormat", "GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat",
+	} {
+		cases[name] = sweepCase{Path: subtitle}
+	}
+	cases["GetVideosByIdSubtitlesM3u8"] = sweepCase{Path: subtitle, Options: map[string]any{"MediaSourceId": subtitle["MediaSourceId"]}}
+	// a package from the catalogue, and the web strings of the Webhooks
+	// plugin in the language the wizard chose
+	cases["GetPackagesByName"] = sweepCase{Path: map[string]string{"Name": packages[0].Name}}
+	cases["GetWebStrings"] = sweepCase{Options: map[string]any{"PluginId": plugins[webhooks].Id, "Locale": "en-US"}}
+	cases["GetWebStringset"] = sweepCase{Options: map[string]any{"PluginId": plugins[webhooks].Id}}
+	// its notifier is keyed by the id GET /Notifications/Services lists, a
+	// route the document leaves out
+	cases["GetNotificationsServicesDefaults"] = sweepCase{Options: map[string]any{"NotifierKey": "webhooknotifications", "UserId": adminID}}
+	// a playlist's sharing is answered only to a user session
+	cases["GetUsersItemAccess"] = sweepCase{Status: 400, Options: map[string]any{"ItemId": playlist}, Why: embyNoUserOfKey}
 
 	sweep(t, "emby", embyc, fixtures, cases)
 }
@@ -167,7 +237,12 @@ const (
 	embyNoConnect   = "Emby Connect is not linked"
 	embyNoSubtitle  = "needs a subtitle id from a provider search, and no subtitle provider is configured"
 	embyNoUserOfKey = "an API key acts as no user, and the server needs one for this (a user token would answer)"
-	embyUndeclared  = "answers 500 to an API key and to a user session alike (a null reference or an empty lookup): the route needs input its document does not declare"
+	embyNoParty     = "no watch party is running"
+	embyNoBranding  = "no branding is set on a fresh server"
+	embyNoExtras    = "the fixture films have no intros, trailers, extras or additional parts"
+	// the proxy stores an answer this size as a placeholder, and serves the
+	// placeholder when it records one as well as when it replays it
+	embyReleaseNotes = "the release notes come from GitHub, whose answer is too large for a cassette: the provider proxy hands the server a placeholder in every mode, which it cannot read"
 )
 
 // embySweepCases classifies the Emby GETs that do not simply answer.
@@ -182,7 +257,6 @@ var embySweepCases = map[string]sweepCase{
 	"GetLiveTvChannelMappings":                      {Skip: embyNoTuner},
 	"GetLiveTvListingProviders":                     {Skip: embyNoTuner + " (it takes a channel id)"},
 	"GetLiveTvListingProvidersLineups":              {Status: 404, Why: embyNoTuner},
-	"GetLiveTvFolder":                               {Status: 500, Sometimes: true, Why: embyNoTuner + " (the folder is made on first use, so a later call answers)"},
 	"GetLiveTvLiveRecordingsByIdStream":             {Skip: embyNoTuner},
 	"GetLiveTvLiveRecordingsByIdHlsBySegment":       {Skip: embyNoTuner},
 	"GetLiveTvLiveRecordingsByIdHlsLiveM3u8":        {Status: 404, Why: embyNoTuner},
@@ -204,9 +278,6 @@ var embySweepCases = map[string]sweepCase{
 	"GetDlnaIconsByFilename":                             {Skip: embyNoDLNA},
 
 	// music: the SDK Music library answers the rest (see TestEmbyReadSweep)
-	"GetArtistsInstantMix":                                      {Status: 500, Why: embyUndeclared + " (the mix is seeded by an Id the route does not declare: /Artists/InstantMix?Id=<artist> answers 200)"},
-	"GetMusicGenresInstantMix":                                  {Status: 500, Why: embyUndeclared + " (the same Id, undeclared: /MusicGenres/InstantMix?Id=<genre> answers 200)"},
-	"GetAudioByIdUniversal":                                     {Status: 500, Why: embyUndeclared + " (it answers 200 the moment a UserId is added by hand; only DeviceId and StartTimeTicks are declared)"},
 	"GetArtistsByNameImagesByType":                              {Status: 404, Why: embyNoImage},
 	"GetArtistsByNameImagesByTypeByIndex":                       {Status: 404, Why: embyNoImage},
 	"GetMusicGenresByNameImagesByType":                          {Status: 404, Why: embyNoImage},
@@ -231,8 +302,7 @@ var embySweepCases = map[string]sweepCase{
 	"GetVideosByIdHlsByPlaylistIdBySegmentIdBySegmentContainer":  {Skip: embyNoTranscode},
 	"GetVideosByIdHls1ByPlaylistIdBySegmentIdBySegmentContainer": {Skip: embyNoTranscode},
 	"GetVideosByIdLiveM3u8":                                {Skip: embyNoTranscode + " (a live playlist waits on ffmpeg)"},
-	"GetVideosByIdSubtitlesM3u8":                           {Status: 500, Why: "the fixture videos carry no subtitle stream to segment"},
-	"GetVideosByIdLiveSubtitlesM3u8":                       {Status: 404, Why: "the fixture videos carry no subtitle stream to segment"},
+	"GetVideosByIdLiveSubtitlesM3u8":                       {Status: 404, Why: embyNoTranscode + " (a live subtitle playlist is a running job's: Transcoding Job could not be found)"},
 	"GetVideosByIdByMediaSourceIdAttachmentsByIndexStream": {Status: 500, Why: "the fixture videos carry no attachments"},
 	"GetEnvironmentNetworkShares":                          {Skip: "lists the SMB shares of a host address; there is no SMB server on the docker network"},
 
@@ -248,16 +318,67 @@ var embySweepCases = map[string]sweepCase{
 	"GetItemsByIdDeleteInfo":              {Status: 400, Why: embyNoUserOfKey},
 	"GetUIView":                           {Status: 400, Options: map[string]any{"PageId": "home", "ClientLocale": "en-US"}, Why: embyNoUserOfKey + ", and a page id the web client knows"},
 	"GetWebConfigurationPage":             {Status: 404, Why: "no plugin configuration page is named; the route answers 404 without one"},
-	"GetPackagesByName":                   {Skip: "needs a package name from the catalogue, which GetPackages fetches from mb3admin.com only on the runs the server does not give up on"},
-	"GetPackages":                         {Status: 500, Sometimes: true, Why: "the catalogue is fetched from mb3admin.com through the provider proxy, and the server gives up on a slow fetch with a 500"},
-	"GetPackagesUpdates":                  {Status: 500, Sometimes: true, Why: "the updates are read from the same catalogue, and a fetch the server gave up on fails them too"},
-	"GetSystemReleaseNotes":               {Status: 500, Sometimes: true, Why: "the release notes come from GitHub through the provider proxy, whose cassette elides the oversized answer"},
-	"GetSystemReleaseNotesVersions":       {Status: 500, Sometimes: true, Why: "the release notes come from GitHub through the provider proxy, whose cassette elides the oversized answer"},
+	"GetSystemReleaseNotes":               {Status: 500, Why: embyReleaseNotes},
+	"GetSystemReleaseNotesVersions":       {Status: 500, Why: embyReleaseNotes},
 
 	// the server's routes
-	"GetUsersItemAccess":                 {Status: 500, Why: embyUndeclared},
-	"GetNotificationsServicesDefaults":   {Status: 500, Why: embyUndeclared},
-	"GetWebStrings":                      {Status: 500, Why: embyUndeclared},
-	"GetWebStringset":                    {Status: 500, Why: embyUndeclared},
 	"GetUsersByUserIdTypedSettingsByKey": {Status: 500, Path: map[string]string{"Key": "home"}, Why: "the typed settings keys are undocumented, and the server answers 500 for one it does not have"},
+
+	// the GETs that answer, with nothing in it, on a fresh server and the
+	// fixtures: what they read is not there to read
+	"GetLiveTvInfo":                               {Empty: embyNoTuner},
+	"GetLiveTvChannelTags":                        {Empty: embyNoTuner},
+	"GetLiveTvChannelTagsPrefixes":                {Empty: embyNoTuner},
+	"GetLiveTvChannels":                           {Empty: embyNoTuner},
+	"GetLiveTvEPG":                                {Empty: embyNoTuner},
+	"GetLiveTvManageChannels":                     {Empty: embyNoTuner},
+	"GetLiveTvPrograms":                           {Empty: embyNoTuner},
+	"GetLiveTvProgramsRecommended":                {Empty: embyNoTuner},
+	"GetLiveTvRecordings":                         {Empty: embyNoTuner},
+	"GetLiveTvRecordingsFolders":                  {Empty: embyNoTuner},
+	"GetLiveTvRecordingsGroups":                   {Empty: embyNoTuner},
+	"GetLiveTvRecordingsSeries":                   {Empty: embyNoTuner},
+	"GetLiveTvSeriesTimers":                       {Empty: embyNoTuner},
+	"GetLiveTvTimers":                             {Empty: embyNoTuner},
+	"GetLiveTvTunerHosts":                         {Empty: embyNoTuner},
+	"GetLiveTvTunersDiscover":                     {Empty: embyNoTuner},
+	"GetLiveTvTunersDiscvover":                    {Empty: embyNoTuner},
+	"GetSyncJobItems":                             {Empty: embyNoSync},
+	"GetSyncJobs":                                 {Empty: embyNoSync},
+	"GetSyncJobsById":                             {Empty: embyNoSync},
+	"GetParties":                                  {Empty: embyNoParty},
+	"GetPartiesInfo":                              {Empty: embyNoParty},
+	"GetPartiesMessages":                          {Empty: embyNoParty},
+	"GetConnectPending":                           {Empty: embyNoConnect},
+	"GetGameGenres":                               {Empty: embyNoGames},
+	"GetChannels":                                 {Empty: "no channel plugin is installed"},
+	"GetAudioBooksNextUp":                         {Empty: "there is no audiobook library"},
+	"GetBackupRestoreBackupInfo":                  {Empty: "no backup has been made"},
+	"GetItemsByIdThumbnailSet":                    {Empty: "no thumbnail images are extracted from the one-second fixtures"},
+	"GetBrandingConfiguration":                    {Empty: embyNoBranding},
+	"GetBrandingCss":                              {Empty: embyNoBranding},
+	"GetBrandingCssCss":                           {Empty: embyNoBranding},
+	"GetDevicesOptions":                           {Empty: "no options are stored for the device until a client sets them"},
+	"GetUserSettingsByUserId":                     {Empty: "a user has no settings stored until a client saves some"},
+	"GetEncodingCodecConfigurationDefaults":       {Empty: "no codec has defaults stored on a fresh server ({} for each of the five)"},
+	"GetEnvironmentDefaultDirectoryBrowser":       {Empty: "the default browser path is empty on Linux"},
+	"GetEnvironmentNetworkDevices":                {Empty: "nothing on the docker network announces itself"},
+	"GetPluginsByIdConfiguration":                 {Empty: "the one plugin whose settings this route reads (the rest answer 500) has every one at its default, false or 0"},
+	"GetSessionsPlayQueue":                        {Empty: "nothing is playing"},
+	"GetUsersByUserIdItemsResume":                 {Empty: "nothing is in progress (the played and resume test clears the position it sets)"},
+	"GetShowsNextUp":                              {Empty: "no episode is played (the shows test unmarks the one it marks)"},
+	"GetShowsMissing":                             {Empty: "the show library has its fetchers off, so no episode is known to be missing"},
+	"GetShowsUpcoming":                            {Empty: "the show library has its fetchers off, so no episode is known to be coming"},
+	"GetCollectionsByIdMissing":                   {Empty: "the sweep's collection is none of TMDB's, so it has no parts to be missing"},
+	"GetCollectionsByIdProviderItems":             {Empty: "the sweep's collection is none of TMDB's, so it has no parts to list"},
+	"GetPlaylistsByIdInstantMix":                  {Empty: "Emby makes no mix from a playlist, even one of music"},
+	"GetArtistsByIdSimilar":                       {Empty: "Emby finds no artist like another among the fixtures' four, though two share a genre"},
+	"GetStreamLanguages":                          {Empty: "no fixture stream names a language (ffmpeg writes und), and the English .srt beside one film is not counted"},
+	"GetItemsByIdCriticReviews":                   {Empty: "the fetchers fill in no critic reviews"},
+	"GetItemsByIdRemoteSearchSubtitlesByLanguage": {Empty: embyNoSubtitle},
+	"GetItemsIntros":                              {Empty: embyNoExtras},
+	"GetUsersByUserIdItemsByIdIntros":             {Empty: embyNoExtras},
+	"GetUsersByUserIdItemsByIdLocalTrailers":      {Empty: embyNoExtras},
+	"GetUsersByUserIdItemsByIdSpecialFeatures":    {Empty: embyNoExtras},
+	"GetVideosByIdAdditionalParts":                {Empty: embyNoExtras},
 }

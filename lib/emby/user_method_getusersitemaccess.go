@@ -36,6 +36,9 @@ type GetUsersItemAccessOperationOptions struct {
 
 	// Sort Order - Ascending,Descending
 	SortOrder string
+
+	// The playlist or collection whose sharing to list
+	ItemId string
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -64,6 +67,9 @@ func (o GetUsersItemAccessOperationOptions) ToQuery() *client.QueryParams {
 	}
 	if o.SortOrder != "" {
 		out.Append("SortOrder", o.SortOrder)
+	}
+	if o.ItemId != "" {
+		out.Append("ItemId", o.ItemId)
 	}
 	return &out
 }

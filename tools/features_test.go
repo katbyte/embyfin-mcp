@@ -181,6 +181,7 @@ func TestAuditQualityListsUnprobedAndReplaced(t *testing.T) {
 			{"Id": "4", "Name": "Zzyzx Virtual", "Type": "Movie", "Path": "/m/d.mkv", "LocationType": "Virtual"},
 		}})
 	})
+	adminView(t, f)
 	out := mustCall(t, session(t, f, Options{}), "audit_quality", map[string]any{"library": "Films"})
 	if number(t, out["items_scanned"], "items_scanned") != 4 {
 		t.Errorf("scanned = %v, want every item", out["items_scanned"])

@@ -43,3 +43,36 @@ func (jellyfinCreatePlaylistQuery) Apply(spec *openapi.Spec) error {
 
 	return nil
 }
+
+type jellyfinPluginConfiguration struct{}
+
+func (jellyfinPluginConfiguration) Name() string    { return "jellyfin-plugin-configuration" }
+func (jellyfinPluginConfiguration) Service() string { return jellyfin }
+func (jellyfinPluginConfiguration) Bug() string {
+	return "GET /Plugins/{pluginId}/Configuration declares a BasePluginConfiguration, an object with no properties; the server answers the plugin's own settings, a shape of its own for each plugin (TMDb's MaxCastMembers, MusicBrainz's Server), which the empty model drops whole"
+}
+
+func (jellyfinPluginConfiguration) Apply(spec *openapi.Spec) error {
+	op, err := operation(spec, "GET", "/Plugins/{pluginId}/Configuration")
+	if err != nil {
+		return err
+	}
+	media, err := jsonResponse(op, "GET /Plugins/{pluginId}/Configuration")
+	if err != nil {
+		return err
+	}
+	const base = "BasePluginConfiguration"
+	if media.Schema == nil || media.Schema.RefName() != base {
+		return errors.New("it no longer declares a " + base)
+	}
+	if s := spec.Components.Schemas[base]; s == nil || len(s.Properties) > 0 {
+		return errors.New(base + " is gone or declares properties")
+	}
+	for _, m := range op.Responses["200"].Content {
+		m.Schema = nil
+	}
+	// nothing else refers to it, so it would be a model no operation answers
+	delete(spec.Components.Schemas, base)
+
+	return nil
+}

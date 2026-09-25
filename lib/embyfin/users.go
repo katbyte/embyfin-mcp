@@ -204,24 +204,46 @@ func (c *Client) NextUp(ctx context.Context, userID string, limit int) ([]Item, 
 	return itemsFromJF(res.Model.Items), nil
 }
 
+// resumePage is how many rows one read of Emby's resume list asks for, at
+// least: enough that the next episodes it lists among the items part way
+// through rarely cost a second read.
+const resumePage = 50
+
 // Resume returns partially-watched items for a user: those with a resume
-// point. Emby also lists the next episode of a series once the one before it
-// is marked watched, at position zero and never started, which is next up
-// rather than in progress, so it is left out.
+// point, up to limit (0 is every one). Emby also lists the next episode of a
+// series once the one before it is marked watched, at position zero and
+// never started, which is next up rather than in progress, so it is left out
+// - and the limit is applied after, a page at a time: asked for five, Emby
+// answered its first five rows, and when those were next episodes the items
+// really part way through were never reached.
 func (c *Client) Resume(ctx context.Context, userID string, limit int) ([]Item, error) {
 	if c.isEmby() {
-		// without Recursive and MediaTypes Emby answers with an empty list even
-		// when items are in progress
-		res, err := c.emby.GetUsersByUserIdItemsResume(ctx, userID, emby.GetUsersByUserIdItemsResumeOperationOptions{
-			Fields: FieldsDefault, EnableUserData: new(true), Recursive: new(true), MediaTypes: "Video", Limit: nz(limit),
-		})
-		if err != nil {
-			return nil, err
+		page := max(limit, resumePage)
+		var out []Item
+		for start := 0; ; start += page {
+			// without Recursive and MediaTypes Emby answers with an empty list
+			// even when items are in progress
+			res, err := c.emby.GetUsersByUserIdItemsResume(ctx, userID, emby.GetUsersByUserIdItemsResumeOperationOptions{
+				Fields: FieldsDefault + "," + embyPlayFields, EnableUserData: new(true), Recursive: new(true), MediaTypes: "Video",
+				StartIndex: nz(start), Limit: new(page),
+			})
+			if err != nil {
+				return nil, err
+			}
+			rows := orEmpty(res.Model)
+			for _, it := range itemsFromEmby(rows.Items) {
+				if it.UserData == nil || it.UserData.PlaybackPositionTicks <= 0 {
+					continue
+				}
+				out = append(out, it)
+				if limit > 0 && len(out) == limit {
+					return out, nil
+				}
+			}
+			if len(rows.Items) < page || (rows.TotalRecordCount > 0 && start+len(rows.Items) >= rows.TotalRecordCount) {
+				return out, nil
+			}
 		}
-
-		return slices.DeleteFunc(itemsFromEmby(orEmpty(res.Model).Items), func(it Item) bool {
-			return it.UserData == nil || it.UserData.PlaybackPositionTicks <= 0
-		}), nil
 	}
 
 	res, err := c.jf.GetResumeItems(ctx, jf.GetResumeItemsOperationOptions{

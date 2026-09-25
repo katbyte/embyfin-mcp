@@ -3,15 +3,46 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 	"github.com/katbyte/go-kt/pointer"
 )
+
+// embyPackages reads the package catalogue, which Emby fetches from its
+// repository. The container asks for it as it starts, before the suite's
+// provider proxy is listening, and a fetch that failed makes Emby refuse that
+// host for half a minute or so after ("Cancelling connection ... due to a
+// previous timeout", a 500), so the read is asked again until the refusal
+// has passed. Any other failure is one.
+func embyPackages(ctx context.Context, t *testing.T) []emby.PackageInfo {
+	t.Helper()
+
+	var (
+		packages []emby.PackageInfo
+		last     error
+	)
+	poll(2*time.Minute, func() bool {
+		res, err := embyc.GetPackages(ctx, emby.GetPackagesOperationOptions{})
+		packages, last = res.Model, err
+
+		return err == nil || !strings.Contains(err.Error(), "due to a previous timeout")
+	})
+	if last != nil {
+		t.Fatalf("GetPackages = %v", last)
+	}
+	if len(packages) == 0 {
+		t.Fatal("GetPackages listed nothing")
+	}
+
+	return packages
+}
 
 //nolint:paralleltest // the tests share one server and its libraries
 func TestEmbySystem(t *testing.T) {
@@ -105,15 +136,9 @@ func TestEmbyConfiguration(t *testing.T) {
 		t.Errorf("GetPlugins = %+v", plugins)
 	}
 	// the package catalogue is fetched from Emby's repository, through the
-	// proxy; when the fetch fails the server answers 500 rather than an
-	// empty list
-	if packages, err := embyc.GetPackages(ctx, emby.GetPackagesOperationOptions{}); err != nil {
-		if client.StatusCode(err) != 500 {
-			t.Errorf("GetPackages = %v", err)
-		}
-		t.Logf("GetPackages: %v", err)
-	} else if len(packages.Model) == 0 || packages.Model[0].Name == "" || packages.Model[0].Guid == "" {
-		t.Errorf("GetPackages = %d packages", len(packages.Model))
+	// proxy
+	if packages := embyPackages(ctx, t); len(packages) == 0 || packages[0].Name == "" || packages[0].Guid == "" {
+		t.Errorf("GetPackages = %+v", packages)
 	}
 
 	cultures := must(embyc.GetLocalizationCultures(ctx)).Model

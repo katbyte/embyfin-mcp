@@ -1592,6 +1592,15 @@
           "Type": {
             "Type": "String"
           }
+        },
+        {
+          "Name": "MediaSourceId",
+          "Field": "MediaSourceId",
+          "In": "Query",
+          "Description": "The media source whose subtitles the playlist segments",
+          "Type": {
+            "Type": "String"
+          }
         }
       ],
       "Response": {

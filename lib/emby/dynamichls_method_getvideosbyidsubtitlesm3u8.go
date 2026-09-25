@@ -27,6 +27,9 @@ type GetVideosByIdSubtitlesM3u8OperationOptions struct {
 
 	// The subtitle segment format
 	ManifestSubtitles string
+
+	// The media source whose subtitles the playlist segments
+	MediaSourceId string
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -43,6 +46,9 @@ func (o GetVideosByIdSubtitlesM3u8OperationOptions) ToQuery() *client.QueryParam
 	}
 	if o.ManifestSubtitles != "" {
 		out.Append("ManifestSubtitles", o.ManifestSubtitles)
+	}
+	if o.MediaSourceId != "" {
+		out.Append("MediaSourceId", o.MediaSourceId)
 	}
 	return &out
 }

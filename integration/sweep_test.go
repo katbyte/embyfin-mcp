@@ -6,28 +6,44 @@ package integration
 // against the running server with arguments resolved from the fixtures, and
 // its answer decoded (or its file read). The bespoke tests prove the shapes the
 // tools rely on field by field; the sweep proves the rest of the read surface
-// answers in its documented status and shape, and that it keeps doing so as
-// the definitions change: a GET the importer adds is swept on the next run
-// with nothing to write, and one that fails must be classified here.
+// answers in its documented status with something in it, and that what it
+// sends lands in the model, and that it keeps doing so as the definitions
+// change: a GET the importer adds is swept on the next run with nothing to
+// write, and one that fails must be classified here.
 //
-// Every operation either answers, or has a sweepCase that says why not: the
-// feature needs something the container lacks (a tuner, a DLNA client, a
-// transcoding session), the endpoint is gone from the server, or the server
-// answers a shape its document does not describe. A Status or Decode case
-// whose operation starts answering fails the sweep, so a stale one is
+// What the sweep holds an answer to: it decodes; it carries something (a
+// file of at least one byte, JSON with at least one value that is not empty,
+// zero or false), because an empty list decodes into any model and so proves
+// nothing about its shape; and no object in it is lost whole, which is how a
+// model whose fields do not match the server shows up (the JSON decoder drops
+// a key it has no field for without a word). It does not check every field:
+// a server sends many its document does not declare, and a model that holds
+// one of an object's keys holds that object.
+//
+// Every operation either answers with something, or has a sweepCase that
+// says why not: the feature needs something the container lacks (a tuner, a
+// DLNA client, a transcoding session), the endpoint is gone from the server,
+// the server answers a shape its document does not describe, or what the
+// operation reads is not there on a fresh server. A Status, Decode or Empty
+// case whose operation starts answering fails the sweep, so a stale one is
 // noticed and removed, the way a stale importer workaround is. A Skip case
 // is never called, because calling it would hang on ffmpeg, scan a network
 // or need a fixture the container cannot have, so it is only ever reviewed by
-// hand; Sometimes marks an answer the container gives on some runs and not
-// others, which the sweep can therefore neither require nor forbid.
+// hand. Nothing is allowed to answer one way on some runs and another on
+// others: where a server does, the test sets up what makes it answer the
+// same way every time.
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -48,10 +64,10 @@ type sweepCase struct {
 	Status int
 	Decode bool
 	Why    string
-	// Sometimes accepts an answer as well as the Status, for a call that
-	// depends on something outside the container (a catalogue fetched
-	// through the provider proxy).
-	Sometimes bool
+	// Empty says why the operation answers with nothing on the fixtures (an
+	// empty list, an object of zero values, a file of no bytes), which the
+	// sweep otherwise fails.
+	Empty string
 	// Path and Options supply arguments by parameter name and options field,
 	// beyond what the fixtures resolve.
 	Path    map[string]string
@@ -132,11 +148,12 @@ func sweep(t *testing.T, service string, sdk any, fixtures sweepFixtures, cases 
 			if err != nil {
 				t.Fatalf("%s: %v; resolve it in the fixtures or give it a sweepCase", op.Key(), err)
 			}
-			status, decodeErr, err := sweepCall(sdk, op, args)
+			status, decodeErr, answer, err := sweepCall(sdk, op, args)
 			switch {
-			case err == nil && (c.Status != 0 || c.Decode) && !c.Sometimes:
+			case err == nil && (c.Status != 0 || c.Decode):
 				t.Errorf("%s now answers; drop its sweepCase (%s)", op.Key(), c.Why)
 			case err == nil:
+				checkAnswer(t, op, c, answer)
 			case c.Status != 0 && status == c.Status:
 				t.Logf("%s: HTTP %d, as expected: %s", op.Key(), status, c.Why)
 			case c.Decode && decodeErr:
@@ -265,26 +282,212 @@ func setValue(v reflect.Value, value any) error {
 	return nil
 }
 
-// sweepCall calls the operation, reads a streamed file, and classifies a
+// sweepCall calls the operation, reads what it answered, and classifies a
 // failure: the status of a *client.StatusError, or a decode error (the server
 // answered in a documented status, but not the documented shape).
-func sweepCall(sdk any, op *definitions.Operation, args []reflect.Value) (status int, decodeErr bool, err error) {
+func sweepCall(sdk any, op *definitions.Operation, args []reflect.Value) (status int, decodeErr bool, answer sweepAnswer, err error) {
 	results := reflect.ValueOf(sdk).MethodByName(op.Name).Call(args)
 	resp, _ := results[0].FieldByName("HttpResponse").Interface().(*http.Response)
 	err, _ = results[1].Interface().(error)
 
-	if err == nil && resp != nil && op.Response != nil && op.Response.Type.Type == definitions.RawFile {
+	if err == nil && resp != nil && op.Response != nil {
 		defer func() { _ = resp.Body.Close() }()
-		if _, readErr := io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20)); readErr != nil {
-			return 0, false, fmt.Errorf("reading the file: %w", readErr)
+		// a file is streamed, so only its start is read; a JSON answer is
+		// buffered by the client and left readable after it is decoded
+		limit := int64(client.MaxResponseBytes)
+		if op.Response.Type.Type == definitions.RawFile {
+			limit = 1 << 20
+		}
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, limit))
+		if readErr != nil {
+			return 0, false, answer, fmt.Errorf("reading the answer: %w", readErr)
+		}
+		if op.Response.Type.Type == definitions.RawFile {
+			answer.empty = len(body) == 0
+		} else {
+			answer = judgeJSON(body, results[0].FieldByName("Model"))
 		}
 	}
 	if err == nil {
-		return 0, false, nil
+		return 0, false, answer, nil
 	}
 	if status = client.StatusCode(err); status != 0 {
-		return status, false, err
+		return status, false, answer, err
 	}
 
-	return 0, resp != nil, err
+	return 0, resp != nil, answer, err
+}
+
+// sweepAnswer is what the sweep makes of a successful answer.
+type sweepAnswer struct {
+	// empty is an answer with nothing in it: no bytes, or JSON holding no
+	// value but empty ones, zeros and false
+	empty bool
+	// dropped are the places in the answer whose content the model lost
+	// whole
+	dropped []string
+}
+
+// checkAnswer holds a successful answer to what the sweep claims of it: that
+// it carries something, unless its case says why not, and that the model kept
+// what it carries.
+func checkAnswer(t *testing.T, op *definitions.Operation, c sweepCase, a sweepAnswer) {
+	t.Helper()
+
+	switch {
+	case a.empty && c.Empty == "":
+		t.Errorf("%s answers with nothing, which decodes into any model and so proves only its status: point it at a fixture that has something, or give it an Empty case", op.Key())
+	case !a.empty && c.Empty != "":
+		t.Errorf("%s now answers with something; drop its Empty case (%s)", op.Key(), c.Empty)
+	case a.empty:
+		t.Logf("%s: answers with nothing, as expected: %s", op.Key(), c.Empty)
+	}
+	for _, d := range a.dropped {
+		t.Errorf("%s: the model drops what the server sent at %s", op.Key(), d)
+	}
+}
+
+// judgeJSON reads a JSON answer against the model it was decoded into.
+func judgeJSON(body []byte, model reflect.Value) sweepAnswer {
+	var answer any
+	if err := json.Unmarshal(body, &answer); err != nil {
+		// text the model holds whole, or nothing at all
+		return sweepAnswer{empty: len(bytes.TrimSpace(body)) == 0}
+	}
+	a := sweepAnswer{empty: emptyJSON(answer)}
+	if model.IsValid() {
+		a.dropped = dropped(answer, model, "the answer")
+		if len(a.dropped) > 5 {
+			a.dropped = append(a.dropped[:5], fmt.Sprintf("%d more places", len(a.dropped)-5))
+		}
+	}
+
+	return a
+}
+
+// emptyJSON reports whether a decoded JSON value holds nothing but empty
+// strings, lists and objects, zeros, false and null.
+func emptyJSON(v any) bool {
+	switch v := v.(type) {
+	case nil:
+		return true
+	case bool:
+		return !v
+	case float64:
+		return v == 0
+	case string:
+		return v == ""
+	case []any:
+		for _, e := range v {
+			if !emptyJSON(e) {
+				return false
+			}
+		}
+		return true
+	case map[string]any:
+		for _, e := range v {
+			if !emptyJSON(e) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
+}
+
+// dropped walks a decoded JSON answer beside the model it was decoded into
+// and names each place whose content the model lost whole: an object with
+// something in it none of whose keys the model has a field for (the JSON
+// decoder drops those without a word), or a list or map the model holds
+// fewer entries of. A key the model lacks beside one it holds is not
+// reported: servers send many fields their documents leave out.
+func dropped(answer any, model reflect.Value, at string) []string {
+	for model.Kind() == reflect.Pointer || model.Kind() == reflect.Interface {
+		switch {
+		case model.IsNil() && emptyJSON(answer):
+			return nil
+		case model.IsNil():
+			return []string{at + " (the model holds nothing)"}
+		case model.Kind() == reflect.Interface:
+			return nil // a value of no declared type, held as it came
+		}
+		model = model.Elem()
+	}
+
+	var out []string
+	switch a := answer.(type) {
+	case map[string]any:
+		keys := slices.Sorted(maps.Keys(a))
+		switch model.Kind() {
+		case reflect.Struct:
+			fields := jsonFields(model.Type())
+			var sent, kept []string
+			for _, k := range keys {
+				if emptyJSON(a[k]) {
+					continue
+				}
+				sent = append(sent, k)
+				i, ok := fields[strings.ToLower(k)]
+				if !ok {
+					continue
+				}
+				kept = append(kept, k)
+				out = append(out, dropped(a[k], model.Field(i), at+"."+k)...)
+			}
+			if len(sent) > 0 && len(kept) == 0 {
+				out = append(out, fmt.Sprintf("%s (the model has no field for any of %s)", at, strings.Join(sent, ", ")))
+			}
+		case reflect.Map:
+			if model.Type().Key().Kind() != reflect.String {
+				return nil
+			}
+			for _, k := range keys {
+				v := model.MapIndex(reflect.ValueOf(k).Convert(model.Type().Key()))
+				switch {
+				case !v.IsValid() && !emptyJSON(a[k]):
+					out = append(out, fmt.Sprintf("%s[%q] (missing from the model)", at, k))
+				case v.IsValid():
+					out = append(out, dropped(a[k], v, fmt.Sprintf("%s[%q]", at, k))...)
+				}
+			}
+		default:
+			// JSON held raw (json.RawMessage): nothing is dropped
+		}
+	case []any:
+		// a byte slice is JSON held raw (json.RawMessage)
+		if (model.Kind() != reflect.Slice && model.Kind() != reflect.Array) || model.Type().Elem().Kind() == reflect.Uint8 {
+			return nil
+		}
+		if model.Len() < len(a) {
+			return []string{fmt.Sprintf("%s (%d entries sent, %d held)", at, len(a), model.Len())}
+		}
+		for i, v := range a {
+			out = append(out, dropped(v, model.Index(i), fmt.Sprintf("%s[%d]", at, i))...)
+		}
+	}
+
+	return out
+}
+
+// jsonFields maps the lowercased JSON names of a struct's fields to their
+// index, the way the JSON decoder matches keys (case-insensitively).
+func jsonFields(t reflect.Type) map[string]int {
+	fields := map[string]int{}
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if !f.IsExported() {
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		switch name {
+		case "-":
+			continue
+		case "":
+			name = f.Name
+		}
+		fields[strings.ToLower(name)] = i
+	}
+
+	return fields
 }

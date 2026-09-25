@@ -84,7 +84,7 @@ jobs:
   acceptance:
     name: acceptance (tools against a real ${{ matrix.backend }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

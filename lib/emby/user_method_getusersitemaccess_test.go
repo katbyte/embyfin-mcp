@@ -21,6 +21,7 @@ func TestOperationGetUsersItemAccess(t *testing.T) {
 		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
+		ItemId:                  "v-ItemId",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -34,6 +35,7 @@ func TestOperationGetUsersItemAccess(t *testing.T) {
 	expectQuery(t, r, "Limit", "7")
 	expectQuery(t, r, "NameStartsWithOrGreater", "v-NameStartsWithOrGreater")
 	expectQuery(t, r, "SortOrder", "v-SortOrder")
+	expectQuery(t, r, "ItemId", "v-ItemId")
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}
@@ -50,6 +52,7 @@ func TestOperationGetUsersItemAccess(t *testing.T) {
 		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
+		ItemId:                  "v-ItemId",
 	})
 	if err != nil || result.Model != nil {
 		t.Errorf("a 204 = %v, model %v", err, result.Model)
@@ -64,6 +67,7 @@ func TestOperationGetUsersItemAccess(t *testing.T) {
 		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
+		ItemId:                  "v-ItemId",
 	})
 	if err == nil || client.StatusCode(err) != 0 || result.HttpResponse == nil {
 		t.Errorf("an answer that does not decode = %v", err)
@@ -78,6 +82,7 @@ func TestOperationGetUsersItemAccess(t *testing.T) {
 		Limit:                   new(7),
 		NameStartsWithOrGreater: "v-NameStartsWithOrGreater",
 		SortOrder:               "v-SortOrder",
+		ItemId:                  "v-ItemId",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

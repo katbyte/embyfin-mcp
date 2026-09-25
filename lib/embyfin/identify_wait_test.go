@@ -28,7 +28,7 @@ func TestApplyWaitsForTheRefresh(t *testing.T) {
 			return http.StatusOK, `{"Items":[{"Id":"83","Name":"Blade Runner","Etag":"e2","ProviderIds":{"Tmdb":"78","Imdb":"tt0083658"}}],"TotalRecordCount":1}`
 		},
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	it, err := c.ApplyRemoteSearchResult(t.Context(), "83", RemoteSearchResult{Name: "Blade Runner", ProviderIDs: map[string]string{"Tmdb": "78"}}, false)
 	if err != nil {
 		t.Fatal(err)

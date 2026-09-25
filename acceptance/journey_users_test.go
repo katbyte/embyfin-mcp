@@ -11,8 +11,9 @@ import (
 	"testing"
 )
 
-// Journeys in another user's name: a restricted user's own playlists, and a
-// parental rating that hides a film from someone who had already watched it.
+// Journeys in another user's name: a restricted user's own playlists, what a
+// playlist holds when an album or a season is added to it, and a parental
+// rating that hides a film from someone who had already watched it.
 
 // playlistNames reads a playlist's entries by name in one user's view (root's
 // when user is empty).
@@ -208,17 +209,24 @@ func limitAlice(t *testing.T, rating string) int {
 
 // A film rated above what a user may watch is gone from everything in her
 // name: user_get says where her limit is, library_items leaves the film out,
-// item_set_state will not touch it, and user_stats no longer counts her
-// having watched it. Dune: Part Two, because it has no copy elsewhere for
+// item_set_state will not touch it, a playlist of hers will not take it,
+// user_stats no longer counts her having watched it and item_last_watched no
+// longer names her. Dune: Part Two, because it has no copy elsewhere for
 // Emby's by-title watch state to reach.
 func TestAParentalRatingLimit(t *testing.T) {
 	film := findItem(t, "Movies", "Movie", "Dune: Part Two")
-	before := call(t, "item_get", map[string]any{"id": film})
+	arrival := findItem(t, "Movies", "Movie", "Arrival")
+	rating := str(call(t, "item_get", map[string]any{"id": film})["official_rating"])
+	// put back through the HTTP API: item_edit takes an empty rating for no
+	// edit at all, so a film that had none would have stayed R
 	t.Cleanup(func() {
-		_, _ = invoke("item_edit", map[string]any{"ids": []any{film}, "official_rating": str(before["official_rating"])})
+		updateItem(t, film, map[string]any{"OfficialRating": rating})
+		if out, err := invoke("item_get", map[string]any{"id": film}); err != nil || str(out["official_rating"]) != rating {
+			t.Errorf("the film's rating was not put back to %q: %v %v", rating, out["official_rating"], err)
+		}
 	})
-	if str(before["official_rating"]) == "R" {
-		t.Fatalf("the film is already rated R: %v", before)
+	if rating == "R" {
+		t.Fatal("the film is already rated R")
 	}
 	if got := call(t, "user_get", map[string]any{"user": "alice"}); got["max_parental_rating"] != nil {
 		t.Fatalf("alice is limited before the test limits her: %v", got)
@@ -228,34 +236,61 @@ func TestAParentalRatingLimit(t *testing.T) {
 	call(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": true})
 	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": film, "user": "alice", "watched": false}) })
 	watched := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["movies_watched"], "movies_watched")
+	aliceWatched := func() (listed, played bool) {
+		for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": film})["users"], "users") {
+			if str(u["user"]) == "alice" {
+				return true, boolOf(u["played"])
+			}
+		}
+		return false, false
+	}
+	if listed, played := aliceWatched(); !listed || !played {
+		t.Fatalf("before the limit item_last_watched has alice listed %v, played %v", listed, played)
+	}
 
 	if out := call(t, "item_edit", map[string]any{"ids": []any{film}, "official_rating": "R"}); !slices.Equal(strs(t, out["changed"], "changed"), []string{"OfficialRating"}) {
 		t.Errorf("item_edit official_rating = %v", out)
 	}
-	visible := 0
+	// what the limit hides is every film rated above it, by the number the
+	// server ranks each rating by; a film with no rating is not hidden
+	limit := ratingValue(t, "PG-13")
+	all := num(t, call(t, "library_items", map[string]any{"library": "Movies", "limit": 50})["total"], "total")
+	hidden := 0
 	for _, r := range rows(t, call(t, "library_filters", map[string]any{"library": "Movies"})["official_ratings"], "official_ratings") {
-		if str(r["value"]) != "R" {
-			visible += num(t, r["items"], "items")
+		if ratingValue(t, str(r["value"])) > limit {
+			hidden += num(t, r["items"], "items")
 		}
 	}
-	limit := limitAlice(t, "PG-13")
+	if hidden == 0 || hidden >= all {
+		t.Fatalf("%d of the %d films are rated above PG-13, want some and not all", hidden, all)
+	}
+	if got := limitAlice(t, "PG-13"); got != limit {
+		t.Fatalf("alice was limited at %d, PG-13 is %d", got, limit)
+	}
 
 	if got := call(t, "user_get", map[string]any{"user": "alice"}); num(t, got["max_parental_rating"], "max_parental_rating") != limit {
 		t.Errorf("user_get alice max_parental_rating = %v, want %d (PG-13 on this server)", got["max_parental_rating"], limit)
 	}
 	films := call(t, "library_items", map[string]any{"library": "Movies", "user": "alice", "limit": 50})
-	if got := names(t, films["items"], "items"); slices.Contains(got, "Dune: Part Two") || num(t, films["total"], "total") != visible {
-		t.Errorf("alice sees %v, want the %d films rated under R and not Dune: Part Two", got, visible)
+	if got := names(t, films["items"], "items"); slices.Contains(got, "Dune: Part Two") || num(t, films["total"], "total") != all-hidden {
+		t.Errorf("alice sees %v, want the %d films not rated above PG-13, and not Dune: Part Two", got, all-hidden)
 	}
 	if msg := callErr(t, "item_set_state", map[string]any{"id": film, "user": "alice", "favourite": true}); !strings.Contains(msg, "rated above what they may watch") {
 		t.Errorf("item_set_state on a film above alice's limit: %s", msg)
 	}
+	// a playlist of hers takes what she may watch and refuses the rest
+	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Alice Limited", "user": "alice", "item_ids": []any{arrival}, "media_type": "Video"})["id"])
+	deleteLater(t, "playlist_delete", "playlist", pl)
+	if msg := callErr(t, "playlist_add", map[string]any{"playlist": pl, "user": "alice", "item_ids": []any{film}}); !strings.Contains(msg, "alice cannot see Dune: Part Two") {
+		t.Errorf("adding a film above alice's limit to her playlist: %s", msg)
+	}
+	if got := playlistNames(t, pl, ""); !slices.Equal(got, []string{"Arrival"}) {
+		t.Errorf("after the refused add alice's playlist holds %v, want [Arrival]", got)
+	}
 	if n := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["movies_watched"], "movies_watched"); n != watched-1 {
 		t.Errorf("alice's movies_watched = %d under the limit, %d before it: the hidden film still counts", n, watched)
 	}
-	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": film})["users"], "users") {
-		if str(u["user"]) == "alice" {
-			t.Errorf("item_last_watched reports alice on a film above her limit: %v", u)
-		}
+	if listed, played := aliceWatched(); listed {
+		t.Errorf("item_last_watched reports alice (played %v) on a film above her limit", played)
 	}
 }

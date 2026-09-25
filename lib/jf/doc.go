@@ -40,4 +40,5 @@
 // The importer fixed these bugs in the document before generating from it:
 //
 //   - jellyfin-create-playlist-query
+//   - jellyfin-plugin-configuration
 package jf

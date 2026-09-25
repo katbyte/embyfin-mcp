@@ -17,6 +17,7 @@ func TestOperationGetVideosByIdSubtitlesM3u8(t *testing.T) {
 	result, err := c.GetVideosByIdSubtitlesM3u8(t.Context(), "p/id", GetVideosByIdSubtitlesM3u8OperationOptions{
 		SubtitleSegmentLength: new(7),
 		ManifestSubtitles:     "v-ManifestSubtitles",
+		MediaSourceId:         "v-MediaSourceId",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -26,6 +27,7 @@ func TestOperationGetVideosByIdSubtitlesM3u8(t *testing.T) {
 	expectRequest(t, r, http.MethodGet, "/Videos/p%2Fid/subtitles.m3u8")
 	expectQuery(t, r, "SubtitleSegmentLength", "7")
 	expectQuery(t, r, "ManifestSubtitles", "v-ManifestSubtitles")
+	expectQuery(t, r, "MediaSourceId", "v-MediaSourceId")
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}
@@ -40,6 +42,7 @@ func TestOperationGetVideosByIdSubtitlesM3u8(t *testing.T) {
 	result, err = c.GetVideosByIdSubtitlesM3u8(t.Context(), "p/id", GetVideosByIdSubtitlesM3u8OperationOptions{
 		SubtitleSegmentLength: new(7),
 		ManifestSubtitles:     "v-ManifestSubtitles",
+		MediaSourceId:         "v-MediaSourceId",
 	})
 	if client.StatusCode(err) != 418 || result.HttpResponse == nil {
 		t.Errorf("an undocumented status = %v, %+v", err, result.HttpResponse)

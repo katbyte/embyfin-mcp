@@ -271,6 +271,98 @@ func (embyNextUpLegacy) Apply(spec *openapi.Spec) error {
 		param{"LegacyNextUp", openapi.InQuery, openapi.TypeBoolean, "Use the per-series next unwatched episode mode"})
 }
 
+type embyUndeclaredQuery struct{}
+
+// embyUndeclaredQueries are the GETs that answer 500 (a null reference, or a
+// lookup that finds nothing) until they are given a query parameter their
+// document leaves out, and answer once it is there.
+var embyUndeclaredQueries = []struct {
+	target string
+	params []param
+}{
+	{"GET /Artists/InstantMix", []param{{"Id", openapi.InQuery, openapi.TypeString, "The artist the mix is made from"}}},
+	{"GET /MusicGenres/InstantMix", []param{{"Id", openapi.InQuery, openapi.TypeString, "The music genre the mix is made from"}}},
+	{"GET /Audio/{Id}/universal", []param{{"UserId", openapi.InQuery, openapi.TypeString, "The user the stream is for"}}},
+	{"GET /Audio/{Id}/universal.{Container}", []param{{"UserId", openapi.InQuery, openapi.TypeString, "The user the stream is for"}}},
+	{"GET /Videos/{Id}/subtitles.m3u8", []param{{"MediaSourceId", openapi.InQuery, openapi.TypeString, "The media source whose subtitles the playlist segments"}}},
+	{"GET /web/strings", []param{
+		{"PluginId", openapi.InQuery, openapi.TypeString, "The plugin whose strings to read"},
+		{"Locale", openapi.InQuery, openapi.TypeString, "The language of the strings, one of those /web/stringset lists (en-US); without it the answer is empty"},
+	}},
+	{"GET /web/stringset", []param{{"PluginId", openapi.InQuery, openapi.TypeString, "The plugin whose translations to list"}}},
+	{"GET /Notifications/Services/Defaults", []param{
+		{"NotifierKey", openapi.InQuery, openapi.TypeString, "The notification service, by the Id /Notifications/Services lists"},
+		{"UserId", openapi.InQuery, openapi.TypeString, "The user the defaults are for"},
+	}},
+	{"GET /Users/ItemAccess", []param{{"ItemId", openapi.InQuery, openapi.TypeString, "The playlist or collection whose sharing to list"}}},
+}
+
+func (embyUndeclaredQuery) Name() string    { return "emby-undeclared-query" }
+func (embyUndeclaredQuery) Service() string { return emby }
+func (embyUndeclaredQuery) Bug() string {
+	return "nine GETs answer 500 without a query parameter their document does not declare: the instant mixes by artist and music genre need the Id they are made from, universal audio a UserId, the HLS subtitle playlist a MediaSourceId, the web strings a PluginId (and a Locale, without which they are empty), the notification defaults a NotifierKey and UserId, and a playlist's sharing (/Users/ItemAccess) its ItemId"
+}
+
+func (embyUndeclaredQuery) Apply(spec *openapi.Spec) error {
+	for _, q := range embyUndeclaredQueries {
+		if err := addParameters(spec, []string{q.target}, q.params...); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type embyToneMapOptions struct{}
+
+// embyToneMapOptionsSchema is the tone mapping editor the server answers: the
+// visibility the document declares, under OptionsVisibility, beside the
+// settings and the editor's own text.
+const embyToneMapOptionsSchema = "Configuration.ToneMapping.ToneMapOptions"
+
+func (embyToneMapOptions) Name() string    { return "emby-tone-map-options" }
+func (embyToneMapOptions) Service() string { return emby }
+func (embyToneMapOptions) Bug() string {
+	return "GET /Encoding/ToneMapOptions declares a ToneMapOptionsVisibility; the server answers the tone mapping editor, which holds one under OptionsVisibility beside the settings (EnableSoftwareToneMapping, the software and hardware options) and the editor's title and description"
+}
+
+func (embyToneMapOptions) Apply(spec *openapi.Spec) error {
+	op, err := operation(spec, http.MethodGet, "/Encoding/ToneMapOptions")
+	if err != nil {
+		return err
+	}
+	media, err := jsonResponse(op, "GET /Encoding/ToneMapOptions")
+	if err != nil {
+		return err
+	}
+	visibility := "Configuration.ToneMapping.ToneMapOptionsVisibility"
+	if media.Schema == nil || media.Schema.RefName() != visibility {
+		return errors.New("it no longer declares a " + visibility)
+	}
+	if spec.Components.Schemas[embyToneMapOptionsSchema] != nil {
+		return errors.New("the document declares " + embyToneMapOptionsSchema)
+	}
+	str, boolean := &openapi.Schema{Type: openapi.TypeString}, &openapi.Schema{Type: openapi.TypeBoolean}
+	spec.Components.Schemas[embyToneMapOptionsSchema] = &openapi.Schema{Type: openapi.TypeObject, Properties: map[string]*openapi.Schema{
+		"OptionsVisibility":         {Ref: openapi.SchemaRefPrefix + visibility},
+		"EditorTitle":               str,
+		"EditorDescription":         str,
+		"FeatureRequiresPremiere":   boolean,
+		"EnableSoftwareToneMapping": boolean,
+		"EnableHardwareToneMapping": boolean,
+		"IsNewItem":                 boolean,
+		// editors of their own, whose shape depends on the hardware found
+		"SoftwareToneMapOptions": {Type: openapi.TypeObject},
+		"HardwareToneMapOptions": {Type: openapi.TypeObject},
+	}}
+	ref := &openapi.Schema{Ref: openapi.SchemaRefPrefix + embyToneMapOptionsSchema}
+	for _, m := range op.Responses["200"].Content {
+		m.Schema = ref
+	}
+
+	return nil
+}
+
 type embyPlaystateSeekQuery struct{}
 
 func (embyPlaystateSeekQuery) Name() string    { return "emby-playstate-seek-query" }

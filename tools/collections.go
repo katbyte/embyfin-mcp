@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -199,7 +200,7 @@ func registerCollectionTools(r *registry) {
 				out.Updated = append(out.Updated, "Name")
 			}
 			if in.SortName != "" {
-				full["SortName"], full["ForcedSortName"] = in.SortName, in.SortName
+				setSortName(full, in.SortName, client.Backend() == embyfin.Emby)
 				out.Updated = append(out.Updated, "SortName")
 			}
 			if in.Overview != "" {
@@ -218,11 +219,14 @@ func registerCollectionTools(r *registry) {
 		Collection string `json:"collection" jsonschema:"collection name or id"`
 	}
 	type deleteOut struct {
-		Deleted string `json:"deleted"`
+		Deleted  string `json:"deleted"`
+		WatchedS int    `json:"watched_s"      jsonschema:"how many seconds the collection was watched after the delete, and stayed gone"`
+		Note     string `json:"note,omitempty" jsonschema:"why it was watched longer than a few seconds, and whether it came back"`
 	}
 	add(r, deleteTool, &mcp.Tool{
-		Name:        "collection_delete",
-		Description: "Delete a collection. The items stay in the library; only the grouping goes. Answers once the collection has stayed gone for a few seconds (Jellyfin can save one it is still refreshing back after a delete), deleting it again if it comes back. Changes server state.",
+		Name: "collection_delete",
+		Description: "Delete a collection. The items stay in the library; only the grouping goes. Answers once the collection has stayed gone, deleting it again if it comes back: Jellyfin refreshes a collection it has made or whose members changed, and saves it back when that refresh ends - a second or so later, or a minute when the provider fails - so there a collection changed in the last 75 seconds is watched a few seconds when the provider that refresh asks answers at once, and until 75 seconds after the change when it is slow or failing; anything else for a few seconds. " +
+			"Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
 		col, err := resolveByType(ctx, client, "BoxSet", in.Collection)
 		if err != nil {
@@ -231,10 +235,21 @@ func registerCollectionTools(r *registry) {
 
 		// read back until it stays gone: Jellyfin saves a collection it is
 		// still refreshing back after the delete answered
-		if err := client.DeleteCollection(ctx, col.ID); err != nil {
+		seen, err := client.DeleteCollection(ctx, col.ID)
+		if err != nil {
 			return nil, deleteOut{}, err
 		}
+		out := deleteOut{Deleted: col.Name, WatchedS: int(seen.Watched.Round(time.Second) / time.Second)}
+		switch {
+		case seen.Recent && seen.ProviderSlow:
+			out.Note = fmt.Sprintf("the collection was changed %d s before the delete, and Jellyfin saves back a collection whose refresh from such a change ends after it is deleted; the provider that refresh asks was slow or failing, so a refresh could run a minute, and it was watched until that could no longer happen", int(seen.SavedAgo/time.Second))
+		case seen.Recent:
+			out.Note = fmt.Sprintf("the collection was changed %d s before the delete, and Jellyfin saves back a collection whose refresh from such a change ends after it is deleted; the provider that refresh asks answered at once, so a refresh would end in a moment, and it was watched a few times that", int(seen.SavedAgo/time.Second))
+		}
+		if seen.Back > 0 {
+			out.Note = strings.TrimPrefix(fmt.Sprintf("%s; it came back %d time(s), saved by that refresh, and was deleted again", out.Note, seen.Back), "; ")
+		}
 
-		return nil, deleteOut{Deleted: col.Name}, nil
+		return nil, out, nil
 	})
 }

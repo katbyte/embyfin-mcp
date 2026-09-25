@@ -347,7 +347,8 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 	if got, _ := json.Marshal(out["changed"]); string(got) != `["Name","ProductionYear","SortName"]` {
 		t.Errorf("changed = %s", got)
 	}
-	for _, want := range []string{`"Name":"Alien (1979)"`, `"SortName":"Alien 1"`, `"ForcedSortName":"Alien 1"`, `"ProductionYear":1979`} {
+	// the sort name locked, or Emby works it out from the name again
+	for _, want := range []string{`"Name":"Alien (1979)"`, `"SortName":"Alien 1"`, `"ForcedSortName":"Alien 1"`, `"LockedFields":["SortName"]`, `"ProductionYear":1979`} {
 		if !strings.Contains(posted["1"], want) {
 			t.Errorf("Alien's update lacks %s: %s", want, posted["1"])
 		}
@@ -515,7 +516,9 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 		{season: 2, number: 1, name: "Part One", path: "/m/21.mkv", minutes: 60},
 		{season: 2, number: 2, name: "Part One", path: "/m/22.mkv", minutes: 30},
 	}
-	cs := session(t, tvServer(t, s), Options{})
+	f := tvServer(t, s)
+	adminView(t, f) // the episodes as people are shown them
+	cs := session(t, f, Options{})
 
 	out := mustCall(t, cs, "audit_duplicate_episodes", map[string]any{})
 	groups := objects(t, out["groups"], "groups")

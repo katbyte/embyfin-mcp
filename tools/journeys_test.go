@@ -227,26 +227,35 @@ func TestReplaceAllNeedsFetchers(t *testing.T) {
 	t.Parallel()
 
 	f := newFakeServer(t)
+	// each refresh saves the item a moment after it is asked for, which
+	// moves its etag
+	var mu sync.Mutex
+	saves := map[string]int{}
 	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
 		if r.URL.Query().Get("Ids") == "1" {
-			_, _ = io.WriteString(w, `{"Items":[{"Id":"1","Name":"Interstellar","Type":"Movie","Path":"/media/messy-movies/Interstellar (2014)/Interstellar (2014).mp4"}],"TotalRecordCount":1}`)
+			_, _ = fmt.Fprintf(w, `{"Items":[{"Id":"1","Name":"Interstellar","Type":"Movie","Etag":"e%d","Path":"/media/messy-movies/Interstellar (2014)/Interstellar (2014).mp4"}],"TotalRecordCount":1}`, saves["1"])
 			return
 		}
-		_, _ = io.WriteString(w, `{"Items":[{"Id":"2","Name":"Dune","Type":"Movie","Path":"/media/messy/Dune (2021)/Dune (2021).mp4"}],"TotalRecordCount":1}`)
+		_, _ = fmt.Fprintf(w, `{"Items":[{"Id":"2","Name":"Dune","Type":"Movie","Etag":"e%d","Path":"/media/messy/Dune (2021)/Dune (2021).mp4"}],"TotalRecordCount":1}`, saves["2"])
 	})
 	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, `{"Items":[
 			{"Name":"Messy","ItemId":"8","Locations":["/media/messy"],"LibraryOptions":{"TypeOptions":[{"Type":"Movie","MetadataFetchers":[]}]}},
 			{"Name":"Messy Movies","ItemId":"9","Locations":["/media/messy-movies/"],"LibraryOptions":{"TypeOptions":[{"Type":"Movie","MetadataFetchers":["TheMovieDb"]}]}}],"TotalRecordCount":2}`)
 	})
-	f.mux.HandleFunc("POST /Items/{id}/Refresh", func(w http.ResponseWriter, _ *http.Request) {
+	f.mux.HandleFunc("POST /Items/{id}/Refresh", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		saves[r.PathValue("id")]++
+		mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	})
 	cs := session(t, f, Options{})
 
 	// /media/messy-movies is not inside /media/messy
-	if _, msg := callTool(t, cs, "item_refresh", map[string]any{"id": "1", "replace_all": true}); msg != "" {
-		t.Errorf("replace_all with the fetchers on: %s", msg)
+	if out, msg := callTool(t, cs, "item_refresh", map[string]any{"id": "1", "replace_all": true}); msg != "" || !boolean(t, out["landed"], "landed") {
+		t.Errorf("replace_all with the fetchers on: %v %s", out, msg)
 	}
 	if _, msg := callTool(t, cs, "item_refresh", map[string]any{"id": "2", "replace_all": true}); !strings.Contains(msg, "the Messy library has its metadata fetchers off") {
 		t.Errorf("replace_all with the fetchers off: %s", msg)
@@ -365,15 +374,24 @@ func TestUnwatchedByTitle(t *testing.T) {
 
 	f := newFakeServer(t)
 	f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = io.WriteString(w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true}}],"TotalRecordCount":1}`)
+		_, _ = io.WriteString(w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true,"EnableAllFolders":true}}],"TotalRecordCount":1}`)
 	})
-	f.mux.HandleFunc("GET /Users/admin/Items", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = io.WriteString(w, `{"Items":[{"Id":"clean","Name":"Alien","Type":"Movie","ProviderIds":{"Tmdb":"348"}}],"TotalRecordCount":1}`)
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"Items":[{"Name":"Films","ItemId":"lib","CollectionType":"movies","Locations":["/m"]}],"TotalRecordCount":1}`)
+	})
+	library := `{"Items":[
+			{"Id":"messy","Name":"Alien","Type":"Movie","ProviderIds":{"Tmdb":"348"}},
+			{"Id":"arrival","Name":"Arrival","Type":"Movie","ProviderIds":{"Tmdb":"329865"}}],"TotalRecordCount":2}`
+	// what the account played, and the library as it is shown the account
+	f.mux.HandleFunc("GET /Users/admin/Items", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("Filters") == "IsPlayed" {
+			_, _ = io.WriteString(w, `{"Items":[{"Id":"clean","Name":"Alien","Type":"Movie","ProviderIds":{"Tmdb":"348"}}],"TotalRecordCount":1}`)
+			return
+		}
+		_, _ = io.WriteString(w, library)
 	})
 	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = io.WriteString(w, `{"Items":[
-			{"Id":"messy","Name":"Alien","Type":"Movie","ProviderIds":{"Tmdb":"348"}},
-			{"Id":"arrival","Name":"Arrival","Type":"Movie","ProviderIds":{"Tmdb":"329865"}}],"TotalRecordCount":2}`)
+		_, _ = io.WriteString(w, library)
 	})
 	cs := session(t, f, Options{})
 
@@ -427,8 +445,23 @@ func TestIdentifyApplyWithTheFetchersOff(t *testing.T) {
 			f.mux.HandleFunc("GET /Users/admin/Items/{id}", func(w http.ResponseWriter, _ *http.Request) {
 				writeJSON(t, w, item())
 			})
-			f.mux.HandleFunc("POST /Items/RemoteSearch/Series", func(w http.ResponseWriter, _ *http.Request) {
+			f.mux.HandleFunc("POST /Items/RemoteSearch/Series", func(w http.ResponseWriter, r *http.Request) {
+				// asked by the candidate's id, the provider's record of the
+				// show carries its other ids too
+				info := object(t, readBody(t, r)["SearchInfo"], "SearchInfo")
+				if known, ok := info["ProviderIds"].(map[string]any); ok && known["Tmdb"] == "655" {
+					_, _ = io.WriteString(w, `[{"Name":"Zzyzx Show","ProductionYear":1987,"ProviderIds":{"Tmdb":"655","Imdb":"tt0000655","Tvdb":"70655"}}]`)
+					return
+				}
 				_, _ = io.WriteString(w, `[{"Name":"Zzyzx Show","ProductionYear":1987,"ProviderIds":{"Tmdb":"655"}}]`)
+			})
+			// the show's folder holds the nfo the server reads for it
+			f.mux.HandleFunc("GET /Environment/DirectoryContents", func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Get("Path") != c.path {
+					http.NotFound(w, r)
+					return
+				}
+				writeJSON(t, w, []map[string]any{{"Name": "tvshow.nfo", "Path": c.path + "/tvshow.nfo", "Type": "File"}, {"Name": "Season 01", "Path": c.path + "/Season 01", "Type": "Directory"}})
 			})
 			f.mux.HandleFunc("POST /Items/RemoteSearch/Apply/{id}", func(w http.ResponseWriter, _ *http.Request) {
 				mu.Lock()
@@ -461,8 +494,23 @@ func TestIdentifyApplyWithTheFetchersOff(t *testing.T) {
 			case !c.fetchersOff && (applied != 1 || edited != 0):
 				t.Errorf("with the fetchers on: %d applies and %d edits, want the apply alone", applied, edited)
 			}
-			if note := text(out["note"]); c.fetchersOff != strings.Contains(note, "metadata fetchers off") {
+			note := text(out["note"])
+			if c.fetchersOff != strings.Contains(note, "metadata fetchers off") {
 				t.Errorf("note = %q", note)
+			}
+			// the item was no title before, and is one now: what the next
+			// refresh may undo is said - the nfo it reads again, and on Emby
+			// the watch state that follows the ids
+			if !strings.Contains(note, "the nfo beside the file (tvshow.nfo)") || !strings.Contains(note, "watched mark and favourite for the title it was matched to") {
+				t.Errorf("note = %q, want the nfo and the watch state warned of", note)
+			}
+			// with the fetchers off every id the provider knows the show by
+			// is set, the candidate's TMDB id and the IMDb and TVDB ids its
+			// record adds
+			if c.fetchersOff {
+				if got := object(t, out["metadata_provider_ids"], "metadata_provider_ids"); got["imdb"] != "tt0000655" || got["tvdb"] != "70655" {
+					t.Errorf("with the fetchers off the ids set = %v, want the show's IMDb and TVDB ids beside TMDB's", got)
+				}
 			}
 		})
 	}

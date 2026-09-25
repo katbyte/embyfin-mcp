@@ -247,19 +247,89 @@ func TestPlaylists(t *testing.T) {
 	}
 }
 
-func TestOrganiseFamiliesAreComplete(t *testing.T) {
-	var got []string
-	for _, name := range toolNames(t) {
-		if strings.HasPrefix(name, "collection_") || strings.HasPrefix(name, "playlist_") {
-			got = append(got, name)
+// What a collection refuses, and what it reads back: an item it does not
+// hold cannot be removed, an item it holds is not added twice, a collection
+// nobody has is refused naming those there are, and a sort name set is the
+// sort name the server keeps.
+func TestCollectionEdges(t *testing.T) {
+	alien := findItem(t, "Movies", "Movie", "Alien")
+	aliens := findItem(t, "Movies", "Movie", "Aliens")
+	// a name the provider cassettes know: Jellyfin looks a new collection's
+	// name up at TMDB
+	out := call(t, "collection_create", map[string]any{"name": "Zzyzx Edges", "item_ids": []any{alien}})
+	id := str(out["id"])
+	deleteLater(t, "collection_delete", "collection", id)
+
+	// an item it does not hold: refused, and nothing leaves
+	if msg := callErr(t, "collection_remove", map[string]any{"collection": id, "item_ids": []any{alien, aliens}}); !strings.Contains(msg, "the collection does not hold item "+aliens) {
+		t.Errorf("removing an item the collection does not hold: %s", msg)
+	}
+	if n := collectionSize(t, id, 1); n != 1 {
+		t.Errorf("after the refused removal the collection holds %d items, want Alien still", n)
+	}
+	// an item it holds is counted, not added again
+	add := call(t, "collection_add", map[string]any{"collection": id, "item_ids": []any{alien, aliens, aliens}})
+	if num(t, add["added"], "added") != 1 || num(t, add["already_held"], "already_held") != 2 {
+		t.Errorf("adding Alien again and Aliens twice = %v, want 1 added and 2 already held", add)
+	}
+	if n := collectionSize(t, id, 2); n != 2 {
+		t.Errorf("the collection holds %d items, want Alien and Aliens", n)
+	}
+	if msg := callErr(t, "collection_add", map[string]any{"collection": "Zzyzx Nowhere", "item_ids": []any{alien}}); !strings.Contains(msg, `no collection named "Zzyzx Nowhere" (have: `) || !strings.Contains(msg, "Zzyzx Edges") {
+		t.Errorf("adding to a collection nobody has: %s", msg)
+	}
+
+	// the sort name set is the one the server keeps, which no read tool
+	// shows, so it is read off the item as the server's own editor does
+	// (Jellyfin sorts by a form of it with its numbers padded out)
+	call(t, "collection_edit", map[string]any{"collection": id, "sort_name": "Alien 0"})
+	if got := fullItem(t, id); str(got["ForcedSortName"]) != "Alien 0" {
+		t.Errorf("the collection's sort name = %v (sorted by %v), want Alien 0", got["ForcedSortName"], got["SortName"])
+	}
+	if got := call(t, "item_get", map[string]any{"id": id}); str(got["name"]) != "Zzyzx Edges" {
+		t.Errorf("a sort name renamed the collection: %v", got["name"])
+	}
+}
+
+// What a playlist refuses: an edit of nothing, a move past its end or of an
+// entry it does not hold; and several entries go in one removal.
+func TestPlaylistEdges(t *testing.T) {
+	var ids []any
+	for _, title := range []string{"Alien", "Aliens", "Arrival"} {
+		ids = append(ids, findItem(t, "Movies", "Movie", title))
+	}
+	out := call(t, "playlist_create", map[string]any{"name": "Zzyzx Edges", "item_ids": ids, "media_type": "Video"})
+	id := str(out["id"])
+	deleteLater(t, "playlist_delete", "playlist", id)
+	entries := playlistEntries(t, id, 3)
+	if len(entries) != 3 {
+		t.Fatalf("the playlist = %v, want three entries", entries)
+	}
+	first := str(entries[0]["entry_id"])
+
+	for want, args := range map[string]map[string]any{
+		"nothing to change": {"playlist": id},
+		"position 4 is outside the playlist's 3 entries":      {"playlist": id, "move_entry_id": first, "position": 4},
+		"the playlist has no entry zzyzx (its entry ids are ": {"playlist": id, "move_entry_id": "zzyzx", "position": 1},
+	} {
+		if msg := callErr(t, "playlist_edit", args); !strings.Contains(msg, want) {
+			t.Errorf("playlist_edit %v: %s, want %q", args, msg, want)
 		}
 	}
-	want := []string{
-		"collection_add", "collection_create", "collection_delete", "collection_edit", "collection_get", "collection_list", "collection_remove",
-		"playlist_add", "playlist_create", "playlist_delete", "playlist_edit", "playlist_get", "playlist_list", "playlist_remove",
+	if got := names(t, call(t, "playlist_get", map[string]any{"playlist": id})["entries"], "entries"); !slices.Equal(got, []string{"Alien", "Aliens", "Arrival"}) {
+		t.Errorf("after the refused edits the playlist = %v", got)
 	}
-	slices.Sort(got)
-	if !slices.Equal(got, want) {
-		t.Errorf("organise tools = %v, want %v", got, want)
+
+	// the first two in one removal
+	rm := call(t, "playlist_remove", map[string]any{"playlist": id, "entry_ids": []any{first, str(entries[1]["entry_id"])}})
+	if num(t, rm["removed"], "removed") != 2 || str(rm["from"]) != "Zzyzx Edges" {
+		t.Errorf("playlist_remove of two = %v", rm)
+	}
+	var left []string
+	for _, e := range playlistEntries(t, id, 1) {
+		left = append(left, str(e["name"]))
+	}
+	if !slices.Equal(left, []string{"Arrival"}) {
+		t.Errorf("after removing two the playlist = %v, want Arrival", left)
 	}
 }

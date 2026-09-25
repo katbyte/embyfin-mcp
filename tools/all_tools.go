@@ -42,6 +42,9 @@ type Options struct {
 	Toolsets []string
 	// Allow, when set, restricts registration to matching tools: exact names,
 	// prefix/suffix globs (library_*, *_delete) or the "essential" preset.
+	// With no Toolsets it chooses from every tool; beside Toolsets, a name
+	// or pattern reaching no tool the sets hold is refused rather than
+	// silently registering nothing.
 	Allow []string
 	// Deny removes matching tools from whatever Allow left.
 	Deny []string
@@ -364,6 +367,11 @@ func selected(r *registry, opts Options) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(sets) > 0 {
+		if err := allowedWithin(opts.Allow, sets, opts.Toolsets, names); err != nil {
+			return nil, err
+		}
+	}
 
 	keep := make(map[string]bool, len(r.pending))
 	for _, p := range r.pending {
@@ -480,6 +488,62 @@ func compilePatterns(raw, known []string, which string) ([]string, error) {
 	}
 
 	return out, nil
+}
+
+// allowedWithin checks an allow list against the toolsets asked for beside
+// it, which it narrows: a tool it names that none of the sets holds would
+// not be registered, and silently leaving it out read as the tool not
+// existing. --allow-tools essential with the default core registered three
+// of its five. So each name or pattern must reach a tool in the sets, and
+// the error says which set to add.
+func allowedWithin(raw []string, sets map[string]bool, asked, known []string) error {
+	in := func(name string) bool { return sets[name] }
+	for _, entry := range raw {
+		for pat := range strings.SplitSeq(entry, ",") {
+			pat = strings.TrimSpace(pat)
+			if pat == "" {
+				continue
+			}
+			var outside []string
+			switch {
+			case pat == "essential":
+				outside = slices.DeleteFunc(slices.Clone(EssentialTools), in)
+			case !slices.ContainsFunc(known, func(n string) bool { return sets[n] && matchPattern(pat, n) }):
+				outside = slices.DeleteFunc(slices.Clone(known), func(n string) bool { return !matchPattern(pat, n) })
+				slices.Sort(outside)
+			}
+			if len(outside) == 0 {
+				continue
+			}
+			homes := []string{}
+			for _, name := range outside {
+				if set := toolsetOf(name); set != "" && !slices.Contains(homes, set) {
+					homes = append(homes, set)
+				}
+			}
+			slices.Sort(homes)
+			hint := "leave --toolsets out, so the allow list chooses from every tool"
+			if len(homes) > 0 {
+				hint = "add " + strings.Join(homes, ",") + " to --toolsets, or " + hint
+			}
+
+			return fmt.Errorf("allow-tools %q names %s, which the toolsets asked for (%s) do not hold: %s", pat, strings.Join(outside, ", "), strings.Join(asked, ","), hint)
+		}
+	}
+
+	return nil
+}
+
+// toolsetOf is the curated set a tool belongs to, or "" for a name or a
+// pattern no set holds.
+func toolsetOf(name string) string {
+	for set, members := range Toolsets {
+		if slices.Contains(members, name) {
+			return set
+		}
+	}
+
+	return ""
 }
 
 func matchesAny(patterns []string, name string) bool {

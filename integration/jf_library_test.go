@@ -158,10 +158,10 @@ func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l librar
 		last = fmt.Sprintf("%d movies, %d series, %d episodes", m, s, e)
 		nudge(m + s + e)
 
-		return m == l.Movies && s == l.Series && e == l.Episodes
+		return m == l.films() && s == l.Series && e == l.Episodes
 	})
 	if !ok {
-		t.Fatalf("%s never reached %d movies, %d series, %d episodes; last saw %s", l.Name, l.Movies, l.Series, l.Episodes, last)
+		t.Fatalf("%s never reached %d movies, %d series, %d episodes; last saw %s", l.Name, l.films(), l.Series, l.Episodes, last)
 	}
 }
 
@@ -189,7 +189,7 @@ func jfScanEnded(ctx context.Context) string {
 func jfWaitForScan(ctx context.Context, t *testing.T, since string) {
 	t.Helper()
 
-	ok := poll(4*time.Minute, func() bool {
+	ok := poll(scanPatience, func() bool {
 		tasks, err := jfc.GetTasks(ctx, jf.GetTasksOperationOptions{})
 		if err != nil {
 			return false
@@ -272,6 +272,23 @@ func jfSong(t *testing.T, parentID, title string) jf.BaseItemDto {
 		}
 	}
 	t.Fatalf("no track titled %q in %s", title, sdkMusic.Name)
+
+	return jf.BaseItemDto{}
+}
+
+// jfAlbum finds one of the fixture albums by title.
+func jfAlbum(t *testing.T, parentID, title string) jf.BaseItemDto {
+	t.Helper()
+
+	res := must(jfc.GetItems(t.Context(), jf.GetItemsOperationOptions{
+		ParentId: parentID, Recursive: new(true), IncludeItemTypes: []jf.BaseItemKind{jf.BaseItemKindMusicAlbum}, SearchTerm: title,
+	})).Model
+	for i := range res.Items {
+		if res.Items[i].Name == title {
+			return res.Items[i]
+		}
+	}
+	t.Fatalf("no album titled %q in %s", title, sdkMusic.Name)
 
 	return jf.BaseItemDto{}
 }
@@ -410,7 +427,7 @@ func TestJFScanTask(t *testing.T) {
 	jfWaitForScan(ctx, t, since)
 	after := must(jfc.GetTask(ctx, scan.Id)).Model
 	if after.LastExecutionResult == nil || after.LastExecutionResult.Status == "" || after.LastExecutionResult.StartTimeUtc == "" {
-		t.Errorf("after StartTask the scan's LastExecutionResult = %+v", after.LastExecutionResult)
+		t.Fatalf("after StartTask the scan's LastExecutionResult = %+v", after.LastExecutionResult)
 	}
 	if !strings.EqualFold(string(after.LastExecutionResult.Status), "Completed") {
 		t.Errorf("the scan finished %s", after.LastExecutionResult.Status)

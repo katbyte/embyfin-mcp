@@ -69,9 +69,12 @@ document and fails the import once it is not.
     rates as objects and answers display text (`"781 Mbit/s"`); an option
     editor's `PropertyCondition.Value` declares an object and answers a
     string.
+  - Nine GETs answer 500 until given a query parameter they do not declare: the instant mixes by artist and by music genre need the `Id` they are made from, universal audio a `UserId`, the HLS subtitle playlist a `MediaSourceId`, the web strings a `PluginId` (and a `Locale`, without which they are empty), the notification defaults a `NotifierKey` and `UserId`, and a playlist's sharing (`/Users/ItemAccess`) its `ItemId`.
+  - `/Encoding/ToneMapOptions` declares the tone mapping options' visibility and answers the whole tone mapping editor, which holds it.
 - Jellyfin (`jellyfin-*`):
   - `POST /Playlists` still declares its deprecated query parameters, which the
     server answers 400 to.
+  - `/Plugins/{pluginId}/Configuration` declares an object with no fields and answers each plugin's own settings, so the client hands them back as raw JSON.
   - Jellyfin 12's document leaves out the HLS streaming routes
     (`/Videos/{itemId}/master.m3u8` and the rest), which the server still
     answers. Nothing here streams, so no workaround adds them back.
@@ -92,6 +95,7 @@ document and fails the import once it is not.
     `id` a string where TMDB answers a number, its item status the reverse.
   - The rating operations declare a `Content-Type` header parameter, which
     OpenAPI says to ignore; the importer ignores it in every document.
+  - A change's `value` is declared as whatever the example's change held, and TMDB answers whatever the changed field holds, so it is left untyped; a watch provider's `display_priorities` declares a field for each country the example listed, and is read as a map of any country.
 
 Array query parameters follow the document: Jellyfin's are sent one key per
 value (its comma binder accepts both, and the parameters without it only read
@@ -292,14 +296,7 @@ repeated keys), Emby's comma-separated.
   - Timestamps are RFC 3339 with seven fractional digits, sometimes with no
     zone (Emby); the generated clients keep them as strings. Runtime is
     `RunTimeTicks` in 100 ns units.
-- Every GET in each document is called against a real server by the read
-  sweep (`integration/sweep_test.go`), and each one that does not simply
-  answer is classified in `emby_sweep_test.go` / `jf_sweep_test.go`: the
-  feature needs something the container lacks (a tuner, a DLNA client, a
-  transcoding session, music), the route needs input its document does not
-  declare (Emby's `/web/strings` and `/Users/ItemAccess` answer 500 to any
-  caller), or the answer depends on a provider. A classified GET that starts
-  answering fails the sweep, the way a stale workaround fails the import.
+- Every GET in each document is called against a real server by the read sweep (`integration/sweep_test.go`), which also fails an answer with nothing in it and one whose model drops an object whole. Each GET that does not answer with something is classified in `emby_sweep_test.go` / `jf_sweep_test.go`: the feature needs something the container lacks (a tuner, a DLNA client, a transcoding session), an API key is not the user the route needs, or what it reads is not there on a fresh server. A classified GET that starts answering fails the sweep, the way a stale workaround fails the import.
   `TotalRecordCount` is 0 on Emby's device and API key lists whatever they
   hold, which is why the generated `Complete` pagers stop on a short page as
   well as on the total.
@@ -313,7 +310,6 @@ repeated keys), Emby's comma-separated.
   the image CDNs) and honour `HTTPS_PROXY`; on Linux they trust the
   certificates in `SSL_CERT_FILE`, which is how the tests intercept those
   calls (see `lib/providerproxy`). A call that times out makes Emby refuse
-  every later call to that host (`Cancelling connection ... due to a
-  previous timeout`) until it restarts, so a replay miss can fail tests that
-  come after it.
+  later calls to that host (`Cancelling connection ... due to a previous
+  timeout`), so a replay miss can fail tests that come after it. The refusal that follows a fetch that failed as the container started, before the suite's proxy was listening (the package catalogue's), passes after about half a minute.
 

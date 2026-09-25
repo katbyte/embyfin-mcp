@@ -3,7 +3,10 @@
 package integration
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,14 +40,41 @@ func TestJFRemoteImages(t *testing.T) {
 		t.Errorf("remote image = %+v", img)
 	}
 
+	// the film's poster before: the poster.jpg beside it
+	primary := func() jf.ImageInfo {
+		images := must(jfc.GetItemImageInfos(ctx, id)).Model
+		i := slices.IndexFunc(images, func(i jf.ImageInfo) bool { return i.ImageType == jf.ImageTypePrimary })
+		if i < 0 {
+			t.Fatalf("%s has no Primary image among %+v", alien, images)
+		}
+		return images[i]
+	}
+	poster := ""
+	if os.Getenv("EMBYFIN_TEST_DATA") != "" {
+		poster = filepath.Join(dataDir(), "movies", "Alien (1979)", "poster.jpg")
+		if _, err := os.Stat(poster); err != nil {
+			t.Fatalf("the fixture's poster: %v", err)
+		}
+	}
+	before := primary()
+	if before.Path != "/media/movies/Alien (1979)/poster.jpg" || before.Width != 200 || before.Height != 300 {
+		t.Fatalf("before the download the Primary image is %+v, want the fixture's 200x300 poster.jpg", before)
+	}
+
 	// download it as the item's poster; the proxy substitutes a placeholder
-	// for the bytes, which is still an image the server can size
+	// for the bytes (a 2x2 jpeg), which is still an image the server can size
 	if _, err := jfc.DownloadRemoteImage(ctx, id, jf.DownloadRemoteImageOperationOptions{Type: jf.ImageTypePrimary, ImageUrl: img.Url}); err != nil {
 		t.Fatal(err)
 	}
-	images := must(jfc.GetItemImageInfos(ctx, id)).Model
-	if !slices.ContainsFunc(images, func(i jf.ImageInfo) bool { return i.ImageType == jf.ImageTypePrimary && i.Path != "" }) {
-		t.Errorf("after DownloadRemoteImage the images are %+v", images)
+	// the new poster is saved in the server's own metadata (the library does
+	// not save artwork beside the media), and the poster.jpg it replaces is
+	// left in the film's folder (where Emby deletes it)
+	after := primary()
+	if after.Path == before.Path || !strings.HasPrefix(after.Path, "/config/metadata/") || (after.Width == before.Width && after.Height == before.Height) {
+		t.Errorf("after the download the Primary image is %+v, want the downloaded one in place of %+v", after, before)
+	}
+	if _, err := os.Stat(poster); poster != "" && err != nil {
+		t.Errorf("after the download %s: %v; Jellyfin left the poster it replaced until now", poster, err)
 	}
 }
 

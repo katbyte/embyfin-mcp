@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -194,6 +195,9 @@ func TestLibraryFilters(t *testing.T) {
 	}
 }
 
+// library_edit names each change it made, finds the library by its name in
+// any case, and refuses what it cannot do before doing any of it. That the
+// folders and the name really change on the server is TestLibraryLifecycle's.
 func TestLibraryEdit(t *testing.T) {
 	created := call(t, "library_create", map[string]any{"name": "Edit Me", "type": "tvshows", "paths": []any{"/media/messy-shows"}})
 	if str(created["name"]) != "Edit Me" {
@@ -205,35 +209,40 @@ func TestLibraryEdit(t *testing.T) {
 		_ = waitForScan() // Jellyfin's removal starts a library scan
 	})
 
+	// the adds, then the removes, each named
 	out := call(t, "library_edit", map[string]any{"library": "edit me", "add_paths": []any{"/media/shows"}, "remove_paths": []any{"/media/messy-shows"}})
-	if locs := strs(t, out["locations"], "locations"); !slices.Equal(locs, []string{"/media/shows"}) {
-		t.Errorf("locations = %v, want [/media/shows]", locs)
-	}
-	if changed := strs(t, out["changed"], "changed"); len(changed) != 2 {
+	if changed := strs(t, out["changed"], "changed"); !slices.Equal(changed, []string{"added /media/shows", "removed /media/messy-shows"}) {
 		t.Errorf("changed = %v", changed)
+	}
+	if locs := strs(t, out["locations"], "locations"); !slices.Equal(locs, []string{"/media/shows"}) {
+		t.Errorf("locations = %v, want the library as it now is", locs)
 	}
 
 	out = call(t, "library_edit", map[string]any{"library": "Edit Me", "name": "Edited"})
 	name = "Edited"
-	if str(out["name"]) != "Edited" || !slices.Contains(strs(t, out["changed"], "changed"), "renamed Edit Me to Edited") {
+	if str(out["name"]) != "Edited" || !slices.Equal(strs(t, out["changed"], "changed"), []string{"renamed Edit Me to Edited"}) {
 		t.Errorf("rename = %v", out)
 	}
-	listed := map[string]bool{}
-	for _, row := range rows(t, call(t, "library_list", nil)["libraries"], "libraries") {
-		listed[str(row["name"])] = true
-	}
-	if !listed["Edited"] || listed["Edit Me"] {
-		t.Errorf("libraries after the rename = %v", listed)
+	// a library renamed to the name it has is not renamed
+	if out := call(t, "library_edit", map[string]any{"library": "edited", "name": "Edited"}); len(strs(t, out["changed"], "changed")) != 0 {
+		t.Errorf("renaming to the same name changed %v", out["changed"])
 	}
 
 	for want, args := range map[string]map[string]any{
 		"already holds": {"library": "Edited", "add_paths": []any{"/media/shows"}},
 		"has no folder": {"library": "Edited", "remove_paths": []any{"/media/nowhere"}},
 		"nothing to":    {"library": "Edited"},
+		// added and removed at once is neither
+		"/media/movies is named more than once": {"library": "Edited", "add_paths": []any{"/media/movies"}, "remove_paths": []any{"/media/movies"}},
+		"no library named":                      {"library": "Never Made", "name": "Anything"},
 	} {
 		if msg := callErr(t, "library_edit", args); !strings.Contains(msg, want) {
 			t.Errorf("library_edit %v: %s", args, msg)
 		}
+	}
+	// and a refusal changed nothing
+	if locs := strs(t, call(t, "library_get", map[string]any{"library": "Edited"})["locations"], "locations"); !slices.Equal(locs, []string{"/media/shows"}) {
+		t.Errorf("after the refusals the locations are %v", locs)
 	}
 }
 
@@ -248,6 +257,12 @@ func TestItemEditMany(t *testing.T) {
 	t.Cleanup(func() {
 		for id, b := range before {
 			_, _ = invoke("item_edit", map[string]any{"ids": []any{id}, "genres": b["genres"], "tags": b["tags"], "studios": b["studios"]})
+			// item_edit sets a rating and cannot clear one, and the messy
+			// films' nfos give them none
+			updateItem(t, id, map[string]any{"OfficialRating": str(b["official_rating"])})
+			if got := call(t, "item_get", map[string]any{"id": id}); str(got["official_rating"]) != str(b["official_rating"]) {
+				t.Errorf("%s's rating is left %q, was %q", got["name"], got["official_rating"], b["official_rating"])
+			}
 		}
 	})
 
@@ -424,6 +439,100 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 	}
 }
 
+// What makes two spellings one group and what does not. A letter or a swap
+// apart is a near group once both are six letters or more; two apart only
+// at twelve or more and starting with the same word; and a value cut short
+// of another is a studio's kind alone. A merge can differ only in case.
+func TestAuditSpellingKinds(t *testing.T) {
+	dune := findItem(t, "Messy Movies", "Movie", "Dune")
+	interstellar := findItem(t, "Messy Movies", "Movie", "Interstellar")
+	arrival := findItem(t, "Messy Movies", "Movie", "Arrival")
+	// in this order: Dune's Sci-Fi is the case given first
+	planted := []struct {
+		id   string
+		tags []any
+	}{
+		{dune, []any{"Dystopian", "Cyberpunk Noir", "Time Travel Story", "Heist Film", "Noir", "Space Western", "Sci-Fi"}},
+		{interstellar, []any{"Dystopain", "Cyberpunk Nr", "Tame Trave Story", "Hiest Flim", "Nior", "Space Western Classics", "sci-fi"}},
+		{arrival, []any{"Dystopian"}},
+	}
+	t.Cleanup(func() {
+		for _, p := range planted {
+			_, _ = invoke("item_edit", map[string]any{"ids": []any{p.id}, "remove_tags": p.tags})
+		}
+	})
+	for _, p := range planted {
+		call(t, "item_edit", map[string]any{"ids": []any{p.id}, "add_tags": p.tags})
+	}
+
+	tagGroups := func() map[string]map[string]any {
+		out := call(t, "audit_spelling", map[string]any{"library": "Messy Movies", "field": "tags"})
+		got := map[string]map[string]any{}
+		for _, g := range rows(t, out["groups"], "groups") {
+			var values []string
+			for _, s := range rows(t, g["spellings"], "spellings") {
+				values = append(values, str(s["value"]))
+			}
+			got[strings.Join(sorted(values), " | ")] = g
+		}
+		if n := num(t, out["total_findings"], "total_findings"); n != len(got) {
+			t.Errorf("total_findings = %d for %d groups", n, len(got))
+		}
+
+		return got
+	}
+	// The same tag in two cases is a group where the server keeps both:
+	// Jellyfin keeps each item's tags as they were given, and Emby keeps a
+	// tag in the case it was first given in, whatever case it is given in
+	// after, so on Emby there is only ever the one spelling
+	cases := isJellyfin()
+	if tags := strs(t, call(t, "item_get", map[string]any{"id": interstellar})["tags"], "tags"); slices.Contains(tags, "sci-fi") != cases || !slices.Contains(tags, "Sci-Fi") && !cases {
+		t.Errorf("Interstellar given sci-fi holds %v", tags)
+	}
+	groups := map[string]struct{ kind, keep string }{
+		// a swap of two letters, and the spelling two films carry is kept
+		"Dystopain | Dystopian": {"near", "Dystopian"},
+		// two letters out of fourteen, the same first word
+		"Cyberpunk Noir | Cyberpunk Nr": {"near", "Cyberpunk Noir"},
+	}
+	if cases {
+		groups["Sci-Fi | sci-fi"] = struct{ kind, keep string }{"spelling", "Sci-Fi"}
+	}
+	got := tagGroups()
+	for key, want := range groups {
+		g, ok := got[key]
+		if !ok || str(g["kind"]) != want.kind || str(g["keep"]) != want.keep || str(g["field"]) != "tags" {
+			t.Errorf("group %q = %v, want %s keeping %s", key, g, want.kind, want.keep)
+		}
+	}
+	// and nothing else: two letters out of sixteen with the first words
+	// apart, two out of ten, one out of four, and a tag cut short of
+	// another are all left alone
+	if len(got) != len(groups) {
+		t.Errorf("tag groups = %v, want the %d above alone", slices.Sorted(maps.Keys(got)), len(groups))
+	}
+
+	// the case merge: from matched exactly as spelled, so the one film
+	// carrying the lower case is the one changed, and on Emby none is
+	out := call(t, "metadata_rename", map[string]any{"field": "tags", "from": "sci-fi", "to": "Sci-Fi", "library": "Messy Movies"})
+	want := []string{"Interstellar"}
+	if !cases {
+		want = []string{}
+	}
+	if num(t, out["updated"], "updated") != len(want) || !slices.Equal(strs(t, out["items"], "items"), want) {
+		t.Errorf("merging sci-fi into Sci-Fi = %v, want %v", out, want)
+	}
+	if _, ok := tagGroups()["Sci-Fi | sci-fi"]; ok {
+		t.Error("after the merge the two cases are still a group")
+	}
+	if tags := strs(t, call(t, "item_get", map[string]any{"id": interstellar})["tags"], "tags"); !slices.Contains(tags, "Sci-Fi") || slices.Contains(tags, "sci-fi") {
+		t.Errorf("Interstellar's tags after the merge = %v", tags)
+	}
+	if msg := callErr(t, "metadata_rename", map[string]any{"field": "tags", "from": "Noir", "to": " Noir "}); !strings.Contains(msg, "from and to are the same spelling") {
+		t.Errorf("a rename onto itself: %s", msg)
+	}
+}
+
 func TestAuditQuality(t *testing.T) {
 	// the messy films are 360p rips, Princess Mononoke's in MPEG-4 part 2,
 	// the loose DVD a 480p MPEG-2 VOB, and the Blade Runner files really are
@@ -431,6 +540,9 @@ func TestAuditQuality(t *testing.T) {
 	out := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
 	got := findings(t, out)
 	want := []string{"Alien", "Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)"}
+	if !isJellyfin() {
+		want = want[1:] // Emby shows the two Aliens as one film's versions
+	}
 	if !slices.Equal(got, want) {
 		t.Errorf("low quality = %v, want %v", got, want)
 	}
@@ -451,8 +563,8 @@ func TestAuditQuality(t *testing.T) {
 			}
 		}
 	}
-	if n := num(t, out["items_scanned"], "items_scanned"); n != messyMovies() {
-		t.Errorf("scanned %d, want %d", n, messyMovies())
+	if n := num(t, out["items_scanned"], "items_scanned"); n != messyMoviesShown() {
+		t.Errorf("scanned %d, want %d", n, messyMoviesShown())
 	}
 	// the Blu-ray kept whole was never probed, so it has no picture to judge,
 	// and it says so rather than passing for a good copy
@@ -474,10 +586,21 @@ func TestAuditQuality(t *testing.T) {
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("at 360 lines with codecs off = %v", out["findings"])
 	}
-	// a bitrate floor nothing a one-second test pattern reaches
+	// a bitrate floor nothing a one-second test pattern reaches, said in
+	// kilobits a second
 	out = call(t, "audit_quality", map[string]any{"library": "Movies", "min_bitrate": 1000000000})
 	if n := num(t, out["total_findings"], "total_findings"); n != 8 {
 		t.Errorf("a bitrate floor flagged %d films, want all 8", n)
+	}
+	starved := regexp.MustCompile(`^h264 1280x720: [1-9]\d* kbps, below 1000000 kbps$`)
+	for _, f := range rows(t, out["findings"], "findings") {
+		if !starved.MatchString(str(f["detail"])) {
+			t.Errorf("a film under the floor = %q", f["detail"])
+		}
+	}
+	// and one every film clears flags none
+	if n := num(t, call(t, "audit_quality", map[string]any{"library": "Movies", "min_bitrate": 1000})["total_findings"], "total_findings"); n != 0 {
+		t.Errorf("a floor of 1 kbps flagged %d films", n)
 	}
 
 	// episodes too, named by series and number, the lowest first:
@@ -532,7 +655,7 @@ func TestAuditMissingEpisodes(t *testing.T) {
 	if capped := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "limit": 1}); len(rows(t, capped["findings"], "findings")) != 1 || num(t, capped["total_findings"], "total_findings") != 3 {
 		t.Errorf("limit 1 = %v", capped)
 	}
-	// A2: the sweep says how much of the answer it could know. Neither server
+	// the sweep says how much of the answer it could know. Neither server
 	// records a series' full run out of the box, so a series it does not list
 	// is not a series proved complete, and the answer has to say so.
 	known, ok := out["runs_known"].(bool)
@@ -546,12 +669,11 @@ func TestAuditMissingEpisodes(t *testing.T) {
 		t.Errorf("the note does not warn that absence is not completeness: %q", out["note"])
 	}
 
-	// the clean shows hold their episodes from the first without gaps
+	// the clean shows hold their episodes from the first without gaps, and
+	// with no provider asked that is all that can be said of them
 	out = call(t, "audit_missing_episodes", map[string]any{"library": "Shows"})
-	for _, f := range rows(t, out["findings"], "findings") {
-		if strings.Contains(str(f["detail"]), "between the episodes on disk") {
-			t.Errorf("a clean show has a gap: %v", f)
-		}
+	if n := num(t, out["total_findings"], "total_findings"); n != 0 || boolOf(out["runs_known"]) || num(t, out["items_scanned"], "items_scanned") != 9 {
+		t.Errorf("the clean shows = %v, want no gap in 9 episodes and runs_known false", out)
 	}
 
 	// with the provider, TMDB's run says what the messy Severance lacks
@@ -566,7 +688,9 @@ func TestAuditMissingEpisodes(t *testing.T) {
 	for _, f := range rows(t, out["findings"], "findings") {
 		found[title(str(f["name"]))] = str(f["detail"])
 	}
-	if d := found["Severance"]; !strings.Contains(d, "listed by TMDB without a file: S01E04, S01E05") {
+	// the sixteen aired episodes of its first two seasons past the three
+	// files, the first twelve by name; TMDB's third season is empty
+	if d := found["Severance"]; d != "listed by TMDB without a file: S01E04, S01E05, S01E06, S01E07, S01E08, S01E09, S02E01, S02E02, S02E03, S02E04, S02E05, S02E06 and 4 more" {
 		t.Errorf("Severance = %q, want TMDB's run past the three files", d)
 	}
 	if d := found["Star Trek The Next Generation"]; !strings.Contains(d, "between the episodes on disk: S01E02") || strings.Contains(d, "TMDB") {
@@ -625,7 +749,12 @@ func TestAuditUnwatched(t *testing.T) {
 	if users := strs(t, out["users"], "users"); !slices.Contains(users, "root") || !slices.Contains(users, "alice") {
 		t.Errorf("users = %v", users)
 	}
-	if capped := call(t, "audit_unwatched", map[string]any{"library": "Movies", "limit": 2}); len(rows(t, capped["findings"], "findings")) != 2 || num(t, capped["total_findings"], "total_findings") != 8 {
+	// oldest additions first, and the films added together by name, so a
+	// limit keeps the same ones each call
+	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{"Alien", "Aliens", "Arrival", "Blade Runner", "Dune", "Dune: Part Two", "Princess Mononoke", "The Thirteenth Floor"}) {
+		t.Errorf("unwatched in order = %v", got)
+	}
+	if capped := call(t, "audit_unwatched", map[string]any{"library": "Movies", "limit": 2}); !slices.Equal(names(t, capped["findings"], "findings"), []string{"Alien", "Aliens"}) || num(t, capped["total_findings"], "total_findings") != 8 {
 		t.Errorf("limit 2 = %v", capped)
 	}
 
@@ -665,6 +794,8 @@ func TestAuditUnwatched(t *testing.T) {
 	}
 }
 
+// A person's credits, films and series, oldest first. Answering a part of a
+// name with candidates is TestPersonGetCandidates'.
 func TestPersonGet(t *testing.T) {
 	out := call(t, "person_get", map[string]any{"person": "denis villeneuve"})
 	if str(out["name"]) != "Denis Villeneuve" || str(out["id"]) == "" {
@@ -674,8 +805,8 @@ func TestPersonGet(t *testing.T) {
 	var arrivalDirector bool
 	for _, c := range rows(t, out["credits"], "credits") {
 		titles[title(str(c["name"]))] = true
-		if str(c["credit"]) == "" {
-			t.Errorf("a credit without its kind: %v", c)
+		if str(c["credit"]) == "" || str(c["type"]) != "Movie" {
+			t.Errorf("a credit without its kind, or not a film: %v", c)
 		}
 		if title(str(c["name"])) == "Arrival" && str(c["credit"]) == "Director" {
 			arrivalDirector = true
@@ -698,17 +829,21 @@ func TestPersonGet(t *testing.T) {
 		t.Errorf("by id with types=Series = %v", byID)
 	}
 
-	// a partial name answers with the people it could mean, and nothing else
-	near := call(t, "person_get", map[string]any{"person": "Scott"})
-	var ridley bool
-	for _, p := range rows(t, near["candidates"], "candidates") {
-		ridley = ridley || (str(p["name"]) == "Ridley Scott" && str(p["id"]) != "")
+	// a series credit, from the provider's cast of the clean Breaking Bad:
+	// Jellyfin credits him as its producer too
+	cranston := call(t, "person_get", map[string]any{"person": "Bryan Cranston"})
+	var walter bool
+	for _, c := range rows(t, cranston["credits"], "credits") {
+		if str(c["name"]) != "Breaking Bad" || str(c["type"]) != "Series" {
+			t.Errorf("a credit of Bryan Cranston's = %v, want Breaking Bad's alone", c)
+		}
+		walter = walter || (str(c["credit"]) == "Actor" && str(c["role"]) == "Walter White")
 	}
-	if !ridley || near["name"] != nil || len(rows(t, near["credits"], "credits")) != 0 {
-		t.Errorf("a partial name should offer the full one: %v", near)
+	if !walter {
+		t.Errorf("Bryan Cranston's credits = %v, want Walter White in Breaking Bad", cranston["credits"])
 	}
-	if msg := callErr(t, "person_get", map[string]any{"person": "Nobody Atall"}); !strings.Contains(msg, "Nobody Atall") {
-		t.Errorf("an unknown person: %s", msg)
+	if films := call(t, "person_get", map[string]any{"person": "Bryan Cranston", "types": "Movie"}); len(rows(t, films["credits"], "credits")) != 0 {
+		t.Errorf("Bryan Cranston's films = %v, want none", films["credits"])
 	}
 }
 

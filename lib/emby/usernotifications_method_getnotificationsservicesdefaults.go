@@ -15,15 +15,43 @@ type GetNotificationsServicesDefaultsOperationResponse struct {
 	Model        *UserNotificationInfo
 }
 
+// GetNotificationsServicesDefaultsOperationOptions holds the query and header parameters of GetNotificationsServicesDefaults.
+type GetNotificationsServicesDefaultsOperationOptions struct {
+	// The notification service, by the Id /Notifications/Services lists
+	NotifierKey string
+
+	// The user the defaults are for
+	UserId string
+}
+
+// ToHeaders returns the header parameters the options set.
+func (o GetNotificationsServicesDefaultsOperationOptions) ToHeaders() *client.Headers {
+	out := client.Headers{}
+	return &out
+}
+
+// ToQuery returns the query parameters the options set.
+func (o GetNotificationsServicesDefaultsOperationOptions) ToQuery() *client.QueryParams {
+	out := client.QueryParams{}
+	if o.NotifierKey != "" {
+		out.Append("NotifierKey", o.NotifierKey)
+	}
+	if o.UserId != "" {
+		out.Append("UserId", o.UserId)
+	}
+	return &out
+}
+
 // GetNotificationsServicesDefaults calls GET /Notifications/Services/Defaults. Gets default notification info.
-func (c Client) GetNotificationsServicesDefaults(ctx context.Context) (result GetNotificationsServicesDefaultsOperationResponse, err error) {
+func (c Client) GetNotificationsServicesDefaults(ctx context.Context, options GetNotificationsServicesDefaultsOperationOptions) (result GetNotificationsServicesDefaultsOperationResponse, err error) {
 	opts := client.RequestOptions{
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HTTPMethod: http.MethodGet,
-		Path:       "/Notifications/Services/Defaults",
+		HTTPMethod:    http.MethodGet,
+		OptionsObject: options,
+		Path:          "/Notifications/Services/Defaults",
 	}
 
 	req, err := c.Client.NewRequest(ctx, opts)

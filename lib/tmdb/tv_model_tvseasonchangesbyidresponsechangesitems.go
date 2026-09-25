@@ -4,8 +4,8 @@ package tmdb
 
 // TvSeasonChangesByIdResponseChangesItems is an object the document declares inline.
 type TvSeasonChangesByIdResponseChangesItems struct {
-	Action string                                        `json:"action,omitempty"`
-	Id     string                                        `json:"id,omitempty"`
-	Time   string                                        `json:"time,omitempty"`
-	Value  *TvSeasonChangesByIdResponseChangesItemsValue `json:"value,omitempty"`
+	Action string `json:"action,omitempty"`
+	Id     string `json:"id,omitempty"`
+	Time   string `json:"time,omitempty"`
+	Value  any    `json:"value,omitempty"`
 }

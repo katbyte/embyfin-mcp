@@ -2301,7 +2301,7 @@
           "Name": "Value",
           "JsonName": "value",
           "Type": {
-            "Type": "String"
+            "Type": "Any"
           }
         }
       ]
@@ -3822,27 +3822,7 @@
           "Name": "Value",
           "JsonName": "value",
           "Type": {
-            "Type": "Reference",
-            "ReferenceName": "TvSeasonChangesByIdResponseChangesItemsValue"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "TvSeasonChangesByIdResponseChangesItemsValue",
-      "Fields": [
-        {
-          "Name": "EpisodeId",
-          "JsonName": "episode_id",
-          "Type": {
-            "Type": "Integer"
-          }
-        },
-        {
-          "Name": "EpisodeNumber",
-          "JsonName": "episode_number",
-          "Type": {
-            "Type": "Integer"
+            "Type": "Any"
           }
         }
       ]
@@ -12522,8 +12502,7 @@
           "Name": "OriginalValue",
           "JsonName": "original_value",
           "Type": {
-            "Type": "Reference",
-            "ReferenceName": "TvSeriesChangesResponseChangesItemsOriginalValue"
+            "Type": "Any"
           }
         },
         {
@@ -12537,72 +12516,7 @@
           "Name": "Value",
           "JsonName": "value",
           "Type": {
-            "Type": "Reference",
-            "ReferenceName": "TvSeriesChangesResponseChangesItemsValue"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "TvSeriesChangesResponseChangesItemsOriginalValue",
-      "Fields": [
-        {
-          "Name": "Poster",
-          "JsonName": "poster",
-          "Type": {
-            "Type": "Reference",
-            "ReferenceName": "TvSeriesChangesResponseChangesItemsOriginalValuePoster"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "TvSeriesChangesResponseChangesItemsOriginalValuePoster",
-      "Fields": [
-        {
-          "Name": "FilePath",
-          "JsonName": "file_path",
-          "Type": {
-            "Type": "String"
-          }
-        },
-        {
-          "Name": "Iso6391",
-          "JsonName": "iso_639_1",
-          "Type": {
-            "Type": "String"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "TvSeriesChangesResponseChangesItemsValue",
-      "Fields": [
-        {
-          "Name": "Poster",
-          "JsonName": "poster",
-          "Type": {
-            "Type": "Reference",
-            "ReferenceName": "TvSeriesChangesResponseChangesItemsValuePoster"
-          }
-        }
-      ]
-    },
-    {
-      "Name": "TvSeriesChangesResponseChangesItemsValuePoster",
-      "Fields": [
-        {
-          "Name": "FilePath",
-          "JsonName": "file_path",
-          "Type": {
-            "Type": "String"
-          }
-        },
-        {
-          "Name": "Iso6391",
-          "JsonName": "iso_639_1",
-          "Type": {
-            "Type": "String"
+            "Type": "Any"
           }
         }
       ]

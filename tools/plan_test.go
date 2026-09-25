@@ -245,3 +245,37 @@ func TestPlanCheckSaysASpecialIsSeasonZero(t *testing.T) {
 		t.Errorf("a special's current = %v, want season 0", current)
 	}
 }
+
+// A zero is an answer, and the most important one: an empty incoming file
+// over a whole one is a size_ratio of 0, and a claim of another show
+// altogether a claim_similarity of 0. Both were left out of the answer as if
+// no size or series had been given.
+func TestPlanCheckGivesAZero(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes[0].alt = "/media/shows/Severance/Season 01/S01E01 - 720p.mkv"
+	cs := session(t, tvServer(t, s), Options{})
+
+	out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
+		{"path": "/media/shows/Severance/Season 01/S01E01 - 720p.mkv", "size": 0, "series": "Zzyzx Qwerty"},
+		{"path": "/media/shows/Severance/Season 01/S01E01 - 720p.mkv"},
+	}})
+	rows := objects(t, out["entries"], "entries")
+	current := object(t, rows[0]["current"], "current")
+	if ratio, ok := current["size_ratio"]; !ok || decimal(t, ratio, "size_ratio") != 0 {
+		t.Errorf("an empty file over a whole one: current = %v, want size_ratio 0", current)
+	}
+	join := object(t, rows[0]["would_join"], "would_join")
+	if score, ok := join["claim_similarity"]; !ok || decimal(t, score, "claim_similarity") != 0 {
+		t.Errorf("another show claimed: would_join = %v, want claim_similarity 0", join)
+	}
+	// and with no size or series given there is nothing to compare, and
+	// nothing is said
+	if _, ok := object(t, rows[1]["current"], "current")["size_ratio"]; ok {
+		t.Errorf("no size given, yet size_ratio: %v", rows[1]["current"])
+	}
+	if _, ok := object(t, rows[1]["would_join"], "would_join")["claim_similarity"]; ok {
+		t.Errorf("no series claimed, yet claim_similarity: %v", rows[1]["would_join"])
+	}
+}

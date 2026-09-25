@@ -191,34 +191,35 @@ func auditLanguage(ctx context.Context, client *embyfin.Client, in languageIn) (
 
 	out := languageOut{Findings: []auditFinding{}}
 	var findings []auditFinding
-	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
-		for i := range items {
-			it := &items[i]
-			// the record a server keeps of an episode it has no file for has
-			// no streams to read, and is not something the library can be
-			// watched in or not
-			if !it.HasFile() {
-				continue
-			}
-			out.Scanned++
-			detail, match, unknown := checkLanguage(it, in.Language, find)
-			switch {
-			case unknown && languagesOf(it).noAudio():
-				out.NoAudio++
-			case unknown:
-				out.Untagged++
-			case match:
-				name := it.Name
-				if it.SeriesName != "" {
-					name = fmt.Sprintf("%s S%02dE%02d %s", it.SeriesName, it.ParentIndexNumber, it.IndexNumber, it.Name)
-				}
-				findings = append(findings, auditFinding{ID: it.ID, Name: name, Year: it.ProductionYear, Path: it.Path, Detail: detail})
-			}
-		}
-
-		return true
-	}); err != nil {
+	// as people are shown it, every version together: on Emby each version
+	// is stored as an item of its own, and one read alone lacked what
+	// another version has
+	items, err := shownItems(ctx, client, opts)
+	if err != nil {
 		return languageOut{}, err
+	}
+	for i := range items {
+		it := &items[i]
+		// the record a server keeps of an episode it has no file for has no
+		// streams to read, and is not something the library can be watched
+		// in or not
+		if !it.HasFile() {
+			continue
+		}
+		out.Scanned++
+		detail, match, unknown := checkLanguage(it, in.Language, find)
+		switch {
+		case unknown && languagesOf(it).noAudio():
+			out.NoAudio++
+		case unknown:
+			out.Untagged++
+		case match:
+			name := it.Name
+			if it.SeriesName != "" {
+				name = fmt.Sprintf("%s S%02dE%02d %s", it.SeriesName, it.ParentIndexNumber, it.IndexNumber, it.Name)
+			}
+			findings = append(findings, auditFinding{ID: it.ID, Name: name, Year: it.ProductionYear, Path: it.Path, Detail: detail})
+		}
 	}
 
 	slices.SortStableFunc(findings, func(a, b auditFinding) int { return strings.Compare(a.Name, b.Name) })
@@ -233,7 +234,7 @@ func registerLanguageAudit(r *registry) {
 
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_language",
-		Description: "Find films and episodes by the language of their audio or subtitles: what has audio or subtitles in a language, what has no audio in it, or what cannot be watched in it at all (neither audio nor subtitles). Any version of an item counts. " +
+		Description: "Find films and episodes by the language of their audio or subtitles: what has audio or subtitles in a language, what has no audio in it, or what cannot be watched in it at all (neither audio nor subtitles). Any version of an item counts, every version the server shows it in read together (Emby stores each as an item of its own and merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it). " +
 			"A track with no language tag is never taken as lacking the language: an item whose answer turns on one is counted in untagged instead of reported. Nor is a file with no audio track at all, which as often means the server never probed it as that it is silent: those are counted in no_audio_track. A record of an episode with no file is left out.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in languageIn) (*mcp.CallToolResult, languageOut, error) {
 		out, err := auditLanguage(ctx, client, in)

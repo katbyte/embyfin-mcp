@@ -53,6 +53,10 @@ var tmdbCases = func() map[string]sweepCase {
 	for _, name := range []string{"GuestSessionRatedMovies", "GuestSessionRatedTv", "GuestSessionRatedTvEpisodes"} {
 		cases[name] = sweepCase{Status: http.StatusNotFound, Why: "a guest session that has rated nothing answers 404"}
 	}
+	// a changes route lists the last day's, and the day these were recorded
+	// the person and the episode had none
+	cases["PersonChanges"] = sweepCase{Empty: "Brad Pitt had no change the day it was recorded"}
+	cases["TvEpisodeChangesById"] = sweepCase{Empty: "the episode had no change the day it was recorded"}
 
 	return cases
 }()

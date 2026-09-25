@@ -3,13 +3,14 @@
 package integration
 
 import (
-	"errors"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 )
 
@@ -38,14 +39,41 @@ func TestEmbyRemoteImages(t *testing.T) {
 		t.Errorf("remote image = %+v", img)
 	}
 
+	// the film's poster before: the poster.jpg beside it
+	primary := func() emby.ImageInfo {
+		images := must(embyc.GetItemsByIdImages(ctx, id)).Model
+		i := slices.IndexFunc(images, func(i emby.ImageInfo) bool { return i.ImageType == "Primary" })
+		if i < 0 {
+			t.Fatalf("%s has no Primary image among %+v", alien, images)
+		}
+		return images[i]
+	}
+	poster := ""
+	if os.Getenv("EMBYFIN_TEST_DATA") != "" {
+		poster = filepath.Join(dataDir(), "movies", "Alien (1979)", "poster.jpg")
+		if _, err := os.Stat(poster); err != nil {
+			t.Fatalf("the fixture's poster: %v", err)
+		}
+	}
+	before := primary()
+	if before.Path != "/media/movies/Alien (1979)/poster.jpg" || before.Width != 200 || before.Height != 300 {
+		t.Fatalf("before the download the Primary image is %+v, want the fixture's 200x300 poster.jpg", before)
+	}
+
 	// download it as the item's poster; the proxy substitutes a placeholder
-	// for the bytes, which is still an image the server can size
+	// for the bytes (a 2x2 jpeg), which is still an image the server can size
 	if _, err := embyc.PostItemsByIdRemoteImagesDownload(ctx, id, emby.ImagesBaseDownloadRemoteImage{}, emby.PostItemsByIdRemoteImagesDownloadOperationOptions{Type: emby.ImageTypePrimary, ProviderName: img.ProviderName, ImageUrl: img.Url}); err != nil {
 		t.Fatal(err)
 	}
-	images := must(embyc.GetItemsByIdImages(ctx, id)).Model
-	if !slices.ContainsFunc(images, func(i emby.ImageInfo) bool { return i.ImageType == "Primary" && i.Path != "" }) {
-		t.Errorf("after the download the images are %+v", images)
+	// the new poster is saved in the server's own metadata (the library does
+	// not save artwork beside the media), and Emby deletes the poster.jpg it
+	// replaces from the film's folder
+	after := primary()
+	if after.Path == before.Path || !strings.HasPrefix(after.Path, "/config/metadata/") || (after.Width == before.Width && after.Height == before.Height) {
+		t.Errorf("after the download the Primary image is %+v, want the downloaded one in place of %+v", after, before)
+	}
+	if _, err := os.Stat(poster); poster != "" && !os.IsNotExist(err) {
+		t.Errorf("after the download %s is still on disk (%v); Emby deleted the poster it replaced until now", poster, err)
 	}
 }
 
@@ -98,8 +126,7 @@ func TestEmbyRemoteSearch(t *testing.T) {
 }
 
 // Remote subtitle search: Emby ships an OpenSubtitles fetcher that has no
-// account configured, so the call either answers with nothing or refuses;
-// both are shapes a client has to handle, a decode failure is not.
+// account configured, so the search asks no one and answers with nothing.
 //
 //nolint:paralleltest // the tests share one server and its libraries
 func TestEmbyRemoteSubtitles(t *testing.T) {
@@ -107,13 +134,10 @@ func TestEmbyRemoteSubtitles(t *testing.T) {
 	id := embyMovie(t, alien).Id
 
 	subs, err := embyc.GetItemsByIdRemoteSearchSubtitlesByLanguage(ctx, id, "eng", emby.GetItemsByIdRemoteSearchSubtitlesByLanguageOperationOptions{})
-	var he *client.StatusError
-	switch {
-	case errors.As(err, &he):
-		t.Logf("remote subtitle search refused: %v", he)
-	case err != nil:
+	if err != nil {
 		t.Fatalf("remote subtitle search: %v", err)
-	case len(subs.Model) != 0:
+	}
+	if len(subs.Model) != 0 {
 		t.Errorf("remote subtitle search found %d without a provider account: %+v", len(subs.Model), subs.Model)
 	}
 }

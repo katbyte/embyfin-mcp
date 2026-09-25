@@ -6,6 +6,7 @@
   "Source": "api-defs/jellyfin-openapi-12.1.0.json",
   "Auth": "Jellyfin",
   "Workarounds": [
-    "jellyfin-create-playlist-query"
+    "jellyfin-create-playlist-query",
+    "jellyfin-plugin-configuration"
   ]
 }

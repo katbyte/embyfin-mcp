@@ -26,6 +26,9 @@ type auditFinding struct {
 	Year   int    `json:"year,omitempty"`
 	Path   string `json:"path,omitempty"`
 	Detail string `json:"detail,omitempty"`
+	// what makes the finding something other than it looks: two films on
+	// one id shown as one film's versions
+	Warning string `json:"warning,omitempty"`
 }
 
 type auditOut struct {
@@ -38,13 +41,13 @@ type auditOut struct {
 // returns (finding detail, true) when the item is suspect. skip, when set,
 // leaves an item out before it is counted as scanned.
 func runAudit(ctx context.Context, client *embyfin.Client, in auditIn, fields string, skip func(*embyfin.Item) bool, check func(*embyfin.Item) (string, bool)) (auditOut, error) {
-	return runAuditOver(ctx, client, in, fields, false, skip, check)
+	return runAuditOver(ctx, client, in, fields, false, skip, check, nil)
 }
 
 // runAuditOver is runAudit, over the items as the server shows them to
 // people when shown is set (see shownItems): what an audit of versions has
 // to read, because Emby merges them only in a user's view.
-func runAuditOver(ctx context.Context, client *embyfin.Client, in auditIn, fields string, shown bool, skip func(*embyfin.Item) bool, check func(*embyfin.Item) (string, bool)) (auditOut, error) {
+func runAuditOver(ctx context.Context, client *embyfin.Client, in auditIn, fields string, shown bool, skip func(*embyfin.Item) bool, check func(*embyfin.Item) (string, bool), warn func(*embyfin.Item) string) (auditOut, error) {
 	types := in.Types
 	if types == "" {
 		types = "Movie,Series"
@@ -78,13 +81,17 @@ func runAuditOver(ctx context.Context, client *embyfin.Client, in auditIn, field
 
 			out.Found++
 			if len(out.Findings) < limit {
-				out.Findings = append(out.Findings, auditFinding{
+				f := auditFinding{
 					ID:     items[i].ID,
 					Name:   items[i].Name,
 					Year:   items[i].ProductionYear,
 					Path:   items[i].Path,
 					Detail: detail,
-				})
+				}
+				if warn != nil {
+					f.Warning = warn(&items[i])
+				}
+				out.Findings = append(out.Findings, f)
 			}
 		}
 		return true
@@ -114,9 +121,16 @@ type auditCheck struct {
 	fields      string // the item fields the check needs, on top of the lean set
 	types       string // default item types, "" for Movie,Series
 	check       func(*embyfin.Item) (string, bool)
+	// music is the item types the audit reads in a music library, "" for an
+	// audit that has nothing to say about music: audit_all runs it there
+	// with these, and over every library with them added to its own
+	music string
 	// shown sweeps the items as the server shows them to people rather than
 	// as it stores them: Emby merges versions only in a user's view
 	shown bool
+	// warn, when set, says what a finding is other than it looks, on the
+	// finding's warning
+	warn func(*embyfin.Item) string
 	// tool, when set, registers the audit's tool in place of the shared one,
 	// for an audit with options of its own; audit_all still runs check
 	tool func(r *registry, c auditCheck)
@@ -136,6 +150,7 @@ var auditChecks = []auditCheck{
 		name:        "audit_missing_poster",
 		description: "Sweep the library for items with no primary poster image (item_artwork_set fixes them).",
 		fields:      embyfin.FieldsLean + ",ImageTags",
+		music:       musicAlbum,
 		check: func(it *embyfin.Item) (string, bool) {
 			if it.ImageTags["Primary"] == "" {
 				return "no primary image", true
@@ -155,11 +170,13 @@ var auditChecks = []auditCheck{
 		},
 	},
 	{
-		name:        "audit_multiple_versions",
-		description: "Sweep the library for items the server shows as one title with several versions (more than one media file, e.g. a 4K and a 1080p copy). Jellyfin merges the files of one film in one folder when it scans; Emby merges those, and copies in other folders sharing a provider id, in what it shows people - so on Emby this reads the library as the first administrator is shown it. Separate entries for the same title show up in audit_duplicates instead. Defaults to Movie,Episode.",
-		fields:      "Path,ProviderIds,ProductionYear,MediaSources",
-		types:       "Movie,Episode",
-		shown:       true,
+		name: "audit_multiple_versions",
+		description: "Sweep the library for items the server shows as one title with several versions (more than one media file, e.g. a 4K and a 1080p copy). Jellyfin merges the files of one film in one folder when it scans; Emby merges those, and copies in other folders sharing a provider id, in what it shows people - so on Emby this reads the library as the first administrator is shown it. Separate entries for the same title show up in audit_duplicates instead. Defaults to Movie,Episode. " +
+			"A finding with a warning is probably not one film at all: a version's file names another title than any the film goes by, or a year more than one off, so another film matched to its ids was merged in - identify the wrong one rather than keep the better copy.",
+		fields: "Path,ProviderIds,ProductionYear,MediaSources,OriginalTitle,SortName",
+		types:  "Movie,Episode",
+		shown:  true,
+		warn:   versionWarning,
 		check: func(it *embyfin.Item) (string, bool) {
 			if len(it.MediaSources) < 2 {
 				return "", false
@@ -197,7 +214,7 @@ func registerVersionsAudit(r *registry, c auditCheck) {
 		if in.Types == "" {
 			in.Types = c.types
 		}
-		out, err := runAuditOver(ctx, client, auditIn(in), c.fields, c.shown, nil, c.check)
+		out, err := runAuditOver(ctx, client, auditIn(in), c.fields, c.shown, nil, c.check, c.warn)
 
 		return nil, out, err
 	})
@@ -323,7 +340,8 @@ func registerAuditTools(r *registry) {
 		Description: "Find separate entries sharing the same tmdb/imdb/tvdb id: multiple copies of one film, series or episode, in one library or across libraries (compare the paths). " +
 			"A tmdb or tvdb id only joins entries of one kind, a film to a film and a series to a series, because both providers number films and TV apart; an imdb id joins any. " +
 			"Episodes are grouped by provider id AND series name AND season and episode number, because a library can carry one shared id across unrelated episodes. " +
-			"Items the server shows as one title's versions are not entries of their own (Emby merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it): audit_multiple_versions lists those. Default limit 50 groups.",
+			"Items the server shows as one title's versions are not entries of their own (Emby merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it): audit_multiple_versions lists those. " +
+			"A group whose members carry a warning is probably not copies at all: a film's file names another title than any the entry goes by, or a year more than one off, so it is another film matched to the same id. Default limit 50 groups.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in dupIn) (*mcp.CallToolResult, dupOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
@@ -339,7 +357,13 @@ func registerAuditTools(r *registry) {
 			groups = groups[:limit]
 		}
 		for _, g := range groups {
-			out.Groups = append(out.Groups, summariseAll(g))
+			members := summariseAll(g)
+			if warning := duplicateWarning(g); warning != "" {
+				for i := range members {
+					members[i].Warning = warning
+				}
+			}
+			out.Groups = append(out.Groups, members)
 		}
 
 		return nil, out, nil
@@ -456,12 +480,56 @@ func duplicateGroups(ctx context.Context, client *embyfin.Client, library, types
 
 	// as the server shows them: two files Emby shows as one film's versions
 	// are versions (audit_multiple_versions), not two entries
+	opts.Fields = embyfin.FieldsDefault + ",SortName"
 	all, err := shownItems(ctx, client, opts)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	return groupByProviderID(all), len(all), nil
+}
+
+// duplicateWarning is what to say about a group of entries sharing an id when
+// a member's file names another film than the one it is matched to, "" when
+// none does: the group is then probably different films on one id, not copies
+// to choose between. Runtimes far apart are said beside it, never alone - a
+// director's cut runs longer too.
+func duplicateWarning(group []embyfin.Item) string {
+	var odd []string
+	for i := range group {
+		for _, path := range filesOf(&group[i]) {
+			if why, other := otherFilm(&group[i], path); other {
+				odd = append(odd, why)
+			}
+		}
+	}
+	if len(odd) == 0 {
+		return ""
+	}
+	apart := ""
+	for i := range group {
+		for j := i + 1; j < len(group) && apart == ""; j++ {
+			if a, b := group[i].RunTimeTicks, group[j].RunTimeTicks; runtimesApart(a, b) {
+				apart = fmt.Sprintf(", and the entries run %s and %s", runtimeText(a), runtimeText(b))
+			}
+		}
+	}
+
+	return fmt.Sprintf("probably not copies of one film: %s%s. These entries share an id, but a file names another film: keep neither over the other until the wrong one is identified (item_identify)", strings.Join(odd, "; "), apart)
+}
+
+// filesOf are the paths of every file an item is shown in, or its own path
+// when the read carried no versions.
+func filesOf(it *embyfin.Item) []string {
+	if len(it.MediaSources) == 0 {
+		return []string{it.Path}
+	}
+	out := make([]string, 0, len(it.MediaSources))
+	for i := range it.MediaSources {
+		out = append(out, it.MediaSources[i].Path)
+	}
+
+	return out
 }
 
 // idSpace is the numbering a tmdb or tvdb id is read in. Both providers
@@ -565,8 +633,30 @@ type auditAllRow struct {
 	Audit    string `json:"audit"`
 	Findings int    `json:"findings"`
 	Scanned  int    `json:"items_scanned"`
+	Types    string `json:"types,omitempty"   jsonschema:"the item types the row counted, when they are not the audit's own default: pass them to the audit as types for the worklist behind the count"`
 	Skipped  bool   `json:"skipped,omitempty" jsonschema:"true when the audit was not run here; note says why"`
 	Note     string `json:"note,omitempty"    jsonschema:"why an audit was skipped, or what its count means"`
+}
+
+// musicAlbum is what the audits that apply to music read in a music library:
+// an album is what carries a cover and the genres a tagger wrote, where an
+// artist rarely has an image of its own and a track repeats its album.
+const musicAlbum = "MusicAlbum"
+
+// auditAllTypes is the item types audit_all has an audit read over a library,
+// given the audit's own default and the types it reads in a music library
+// ("" when it has nothing to say about music), and whether it applies there
+// at all. A music library holds nothing an audit of films and series reads,
+// and every library at once, or a mixed one, holds both.
+func auditAllTypes(folder *embyfin.VirtualFolder, def, music string) (types string, applies bool) {
+	switch {
+	case folder != nil && folder.CollectionType == "music":
+		return music, music != ""
+	case music != "" && (folder == nil || folder.CollectionType == "" || folder.CollectionType == "mixed"):
+		return def + "," + music, true
+	}
+
+	return "", true
 }
 
 type auditAllOut struct {
@@ -582,7 +672,8 @@ func registerAuditAll(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_all",
 		Description: "Run every audit and report only the counts, so one call says where a library needs work; start here, then call the audit whose count is not zero for its worklist. " +
-			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_provider asks the provider one film at a time and is paged, and audit_anime_ids reads the Anime-Lists file.",
+			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_provider asks the provider one film at a time and is paged, and audit_anime_ids reads the Anime-Lists file. " +
+			"In a music library the audits that apply to music (missing covers and spellings) count its albums, and the rest are skipped as having nothing there to read; over every library, or a mixed one, those two count albums beside films and series. A row counted over other types than the audit's default names them in types, to pass to the audit for its worklist.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditAllIn) (*mcp.CallToolResult, auditAllOut, error) {
 		out := auditAllOut{Audits: []auditAllRow{}}
 		add := func(row auditAllRow) {
@@ -595,21 +686,54 @@ func registerAuditAll(r *registry) {
 		fail := func(audit string, err error) (*mcp.CallToolResult, auditAllOut, error) {
 			return nil, auditAllOut{}, fmt.Errorf("%s: %w", audit, err)
 		}
+		folder, err := resolveLibrary(ctx, client, in.Library)
+		if err != nil {
+			return nil, auditAllOut{}, err
+		}
+		// a music library holds none of what the audits of films and series
+		// read: each of those is a row saying so, rather than a 0 that reads
+		// as a clean library, and the audits that apply to music read albums
+		music := folder != nil && folder.CollectionType == "music"
+		const notMusic = "reads films, series or episodes, and a music library has none"
 
 		for i := range auditChecks {
 			c := &auditChecks[i]
-			res, err := runAuditOver(ctx, client, auditIn{Library: in.Library, Types: c.types, Limit: 1}, c.fields, c.shown, nil, c.check)
-			if err != nil {
-				return fail(c.name, err)
+			types, applies := auditAllTypes(folder, cmp.Or(c.types, "Movie,Series"), c.music)
+			if !applies {
+				skip(c.name, notMusic)
+				continue
 			}
-			add(auditAllRow{Audit: c.name, Findings: res.Found, Scanned: res.Scanned})
+			res, rerr := runAuditOver(ctx, client, auditIn{Library: in.Library, Types: cmp.Or(types, c.types), Limit: 1}, c.fields, c.shown, nil, c.check, nil)
+			if rerr != nil {
+				return fail(c.name, rerr)
+			}
+			add(auditAllRow{Audit: c.name, Findings: res.Found, Scanned: res.Scanned, Types: types})
+		}
+		if music {
+			// the rest read films, series and episodes alone, but for the
+			// spellings of the genres, tags and studios an album carries
+			for _, audit := range []string{"audit_file_path", "audit_duplicates", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_runtime", "audit_quality", "audit_missing_episodes"} {
+				skip(audit, notMusic)
+			}
+			spelling, serr := spellingRow(ctx, client, in.Library, folder)
+			if serr != nil {
+				return fail("audit_spelling", serr)
+			}
+			add(spelling)
+			skip("audit_unwatched", notMusic)
+			skip("audit_orphans", "server-wide: run it without a library")
+			skip("audit_language", "needs a language to ask about")
+			skip("audit_provider", "asks the provider one film at a time and is paged: run it on its own")
+			skip("audit_anime_ids", "reads the Anime-Lists file from the web: run it on its own")
+
+			return nil, out, nil
 		}
 
-		paths, err := auditFilePath(ctx, client, nil, pathIn{Library: in.Library, Limit: 1})
+		paths, err := auditFilePath(ctx, client, nil, nil, pathIn{Library: in.Library, Limit: 1})
 		if err != nil {
 			return fail("audit_file_path", err)
 		}
-		add(auditAllRow{Audit: "audit_file_path", Findings: paths.Found, Scanned: paths.Scanned, Note: "items whose path disagrees with their metadata: title, year, series, season or episode"})
+		add(auditAllRow{Audit: "audit_file_path", Findings: paths.Found, Scanned: paths.Scanned, Note: "items whose path disagrees with their metadata - title, year, series, season or episode - or whose name has a letter that only looks Latin; TMDB is not asked here, so a path named by a title only TMDB lists for the item is still counted"})
 
 		// films, series AND episodes: this pass used to ask for the default
 		// Movie,Series, so it reported the series count as items_scanned and
@@ -639,10 +763,6 @@ func registerAuditAll(r *registry) {
 		}
 		add(auditAllRow{Audit: "audit_disc_folders", Findings: discs.Found, Scanned: discs.Scanned, Note: "folders holding a disc's streams as films"})
 
-		folder, err := resolveLibrary(ctx, client, in.Library)
-		if err != nil {
-			return nil, auditAllOut{}, err
-		}
 		parent := ""
 		if folder != nil {
 			parent = folder.ItemID
@@ -665,15 +785,11 @@ func registerAuditAll(r *registry) {
 		}
 		add(auditAllRow{Audit: "audit_missing_episodes", Findings: missing.Found, Scanned: missing.Scanned, Note: "series with episodes missing"})
 
-		spellings, scannedSpelling, err := spellingAudit(ctx, client, in.Library, "", vocabFields)
+		spelling, err := spellingRow(ctx, client, in.Library, folder)
 		if err != nil {
 			return fail("audit_spelling", err)
 		}
-		spellingGroups := 0
-		for _, f := range vocabFields {
-			spellingGroups += len(spellings.report(f))
-		}
-		add(auditAllRow{Audit: "audit_spelling", Findings: spellingGroups, Scanned: scannedSpelling, Note: "groups of genres, tags and studios spelled more than one way"})
+		add(spelling)
 
 		unwatched, err := auditUnwatched(ctx, client, unwatchedIn{Library: in.Library, Limit: 1})
 		if err != nil {
@@ -703,13 +819,29 @@ func registerAuditAll(r *registry) {
 	})
 }
 
+// spellingRow is audit_all's audit_spelling row: the groups spelled more than
+// one way among the genres, tags and studios of what the library holds,
+// albums included where it holds music.
+func spellingRow(ctx context.Context, client *embyfin.Client, library string, folder *embyfin.VirtualFolder) (auditAllRow, error) {
+	types, _ := auditAllTypes(folder, vocabularyTypes, musicAlbum)
+	spellings, scanned, err := spellingAudit(ctx, client, library, types, vocabFields)
+	if err != nil {
+		return auditAllRow{}, err
+	}
+	groups := 0
+	for _, f := range vocabFields {
+		groups += len(spellings.report(f))
+	}
+
+	return auditAllRow{Audit: "audit_spelling", Findings: groups, Scanned: scanned, Types: types, Note: "groups of genres, tags and studios spelled more than one way"}, nil
+}
+
 // runtime audit -----------------------------------------------------------
 
 const (
 	defaultRuntimeTolerancePct = 20
 	minRuntimeDiffMinutes      = 2
 	defaultTMDBLookups         = 250
-	moviePage                  = 200
 )
 
 type runtimeIn struct {

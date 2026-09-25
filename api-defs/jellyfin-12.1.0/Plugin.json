@@ -206,8 +206,7 @@
       "Response": {
         "ContentType": "application/json",
         "Type": {
-          "Type": "Reference",
-          "ReferenceName": "BasePluginConfiguration"
+          "Type": "RawObject"
         }
       },
       "ExpectedStatusCodes": [
@@ -439,11 +438,6 @@
     }
   ],
   "Models": [
-    {
-      "Name": "BasePluginConfiguration",
-      "SchemaName": "BasePluginConfiguration",
-      "Description": "Class BasePluginConfiguration."
-    },
     {
       "Name": "ConfigurationPageInfo",
       "SchemaName": "ConfigurationPageInfo",

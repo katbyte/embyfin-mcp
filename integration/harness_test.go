@@ -72,6 +72,20 @@ type libraryFixture struct {
 	// Albums and Songs the same for a music library.
 	Movies, Series, Episodes int
 	Albums, Songs            int
+	// Versions is how many of the films are a second file beside another in
+	// its folder, which Jellyfin folds into that film and Emby lists as a
+	// film of its own
+	Versions int
+}
+
+// films is how many films a finished scan of the library lists on this
+// backend.
+func (l libraryFixture) films() int {
+	if backend == "jellyfin" {
+		return l.Movies - l.Versions
+	}
+
+	return l.Movies
 }
 
 // The libraries. Only the movie library has providers on: it is what the
@@ -86,7 +100,19 @@ var (
 	// sdkMusic is what the artist, album, song and music genre routes have to
 	// read: without it a fifth of each server's item surface cannot be called
 	sdkMusic = libraryFixture{Name: "SDK Music", CollectionType: "music", Folder: "/media/music", Albums: 5, Songs: 20}
+	// sdkMessyMovies and sdkMessyShows sit over the messy folders with the
+	// fetchers off, for what the servers read off the files themselves: a
+	// legacy codec, a language, a film held as two files, a disc kept whole,
+	// a file holding two episodes
+	sdkMessyMovies = libraryFixture{Name: "SDK Messy Movies", CollectionType: "movies", Folder: "/media/messy-movies", Movies: 12, Versions: 1}
+	sdkMessyShows  = libraryFixture{Name: "SDK Messy Shows", CollectionType: "tvshows", Folder: "/media/messy-shows", Series: 7, Episodes: 18}
+	// sdkBulk sits over a folder the bulk delete test lays out itself
+	sdkBulk = libraryFixture{Name: "SDK Bulk Delete", CollectionType: "movies", Folder: "/media/sdk-bulk", Movies: len(bulkTitles)}
 )
+
+// bulkTitles are the films the bulk delete test lays out, copies of one
+// fixture file under the names of messy films the clean library does not hold
+var bulkTitles = []string{"Interstellar (2014)", "Memento (2000)", "Cube (1997)", "Coyote vs. Acme (2026)"}
 
 // movieFixture is a film in the clean movies folder, as its nfo describes it.
 type movieFixture struct {
@@ -131,8 +157,15 @@ const (
 	bladeRunner = "Blade Runner"
 	severance   = "Severance"
 	ridleyScott = "Ridley Scott"
+	// thirteenthFloor is the one clean film with a subtitle beside it, an
+	// English .srt
+	thirteenthFloor = "The Thirteenth Floor"
 	// lyricTrack is the one fixture track with an .lrc sidecar beside it
 	lyricTrack = "The Future We Built"
+	// darkSide is an album whose artist has another in the fixtures, and
+	// progressiveRock the genre the two share and no other artist has
+	darkSide        = "The Dark Side of the Moon"
+	progressiveRock = "Progressive Rock"
 	// scratchTitle is the throwaway movie the destructive test lays out
 	scratchTitle = "SDK Disposable"
 	// sdkApp is the AppName of the API key the suite creates and revokes
@@ -305,10 +338,14 @@ func stopProxy() {
 // removeLibraries deletes every library the suite created, after the last
 // test. The fixtures are created lazily by whichever test runs first and
 // shared by the rest, so a t.Cleanup on the creator would pull them out from
-// under the others.
+// under the others. EMBYFIN_TEST_KEEP=1 leaves them in place, to look at what
+// a run left behind.
 func removeLibraries() {
+	if os.Getenv("EMBYFIN_TEST_KEEP") != "" {
+		return
+	}
 	ctx := context.Background()
-	for _, l := range []libraryFixture{sdkMovies, sdkShows, sdkScratch, sdkMusic} {
+	for _, l := range []libraryFixture{sdkMovies, sdkShows, sdkScratch, sdkMusic, sdkMessyMovies, sdkMessyShows, sdkBulk} {
 		var err error
 		switch backend {
 		case "emby":
@@ -425,6 +462,15 @@ func embyRetry500(f func() error) error {
 func scratchDir(t *testing.T) string {
 	t.Helper()
 
+	return layOut(t, "sdk-scratch", scratchTitle+" (1995)")
+}
+
+// layOut copies one fixture file into a folder of its own for each of the
+// films named ("Title (Year)"), under a folder of the media tree the
+// container sees as /media/<under>, and returns that folder on the host.
+func layOut(t *testing.T, under string, films ...string) string {
+	t.Helper()
+
 	data := dataDir()
 	if data == filepath.Join("", "media") {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
@@ -434,29 +480,31 @@ func scratchDir(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("reading a fixture to copy: %v", err)
 	}
-	dir := filepath.Join(data, "sdk-scratch", scratchTitle+" (1995)")
-	// the mode MkdirAll and WriteFile are asked for is filtered by the process
-	// umask, which on Linux leaves a directory the media server's own user
-	// (uid 2 in Emby's image) cannot delete from, so the delete under test
-	// fails; chmod is not filtered. Docker Desktop maps every file to the
-	// container's user, which is why this only bites in CI.
-	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
-	for p := dir; strings.HasPrefix(p, data) && p != data; p = filepath.Dir(p) {
-		if err := os.Chmod(p, 0o777); err != nil { //nolint:gosec // same
+	for _, film := range films {
+		dir := filepath.Join(data, under, film)
+		// the mode MkdirAll and WriteFile are asked for is filtered by the
+		// process umask, which on Linux leaves a directory the media server's
+		// own user (uid 2 in Emby's image) cannot delete from, so a delete
+		// under test fails; chmod is not filtered. Docker Desktop maps every
+		// file to the container's user, which is why this only bites in CI.
+		if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
+			t.Fatal(err)
+		}
+		for p := dir; strings.HasPrefix(p, data) && p != data; p = filepath.Dir(p) {
+			if err := os.Chmod(p, 0o777); err != nil { //nolint:gosec // same
+				t.Fatal(err)
+			}
+		}
+		file := filepath.Join(dir, film+".mp4")
+		if err := os.WriteFile(file, video, 0o666); err != nil { //nolint:gosec // same
+			t.Fatal(err)
+		}
+		if err := os.Chmod(file, 0o666); err != nil { //nolint:gosec // same
 			t.Fatal(err)
 		}
 	}
-	file := filepath.Join(dir, scratchTitle+" (1995).mp4")
-	if err := os.WriteFile(file, video, 0o666); err != nil { //nolint:gosec // same
-		t.Fatal(err)
-	}
-	if err := os.Chmod(file, 0o666); err != nil { //nolint:gosec // same
-		t.Fatal(err)
-	}
 
-	return filepath.Join(data, "sdk-scratch")
+	return filepath.Join(data, under)
 }
 
 // isScanTask picks the library scan out of the task list on either server.

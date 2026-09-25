@@ -3,18 +3,18 @@
 package acceptance
 
 import (
-	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
-// fixtureVideo reads one of the videos scripts/testenv.sh made.
+// Audits against a shape staged for them and taken away again: a file cut
+// short, which the server cannot read, and a show's folder copied under its
+// name with the year added. And the one audit held to the clean fixtures.
+
+// fixtureVideo reads one of the files scripts/testenv.sh made.
 func fixtureVideo(t *testing.T, parts ...string) []byte {
 	t.Helper()
 
@@ -26,152 +26,127 @@ func fixtureVideo(t *testing.T, parts ...string) []byte {
 	return raw
 }
 
-// jsonLines reads a file of one JSON object per line.
-func jsonLines(t *testing.T, path string) []map[string]any {
-	t.Helper()
-
-	raw, err := os.ReadFile(path) //nolint:gosec // a path the test chose
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out []map[string]any
-	for line := range strings.SplitSeq(strings.TrimRight(string(raw), "\n"), "\n") {
-		if line == "" {
-			continue
-		}
-		var row map[string]any
-		if err := json.Unmarshal([]byte(line), &row); err != nil {
-			t.Fatalf("%s: a line that is not JSON: %v: %s", path, err, line)
-		}
-		out = append(out, row)
-	}
-
-	return out
-}
-
-// library_export writes what library_episodes and library_items answer, one
-// row a line and field for field, into a file of the caller's choosing and
-// nothing to the server. It will not write over a file, and saved_since
-// narrows it to what the server saved since.
-func TestLibraryExport(t *testing.T) {
-	dir := t.TempDir()
-
-	// the episodes of Shows, each line the row library_episodes answers
-	path := filepath.Join(dir, "shows.jsonl")
-	out := call(t, "library_export", map[string]any{"path": path, "library": "Shows"})
-	paged := map[string]map[string]any{}
-	for _, row := range rows(t, call(t, "library_episodes", map[string]any{"library": "Shows", "limit": 1000})["episodes"], "episodes") {
-		paged[str(row["id"])] = row
-	}
-	lines := jsonLines(t, path)
-	st, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n := num(t, out["rows"], "rows"); n != len(paged) || n != len(lines) || n != 9 || str(out["shape"]) != "episode row" || num(t, out["bytes"], "bytes") != int(st.Size()) {
-		t.Errorf("library_export = %v, for %d lines of %d bytes and %d library_episodes rows, want Shows' 9", out, len(lines), st.Size(), len(paged))
-	}
-	for _, line := range lines {
-		if want := paged[str(line["id"])]; !reflect.DeepEqual(line, want) {
-			t.Errorf("the line for %v differs from its library_episodes row:\nline %v\nrow  %v", line["id"], line, want)
-		}
-	}
-	// no virtual episodes on either server, so every episode has its file
-	if n := num(t, call(t, "library_export", map[string]any{"path": filepath.Join(dir, "all.jsonl"), "library": "Shows", "with_file": false})["rows"], "rows"); n != len(lines) {
-		t.Errorf("with_file false wrote %d rows, want the same %d", n, len(lines))
-	}
-
-	// the films, each line the summary library_items answers
-	films := filepath.Join(dir, "movies.jsonl")
-	out = call(t, "library_export", map[string]any{"path": films, "library": "Movies", "types": "Movie"})
-	listed := map[string]map[string]any{}
-	for _, row := range rows(t, call(t, "library_items", map[string]any{"library": "Movies", "types": "Movie", "limit": 50})["items"], "items") {
-		listed[str(row["id"])] = row
-	}
-	lines = jsonLines(t, films)
-	if n := num(t, out["rows"], "rows"); n != 8 || len(lines) != 8 || len(listed) != 8 || str(out["shape"]) != "item summary" {
-		t.Errorf("library_export types Movie = %v with %d lines, want the 8 films", out, len(lines))
-	}
-	for _, line := range lines {
-		want := listed[str(line["id"])]
-		for _, field := range []string{"name", "type", "year", "path", "metadata_provider_ids", "width", "height", "video_codec", "container", "size", "runtime_s", "audio"} {
-			if !reflect.DeepEqual(line[field], want[field]) {
-				t.Errorf("%v's %s is %v in the file and %v in library_items", line["name"], field, line[field], want[field])
-			}
-		}
-	}
-
-	// only the facts asked for, beside what names the episode
-	narrow := filepath.Join(dir, "narrow.jsonl")
-	call(t, "library_export", map[string]any{"path": narrow, "library": "Shows", "fields": []any{"height", "path"}})
-	for _, line := range jsonLines(t, narrow) {
-		if num(t, line["height"], "height") != 720 || str(line["path"]) == "" || str(line["id"]) == "" || str(line["series"]) == "" {
-			t.Errorf("a narrowed line lacks what it asked for or what names it: %v", line)
-		}
-		for _, gone := range []string{"width", "size", "audio", "video_codec", "frame_rate"} {
-			if line[gone] != nil {
-				t.Errorf("a narrowed line carries %s: %v", gone, line)
-			}
-		}
-	}
-
-	// a path something is already at is refused, and left as it was
-	before, err := os.ReadFile(path) //nolint:gosec // a path the test chose
-	if err != nil {
-		t.Fatal(err)
-	}
-	if msg := callErr(t, "library_export", map[string]any{"path": path, "library": "Shows"}); !strings.Contains(msg, "exists") {
-		t.Errorf("writing over the file = %q", msg)
-	}
-	if after, _ := os.ReadFile(path); !bytes.Equal(before, after) { //nolint:gosec // same
-		t.Error("the refused export changed the file")
-	}
-
-	// the one episode saved since an edit is the one line
-	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	pilot := str(rows(t, call(t, "library_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"])
-	start := time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339)
-	call(t, "item_edit", map[string]any{"ids": []any{pilot}, "add_tags": []any{"zzyzx-export"}})
-	t.Cleanup(func() {
-		_, _ = invoke("item_edit", map[string]any{"ids": []any{pilot}, "remove_tags": []any{"zzyzx-export"}})
-	})
-	since := filepath.Join(dir, "since.jsonl")
-	out = call(t, "library_export", map[string]any{"path": since, "library": "Shows", "saved_since": start})
-	var ids []string
-	for _, line := range jsonLines(t, since) {
-		ids = append(ids, str(line["id"]))
-	}
-	if num(t, out["rows"], "rows") != 1 || !slices.Equal(ids, []string{pilot}) {
-		t.Errorf("saved since the edit = %v (%v rows), want the edited pilot %s alone", ids, out["rows"], pilot)
-	}
-	// and library_episodes and library_items narrow the same way
-	var eps []string
-	for _, row := range rows(t, call(t, "library_episodes", map[string]any{"library": "Shows", "saved_since": start})["episodes"], "episodes") {
-		eps = append(eps, str(row["id"]))
-	}
-	if !slices.Equal(eps, []string{pilot}) {
-		t.Errorf("library_episodes saved since the edit = %v, want %s", eps, pilot)
-	}
-	var items []string
-	for _, row := range rows(t, call(t, "library_items", map[string]any{"library": "Shows", "types": "Episode", "saved_since": start})["items"], "items") {
-		items = append(items, str(row["id"]))
-	}
-	if !slices.Equal(items, []string{pilot}) {
-		t.Errorf("library_items saved since the edit = %v, want %s", items, pilot)
-	}
-}
-
-// The fixtures were probed at their scan and never rewritten, so the audit
-// proves its sweep: every file counted, nothing reported.
+// The fixtures were probed at their scan and never rewritten, and are all
+// 720p, so the audit proves its sweep: every one of Shows' nine episodes
+// counted, nothing reported.
 func TestAuditQualityTrustsTheFixtures(t *testing.T) {
 	out := call(t, "audit_quality", map[string]any{"library": "Shows"})
-	if n := num(t, out["items_scanned"], "items_scanned"); n < 5 {
-		t.Errorf("items_scanned = %d, want every episode", n)
+	if n := num(t, out["items_scanned"], "items_scanned"); n != 9 {
+		t.Errorf("items_scanned = %d, want Shows' 9 episodes", n)
+	}
+	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
+		t.Errorf("%d files reported: %v", n, out["findings"])
 	}
 	if n := num(t, out["total_unprobed"], "total_unprobed"); n != 0 {
 		t.Errorf("%d files reported unprobed: %v", n, out["unprobed"])
 	}
 	if n := num(t, out["total_replaced"], "total_replaced"); n != 0 {
 		t.Errorf("%d files reported replaced: %v", n, out["replaced"])
+	}
+}
+
+// A file cut short in the copying - the first few kilobytes of an episode -
+// is an episode the server holds and cannot read: audit_quality lists it
+// among the files it could not judge, and not among its findings, since
+// nothing about its picture is known. Staged in the messy Severance as its
+// sixth episode. Jellyfin gives the cut file its size and no streams, and
+// Emby neither, so a size is not taken for a probe.
+func TestAuditQualityCannotReadATruncatedFile(t *testing.T) {
+	sev := findItem(t, "Messy Shows", "Series", "Severance")
+	file := filepath.Join(dataDir(), "messy-shows", "Severance", "Season 01", "Severance S01E06.mp4")
+	t.Cleanup(func() {
+		_ = os.Remove(file)
+		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 6); return !there })
+	})
+	audit := func() (unprobed map[string]any, total int, found bool) {
+		out := call(t, "audit_quality", map[string]any{"library": "Messy Shows"})
+		_, id := held(t, sev, 1, 6)
+		for _, r := range rows(t, out["unprobed"], "unprobed") {
+			if id != "" && str(r["id"]) == id {
+				unprobed = r
+			}
+		}
+		for _, f := range rows(t, out["findings"], "findings") {
+			found = found || id != "" && str(f["id"]) == id
+		}
+		return unprobed, num(t, out["total_unprobed"], "total_unprobed"), found
+	}
+	_, before, _ := audit()
+
+	whole := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
+	mediaWrite(t, file, whole[:4096])
+	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 6); return there })
+
+	row, total, found := audit()
+	if row == nil || total != before+1 {
+		t.Fatalf("audit_quality lists %v unprobed (%d, %d before), want the cut file among them", row, total, before)
+	}
+	if !strings.HasSuffix(str(row["path"]), "/Severance S01E06.mp4") || !strings.Contains(str(row["detail"]), "never probed") {
+		t.Errorf("the cut file's row = %v", row)
+	}
+	if found {
+		t.Error("audit_quality judges a file it could not read")
+	}
+}
+
+// A show's folder copied under its name with the year added, the rename a
+// tidy-up leaves half done: two folders the name-folding audit keeps apart,
+// since a year is more than spelling, and the ids audit puts together, since
+// both carry Severance's ids. And both servers list both folders' episodes
+// under either entry.
+func TestAFolderRenamedWithAYear(t *testing.T) {
+	if dataDir() == "" {
+		t.Skip("EMBYFIN_TEST_DATA is not set")
+	}
+	have := seriesCount(t, "Messy Shows")
+	src := filepath.Join(dataDir(), "messy-shows", "Severance")
+	dst := filepath.Join(dataDir(), "messy-shows", "Severance (2022)")
+	t.Cleanup(func() {
+		_ = os.RemoveAll(dst)
+		if err := scanUntil("Messy Shows", have); err != nil {
+			t.Error(err)
+		}
+	})
+	copyTree(t, src, dst)
+	if err := scanUntil("Messy Shows", have+1); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, g := range rows(t, call(t, "audit_duplicate_series", map[string]any{"library": "Messy Shows"})["groups"], "groups") {
+		for _, s := range rows(t, g["series"], "series") {
+			if strings.HasPrefix(str(s["folder"]), "Severance") {
+				t.Errorf("audit_duplicate_series groups the renamed folder: %v", g)
+			}
+		}
+	}
+
+	var paths, ids []string
+	groups, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Shows"})["groups"].([]any)
+	for _, g := range groups {
+		group := rowsOf(g)
+		if len(group) == 0 || str(group[0]["type"]) != "Series" {
+			continue
+		}
+		for _, s := range group {
+			paths = append(paths, str(s["path"]))
+			ids = append(ids, str(s["id"]))
+		}
+	}
+	if want := []string{"/media/messy-shows/Severance", "/media/messy-shows/Severance (2022)"}; !slices.Equal(sorted(paths), want) {
+		t.Fatalf("audit_duplicates groups the series at %v, want %v", paths, want)
+	}
+
+	// what each entry holds: both servers key a show's episodes by the
+	// show's ids, so either entry lists both folders' six - a lookup by one
+	// entry can answer with the other's file, and show_episodes_exist names
+	// the other entry for it
+	for i, id := range ids {
+		if n := len(rows(t, call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes")); n != 6 {
+			t.Errorf("library_episodes lists %d episodes for the series at %s, want both folders' 6", n, paths[i])
+		}
+		out := call(t, "show_episodes_exist", map[string]any{"series_id": id, "episodes": []map[string]any{{"season": 1, "episode": 1}}})
+		if other := ids[1-i]; !slices.Contains(strs(t, out["duplicate_entries"], "duplicate_entries"), other) {
+			t.Errorf("show_episodes_exist for the series at %s names %v as its other entries, want %s among them", paths[i], out["duplicate_entries"], other)
+		}
 	}
 }

@@ -93,7 +93,7 @@ func TestApply(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"jellyfin-create-playlist-query"}
+	want := []string{"jellyfin-create-playlist-query", "jellyfin-plugin-configuration"}
 	if !slices.Equal(applied, want) || len(logged) != len(want) {
 		t.Errorf("applied %v (logged %v), want %v", applied, logged, want)
 	}

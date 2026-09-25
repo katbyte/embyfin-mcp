@@ -18,9 +18,11 @@ import (
 // folder takes the whole folder - its nfo, its artwork, its subtitles, its
 // extras and every version of it - and so does a series or a season; a film
 // sharing its folder with other films, and an episode, take their own files
-// and the ones named after them (the nfo, the subtitles, the artwork). What a
-// server does is worked out before the delete, for a caller who has not yet
-// said confirm, and read off the disk before and after it, for the answer.
+// and every nfo, subtitle and piece of artwork whose name begins with theirs -
+// a neighbour's too, when its name begins the same way ("Blade II.nfo" goes
+// with "Blade.mkv"). What a server does is worked out before the delete, for
+// a caller who has not yet said confirm, and read off the disk before and
+// after it, for the answer.
 
 // removedPath is one file or folder a delete took, or would take.
 type removedPath struct {
@@ -35,6 +37,10 @@ type deletePlan struct {
 	folder string
 	// files are the files it deletes, when it keeps their folder
 	files []string
+	// others are the files among them that are not the item's own, which
+	// the server takes because their names begin with its file's name:
+	// another item's ("Blade II.nfo" beside "Blade.mkv"), or no item's
+	others []string
 	// watch is the folder read before and after: the one deleted whole, or
 	// the one holding the files
 	watch string
@@ -55,6 +61,15 @@ const treeMax = 2000
 // these in a film's folder makes the folder a shared one, which the server
 // does not delete for one of its films.
 var mediaExtensions = regexp.MustCompile(`(?i)\.(mkv|mp4|avi|m4v|ts|m2ts|mts|vob|mov|wmv|mpg|mpeg|m2v|flv|webm|ogm|divx|iso|mp3|flac|m4a|aac|ogg|opus|wav|wma|ape)$`)
+
+// sidecarFiles are the files a server deletes with an item it takes out of a
+// shared folder, when their names begin with the item's file name whatever
+// the case, each server by its own list (seen live on Emby 4.10 and Jellyfin
+// 12.1): the nfo, the subtitles and the artwork, and never a media file.
+var sidecarFiles = map[embyfin.Backend]*regexp.Regexp{
+	embyfin.Emby:     regexp.MustCompile(`(?i)\.(nfo|xml|srt|ass|ssa|vtt|sub|sup|smi|edl|bif|jpe?g|png|webp|gif|tbn)$`),
+	embyfin.Jellyfin: regexp.MustCompile(`(?i)\.(nfo|xml|srt|vtt|sub|sup|idx|txt|edl|bif|smi|ttml|lrc|elrc|jpe?g|png|webp|gif|tbn|svg)$`),
+}
 
 // extraSuffix names a film's extras, which live in its folder without making
 // it a shared one: "Film (2001)-trailer.mkv", "trailer.mp4", "sample.mkv".
@@ -91,7 +106,9 @@ func planDelete(ctx context.Context, client *embyfin.Client, it *embyfin.Item, v
 		return treePlan(ctx, client, parent)
 	}
 
-	// the item's own files, and the ones named after them
+	// the item's own files, and every sidecar whose name begins with one of
+	// theirs: both servers go by the name alone, so "Blade.mkv" takes "Blade
+	// II.nfo" and "Blade II.srt" with it, though never "Blade II.mkv"
 	plan := deletePlan{watch: parent, before: entries}
 	own := map[string]bool{it.Path: true}
 	for _, v := range versions {
@@ -99,20 +116,54 @@ func planDelete(ctx context.Context, client *embyfin.Client, it *embyfin.Item, v
 			own[v] = true
 		}
 	}
+	sidecar := sidecarFiles[client.Backend()]
+	stem := func(path string) string {
+		return strings.ToLower(strings.TrimSuffix(baseName(path), filepath.Ext(path)))
+	}
+	// the other media files' names, which say whose a sidecar taken by the
+	// name alone really is: "Blade II.nfo" is Blade II's, and goes with Blade
+	var neighbours []string
+	for _, e := range entries {
+		if !e.IsDir && !own[e.Path] && mediaExtensions.MatchString(e.Name) {
+			neighbours = append(neighbours, stem(e.Path))
+		}
+	}
 	for _, e := range entries {
 		if e.IsDir {
 			continue
 		}
-		for v := range own {
-			base := strings.TrimSuffix(baseName(v), filepath.Ext(v))
-			if e.Path == v || strings.HasPrefix(e.Name, base+".") || strings.HasPrefix(e.Name, base+"-") {
-				plan.files = append(plan.files, e.Path)
+		if own[e.Path] {
+			plan.files = append(plan.files, e.Path)
 
-				break
+			continue
+		}
+		if sidecar == nil || !sidecar.MatchString(e.Name) {
+			continue
+		}
+		// the longest of the item's file names the sidecar's begins with:
+		// "Blade - 1080p.nfo" is the 1080p version's, not Blade's
+		name, base := strings.ToLower(e.Name), ""
+		for v := range own {
+			if b := stem(v); strings.HasPrefix(name, b) && len(b) > len(base) {
+				base = b
 			}
+		}
+		if base == "" {
+			continue
+		}
+		plan.files = append(plan.files, e.Path)
+		// the item's own sidecar carries its file's name and then a separator
+		// ("Blade.nfo", "Blade-poster.jpg", "Blade.en.srt"); one the name
+		// runs on into ("Blade II.nfo"), or a longer neighbour's name begins,
+		// is another's
+		rest := strings.TrimPrefix(name, base)
+		if rest == "" || !strings.ContainsRune(".-_", rune(rest[0])) ||
+			slices.ContainsFunc(neighbours, func(n string) bool { return len(n) > len(base) && strings.HasPrefix(name, n) }) {
+			plan.others = append(plan.others, e.Path)
 		}
 	}
 	slices.Sort(plan.files)
+	slices.Sort(plan.others)
 
 	return plan, nil
 }
@@ -202,7 +253,15 @@ func (p deletePlan) would() string {
 		return fmt.Sprintf("it would remove the folder %s with everything in it (%s%s)", p.folder, listed(names, 20), more)
 	}
 
-	return "it would remove " + listed(p.files, 20)
+	out := "it would remove " + listed(p.files, 20)
+	if len(p.others) > 0 {
+		// the server goes by the name alone, whatever follows it and
+		// whatever its case, so a neighbour whose name begins with this
+		// file's loses its sidecars: said plainly, before anyone confirms
+		out += ". Of those, " + listed(p.others, 20) + " are not this item's own - another item's, or none's - and go because the server deletes every nfo, subtitle and image whose name begins with this file's name, whoever's it is"
+	}
+
+	return out
 }
 
 // listed joins names, at most n of them and a count of the rest.

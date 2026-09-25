@@ -8,6 +8,26 @@
       "Method": "GET",
       "Path": "/Notifications/Services/Defaults",
       "Description": "Gets default notification info",
+      "Options": [
+        {
+          "Name": "NotifierKey",
+          "Field": "NotifierKey",
+          "In": "Query",
+          "Description": "The notification service, by the Id /Notifications/Services lists",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user the defaults are for",
+          "Type": {
+            "Type": "String"
+          }
+        }
+      ],
       "Response": {
         "ContentType": "application/json",
         "Type": {

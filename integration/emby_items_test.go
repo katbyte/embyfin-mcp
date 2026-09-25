@@ -139,8 +139,9 @@ func TestEmbyItemsQuery(t *testing.T) {
 		}
 	})
 	t.Run("AnyProviderIdEquals", func(t *testing.T) {
-		res := must(embyc.GetItems(ctx, emby.GetItemsOperationOptions{Recursive: new(true), AnyProviderIdEquals: "imdb.tt0078748"})).Model
-		if len(res.Items) != 1 || res.Items[0].Name != alien {
+		// within the film library: the messy one holds two more copies
+		res := must(embyc.GetItems(ctx, emby.GetItemsOperationOptions{ParentId: moviesID, Recursive: new(true), AnyProviderIdEquals: "imdb.tt0078748"})).Model
+		if len(res.Items) != 1 || res.Items[0].Name != alien || res.Items[0].Id != byTitle[alien].Id {
 			t.Errorf("AnyProviderIdEquals=imdb.tt0078748 found %+v, want %s", res.Items, alien)
 		}
 	})
@@ -164,9 +165,18 @@ func TestEmbyItemsQuery(t *testing.T) {
 		}
 	})
 	t.Run("Counts", func(t *testing.T) {
+		// the counts are the whole server's, which may hold more libraries
+		// than these (the messy ones, a run's that crashed): each is what the
+		// user's own item query counts, and at least the fixtures'
 		counts := must(embyc.GetItemsCounts(ctx, emby.GetItemsCountsOperationOptions{UserId: adminID})).Model
-		if counts.MovieCount < len(movies) || counts.SeriesCount != len(shows) || counts.EpisodeCount != sdkShows.Episodes {
-			t.Errorf("counts = %+v", counts)
+		count := func(kind string) int {
+			return must(embyc.GetUsersByUserIdItems(ctx, adminID, emby.GetUsersByUserIdItemsOperationOptions{Recursive: new(true), IncludeItemTypes: kind, Limit: new(1)})).Model.TotalRecordCount
+		}
+		if m, s, e := count("Movie"), count("Series"), count("Episode"); counts.MovieCount != m || counts.SeriesCount != s || counts.EpisodeCount != e {
+			t.Errorf("counts = %+v, and the user's items count %d films, %d series, %d episodes", counts, m, s, e)
+		}
+		if counts.MovieCount < len(movies) || counts.SeriesCount < len(shows) || counts.EpisodeCount < sdkShows.Episodes {
+			t.Errorf("counts = %+v, fewer than the fixtures", counts)
 		}
 	})
 }
@@ -178,6 +188,9 @@ func TestEmbyItemsQuery(t *testing.T) {
 func TestEmbyItem(t *testing.T) {
 	ctx := skipUnlessEmby(t)
 	id := embyMovie(t, aliens).Id
+	// the album the instant mix is made from
+	musicID := embyLibrary(t, sdkMusic)
+	album := embyAlbum(t, musicID, darkSide)
 
 	full := must(embyc.GetUsersByUserIdItemsById(ctx, adminID, id)).Model
 	if full.Name != aliens || full.ProductionYear != 1986 || full.Path == "" || full.Overview == "" || len(full.MediaSources) == 0 || full.RunTimeTicks == 0 {
@@ -238,22 +251,43 @@ func TestEmbyItem(t *testing.T) {
 	}
 
 	t.Run("Similar", func(t *testing.T) {
-		// the server finds nothing similar among the fixtures (it needs
-		// more than shared genres and people); the shape is what is asserted
+		// with the genres and studios TMDB filled in, the server finds the
+		// other films like it
 		res := must(embyc.GetItemsByIdSimilar(ctx, id, emby.GetItemsByIdSimilarOperationOptions{UserId: adminID, Limit: new(3)})).Model
-		t.Logf("%d similar items", len(res.Items))
+		if len(res.Items) == 0 {
+			t.Fatalf("nothing is similar to %s among seven other films", aliens)
+		}
 		for _, it := range res.Items {
-			if it.Id == "" || it.Name == "" || it.Id == id {
+			if it.Id == "" || it.Name == "" || it.Id == id || it.Type != "Movie" {
 				t.Errorf("similar item = %+v", it)
 			}
 		}
 	})
 	t.Run("InstantMix", func(t *testing.T) {
-		res := must(embyc.GetItemsByIdInstantMix(ctx, id, emby.GetItemsByIdInstantMixOperationOptions{UserId: adminID, Limit: new(5)})).Model
-		for _, it := range res.Items {
-			if it.Id == "" || it.Name == "" {
-				t.Errorf("instant mix item = %+v", it)
+		// a mix is music: from a film there is none
+		if res := must(embyc.GetItemsByIdInstantMix(ctx, id, emby.GetItemsByIdInstantMixOperationOptions{UserId: adminID, Limit: new(5)})).Model; len(res.Items) != 0 {
+			t.Errorf("an instant mix from a film = %+v, want nothing", res.Items)
+		}
+		// from an album it is the songs of the album's genre, the other
+		// album by the same artist's included
+		mix := must(embyc.GetItemsByIdInstantMix(ctx, album.Id, emby.GetItemsByIdInstantMixOperationOptions{UserId: adminID, Limit: new(50)})).Model
+		genre := must(embyc.GetItems(ctx, emby.GetItemsOperationOptions{ParentId: musicID, Recursive: new(true), IncludeItemTypes: "Audio", Genres: progressiveRock})).Model
+		if len(genre.Items) == 0 {
+			t.Fatalf("no song in %s", progressiveRock)
+		}
+		want := map[string]bool{}
+		for _, s := range genre.Items {
+			want[s.Id] = true
+		}
+		got := map[string]bool{}
+		for _, it := range mix.Items {
+			if it.Type != "Audio" || !want[it.Id] {
+				t.Errorf("the mix from %s holds %s (%s), which is not a %s song", darkSide, it.Name, it.Type, progressiveRock)
 			}
+			got[it.Id] = true
+		}
+		if len(got) != len(want) {
+			t.Errorf("the mix from %s holds %d of the %d %s songs", darkSide, len(got), len(want), progressiveRock)
 		}
 	})
 	t.Run("Images", func(t *testing.T) {
@@ -338,21 +372,46 @@ func TestEmbyCatalogue(t *testing.T) {
 		t.Errorf("latest = %d items", len(latest))
 	}
 
-	// the families that are empty on a video-only server still answer in
-	// shape. /Trailers answers with the user's top-level folders rather
-	// than nothing, so what is asserted is that none of them is a trailer.
-	for _, it := range must(embyc.GetTrailers(ctx, emby.GetTrailersOperationOptions{UserId: adminID})).Model.Items {
-		if it.Type == "Trailer" || it.Id == "" {
-			t.Errorf("GetTrailers = %+v", it)
-		}
+	// /Trailers answers with the user's libraries rather than any trailer
+	// (there is none): the movie library is among them
+	trailers := must(embyc.GetTrailers(ctx, emby.GetTrailersOperationOptions{UserId: adminID})).Model.Items
+	if !slices.ContainsFunc(trailers, func(it emby.BaseItemDto) bool { return it.Id == moviesID }) ||
+		slices.ContainsFunc(trailers, func(it emby.BaseItemDto) bool { return it.Type == "Trailer" }) {
+		t.Errorf("GetTrailers = %+v, want the user's libraries and no trailer", trailers)
 	}
-	if res := must(embyc.GetMusicGenres(ctx, emby.GetMusicGenresOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 {
-		t.Errorf("GetMusicGenres = %+v", res)
-	}
-	if res := must(embyc.GetArtists(ctx, emby.GetArtistsOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 {
-		t.Errorf("GetArtists = %+v", res)
-	}
-	if res := must(embyc.GetChannels(ctx, emby.GetChannelsOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 {
+	// no channel plugin is installed
+	if res := must(embyc.GetChannels(ctx, emby.GetChannelsOperationOptions{UserId: adminID})).Model; res.TotalRecordCount != 0 || len(res.Items) != 0 {
 		t.Errorf("GetChannels = %+v", res)
+	}
+
+	// the music families, read by library: none in the film library, and the
+	// fixtures' in the music one (whatever else the server holds, so the
+	// counts do not depend on what ran before)
+	for _, lib := range []string{moviesID, embyLibrary(t, sdkMusic)} {
+		wantArtists, wantGenres := []string{}, []string{}
+		if lib != moviesID {
+			wantArtists = []string{"Battle Tapes", "Coyote Kisses", "Pink Floyd", "SirensCeol"}
+			wantGenres = []string{"Electronic", "Electronica", progressiveRock}
+		}
+		names := func(items []emby.BaseItemDto) []string {
+			out := make([]string, 0, len(items))
+			for i := range items {
+				out = append(out, items[i].Name)
+			}
+			slices.Sort(out)
+			return out
+		}
+		artists := must(embyc.GetArtists(ctx, emby.GetArtistsOperationOptions{ParentId: lib, UserId: adminID})).Model
+		if got := names(artists.Items); !slices.Equal(got, wantArtists) || artists.TotalRecordCount != len(wantArtists) {
+			t.Errorf("GetArtists(%s) = %v (%d), want %v", lib, got, artists.TotalRecordCount, wantArtists)
+		}
+		albumArtists := must(embyc.GetArtistsAlbumArtists(ctx, emby.GetArtistsAlbumArtistsOperationOptions{ParentId: lib, UserId: adminID})).Model
+		if got := names(albumArtists.Items); !slices.Equal(got, wantArtists) {
+			t.Errorf("GetArtistsAlbumArtists(%s) = %v, want %v", lib, got, wantArtists)
+		}
+		genres := must(embyc.GetMusicGenres(ctx, emby.GetMusicGenresOperationOptions{ParentId: lib, UserId: adminID})).Model
+		if got := names(genres.Items); !slices.Equal(got, wantGenres) || genres.TotalRecordCount != len(wantGenres) {
+			t.Errorf("GetMusicGenres(%s) = %v (%d), want %v", lib, got, genres.TotalRecordCount, wantGenres)
+		}
 	}
 }

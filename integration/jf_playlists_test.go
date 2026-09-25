@@ -6,6 +6,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/jf"
@@ -85,17 +86,24 @@ func TestJFPlaylists(t *testing.T) {
 	}
 }
 
+// TestJFCollections covers a collection's create, add and removal. A library
+// scan's refresh of a collection writes its saved members over any added
+// meanwhile (lib/embyfin re-sends for this; the behaviour is in
+// api-defs/README.md), so the create waits out a scan first.
+//
 //nolint:paralleltest // the tests share one server and its libraries
 func TestJFCollections(t *testing.T) {
 	ctx := skipUnlessJellyfin(t)
 	a, b, c := jfMovie(t, alien), jfMovie(t, aliens), jfMovie(t, bladeRunner)
 
-	created := must(jfc.CreateCollection(ctx, jf.CreateCollectionOperationOptions{Name: "SDK Collection", Ids: []string{a.Id, b.Id}})).Model
+	jfScanIdle(ctx, t)
+	const name = "SDK Collection"
+	created := must(jfc.CreateCollection(ctx, jf.CreateCollectionOperationOptions{Name: name, Ids: []string{a.Id, b.Id}})).Model
 	if created.Id == "" {
 		t.Fatal("CreateCollection returned no id")
 	}
 	id := created.Id
-	t.Cleanup(func() { _, _ = jfc.DeleteItem(context.WithoutCancel(ctx), id) })
+	t.Cleanup(func() { jfDeleteCollection(context.WithoutCancel(ctx), t, id) })
 
 	// a collection's children are linked, not parented, and the server only
 	// resolves the links for a user: without UserId the list is empty
@@ -110,64 +118,98 @@ func TestJFCollections(t *testing.T) {
 	// each step waits for what it asked for: the server answers a collection
 	// change before it has applied it, and a read straight after can still
 	// see the membership from before
-	holds := func(step string, want ...string) {
-		t.Helper()
-
+	holds := func(within time.Duration, want ...string) ([]string, bool) {
 		var got []string
-		if !poll(editPatience, func() bool {
+		ok := poll(within, func() bool {
 			got = members()
 
 			return slices.Equal(got, want)
-		}) {
-			t.Errorf("%s members = %v, want %v", step, got, want)
-		}
+		})
+		return got, ok
 	}
-	// a collection's initial members and an add are written the same way,
-	// and both are lost when a library scan's refresh of the collection
-	// writes over them (lib/embyfin re-sends for this; the behaviour is in
-	// api-defs/README.md), so one that has not landed in a third of the
-	// patience is sent once more before it is a failure
-	ensure := func(step string, want ...string) {
+	// the create's own members land with nothing sent again
+	if got, ok := holds(editPatience, a.Id, b.Id); !ok {
+		t.Fatalf("after CreateCollection members = %v, want %s and %s", got, alien, aliens)
+	}
+	// Jellyfin loses an add or a removal made while it is still refreshing
+	// the collection after the change before (lib/embyfin re-sends for this),
+	// so one that has not landed in a third of the patience is sent once more:
+	// the same call, so one that never works still fails
+	change := func(step string, send func() error, want ...string) {
 		t.Helper()
-		if !poll(editPatience/3, func() bool { return slices.Equal(members(), want) }) {
-			t.Logf("%s: the members did not land; adding them again", step)
-			if _, err := jfc.AddToCollection(ctx, id, jf.AddToCollectionOperationOptions{Ids: want}); err != nil {
-				t.Fatal(err)
-			}
-		}
-		holds(step, want...)
-	}
-	ensure("after CreateCollection", a.Id, b.Id)
-	if _, err := jfc.AddToCollection(ctx, id, jf.AddToCollectionOperationOptions{Ids: []string{c.Id}}); err != nil {
-		t.Fatal(err)
-	}
-	ensure("after AddToCollection", a.Id, b.Id, c.Id)
-	// Jellyfin loses a collection edit made while it is still refreshing the
-	// collection after the last one (lib/embyfin re-sends for this; the
-	// behaviour is in api-defs/README.md), so one that has not landed in a third
-	// of the patience is sent once more before it is a failure
-	if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
-		t.Fatal(err)
-	}
-	if !poll(editPatience/3, func() bool { return slices.Equal(members(), []string{b.Id, c.Id}) }) {
-		t.Logf("the removal of %s did not land; sending it again", a.Id)
-		if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
+		if err := send(); err != nil {
 			t.Fatal(err)
 		}
+		if _, ok := holds(editPatience/3, want...); ok {
+			return
+		}
+		t.Logf("%s did not land; sending it again", step)
+		if err := send(); err != nil {
+			t.Fatal(err)
+		}
+		if got, ok := holds(editPatience, want...); !ok {
+			t.Errorf("after %s members = %v, want %v", step, got, want)
+		}
 	}
-	holds("after RemoveFromCollection", b.Id, c.Id)
+	change("AddToCollection", func() error {
+		_, err := jfc.AddToCollection(ctx, id, jf.AddToCollectionOperationOptions{Ids: []string{c.Id}})
+		return err
+	}, a.Id, b.Id, c.Id)
+	change("RemoveFromCollection", func() error {
+		_, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}})
+		return err
+	}, b.Id, c.Id)
 	// removing an item the collection does not hold is answered 204 and
 	// changes nothing, which is why lib/embyfin checks membership first
 	if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
 		t.Errorf("removing a non-member = %v", err)
 	}
-	holds("after removing a non-member", b.Id, c.Id)
+	if got, ok := holds(editPatience, b.Id, c.Id); !ok {
+		t.Errorf("after removing a non-member members = %v", got)
+	}
 	var item *jf.BaseItemDto
 	if !poll(editPatience, func() bool {
 		item = must(jfc.GetItem(ctx, id, jf.GetItemOperationOptions{UserId: adminID})).Model
 
-		return item != nil && item.Type == jf.BaseItemKindBoxSet && item.Name == "SDK Collection" && item.ChildCount == 2
+		return item != nil && item.Type == jf.BaseItemKindBoxSet && item.Name == name && item.ChildCount == 2
 	}) {
 		t.Errorf("the collection as an item = %+v", item)
 	}
+}
+
+// jfScanIdle waits for the library scan to be idle, so a change about to be
+// made is not written over by a scan's refresh.
+func jfScanIdle(ctx context.Context, t *testing.T) {
+	t.Helper()
+
+	if !poll(scanPatience, func() bool { return jfScanTask(ctx, t).State == jf.TaskStateIdle }) {
+		t.Fatal("the library scan never went idle")
+	}
+}
+
+// jfDeleteCollection deletes a collection and makes sure it stays deleted.
+// A refresh still queued on the collection when the delete lands saves it
+// again (its collection.xml), and the next library scan brings it back, its
+// members hidden from /Items listings behind it; so a scan is run after the
+// delete, and a collection it brings back is deleted again.
+func jfDeleteCollection(ctx context.Context, t *testing.T, id string) {
+	t.Helper()
+
+	for range 3 {
+		if _, err := jfc.DeleteItem(ctx, id); err != nil && !client.IsNotFound(err) {
+			t.Errorf("deleting collection %s: %v", id, err)
+			return
+		}
+		since := jfScanEnded(ctx) //nolint:azproviderlint // read before the refresh queues the scan, not after
+		if _, err := jfc.RefreshLibrary(ctx); err != nil {
+			t.Errorf("scanning after deleting collection %s: %v", id, err)
+			return
+		}
+		jfWaitForScan(ctx, t, since)
+		if back := must(jfc.GetItems(ctx, jf.GetItemsOperationOptions{Ids: []string{id}})).Model; len(back.Items) == 0 {
+			return
+		}
+		t.Logf("collection %s came back after a scan; deleting it again", id)
+	}
+	t.Errorf("collection %s came back after each of three deletes", id)
 }

@@ -54,4 +54,6 @@
 //   - emby-parent-path-text
 //   - emby-codec-display-text
 //   - emby-property-condition-value
+//   - emby-undeclared-query
+//   - emby-tone-map-options
 package emby

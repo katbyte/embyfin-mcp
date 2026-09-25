@@ -183,3 +183,62 @@ func TestAuditSchemasStateTheirRealDefaults(t *testing.T) {
 		}
 	}
 }
+
+// A music library read as empty in audit_all: every audit swept films and
+// series unless told otherwise, and audit_all told none of them, so an album
+// with no cover and a genre spelled two ways counted 0 in the call that says
+// where to start. In a music library the two audits that apply to music now
+// count its albums, the rest say they have nothing there to read, and over
+// every library the two count albums beside films and series, naming the
+// types they read.
+func TestAuditAllReadsAMusicLibrary(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	music := map[string]any{"Name": "Tunes", "CollectionType": "music", "ItemId": "lib-music", "Locations": []string{"/media/music"}}
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page(music)) })
+	albums := []map[string]any{
+		{"Id": "a1", "Name": "Zzyzx Covered", "Type": "MusicAlbum", "Genres": []string{"Electronic"}, "ImageTags": map[string]string{"Primary": "x"}},
+		{"Id": "a2", "Name": "Zzyzx Bare", "Type": "MusicAlbum", "Genres": []string{"Electronica"}},
+		{"Id": "a3", "Name": "Zzyzx Third", "Type": "MusicAlbum", "Genres": []string{"Electronic"}, "ImageTags": map[string]string{"Primary": "y"}},
+	}
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(param(r.URL.Query(), "IncludeItemTypes"), "MusicAlbum") {
+			writeJSON(t, w, page())
+			return
+		}
+		writeJSON(t, w, page(albums...))
+	})
+	adminView(t, f)
+	cs := session(t, f, Options{})
+
+	rows := map[string]map[string]any{}
+	for _, row := range objects(t, mustCall(t, cs, "audit_all", map[string]any{"library": "Tunes"})["audits"], "audits") {
+		rows[text(row["audit"])] = row
+	}
+	for audit, want := range map[string]int{"audit_missing_poster": 1, "audit_spelling": 1} {
+		row := rows[audit]
+		if row == nil || row["skipped"] != nil || number(t, row["findings"], "findings") != want || number(t, row["items_scanned"], "items_scanned") != 3 || text(row["types"]) != "MusicAlbum" {
+			t.Errorf("%s over the music library = %v, want %d of the 3 albums, read as MusicAlbum", audit, row, want)
+		}
+	}
+	for audit, row := range rows {
+		if audit != "audit_missing_poster" && audit != "audit_spelling" && row["skipped"] == nil {
+			t.Errorf("%s ran over a music library: %v", audit, row)
+		}
+	}
+
+	// over every library the two read albums beside films and series
+	for _, row := range objects(t, mustCall(t, cs, "audit_all", map[string]any{})["audits"], "audits") {
+		switch text(row["audit"]) {
+		case "audit_missing_poster", "audit_spelling":
+			if types := text(row["types"]); !strings.HasSuffix(types, ",MusicAlbum") || number(t, row["findings"], "findings") != 1 {
+				t.Errorf("over every library %v, want the album counted and MusicAlbum among its types", row)
+			}
+		case "audit_missing_overview":
+			if row["types"] != nil {
+				t.Errorf("an audit with nothing to say about music names types over every library: %v", row)
+			}
+		}
+	}
+}

@@ -93,6 +93,9 @@ type release struct {
 	Season     int
 	Episode    int
 	EpisodeEnd int
+	// Unread is set when no title could be read out of the name - it is
+	// all season, episode, encode and group - and Title is the name itself
+	Unread bool
 }
 
 // sitePrefix is the index or tracker stamped on the front of a name before
@@ -151,6 +154,7 @@ func parseRelease(name string) release {
 	if out.Title == "" {
 		// a name that is all marker and encode still has to answer with
 		// something a caller can see, rather than with nothing
+		out.Unread = true
 		out.Title = strings.TrimSpace(spaceRun.ReplaceAllString(strings.NewReplacer(".", " ", "_", " ").Replace(name), " "))
 	}
 	if out.Title == "" {
@@ -278,6 +282,13 @@ func parseSegment(name string) release {
 	// called Max Headroom, Stan Against Evil, Web Therapy and Dual Survival,
 	// and a rule that reads those as an encode leaves nothing to search for.
 	words := strings.Fields(head)
+	// two words or more and every one of them the encode's, the source's or
+	// the sound's, the group riding on the last ("1080p.WEB-DL-GROUP"): a
+	// name with no title in it. One word alone is a title, whatever it
+	// spells: there are shows called Max
+	if len(words) > 1 && !slices.ContainsFunc(words, func(w string) bool { return !encodeWord(w) }) {
+		return out
+	}
 	if cut == len(s) && len(words) > 1 {
 		for i, w := range words[1:] {
 			word := strings.ToLower(strings.Trim(w, "()[]-"))
@@ -298,6 +309,19 @@ func parseSegment(name string) release {
 	out.Title = strings.Trim(strings.Join(words, " "), " -._([{")
 
 	return out
+}
+
+// encodeWord says whether a word of a release name is one of the encode's,
+// the source's or the sound's, or one of them with the group after a hyphen
+// (x264-NGP, WEB-DL-GROUP).
+func encodeWord(w string) bool {
+	w = strings.ToLower(strings.Trim(w, "()[]-"))
+	if releaseJunk[w] {
+		return true
+	}
+	i := strings.LastIndex(w, "-")
+
+	return i > 0 && releaseJunk[w[:i]]
 }
 
 func startsWithDigit(s string) bool {
@@ -677,7 +701,7 @@ func registerResolveTools(r *registry) {
 		if in.Year > 0 {
 			rel.Year = in.Year
 		}
-		if normaliseTitle(rel.Title) == "" {
+		if rel.Unread || normaliseTitle(rel.Title) == "" {
 			return nil, resolveOut{}, fmt.Errorf("no title could be read out of %q: it is all season, encode and group", in.Title)
 		}
 		out := resolveOut{Title: rel.Title, Year: rel.Year, Season: rel.Season, Episode: rel.Episode, EpisodeEnd: rel.EpisodeEnd, Candidates: []seriesCandidate{}}

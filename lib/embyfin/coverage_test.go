@@ -34,7 +34,7 @@ func TestAddToCollection(t *testing.T) {
 		}
 	}
 	c, f := newFake(t, Emby, map[string]route{"POST /Collections/c1/Items": noContent, "GET /Items": members("1", "2")})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	if err := c.AddToCollection(t.Context(), "c1", []string{"1", "2"}); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestAddToCollection(t *testing.T) {
 		},
 		"POST /Collections/c9/Items": answer(http.StatusNotFound, ""),
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	if err := c.AddToCollection(t.Context(), "c1", []string{"a", "b"}); err != nil {
 		t.Fatal(err)
 	}
@@ -184,6 +184,31 @@ func TestSimilarAndInstantMix(t *testing.T) {
 		t.Errorf("Emby instant mix = %v", q)
 	}
 
+	// Emby answers a mix of a playlist with nothing, so it is made of the
+	// mixes of the playlist's songs, taken in turn, each song once
+	c, f = newFake(t, Emby, map[string]route{
+		"GET /Items/p1/InstantMix": ok(`{"Items":[],"TotalRecordCount":0}`),
+		"GET /Items": func(r *http.Request, _ string) (int, string) {
+			if r.URL.Query().Get("ParentId") == "p1" {
+				return http.StatusOK, `{"Items":[{"Id":"s1","Name":"Zzyzx One","Type":"Audio"},{"Id":"s2","Name":"Zzyzx Two","Type":"Audio"}],"TotalRecordCount":2}`
+			}
+			return http.StatusOK, `{"Items":[{"Id":"p1","Name":"Zzyzx Songs","Type":"Playlist"}],"TotalRecordCount":1}`
+		},
+		"GET /Items/s1/InstantMix": ok(`{"Items":[{"Id":"a","Type":"Audio"},{"Id":"b","Type":"Audio"}],"TotalRecordCount":2}`),
+		"GET /Items/s2/InstantMix": ok(`{"Items":[{"Id":"b","Type":"Audio"},{"Id":"c","Type":"Audio"}],"TotalRecordCount":2}`),
+	})
+	mix, err := c.InstantMix(t.Context(), "p1", 5)
+	ids := make([]string, 0, len(mix))
+	for _, it := range mix {
+		ids = append(ids, it.ID)
+	}
+	if err != nil || !slices.Equal(ids, []string{"a", "b", "c"}) {
+		t.Errorf("InstantMix of a playlist = %v, %v, want its songs' mixes in turn, each song once", ids, err)
+	}
+	if q := f.only("GET /Items/s1/InstantMix").query; q.Get("Fields") != FieldsDefault || q.Get("Limit") != "5" {
+		t.Errorf("Emby song mix = %v", q)
+	}
+
 	c, f = newFake(t, Jellyfin, map[string]route{
 		"GET /Items/9/Similar":      ok(page),
 		"GET /Items/9/InstantMix":   ok(page),
@@ -284,17 +309,28 @@ func TestVisibleUserItem(t *testing.T) {
 		t.Errorf("an item the user may not see = %+v, %v, %v", it, seen, err)
 	}
 
-	// Jellyfin's single-item read answers 404 for such an item
+	// Jellyfin's single-item read answers 404 for such an item, and for an
+	// id no item has, which the library read without a user tells apart
 	c, f = newFake(t, Jellyfin, map[string]route{
 		"GET /Items/42": ok(`{"Id":"42","Name":"Zzyzx"}`),
 		"GET /Items/43": answer(http.StatusNotFound, ""),
 		"GET /Items/44": answer(http.StatusForbidden, "no"),
+		"GET /Items/45": answer(http.StatusNotFound, ""),
+		"GET /Items": func(r *http.Request, _ string) (int, string) {
+			if r.URL.Query().Get("ids") == "43" {
+				return http.StatusOK, `{"Items":[{"Id":"43","Name":"Xyzzy"}],"TotalRecordCount":1}`
+			}
+			return http.StatusOK, `{"Items":[],"TotalRecordCount":0}`
+		},
 	})
 	if it, seen, err := c.VisibleUserItem(t.Context(), "u1", "42"); err != nil || !seen || it.Name != "Zzyzx" || f.only("GET /Items/42").query.Get("userId") != "u1" {
 		t.Errorf("VisibleUserItem = %+v, %v, %v", it, seen, err)
 	}
 	if it, seen, err := c.VisibleUserItem(t.Context(), "u1", "43"); err != nil || seen || it != nil {
-		t.Errorf("a 404 = %+v, %v, %v, want not seen and no error", it, seen, err)
+		t.Errorf("a 404 for an item the library has = %+v, %v, %v, want not seen and no error", it, seen, err)
+	}
+	if it, seen, err := c.VisibleUserItem(t.Context(), "u1", "45"); err == nil || !strings.Contains(err.Error(), "no item with id 45") || seen || it != nil {
+		t.Errorf("a 404 for an id nothing has = %+v, %v, %v, want no item with id 45", it, seen, err)
 	}
 	// anything but a 404 is still an error
 	if _, _, err := c.VisibleUserItem(t.Context(), "u1", "44"); client.StatusCode(err) != http.StatusForbidden {

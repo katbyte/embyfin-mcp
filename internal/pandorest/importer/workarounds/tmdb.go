@@ -426,6 +426,84 @@ func (tmdbWholeNumbers) Apply(spec *openapi.Spec) error {
 	return nil
 }
 
+type tmdbChangeValues struct{}
+
+func (tmdbChangeValues) Name() string    { return "tmdb-change-values" }
+func (tmdbChangeValues) Service() string { return tmdb }
+func (tmdbChangeValues) Bug() string {
+	return "a change's value and original_value are declared as whatever the example's change held (a poster object, a string), but TMDB answers whatever the changed field holds: a string for a biography, an object keyed by the field for an image (title_logo, poster), so a change of any other field is lost or does not decode"
+}
+
+func (tmdbChangeValues) Apply(spec *openapi.Spec) error {
+	n := 0
+	for _, path := range openapi.SortedKeys(spec.Paths) {
+		// one film's, show's or person's changes (/3/movie/changes lists
+		// the ids of the films that changed)
+		if !strings.HasSuffix(path, "}/changes") {
+			continue
+		}
+		op := spec.Operation(http.MethodGet, path)
+		if op == nil {
+			continue
+		}
+		media, err := jsonResponse(op, "GET "+path)
+		if err != nil {
+			return err
+		}
+		changes := media.Schema
+		if changes == nil || changes.Properties["changes"] == nil || changes.Properties["changes"].Items == nil {
+			return errors.New("GET " + path + " no longer answers a list of changes")
+		}
+		items := changes.Properties["changes"].Items.Properties["items"]
+		if items == nil || items.Items == nil {
+			return errors.New("GET " + path + " no longer answers the items of a change")
+		}
+		for _, name := range []string{"value", "original_value"} {
+			if v := items.Items.Properties[name]; v != nil && (v.Type != "" || len(v.Properties) > 0) {
+				*v = openapi.Schema{Description: v.Description}
+				n++
+			}
+		}
+	}
+	if n == 0 {
+		return errors.New("no change declares the type of its value")
+	}
+
+	return nil
+}
+
+type tmdbDisplayPriorities struct{}
+
+func (tmdbDisplayPriorities) Name() string    { return "tmdb-display-priorities" }
+func (tmdbDisplayPriorities) Service() string { return tmdb }
+func (tmdbDisplayPriorities) Bug() string {
+	return "a watch provider's display_priorities is declared as an object with a field for each country the example happened to list; TMDB answers a priority for any country (KR, HR), which the fields drop"
+}
+
+func (tmdbDisplayPriorities) Apply(spec *openapi.Spec) error {
+	for _, path := range []string{"/3/watch/providers/movie", "/3/watch/providers/tv"} {
+		op, err := operation(spec, http.MethodGet, path)
+		if err != nil {
+			return err
+		}
+		media, err := jsonResponse(op, "GET "+path)
+		if err != nil {
+			return err
+		}
+		results := media.Schema
+		if results == nil || results.Properties["results"] == nil || results.Properties["results"].Items == nil {
+			return errors.New("GET " + path + " no longer answers a list of results")
+		}
+		p := results.Properties["results"].Items.Properties["display_priorities"]
+		if p == nil || p.Type != openapi.TypeObject || len(p.Properties) == 0 {
+			return errors.New("GET " + path + " no longer declares display_priorities with a field per country")
+		}
+		*p = openapi.Schema{Type: openapi.TypeObject, Description: p.Description, AdditionalProperties: json.RawMessage(`{"type":"integer"}`)}
+	}
+
+	return nil
+}
+
 type tmdbListIDs struct{}
 
 func (tmdbListIDs) Name() string    { return "tmdb-list-ids" }

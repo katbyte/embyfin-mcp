@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/katbyte/go-kt/pointer"
@@ -359,10 +360,36 @@ func (c *Client) RenameLibrary(ctx context.Context, folder *VirtualFolder, newNa
 		return err
 	}
 
-	_, err := c.jf.RenameVirtualFolder(ctx, jf.RenameVirtualFolderOperationOptions{Name: folder.Name, NewName: newName, RefreshLibrary: new(false)})
+	if _, err := c.jf.RenameVirtualFolder(ctx, jf.RenameVirtualFolderOperationOptions{Name: folder.Name, NewName: newName, RefreshLibrary: new(false)}); err != nil {
+		return err
+	}
+	// Jellyfin lists a renamed library with no id and none of its options
+	// until its library scan has run and given it a new id (seen on 12.1:
+	// forty seconds without one, and no sign of settling), so the rename
+	// asks for that scan, as a folder change does, and waits a while for the
+	// library to be listed whole under its new name
+	if err := c.jfLibraryScan(ctx); err != nil {
+		return err
+	}
+	for range renamePolls {
+		folders, err := c.VirtualFolders(ctx)
+		if err != nil {
+			return err
+		}
+		if slices.ContainsFunc(folders, func(f VirtualFolder) bool { return f.Name == newName && f.ItemID != "" }) {
+			return nil
+		}
+		if err := c.pause(ctx); err != nil {
+			return err
+		}
+	}
 
-	return err
+	return nil // read back as it is: the caller says what it could not
 }
+
+// renamePolls is how many settle intervals RenameLibrary waits for Jellyfin
+// to list a renamed library whole: half a minute at the default interval.
+const renamePolls = 120
 
 // AddLibraryPath adds a folder on the server to a library. Emby picks the
 // folder up on the library's next scan. Jellyfin's scan of one library does

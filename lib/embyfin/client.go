@@ -49,6 +49,9 @@ type Client struct {
 	// settle is how long to wait between checks that a change the server
 	// applies in the background has landed
 	settle time.Duration
+	// saveGrain is how finely Emby tells one save of an item from the next:
+	// to the second (see unsavedFor)
+	saveGrain time.Duration
 	// items serialises this process's changes to one item (an item's
 	// metadata, a playlist's entries): see keyedLocks
 	items keyedLocks
@@ -67,7 +70,7 @@ func New(backend Backend, baseURL, token string) (*Client, error) {
 		return nil, errors.New("API token is required (--token / EMBYFIN_TOKEN)")
 	}
 
-	c := &Client{backend: backend, baseURL: strings.TrimRight(baseURL, "/"), settle: 250 * time.Millisecond}
+	c := &Client{backend: backend, baseURL: strings.TrimRight(baseURL, "/"), settle: 250 * time.Millisecond, saveGrain: time.Second}
 	var err error
 	if backend == Emby {
 		c.emby, err = emby.New(baseURL, token)

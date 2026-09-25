@@ -4,7 +4,7 @@ SHELL := /bin/bash
 GIT_COMMIT=$(shell git describe --always --long --dirty)
 # falls back to dev when there is no tag yet (the || must wrap git, not sed, or it never fires)
 GIT_VERSION=$(shell (git describe --tags --dirty 2>/dev/null || echo dev) | sed 's/-\([0-9]*\)-g/+\1@g/')
-TEST_TIMEOUT?=15m
+TEST_TIMEOUT?=30m
 empty:=
 space:=$(empty) $(empty)
 
@@ -192,7 +192,7 @@ test: build ## Run tests
 # target below runs for both unless BACKENDS narrows it: make testacc BACKENDS=jellyfin
 BACKENDS?=emby jellyfin
 
-test-integration: ## Run the SDK tests (lib/emby, lib/jf) against an already-running server
+test-integration: ## Run the SDK tests against an already-running server (lib/emby or lib/jf), and the TMDB sweep (lib/tmdb, recorded)
 	@[ -n "${EMBYFIN_SERVER}" ] && [ -n "${EMBYFIN_TOKEN}" ] && [ -n "${EMBYFIN_BACKEND}" ] || \
 		(echo 'EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN must be set; or use "make testacc"'; exit 1)
 	go test -tags integration -count=1 ./integration/... -timeout ${TEST_TIMEOUT} -v

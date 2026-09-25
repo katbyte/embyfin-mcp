@@ -101,7 +101,9 @@ func page(items ...map[string]any) map[string]any {
 // library_items with a query passes the search and every filter through as
 // the server's own query, scopes to the library named, picks the types from
 // the library's kind, leaves the order to the server when none is asked for,
-// and resolves a person's name to an id before searching.
+// and resolves a person's name to an id before searching. A query with a
+// sort reads every match and sorts and pages them itself: both servers
+// ignore a sort asked for with a search.
 func TestLibraryItemsSearchBuildsTheQuery(t *testing.T) {
 	t.Parallel()
 
@@ -121,11 +123,10 @@ func TestLibraryItemsSearchBuildsTheQuery(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	out := mustCall(t, cs, "library_items", map[string]any{"query": "zzy", "library": "zzyzx films", "genres": []string{"Drama"}, "years": []int{2001}, "sort": "added", "desc": true})
+	out := mustCall(t, cs, "library_items", map[string]any{"query": "zzy", "library": "zzyzx films", "genres": []string{"Drama"}, "years": []int{2001}})
 	q := lastQuery(t, f, "/Items")
 	for k, want := range map[string]string{
-		"SearchTerm": "zzy", "IncludeItemTypes": "Movie", "ParentId": "lib9", "Genres": "Drama", "Years": "2001",
-		"SortBy": "DateCreated,SortName", "SortOrder": "Descending", "Limit": "25", "Recursive": "true",
+		"SearchTerm": "zzy", "IncludeItemTypes": "Movie", "ParentId": "lib9", "Genres": "Drama", "Years": "2001", "Limit": "25", "Recursive": "true",
 	} {
 		if got := q.Get(k); got != want {
 			t.Errorf("%s = %q, want %q", k, got, want)
@@ -154,22 +155,36 @@ func TestLibraryItemsSearchBuildsTheQuery(t *testing.T) {
 	if q = lastQuery(t, f, "/Items"); q.Get("SearchTerm") != "zzy" || q.Has("SortBy") || q.Has("SortOrder") {
 		t.Errorf("relevance query = %v", q)
 	}
-	// and no query is by name
+	// and no query is by name, then by when it was added: two items of one
+	// name otherwise come back in either order, and a page boundary between
+	// them lists one twice and the other never
 	f.reset()
 	mustCall(t, cs, "library_items", map[string]any{})
-	if q = lastQuery(t, f, "/Items"); q.Has("SearchTerm") || q.Get("SortBy") != "SortName" || q.Get("SortOrder") != "Ascending" {
+	if q = lastQuery(t, f, "/Items"); q.Has("SearchTerm") || q.Get("SortBy") != "SortName,DateCreated" || q.Get("SortOrder") != "Ascending" {
 		t.Errorf("browse query = %v", q)
 	}
 
 	// every library: films and series, no parent, and a person by id
 	f.reset()
-	mustCall(t, cs, "library_items", map[string]any{"query": "x", "person": "zed zzyzx", "limit": 2, "offset": 4, "sort": "name"})
+	mustCall(t, cs, "library_items", map[string]any{"query": "x", "person": "zed zzyzx", "limit": 2, "offset": 4})
 	q = lastQuery(t, f, "/Items")
-	if q.Get("IncludeItemTypes") != "Movie,Series" || q.Has("ParentId") || q.Get("PersonIds") != "p7" || q.Get("Limit") != "2" || q.Get("StartIndex") != "4" || q.Get("SortOrder") != "Ascending" {
+	if q.Get("IncludeItemTypes") != "Movie,Series" || q.Has("ParentId") || q.Get("PersonIds") != "p7" || q.Get("Limit") != "2" || q.Get("StartIndex") != "4" || q.Has("SortBy") {
 		t.Errorf("unscoped query = %v", q)
 	}
+
 	if pq := lastQuery(t, f, "/Persons"); pq.Get("SearchTerm") != "zed zzyzx" || pq.Get("Limit") != "50" {
 		t.Errorf("person lookup = %v", pq)
+	}
+
+	// a query and a sort: every match is read with no order asked of the
+	// server, which would ignore it, and sorted and paged here
+	f.reset()
+	out = mustCall(t, cs, "library_items", map[string]any{"query": "zzy", "sort": "added", "desc": true, "limit": 2})
+	if q = lastQuery(t, f, "/Items"); q.Get("SearchTerm") != "zzy" || q.Has("SortBy") || q.Has("SortOrder") || q.Has("StartIndex") && q.Get("StartIndex") != "0" {
+		t.Errorf("a query with a sort asked the server for %v", q)
+	}
+	if got := number(t, out["total"], "total"); got != 1 {
+		t.Errorf("a query with a sort: total = %d, want the matches read, 1", got)
 	}
 
 	if msg := mustRefuse(t, cs, "library_items", map[string]any{"library": "Nope"}); !strings.Contains(msg, `no library named "Nope"`) || !strings.Contains(msg, "Zzyzx Films") {
@@ -681,7 +696,10 @@ func TestUserNextUp(t *testing.T) {
 	if q := lastQuery(t, f, "/Shows/NextUp"); q.Get("UserId") != "u1" || q.Get("LegacyNextUp") != "true" || q.Get("Limit") != "25" {
 		t.Errorf("next up query = %v", q)
 	}
-	if q := lastQuery(t, f, "/Users/u1/Items/Resume"); q.Get("Recursive") != "true" || q.Get("MediaTypes") != "Video" || q.Get("EnableUserData") != "true" || q.Get("Limit") != "25" {
+	// the resume list is read a page at a time and the limit applied to
+	// what is left once the padding is dropped (lib/embyfin's
+	// TestEmbyResumeLimit)
+	if q := lastQuery(t, f, "/Users/u1/Items/Resume"); q.Get("Recursive") != "true" || q.Get("MediaTypes") != "Video" || q.Get("EnableUserData") != "true" || q.Get("Limit") != "50" {
 		t.Errorf("resume query = %v", q)
 	}
 	if out["user"] != "Quux" {
@@ -701,10 +719,14 @@ func TestUserNextUp(t *testing.T) {
 	if out["resume"] != nil {
 		t.Errorf("the old resume list is still answered: %v", out["resume"])
 	}
-	// the limit is each list's
-	mustCall(t, cs, "user_next_up", map[string]any{"limit": 3})
-	if next, resume := lastQuery(t, f, "/Shows/NextUp"), lastQuery(t, f, "/Users/u1/Items/Resume"); next.Get("Limit") != "3" || resume.Get("Limit") != "3" {
-		t.Errorf("limit 3 asked next up for %s and the resume list for %s", next.Get("Limit"), resume.Get("Limit"))
+	// the limit is each list's: next up asks the server for it, and the
+	// in progress list is cut to it after the padding is dropped
+	out = mustCall(t, cs, "user_next_up", map[string]any{"limit": 1})
+	if next := lastQuery(t, f, "/Shows/NextUp"); next.Get("Limit") != "1" {
+		t.Errorf("limit 1 asked next up for %s", next.Get("Limit"))
+	}
+	if in := objects(t, out["in_progress"], "in_progress"); len(in) != 1 || in[0]["id"] != "9" {
+		t.Errorf("limit 1 in_progress = %v, want the one item with a position", in)
 	}
 }
 
@@ -743,7 +765,7 @@ func TestUserStats(t *testing.T) {
 	if len(reqs) != 2 {
 		t.Fatalf("requests = %v, want one sweep then the series", reqs)
 	}
-	if q, _ := url.ParseQuery(reqs[0].Query); q.Has("Filters") || q.Get("EnableUserData") != "true" || q.Get("IncludeItemTypes") != "Movie,Episode" || q.Get("Fields") != "Path,Genres,ProviderIds" {
+	if q, _ := url.ParseQuery(reqs[0].Query); q.Has("Filters") || q.Get("EnableUserData") != "true" || q.Get("IncludeItemTypes") != "Movie,Episode" || q.Get("Fields") != "Path,Genres,ProviderIds,UserDataPlayCount,UserDataLastPlayedDate" {
 		t.Errorf("sweep query = %v, want every item with its state, unfiltered", q)
 	}
 	if q, _ := url.ParseQuery(reqs[1].Query); q.Get("Ids") != "s1" || q.Get("IncludeItemTypes") != "Series" {
@@ -1108,6 +1130,10 @@ func TestCollectionFamily(t *testing.T) {
 	if edited["Name"] != "Zzyzx Cycle" || edited["SortName"] != "Zzyzx 1" || edited["ForcedSortName"] != "Zzyzx 1" || edited["Overview"] != "All of them." {
 		t.Errorf("posted item = %v", edited)
 	}
+	// the sort name locked, or Emby works it out from the name again
+	if locked, ok := edited["LockedFields"].([]any); !ok || !slices.Equal(locked, []any{"SortName"}) {
+		t.Errorf("posted locks = %v, want the sort name's", edited["LockedFields"])
+	}
 
 	out = mustCall(t, cs, "collection_delete", map[string]any{"collection": "Zzyzx Cycle"})
 	if out["deleted"] != "Zzyzx Cycle" {
@@ -1407,6 +1433,14 @@ func TestSessionFamily(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	f.mux.HandleFunc("POST /Sessions/{id}/Message", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	// what is played is read first: every id is held but "missing"
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		if id := r.URL.Query().Get("Ids"); id != "missing" {
+			writeJSON(t, w, page(film(id, "Zzyzx", 2001)))
+			return
+		}
+		writeJSON(t, w, page())
+	})
 	cs := session(t, f, Options{})
 
 	rows := objects(t, mustCall(t, cs, "session_list", map[string]any{})["sessions"], "sessions")
@@ -1429,6 +1463,16 @@ func TestSessionFamily(t *testing.T) {
 	}
 	if msg := mustRefuse(t, cs, "session_play", map[string]any{"session": "s1", "item_ids": []string{"abc"}}); !strings.Contains(msg, "not an Emby id") {
 		t.Errorf("a non-numeric id on Emby: %s", msg)
+	}
+	// nothing to play, or an item the server does not hold, never reaches the
+	// device
+	for want, ids := range map[string][]string{"item_ids is required": {}, "no item with id missing": {"9", "missing"}} {
+		if msg := mustRefuse(t, cs, "session_play", map[string]any{"session": "s1", "item_ids": ids}); !strings.Contains(msg, want) {
+			t.Errorf("session_play %v: %s", ids, msg)
+		}
+	}
+	if n := len(f.requests("/Sessions/s1/Playing")); n != 1 {
+		t.Errorf("the refused plays reached the device: %d plays sent, want the one", n)
 	}
 
 	out = mustCall(t, cs, "session_command", map[string]any{"session": "Zzyzx Player", "command": "Seek", "seek_s": 90})
@@ -1464,8 +1508,17 @@ func TestServerFamily(t *testing.T) {
 	t.Parallel()
 
 	f, _ := zzyzxServer(t)
+	// Emby's counts say no collections however many there are, so the two
+	// are counted as collection_list lists them
 	f.mux.HandleFunc("GET /Items/Counts", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(t, w, map[string]any{"MovieCount": 40, "SeriesCount": 3, "EpisodeCount": 50, "BoxSetCount": 2})
+		writeJSON(t, w, map[string]any{"MovieCount": 40, "SeriesCount": 3, "EpisodeCount": 50, "BoxSetCount": 0})
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("IncludeItemTypes") != "BoxSet" {
+			writeJSON(t, w, page())
+			return
+		}
+		writeJSON(t, w, map[string]any{"Items": []map[string]any{{"Id": "c1", "Name": "Zzyzx", "Type": "BoxSet"}}, "TotalRecordCount": 2})
 	})
 	f.mux.HandleFunc("GET /Sessions", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, []map[string]any{{"Id": "s1", "DeviceName": "Lounge TV", "NowPlayingItem": film("9", "Zzyzx", 2001)}, {"Id": "s2", "DeviceName": "Laptop"}})
@@ -1548,7 +1601,7 @@ func TestServerFamily(t *testing.T) {
 	}
 
 	tasks := objects(t, mustCall(t, cs, "task_list", map[string]any{})["tasks"], "tasks")
-	if len(tasks) != 2 || tasks[0]["name"] != "Scan media library" || tasks[0]["category"] != "Library" || tasks[0]["state"] != "Idle" || tasks[0]["last_status"] != "Completed" || tasks[0]["last_run"] != "2026-09-20T01:00:00Z" {
+	if len(tasks) != 2 || tasks[0]["id"] != "t1" || tasks[0]["name"] != "Scan media library" || tasks[0]["category"] != "Library" || tasks[0]["state"] != "Idle" || tasks[0]["last_status"] != "Completed" || tasks[0]["last_run"] != "2026-09-20T01:00:00Z" {
 		t.Errorf("tasks = %v", tasks)
 	}
 	if _, ok := tasks[1]["last_status"]; ok || tasks[1]["state"] != "Running" {
@@ -1558,7 +1611,11 @@ func TestServerFamily(t *testing.T) {
 	if out["started"] != "Scan media library" {
 		t.Errorf("run = %v", out)
 	}
-	if reqs := f.requests("/ScheduledTasks/Running/t1"); len(reqs) != 1 || reqs[0].Method != http.MethodPost {
+	// and by the id task_list gives
+	if out = mustCall(t, cs, "task_run", map[string]any{"task": text(tasks[0]["id"])}); out["started"] != "Scan media library" {
+		t.Errorf("run by id = %v", out)
+	}
+	if reqs := f.requests("/ScheduledTasks/Running/t1"); len(reqs) != 2 || reqs[0].Method != http.MethodPost {
 		t.Errorf("run requests = %v", reqs)
 	}
 	if msg := mustRefuse(t, cs, "task_run", map[string]any{"task": "Backup"}); !strings.Contains(msg, `no task named "Backup"`) || !strings.Contains(msg, "Clean cache") {
@@ -1657,7 +1714,7 @@ func TestPersonGet(t *testing.T) {
 		t.Errorf("the person was not read by name: %v", f.seen)
 	}
 	q := lastQuery(t, f, "/Items")
-	if q.Get("IncludeItemTypes") != "Movie,Series" || q.Get("SortBy") != "ProductionYear,SortName" || !strings.Contains(q.Get("Fields"), "People") {
+	if q.Get("IncludeItemTypes") != "Movie,Series" || q.Get("SortBy") != "ProductionYear,SortName,DateCreated" || !strings.Contains(q.Get("Fields"), "People") {
 		t.Errorf("credits query = %v", q)
 	}
 	credits := objects(t, out["credits"], "credits")
@@ -1711,6 +1768,14 @@ func TestItemSimilarAndInstantMix(t *testing.T) {
 	t.Parallel()
 
 	f, _ := zzyzxServer(t)
+	// the seed is read first: 9 and a9 are held, anything else is not
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		if id := r.URL.Query().Get("Ids"); id == "9" || id == "a9" {
+			writeJSON(t, w, page(map[string]any{"Id": id, "Name": "Zzyzx", "Type": "Movie"}))
+			return
+		}
+		writeJSON(t, w, page())
+	})
 	f.mux.HandleFunc("GET /Items/{id}/Similar", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, page(film("8", "Xyzzy", 1999)))
 	})
@@ -1737,6 +1802,13 @@ func TestItemSimilarAndInstantMix(t *testing.T) {
 	}
 	if q := lastQuery(t, f, "/Items/a9/InstantMix"); q.Get("Limit") != "30" {
 		t.Errorf("mix query = %v", q)
+	}
+
+	// an id the server does not hold is refused, not answered with nothing
+	for _, tool := range []string{"item_similar", "item_instant_mix"} {
+		if _, msg := callTool(t, cs, tool, map[string]any{"id": "7"}); !strings.Contains(msg, "no item with id 7") {
+			t.Errorf("%s of an unknown id: %q", tool, msg)
+		}
 	}
 }
 

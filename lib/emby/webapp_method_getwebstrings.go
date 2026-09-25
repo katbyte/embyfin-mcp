@@ -16,15 +16,43 @@ type GetWebStringsOperationResponse struct {
 	Model        json.RawMessage
 }
 
+// GetWebStringsOperationOptions holds the query and header parameters of GetWebStrings.
+type GetWebStringsOperationOptions struct {
+	// The plugin whose strings to read
+	PluginId string
+
+	// The language of the strings, one of those /web/stringset lists (en-US); without it the answer is empty
+	Locale string
+}
+
+// ToHeaders returns the header parameters the options set.
+func (o GetWebStringsOperationOptions) ToHeaders() *client.Headers {
+	out := client.Headers{}
+	return &out
+}
+
+// ToQuery returns the query parameters the options set.
+func (o GetWebStringsOperationOptions) ToQuery() *client.QueryParams {
+	out := client.QueryParams{}
+	if o.PluginId != "" {
+		out.Append("PluginId", o.PluginId)
+	}
+	if o.Locale != "" {
+		out.Append("Locale", o.Locale)
+	}
+	return &out
+}
+
 // GetWebStrings calls GET /web/strings. Requires authentication as user.
-func (c Client) GetWebStrings(ctx context.Context) (result GetWebStringsOperationResponse, err error) {
+func (c Client) GetWebStrings(ctx context.Context, options GetWebStringsOperationOptions) (result GetWebStringsOperationResponse, err error) {
 	opts := client.RequestOptions{
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HTTPMethod: http.MethodGet,
-		Path:       "/web/strings",
+		HTTPMethod:    http.MethodGet,
+		OptionsObject: options,
+		Path:          "/web/strings",
 	}
 
 	req, err := c.Client.NewRequest(ctx, opts)

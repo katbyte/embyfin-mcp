@@ -53,7 +53,10 @@ var All = []Workaround{
 	embyParentPathText{},
 	embyCodecDisplayText{},
 	embyPropertyConditionValue{},
+	embyUndeclaredQuery{},
+	embyToneMapOptions{},
 	jellyfinCreatePlaylistQuery{},
+	jellyfinPluginConfiguration{},
 	tmdbTags{},
 	tmdbRawBodies{},
 	tmdbEmptyLists{},
@@ -61,6 +64,8 @@ var All = []Workaround{
 	tmdbStringIDs{},
 	tmdbWholeNumbers{},
 	tmdbListIDs{},
+	tmdbChangeValues{},
+	tmdbDisplayPriorities{},
 }
 
 // Apply runs every workaround for a service, logging each, and returns the

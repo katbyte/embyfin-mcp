@@ -128,7 +128,7 @@ Needs no server: it reports what would be registered, not what a server accepts.
 			_, _ = fmt.Fprintf(out, "\ntoolsets: all, %s\n", strings.Join(tools.ToolsetNames(), ", "))
 			_, _ = fmt.Fprintf(out, "families: %s\n", strings.Join(tools.FamilyNames(), ", "))
 			_, _ = fmt.Fprintf(out, "select with --toolsets / EMBYFIN_TOOLSETS; core is always included. "+
-				"Default is %s - use --toolsets all for every tool.\n", strings.Join(DefaultToolsets, ","))
+				"Default is %s - use --toolsets all for every tool; --allow-tools with no --toolsets chooses from every tool.\n", strings.Join(DefaultToolsets, ","))
 
 			return nil
 		},

@@ -14,8 +14,11 @@ import (
 // itemSummary is the trimmed view returned by search/lookup tools — enough to
 // identify an item and judge its quality without the full MediaBrowser payload.
 type itemSummary struct {
-	ID                  string            `json:"id"`
-	Name                string            `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// a path in the film's own language names this, and without it beside
+	// the name the two read as another film
+	OriginalTitle       string            `json:"original_title,omitempty"        jsonschema:"the title in the film's or series' own language, when it is not the name"`
 	Type                string            `json:"type"`
 	Year                int               `json:"year,omitempty"`
 	Series              string            `json:"series,omitempty"`
@@ -30,12 +33,26 @@ type itemSummary struct {
 	qualityFacts
 	Added        string `json:"added,omitempty"         jsonschema:"when the item was added to the library"`
 	FileModified string `json:"file_modified,omitempty" jsonschema:"when the file itself last changed (Emby only); this moves when a download overwrites a path in place, while added does not"`
+	// set by the tools that can tell a film's file names another film: two
+	// films on one id read as one film's copies or versions without it
+	Warning string `json:"warning,omitempty" jsonschema:"set when a file of this entry names another film than the one the entry is matched to: it is probably a different film sharing the id, not a copy or a version of this one"`
+}
+
+// originalIfOther is an item's original title when it says something its
+// name does not.
+func originalIfOther(it *embyfin.Item) string {
+	if strings.EqualFold(strings.TrimSpace(it.OriginalTitle), strings.TrimSpace(it.Name)) {
+		return ""
+	}
+
+	return it.OriginalTitle
 }
 
 func summarise(it *embyfin.Item) itemSummary {
 	return itemSummary{
 		ID:                  it.ID,
 		Name:                it.Name,
+		OriginalTitle:       originalIfOther(it),
 		Type:                it.Type,
 		Year:                it.ProductionYear,
 		Series:              it.SeriesName,
@@ -129,19 +146,25 @@ func registerItemTools(r *registry) {
 	}
 	type getItemOut struct {
 		itemSummary
-		Overview        string      `json:"overview,omitempty"`
-		Genres          []string    `json:"genres"`
-		Tags            []string    `json:"tags"`
-		Studios         []string    `json:"studios"`
-		OfficialRating  string      `json:"official_rating,omitempty"  jsonschema:"the parental rating, e.g. PG-13"`
-		CommunityRating float64     `json:"community_rating,omitempty" jsonschema:"the provider's audience score, out of 10"`
-		People          []personOut `json:"people,omitempty"           jsonschema:"directors, writers, and top-billed cast"`
+		Versions        []versionRow `json:"versions,omitempty"         jsonschema:"every file the server shows the item in, when it shows it in more than one; read warning before keeping one over another"`
+		Overview        string       `json:"overview,omitempty"`
+		Genres          []string     `json:"genres"`
+		Tags            []string     `json:"tags"`
+		Studios         []string     `json:"studios"`
+		OfficialRating  string       `json:"official_rating,omitempty"  jsonschema:"the parental rating, e.g. PG-13"`
+		CommunityRating float64      `json:"community_rating,omitempty" jsonschema:"the provider's audience score, out of 10"`
+		People          []personOut  `json:"people,omitempty"           jsonschema:"directors, writers, and top-billed cast"`
 	}
 	add(r, readTool, &mcp.Tool{
-		Name:        "item_get",
-		Description: "Fetch one library item by id with full quality facts: video/audio/subtitle streams, container, size, runtime, path, metadata provider ids, overview, genres, tags, studios, ratings, and people.",
+		Name: "item_get",
+		Description: "Fetch one library item by id with full quality facts: video/audio/subtitle streams, container, size, runtime, path, metadata provider ids, overview, genres, tags, studios, ratings, and people. " +
+			"An item the server shows in several files lists every version with its own path, runtime and facts. warning says when a film's file names a title the item does not go by (none of its name, original title or sort name) or a year more than one off, with the versions' runtimes when they are far apart: probably a different film matched to this one's ids, not a copy of it. Runtimes far apart alone are no warning: a director's cut runs longer too.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getItemIn) (*mcp.CallToolResult, getItemOut, error) {
 		it, err := client.ItemByID(ctx, in.ID)
+		if err != nil {
+			return nil, getItemOut{}, err
+		}
+		versions, err := versionsOf(ctx, client, it)
 		if err != nil {
 			return nil, getItemOut{}, err
 		}
@@ -149,6 +172,17 @@ func registerItemTools(r *registry) {
 		out := getItemOut{
 			itemSummary: summarise(it), Overview: it.Overview, Genres: it.Genres, Tags: it.TagNames(), Studios: it.StudioNames(),
 			OfficialRating: it.OfficialRating, CommunityRating: math.Round(it.CommunityRating*10) / 10, // the servers' float32, without its noise
+		}
+		shown := *it
+		shown.MediaSources = versions
+		out.Warning = versionWarning(&shown)
+		if len(versions) > 1 {
+			for i := range versions {
+				out.Versions = append(out.Versions, versionRow{
+					ID: versions[i].ItemID, Label: versions[i].Name, Path: versions[i].Path,
+					RuntimeS: int(versions[i].RunTimeTicks / ticksPerSecond), qualityFacts: sourceQuality(&versions[i]),
+				})
+			}
 		}
 		for i, p := range it.People {
 			if i >= 15 {
@@ -202,6 +236,10 @@ func registerItemTools(r *registry) {
 		if err != nil {
 			return nil, similarOut{}, err
 		}
+		// both servers answer an id they do not hold with nothing similar
+		if _, err := client.ItemByID(ctx, in.ID); err != nil {
+			return nil, similarOut{}, err
+		}
 
 		items, err := client.Similar(ctx, in.ID, user.ID, limit)
 		if err != nil {
@@ -217,19 +255,23 @@ func registerItemTools(r *registry) {
 	}
 	type refreshOut struct {
 		Refreshed string `json:"refreshed"`
+		Landed    bool   `json:"landed"         jsonschema:"true once the refresh was seen to save the item; false when it had not within about a minute (queued behind a scan, say): it still runs, and undoes an edit made before it does"`
+		Note      string `json:"note,omitempty"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "item_refresh",
-		Description: "Ask the server to re-fetch metadata and images for one item, filling what is missing (replace_all replaces everything). A library with its metadata fetchers off has nothing to fetch: there a refresh re-reads the files and nfo sidecars, and replace_all is refused. Changes server state.",
+		Name: "item_refresh",
+		Description: "Ask the server to re-fetch metadata and images for one item, filling what is missing (replace_all replaces everything), and wait for the refresh to land: the server runs it a moment after it is asked, and an edit made before it has run is undone by it. landed says whether it was seen to save the item within about a minute; a series' or season's episodes are refreshed after it. " +
+			"A library with its metadata fetchers off has nothing to fetch: there a refresh re-reads the files and nfo sidecars, and replace_all is refused. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in refreshIn) (*mcp.CallToolResult, refreshOut, error) {
+		// read first: an id neither server holds is answered with a bare 400 or 500
+		it, err := client.ItemByID(ctx, in.ID)
+		if err != nil {
+			return nil, refreshOut{}, err
+		}
 		if in.ReplaceAll {
-			it, err := client.ItemByID(ctx, in.ID)
-			if err != nil {
-				return nil, refreshOut{}, err
-			}
-			folder, err := libraryOf(ctx, client, it)
-			if err != nil {
-				return nil, refreshOut{}, err
+			folder, ferr := libraryOf(ctx, client, it)
+			if ferr != nil {
+				return nil, refreshOut{}, ferr
 			}
 			// Jellyfin clears such an item rather than re-reading its files;
 			// Emby re-reads them. Refused on both, so the tool does one thing
@@ -237,11 +279,16 @@ func registerItemTools(r *registry) {
 				return nil, refreshOut{}, fmt.Errorf("the %s library has its metadata fetchers off, so replace_all has nothing to fetch and would clear %s's metadata: refresh without replace_all to re-read its files and nfo, or set fields with item_edit", folder.Name, it.Name)
 			}
 		}
-		if err := client.RefreshItem(ctx, in.ID, in.ReplaceAll); err != nil {
+		landed, err := client.RefreshItem(ctx, in.ID, in.ReplaceAll)
+		if err != nil {
 			return nil, refreshOut{}, err
 		}
+		out := refreshOut{Refreshed: in.ID, Landed: landed}
+		if !landed {
+			out.Note = "the refresh was asked for and not seen to save the item within about a minute: it is still queued (a scan or other refreshes ahead of it) and runs later, undoing any edit made to the item before it does"
+		}
 
-		return nil, refreshOut{Refreshed: in.ID}, nil
+		return nil, out, nil
 	})
 
 	type mixIn struct {
@@ -259,11 +306,17 @@ func registerItemTools(r *registry) {
 		if limit <= 0 {
 			limit = 30
 		}
+		// Emby answers an id it does not hold with an empty mix
+		if _, err := client.ItemByID(ctx, in.ID); err != nil {
+			return nil, mixOut{}, err
+		}
 
 		items, err := client.InstantMix(ctx, in.ID, limit)
 		if err != nil {
 			return nil, mixOut{}, err
 		}
+		// Emby answers a song's mix with more tracks than the limit
+		items = items[:min(len(items), limit)]
 
 		return nil, mixOut{Items: summariseAll(items)}, nil
 	})
@@ -277,6 +330,7 @@ func registerItemTools(r *registry) {
 		PlayCount  int    `json:"play_count,omitempty"`
 		LastPlayed string `json:"last_played,omitempty"`
 		ResumeS    int    `json:"resume_s,omitempty"    jsonschema:"seconds into the item if partially watched"`
+		NoAccess   bool   `json:"no_access,omitempty"   jsonschema:"true for an account that has since lost access to the item's library: what it watched there still counts, as it does in the audit of what nobody has watched"`
 	}
 	type lastWatchedOut struct {
 		Item  string     `json:"item"`
@@ -284,14 +338,21 @@ func registerItemTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "item_last_watched",
-		Description: "Per-user watch state for one item: played, play count, last played date, resume point, for each user who can see it.",
+		Description: "Per-user watch state for one item: played, play count, last played date, resume point, for each user who can see it, and for each account that watched or started it before losing access to its library (no_access), which still counts as watched. An account held back from it by a parental rating is left out.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in lastWatchedIn) (*mcp.CallToolResult, lastWatchedOut, error) {
+		item, err := client.ItemByID(ctx, in.ID)
+		if err != nil {
+			return nil, lastWatchedOut{}, err
+		}
 		users, err := client.Users(ctx)
 		if err != nil {
 			return nil, lastWatchedOut{}, err
 		}
+		// the item's library, read the first time an account cannot see it
+		var folder *embyfin.VirtualFolder
+		folderRead := false
 
-		out := lastWatchedOut{}
+		out := lastWatchedOut{Item: item.Name, Users: []watchRow{}}
 		for _, u := range users {
 			// the single-item read: Emby's lists leave the play count and the
 			// last played date out
@@ -299,20 +360,40 @@ func registerItemTools(r *registry) {
 			if err != nil {
 				return nil, lastWatchedOut{}, err
 			}
+			lost := false
 			if !seen {
-				continue // a user who cannot see the item
+				// an account that lost access to the library still watched
+				// what it watched there, and audit_unwatched counts it; one
+				// held back by a parental rating is left out, as there
+				if !folderRead && item.Path != "" {
+					if folder, err = libraryOf(ctx, client, item); err != nil {
+						return nil, lastWatchedOut{}, err
+					}
+					folderRead = true
+				}
+				if folder == nil || u.CanSee(folder) {
+					continue
+				}
+				if it, err = watchedOutOfView(ctx, client, &u, folder, in.ID); err != nil {
+					return nil, lastWatchedOut{}, err
+				}
+				lost = true
 			}
-
-			out.Item = it.Name
-			if ud := it.UserData; ud != nil {
-				out.Users = append(out.Users, watchRow{
-					User:       u.Name,
-					Played:     ud.Played,
-					PlayCount:  ud.PlayCount,
-					LastPlayed: ud.LastPlayedDate,
-					ResumeS:    int(ud.PlaybackPositionTicks / ticksPerSecond),
-				})
+			ud := (*embyfin.UserData)(nil)
+			if it != nil {
+				ud = it.UserData
 			}
+			if ud == nil || lost && !ud.Played && ud.PlayCount == 0 && ud.PlaybackPositionTicks == 0 {
+				continue // nothing watched, by an account that cannot see it
+			}
+			out.Users = append(out.Users, watchRow{
+				User:       u.Name,
+				Played:     ud.Played,
+				PlayCount:  ud.PlayCount,
+				LastPlayed: ud.LastPlayedDate,
+				ResumeS:    int(ud.PlaybackPositionTicks / ticksPerSecond),
+				NoAccess:   lost,
+			})
 		}
 
 		return nil, out, nil
@@ -420,13 +501,14 @@ func registerItemTools(r *registry) {
 	}
 	type deleteOut struct {
 		Deleted string        `json:"deleted"`
-		Removed []removedPath `json:"removed"        jsonschema:"every file and folder the delete took off the server's disk, read before and after it: a film alone in its folder takes the whole folder (its nfo, artwork, subtitles, extras and every version), as a series or season does; an episode, or a film sharing its folder, takes its files and the ones named after them"`
+		Removed []removedPath `json:"removed"        jsonschema:"every file and folder the delete took off the server's disk, read before and after it: a film alone in its folder takes the whole folder (its nfo, artwork, subtitles, extras and every version), as a series or season does; an episode, or a film sharing its folder, takes its files and every nfo, subtitle and image whose name begins with its file's name, another item's included"`
 		Note    string        `json:"note,omitempty"`
 	}
 	add(r, deleteTool, &mcp.Tool{
 		Name: "item_delete",
-		Description: "PERMANENTLY delete an item AND its media from disk. Irreversible. The server takes more than the item's own file: a film alone in its folder goes with the whole folder (nfo, artwork, subtitles, extras, every version), a series or season with its folder, an episode or a film sharing its folder with the files named after it. " +
-			"Without confirm=true it refuses, saying what it would remove; with it, the answer lists every path removed.",
+		Description: "PERMANENTLY delete an item AND its media from disk. Irreversible. The server takes more than the item's own file: a film alone in its folder goes with the whole folder (nfo, artwork, subtitles, extras, every version), and a series or season with its folder. " +
+			"An episode, or a film sharing its folder, goes with every nfo, subtitle and image whose name begins with its file's name, ignoring case and whatever follows - another item's too: deleting Alien.mkv from a folder it shares with Aliens.mkv also deletes Aliens.nfo, Aliens' subtitles and its poster (never Aliens.mkv itself). " +
+			"Without confirm=true it refuses, saying what it would remove and which of those belong to another item; with it, the answer lists every path removed.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
 		it, err := client.ItemByID(ctx, in.ID)
 		if err != nil {

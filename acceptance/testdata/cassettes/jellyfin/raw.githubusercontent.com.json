@@ -282,6 +282,34 @@
       "elided_size": 54833
     },
     {
+      "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/images/New Line Cinema/thumb.jpg",
+      "method": "GET",
+      "host": "raw.githubusercontent.com",
+      "path": "/jellyfin/emby-artwork/master/studios/images/New Line Cinema/thumb.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "max-age=300",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        "Content-Type": "image/jpeg",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Source-Age": "0",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Vary": "Authorization,Accept-Encoding",
+        "Via": "1.1 varnish",
+        "X-Content-Type-Options": "nosniff",
+        "X-Fastly-Request-Id": "74040c7a85a2986830a31ded7eed328a2fdc04b6",
+        "X-Frame-Options": "deny",
+        "X-Github-Edge-Region": "iad",
+        "X-Github-Request-Id": "C834:3EFF48:24303:496D5:6AB592D4",
+        "X-Xss-Protection": "1; mode=block"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 42591
+    },
+    {
       "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/images/Nippon Television Network Corporation/thumb.jpg",
       "method": "GET",
       "host": "raw.githubusercontent.com",
@@ -559,6 +587,34 @@
       "elided_size": 67311
     },
     {
+      "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/images/The Saul Zaentz Company/thumb.jpg",
+      "method": "GET",
+      "host": "raw.githubusercontent.com",
+      "path": "/jellyfin/emby-artwork/master/studios/images/The Saul Zaentz Company/thumb.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "max-age=300",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        "Content-Type": "image/jpeg",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Source-Age": "0",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Vary": "Authorization,Accept-Encoding",
+        "Via": "1.1 varnish",
+        "X-Content-Type-Options": "nosniff",
+        "X-Fastly-Request-Id": "ee311c4f42eb7e7ac32b330a52d744dbd6f1259a",
+        "X-Frame-Options": "deny",
+        "X-Github-Edge-Region": "iad",
+        "X-Github-Request-Id": "F778:3021FB:EEFFA:20FB0A:6AB5ECED",
+        "X-Xss-Protection": "1; mode=block"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 35639
+    },
+    {
       "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/images/Tokuma Shoten/thumb.jpg",
       "method": "GET",
       "host": "raw.githubusercontent.com",
@@ -641,6 +697,34 @@
       "elided": true,
       "elided_type": "image/jpeg",
       "elided_size": 140771
+    },
+    {
+      "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/images/WingNut Films/thumb.jpg",
+      "method": "GET",
+      "host": "raw.githubusercontent.com",
+      "path": "/jellyfin/emby-artwork/master/studios/images/WingNut Films/thumb.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "max-age=300",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        "Content-Type": "image/jpeg",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Source-Age": "0",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Vary": "Authorization,Accept-Encoding",
+        "Via": "1.1 varnish",
+        "X-Content-Type-Options": "nosniff",
+        "X-Fastly-Request-Id": "fad67ae548a21c44d8840ee71acf59cf4ee99e47",
+        "X-Frame-Options": "deny",
+        "X-Github-Edge-Region": "iad",
+        "X-Github-Request-Id": "F134:1ABE3F:FC176:21CBB3:6AB5ECED",
+        "X-Xss-Protection": "1; mode=block"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 47845
     },
     {
       "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/thumbs.txt",

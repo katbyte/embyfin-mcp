@@ -116,7 +116,7 @@ func sortMissing(rows []missingRow) []missingRow {
 // can, it says so rather than answering with an empty list - see
 // missingOut.Supported.
 func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide, seriesID string, unaired bool) (missingOut, error) {
-	series, err := client.ItemByID(ctx, seriesID)
+	series, err := seriesByID(ctx, client, seriesID)
 	if err != nil {
 		return missingOut{}, err
 	}
@@ -308,12 +308,48 @@ func resolveSeriesRef(ctx context.Context, r *registry, ref, library string) (*e
 		return item, match, nil
 	}
 	if folder == nil {
-		if it, ierr := r.client.ItemByID(ctx, ref); ierr == nil && it.Type == "Series" {
+		it, ierr := r.client.ItemByID(ctx, ref)
+		switch {
+		case ierr == nil && it.Type == "Series":
 			return it, nil, nil
+		case ierr == nil:
+			// the id of something else: say what, beside the name that matched nothing
+			return nil, nil, fmt.Errorf("%w; and as an id, %w", err, notASeries(it))
 		}
 	}
 
 	return nil, nil, err
+}
+
+// seriesByID reads the series an id names, and refuses an id that names
+// something else, saying what: a film's id read as a series' had its TMDB
+// number asked of TMDB's series list and reported an unrelated show's gaps,
+// and an episode's listed nothing under it.
+func seriesByID(ctx context.Context, client *embyfin.Client, id string) (*embyfin.Item, error) {
+	it, err := client.ItemByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if it.Type != "Series" {
+		return nil, notASeries(it)
+	}
+
+	return it, nil
+}
+
+// notASeries is the refusal of an id that names something other than a
+// series: what it names, and the series' id when it belongs to one.
+func notASeries(it *embyfin.Item) error {
+	switch it.Type {
+	case typeMovie:
+		return fmt.Errorf("%s is a film, %s (%d), not a series: give a series' id (library_items with types Series lists them)", it.ID, it.Name, it.ProductionYear)
+	case typeEpisode:
+		return fmt.Errorf("%s is an episode, %s, not a series: its series is %s, id %s", it.ID, episodeOrItemName(it), it.SeriesName, it.SeriesID)
+	case "Season":
+		return fmt.Errorf("%s is a season, %s of %s, not a series: its series' id is %s", it.ID, it.Name, it.SeriesName, it.SeriesID)
+	}
+
+	return fmt.Errorf("%s is a %s, %s, not a series: give a series' id (library_items with types Series lists them)", it.ID, cmp.Or(it.Type, "item"), it.Name)
 }
 
 // resolveSeriesMatch finds the series a tool was pointed at: by id, or by
@@ -330,7 +366,7 @@ func resolveSeriesRef(ctx context.Context, r *registry, ref, library string) (*e
 func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library string) (*embyfin.Item, *seriesCandidate, error) {
 	client := r.client
 	if id != "" {
-		item, err := client.ItemByID(ctx, id)
+		item, err := seriesByID(ctx, client, id)
 
 		return item, nil, err
 	}
@@ -483,7 +519,7 @@ func registerShowTools(r *registry) {
 		Name:        "show_seasons",
 		Description: "List a series' seasons, each with its number (0 for the specials). A season's episodes come from library_episodes, with series and season.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in seasonsIn) (*mcp.CallToolResult, seasonsOut, error) {
-		series, err := client.ItemByID(ctx, in.SeriesID)
+		series, err := seriesByID(ctx, client, in.SeriesID)
 		if err != nil {
 			return nil, seasonsOut{}, err
 		}

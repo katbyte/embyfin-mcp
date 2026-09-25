@@ -12,6 +12,9 @@ type ImageInfo struct {
 	Width     int    `json:"Width,omitempty"`
 	Height    int    `json:"Height,omitempty"`
 	Size      int64  `json:"Size,omitempty"`
+	// Path is the image's file: beside the media (poster.jpg in a film's
+	// folder) or in the server's own metadata folder
+	Path string `json:"Path,omitempty"`
 }
 
 // Images lists the images an item currently has.

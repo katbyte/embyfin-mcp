@@ -315,6 +315,9 @@ type GetMusicGenresInstantMixOperationOptions struct {
 
 	// Optional filter by items whose name is equally or lesser than a given input string.
 	NameLessThan string
+
+	// The music genre the mix is made from
+	Id string
 }
 
 // ToHeaders returns the header parameters the options set.
@@ -622,6 +625,9 @@ func (o GetMusicGenresInstantMixOperationOptions) ToQuery() *client.QueryParams 
 	}
 	if o.NameLessThan != "" {
 		out.Append("NameLessThan", o.NameLessThan)
+	}
+	if o.Id != "" {
+		out.Append("Id", o.Id)
 	}
 	return &out
 }

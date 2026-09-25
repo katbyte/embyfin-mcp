@@ -1,10 +1,47 @@
 package tools
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
+
+// adminView answers what an Emby tool reads in the first administrator's
+// view from the fake's own library: the account, u1, an administrator who
+// sees every library; the list in its view, which is the library's own list
+// with no version merged away; and the single read of an item, which is that
+// list's answer for its id.
+func adminView(t *testing.T, f *fakeServer) {
+	t.Helper()
+
+	f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"Items": []any{map[string]any{"Id": "u1", "Name": "Quux", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}}}, "TotalRecordCount": 1})
+	})
+	f.mux.HandleFunc("GET /Users/u1/Items", func(w http.ResponseWriter, r *http.Request) {
+		view := r.Clone(r.Context())
+		view.URL.Path = "/Items"
+		f.mux.ServeHTTP(w, view)
+	})
+	f.mux.HandleFunc("GET /Users/u1/Items/{id}", func(w http.ResponseWriter, r *http.Request) {
+		list := r.Clone(r.Context())
+		list.URL.Path, list.URL.RawQuery = "/Items", url.Values{"Ids": {r.PathValue("id")}}.Encode()
+		rec := httptest.NewRecorder()
+		f.mux.ServeHTTP(rec, list)
+		var page struct{ Items []map[string]any }
+		_ = json.Unmarshal(rec.Body.Bytes(), &page)
+		for _, it := range page.Items {
+			if it["Id"] == r.PathValue("id") {
+				writeJSON(t, w, it)
+
+				return
+			}
+		}
+		http.NotFound(w, r)
+	})
+}
 
 // Emby merges two files of one film into one item with two versions, but
 // only in a user's view: a sweep of /Items holds each file as an item of its

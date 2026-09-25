@@ -35,6 +35,15 @@
           "Type": {
             "Type": "Integer64"
           }
+        },
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user the stream is for",
+          "Type": {
+            "Type": "String"
+          }
         }
       ],
       "Response": {
@@ -86,6 +95,15 @@
           "Description": "Optional. Specify a starting offset, in ticks. 1ms = 10000 ticks.",
           "Type": {
             "Type": "Integer64"
+          }
+        },
+        {
+          "Name": "UserId",
+          "Field": "UserId",
+          "In": "Query",
+          "Description": "The user the stream is for",
+          "Type": {
+            "Type": "String"
           }
         }
       ],

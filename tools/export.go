@@ -63,7 +63,7 @@ func registerExportTool(r *registry) {
 
 		opts := embyfin.SearchOptions{IncludeItemTypes: types, SortBy: episodeSweepSort, SortOrder: "Ascending", SavedSince: in.SavedSince}
 		if !episodes {
-			opts.SortBy = "SortName"
+			opts.SortBy = "SortName,ProductionYear,DateCreated"
 		}
 		if episodes && !needsMediaSources(keep) {
 			opts.Fields = "Path,DateCreated,DateModified"

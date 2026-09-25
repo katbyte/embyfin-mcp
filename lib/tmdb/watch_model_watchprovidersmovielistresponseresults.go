@@ -4,9 +4,9 @@ package tmdb
 
 // WatchProvidersMovieListResponseResults is an object the document declares inline.
 type WatchProvidersMovieListResponseResults struct {
-	DisplayPriorities *WatchProvidersMovieListResponseResultsDisplayPriorities `json:"display_priorities,omitempty"`
-	DisplayPriority   int                                                      `json:"display_priority,omitempty"`
-	LogoPath          string                                                   `json:"logo_path,omitempty"`
-	ProviderId        int                                                      `json:"provider_id,omitempty"`
-	ProviderName      string                                                   `json:"provider_name,omitempty"`
+	DisplayPriorities map[string]int `json:"display_priorities,omitzero"`
+	DisplayPriority   int            `json:"display_priority,omitempty"`
+	LogoPath          string         `json:"logo_path,omitempty"`
+	ProviderId        int            `json:"provider_id,omitempty"`
+	ProviderName      string         `json:"provider_name,omitempty"`
 }

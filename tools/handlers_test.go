@@ -271,14 +271,15 @@ func TestAuditProviderRuntimePages(t *testing.T) {
 		t.Errorf("the sweep did not scope to the library: %s", q)
 	}
 
-	// two lookups per call: Alien and Arrival, then continue from the third
+	// two lookups per call: the films in name order, so Alien and Arrival,
+	// then continue from the third, Blade Runner
 	out = mustCall(t, cs, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime", "max_lookups": 2})
 	if got := number(t, out["total_findings"], "total_findings"); got != 1 {
 		t.Errorf("first page total_findings = %v, want 1 (Arrival)", got)
 	}
 	next := number(t, out["next_offset"], "next_offset")
-	if next != 3 {
-		t.Fatalf("next_offset = %v, want 3", next)
+	if next != 2 {
+		t.Fatalf("next_offset = %v, want 2", next)
 	}
 	out = mustCall(t, cs, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime", "offset": next})
 	if got := number(t, out["total_findings"], "total_findings"); got != 1 {

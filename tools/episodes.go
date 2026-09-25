@@ -116,7 +116,7 @@ type qualityFacts struct {
 	// the stored frame is not always the shape the picture is shown at:
 	// a DVD rip is 720x480 or 720x576 whether it is 4:3 or an anamorphic
 	// 16:9, and only the ratio the file states tells which
-	AspectRatio  string       `json:"aspect_ratio,omitempty"  jsonschema:"the shape the picture is shown at, as the file states it (16:9, 4:3); absent when the file does not say, which on a DVD-sized frame means the shape is not known"`
+	AspectRatio  string       `json:"aspect_ratio,omitempty"  jsonschema:"the shape the picture is shown at, as the file states it (16:9, 4:3, or 1.78:1 as a decimal against 1); absent when the file does not say, which on a DVD-sized frame means the shape is not known"`
 	DisplayWidth int          `json:"display_width,omitempty" jsonschema:"the width the picture is shown at when that differs from width: an anamorphic 720x480 16:9 DVD shows at 853x480"`
 	VideoCodec   string       `json:"video_codec,omitempty"`
 	FrameRate    float64      `json:"frame_rate,omitempty"    jsonschema:"frames per second. The one fact a release cannot inflate: a scripted show at 59.94 or 60 was interpolated from a 23.976 master, because no broadcast or disc master of one ships at 60p. Read it beside the resolution - 2160p at 23.976 is plausibly a remaster, 2160p at 59.94 is machine-made"`
@@ -459,8 +459,10 @@ const (
 
 // episodeSweepSort is the order a bulk read answers in: by series, then by
 // season and episode within it. It has to be total and stable, or a page
-// boundary would drop or repeat rows between calls.
-const episodeSweepSort = "SeriesSortName,ParentIndexNumber,IndexNumber,SortName"
+// boundary would drop or repeat rows between calls, so it ends in when each
+// was added: a show held twice has two of every episode, alike in every key
+// before that. Neither server sorts by anything that tells every item apart.
+const episodeSweepSort = "SeriesSortName,ParentIndexNumber,IndexNumber,SortName,DateCreated"
 
 // Asking whether the library holds particular episodes.
 //
@@ -728,7 +730,7 @@ func registerEpisodeTools(r *registry) {
 			if in.Library != "" {
 				return nil, exportOut{}, errors.New("give library or series_id, not both: a series is already in one library")
 			}
-			if series, err = client.ItemByID(ctx, in.SeriesID); err != nil {
+			if series, err = seriesByID(ctx, client, in.SeriesID); err != nil {
 				return nil, exportOut{}, err
 			}
 			opts.ParentID = series.ID

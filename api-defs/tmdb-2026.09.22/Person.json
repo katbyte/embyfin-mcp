@@ -555,7 +555,7 @@
           "Name": "Value",
           "JsonName": "value",
           "Type": {
-            "Type": "String"
+            "Type": "Any"
           }
         }
       ]

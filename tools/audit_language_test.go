@@ -101,7 +101,9 @@ func TestCheckLanguage(t *testing.T) {
 func TestAuditLanguage(t *testing.T) {
 	t.Parallel()
 
-	cs := session(t, tvServer(t, showLibrary(2, 1, 2)...), Options{})
+	f := tvServer(t, showLibrary(2, 1, 2)...)
+	adminView(t, f) // the library as people are shown it
+	cs := session(t, f, Options{})
 
 	english := mustCall(t, cs, "audit_language", map[string]any{"language": "en"})
 	if n := number(t, english["total_findings"], "total_findings"); n != 4 {
@@ -159,6 +161,7 @@ func TestAuditLanguageLeavesOutWhatItKnowsNothingAbout(t *testing.T) {
 			{"Id": "4", "Name": "Not Held", "Type": "Episode", "SeriesName": "Zzyzx Show", "LocationType": "Virtual"},
 		}})
 	})
+	adminView(t, f)
 	cs := session(t, f, Options{})
 
 	for _, find := range []string{findNoAudio, findUnwatchable} {

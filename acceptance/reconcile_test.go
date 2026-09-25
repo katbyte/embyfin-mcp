@@ -19,6 +19,9 @@ func TestShowEpisodesExistQuality(t *testing.T) {
 
 	out := call(t, "show_episodes_exist", map[string]any{"series_id": sev, "episodes": ask, "quality": true})
 	answers := rows(t, out["episodes"], "episodes")
+	if len(answers) != 2 {
+		t.Fatalf("asked after 2 episodes, answered %v", answers)
+	}
 	hit, miss := answers[0], answers[1]
 	assertQualityFacts(t, hit)
 	if fps, _ := hit["frame_rate"].(float64); fps < 4.9 || fps > 5.1 {
@@ -43,7 +46,11 @@ func TestShowEpisodesExistQuality(t *testing.T) {
 	// asked for particular facts, only those come back - and asking for them
 	// is asking for the facts, without quality as well
 	narrow := call(t, "show_episodes_exist", map[string]any{"series_id": sev, "episodes": ask, "fields": []string{"height", "frame_rate"}})
-	row := rows(t, narrow["episodes"], "episodes")[0]
+	narrowed := rows(t, narrow["episodes"], "episodes")
+	if len(narrowed) != 2 {
+		t.Fatalf("asked after 2 episodes, answered %v", narrowed)
+	}
+	row := narrowed[0]
 	if num(t, row["height"], "height") <= 0 || row["frame_rate"] == nil {
 		t.Errorf("the fields asked for are missing: %v", row)
 	}
@@ -81,7 +88,7 @@ func TestShowEpisodesExistBatch(t *testing.T) {
 		}
 	}
 	for _, i := range []int{1, 3} {
-		if rows(t, groups[i]["episodes"], "episodes")[0]["exists"] != true {
+		if got := rows(t, groups[i]["episodes"], "episodes"); len(got) != 1 || got[0]["exists"] != true {
 			t.Errorf("%s: %v", groups[i]["series"], groups[i])
 		}
 	}
@@ -93,6 +100,32 @@ func TestShowEpisodesExistBatch(t *testing.T) {
 	}
 	if num(t, out["absent"], "absent") != 1 {
 		t.Errorf("absent across the batch = %v, want 1", out["absent"])
+	}
+
+	// each query its own library, a name two series share failing on its
+	// own row, and the facts on every hit in the batch
+	out = call(t, "show_episodes_exist", map[string]any{"quality": true, "queries": []map[string]any{
+		{"series": "Severance", "library": "Messy Shows", "episodes": []map[string]any{{"season": 1, "episode": 3}}},
+		{"series": "Severance", "episodes": []map[string]any{{"season": 1, "episode": 1}}},
+		{"series": "Severance", "library": "Shows", "episodes": []map[string]any{{"season": 1, "episode": 3}, {"season": 2, "episode": 2}}},
+	}})
+	groups = rows(t, out["results"], "results")
+	if len(groups) != 3 {
+		t.Fatalf("asked after 3 series, answered %v", groups)
+	}
+	messy := findItem(t, "Messy Shows", "Series", "Severance")
+	if got := rows(t, groups[0]["episodes"], "episodes"); str(groups[0]["series_id"]) != messy || len(got) != 1 || got[0]["exists"] != true || num(t, got[0]["height"], "height") != 360 {
+		t.Errorf("Severance in Messy Shows = %v, want the messy copy's 360p S01E03", groups[0])
+	}
+	if msg := str(groups[1]["error"]); !strings.Contains(msg, "matches 2 series") || len(rows(t, groups[1]["episodes"], "episodes")) != 0 {
+		t.Errorf("Severance in every library = %v, want refused naming both", groups[1])
+	}
+	got := rows(t, groups[2]["episodes"], "episodes")
+	if str(groups[2]["series_id"]) != sev || len(got) != 2 || got[0]["exists"] != false || got[0]["height"] != nil || got[1]["exists"] != true || num(t, got[1]["height"], "height") != 720 {
+		t.Errorf("Severance in Shows = %v, want S01E03 missing and a 720p S02E02", groups[2])
+	}
+	if num(t, out["absent"], "absent") != 1 || num(t, groups[2]["absent"], "absent") != 1 || num(t, groups[1]["absent"], "absent") != 0 {
+		t.Errorf("absent = %v, per group %v %v %v", out["absent"], groups[0]["absent"], groups[1]["absent"], groups[2]["absent"])
 	}
 
 	if msg := callErr(t, "show_episodes_exist", map[string]any{
@@ -174,7 +207,7 @@ func TestShowEpisodesExistDuplicates(t *testing.T) {
 
 	// the messy copy holds S01E03 and the tidy one does not
 	absent := call(t, "show_episodes_exist", map[string]any{"series_id": tidy, "episodes": []map[string]any{{"season": 1, "episode": 3}}})
-	if rows(t, absent["episodes"], "episodes")[0]["exists"] != false {
+	if got := rows(t, absent["episodes"], "episodes"); len(got) != 1 || got[0]["exists"] != false {
 		t.Fatalf("the tidy copy holds S01E03? %v", absent)
 	}
 	if w := str(absent["warning"]); !strings.Contains(w, messy) || !strings.Contains(w, "not proof") {
@@ -193,6 +226,9 @@ func TestLibraryEpisodesShapes(t *testing.T) {
 	sev := findItem(t, "Shows", "Series", "Severance")
 
 	lean := call(t, "library_episodes", map[string]any{"series_id": sev, "quality": false})
+	if n := len(rows(t, lean["episodes"], "episodes")); n != 4 {
+		t.Errorf("the lean read = %d rows, want Severance's 4", n)
+	}
 	for _, row := range rows(t, lean["episodes"], "episodes") {
 		if row["path"] != nil || row["width"] != nil {
 			t.Errorf("quality=false carried the path or the facts: %v", row)
@@ -203,6 +239,9 @@ func TestLibraryEpisodesShapes(t *testing.T) {
 	}
 
 	narrow := call(t, "library_episodes", map[string]any{"series_id": sev, "fields": []string{"frame_rate", "audio"}})
+	if n := len(rows(t, narrow["episodes"], "episodes")); n != 4 {
+		t.Errorf("the narrowed read = %d rows, want Severance's 4", n)
+	}
 	for _, row := range rows(t, narrow["episodes"], "episodes") {
 		if row["frame_rate"] == nil || len(rows(t, row["audio"], "audio")) != 1 {
 			t.Errorf("the fields asked for are missing: %v", row)

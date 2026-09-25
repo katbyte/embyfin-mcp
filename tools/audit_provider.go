@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -58,14 +59,15 @@ func checkMovieIDs(ctx context.Context, provider *tmdb.Facts, tmdbID, imdbID str
 
 // providerAuditIn is audit_provider's input.
 type providerAuditIn struct {
-	Library      string `json:"library,omitempty"           jsonschema:"one library by name or id; default every library"`
-	Types        string `json:"types,omitempty"             jsonschema:"what to check; Movie is the only kind yet, and the default"`
-	Provider     string `json:"provider,omitempty"          jsonschema:"the provider to ask: tmdb is the only one yet, and the default"`
-	Checks       string `json:"checks,omitempty"            jsonschema:"comma-separated: ids (the ids the film holds agree with each other and exist), runtime (the file's runtime against the provider's); default both"`
-	TolerancePct int    `json:"tolerance_percent,omitempty" jsonschema:"runtime: flag when the file differs from the provider's runtime by more than this percent, default 20"`
-	Limit        int    `json:"limit,omitempty"             jsonschema:"maximum findings, default 50"`
-	MaxLookups   int    `json:"max_lookups,omitempty"       jsonschema:"films to ask the provider about in this call, default 250"`
-	Offset       int    `json:"offset,omitempty"            jsonschema:"where to go on from: a previous call's next_offset"`
+	Library      string   `json:"library,omitempty"           jsonschema:"one library by name or id; default every library"`
+	IDs          []string `json:"ids,omitempty"               jsonschema:"only these films, by id: a handful checked without sweeping a library"`
+	Types        string   `json:"types,omitempty"             jsonschema:"what to check; Movie is the only kind yet, and the default"`
+	Provider     string   `json:"provider,omitempty"          jsonschema:"the provider to ask: tmdb is the only one yet, and the default"`
+	Checks       string   `json:"checks,omitempty"            jsonschema:"comma-separated: ids (the ids the film holds agree with each other and exist), runtime (the file's runtime against the provider's); default both"`
+	TolerancePct int      `json:"tolerance_percent,omitempty" jsonschema:"runtime: flag when the file differs from the provider's runtime by more than this percent, default 20"`
+	Limit        int      `json:"limit,omitempty"             jsonschema:"maximum findings, default 50"`
+	MaxLookups   int      `json:"max_lookups,omitempty"       jsonschema:"films to ask the provider about in this call, default 250"`
+	Offset       int      `json:"offset,omitempty"            jsonschema:"where to go on from: a previous call's next_offset"`
 }
 
 type providerFinding struct {
@@ -93,7 +95,7 @@ func registerProviderCheckAudit(r *registry) {
 	provider := tmdbFacts(r.opts)
 
 	desc := "Check films against their metadata provider, one request a film: the ids the film holds agree with each other and exist there (a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, an IMDb id that is a series or an episode rather than a film), and the file's runtime is the provider's (a truncated download, a wrong file, a wrong match). " +
-		"The item reads as matched on the server either way. Paged: pass next_offset back as offset to go on. TMDB is the only provider yet, and films the only kind."
+		"The item reads as matched on the server either way. Paged, every film once in the same order on every call: pass next_offset back as offset to go on; ids checks a handful of films without a sweep. TMDB is the only provider yet, and films the only kind."
 	if provider == nil {
 		desc += " Disabled: set EMBYFIN_TMDB_TOKEN to enable."
 	}
@@ -151,84 +153,100 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 	if tolerance <= 0 {
 		tolerance = defaultRuntimeTolerancePct
 	}
-	folder, err := resolveLibrary(ctx, client, in.Library)
-	if err != nil {
-		return providerAuditOut{}, err
-	}
-	parent := ""
-	if folder != nil {
-		parent = folder.ItemID
-	}
-
-	out := providerAuditOut{Findings: []providerFinding{}, ByCheck: map[string]int{}}
-	lookups := 0
-	for start := max(in.Offset, 0); ; start += moviePage {
-		items, total, err := client.Search(ctx, embyfin.SearchOptions{
-			IncludeItemTypes: "Movie", ParentID: parent, Fields: "Path,ProviderIds,ProductionYear",
-			SortBy: "SortName", SortOrder: "Ascending", StartIndex: start, Limit: moviePage,
-		})
+	opts := embyfin.SearchOptions{IncludeItemTypes: "Movie", Fields: "Path,ProviderIds,ProductionYear,SortName"}
+	if ids := nonEmpty(in.IDs); len(ids) > 0 {
+		if in.Library != "" {
+			return providerAuditOut{}, errors.New("give library or ids, not both: a film is already in one library")
+		}
+		opts.IDs = strings.Join(ids, ",")
+	} else {
+		folder, err := resolveLibrary(ctx, client, in.Library)
 		if err != nil {
 			return providerAuditOut{}, err
 		}
-		for i := range items {
-			it := &items[i]
-			tmdbID, imdbID := providerID(it, "tmdb"), providerID(it, "imdb")
-			if tmdbID != "" || imdbID != "" {
-				if lookups >= maxLookups {
-					out.NextOffset = start + i
-
-					return out, nil
-				}
-				lookups++
-			}
-			out.Scanned++
-			if tmdbID == "" && imdbID == "" {
-				continue
-			}
-
-			var problems []string
-			if want["ids"] {
-				detail, err := checkMovieIDs(ctx, provider, tmdbID, imdbID)
-				if err != nil {
-					return providerAuditOut{}, err
-				}
-				if detail != "" {
-					problems = append(problems, "ids: "+detail)
-				}
-			}
-			// the same record the ids came from: one request a film
-			if want["runtime"] && tmdbID != "" && it.RunTimeTicks > 0 {
-				expected, err := provider.MovieRuntime(ctx, tmdbID)
-				if err != nil {
-					return providerAuditOut{}, err
-				}
-				if pct, off := runtimeOff(it.RuntimeMinutes(), expected, tolerance); off {
-					problems = append(problems, fmt.Sprintf("runtime: file %d min, TMDB says %d min (%d%% off)", it.RuntimeMinutes(), expected, pct))
-				}
-			}
-			if len(problems) == 0 {
-				continue
-			}
-			out.Found++
-			for _, p := range problems {
-				out.ByCheck[strings.SplitN(p, ":", 2)[0]]++
-			}
-			if len(out.Findings) < limit {
-				var holds []string
-				if tmdbID != "" {
-					holds = append(holds, "tmdb:"+tmdbID)
-				}
-				if imdbID != "" {
-					holds = append(holds, "imdb:"+imdbID)
-				}
-				out.Findings = append(out.Findings, providerFinding{
-					ID: it.ID, Name: it.Name, Year: it.ProductionYear, Path: it.Path,
-					Holds: strings.Join(holds, " "), Problems: problems,
-				})
-			}
-		}
-		if len(items) < moviePage || start+len(items) >= total {
-			return out, nil
+		if folder != nil {
+			opts.ParentID = folder.ItemID
 		}
 	}
+
+	// every film, in an order this makes itself: by sort name and then by
+	// id. The servers' own sort by name leaves two films of one name (a
+	// remake, a second copy) in either order, and paged by offset one of
+	// them was asked about twice and the other never; neither server sorts
+	// by anything that tells every film apart
+	var films []embyfin.Item
+	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+		films = append(films, items...)
+
+		return true
+	}); err != nil {
+		return providerAuditOut{}, err
+	}
+	slices.SortFunc(films, func(a, b embyfin.Item) int {
+		return cmp.Or(strings.Compare(strings.ToLower(cmp.Or(a.SortName, a.Name)), strings.ToLower(cmp.Or(b.SortName, b.Name))), strings.Compare(a.ID, b.ID))
+	})
+
+	out := providerAuditOut{Findings: []providerFinding{}, ByCheck: map[string]int{}}
+	lookups := 0
+	start := min(max(in.Offset, 0), len(films))
+	items := films[start:]
+	for i := range items {
+		it := &items[i]
+		tmdbID, imdbID := providerID(it, "tmdb"), providerID(it, "imdb")
+		if tmdbID != "" || imdbID != "" {
+			if lookups >= maxLookups {
+				out.NextOffset = start + i
+
+				return out, nil
+			}
+			lookups++
+		}
+		out.Scanned++
+		if tmdbID == "" && imdbID == "" {
+			continue
+		}
+
+		var problems []string
+		if want["ids"] {
+			detail, err := checkMovieIDs(ctx, provider, tmdbID, imdbID)
+			if err != nil {
+				return providerAuditOut{}, err
+			}
+			if detail != "" {
+				problems = append(problems, "ids: "+detail)
+			}
+		}
+		// the same record the ids came from: one request a film
+		if want["runtime"] && tmdbID != "" && it.RunTimeTicks > 0 {
+			expected, err := provider.MovieRuntime(ctx, tmdbID)
+			if err != nil {
+				return providerAuditOut{}, err
+			}
+			if pct, off := runtimeOff(it.RuntimeMinutes(), expected, tolerance); off {
+				problems = append(problems, fmt.Sprintf("runtime: file %d min, TMDB says %d min (%d%% off)", it.RuntimeMinutes(), expected, pct))
+			}
+		}
+		if len(problems) == 0 {
+			continue
+		}
+		out.Found++
+		for _, p := range problems {
+			out.ByCheck[strings.SplitN(p, ":", 2)[0]]++
+		}
+		if len(out.Findings) < limit {
+			var holds []string
+			if tmdbID != "" {
+				holds = append(holds, "tmdb:"+tmdbID)
+			}
+			if imdbID != "" {
+				holds = append(holds, "imdb:"+imdbID)
+			}
+			out.Findings = append(out.Findings, providerFinding{
+				ID: it.ID, Name: it.Name, Year: it.ProductionYear, Path: it.Path,
+				Holds: strings.Join(holds, " "), Problems: problems,
+			})
+		}
+	}
+
+	return out, nil
 }

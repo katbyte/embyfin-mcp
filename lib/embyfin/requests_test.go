@@ -257,8 +257,10 @@ func TestEmbyNullResults(t *testing.T) {
 	if edited {
 		t.Error("EditItem handed its edit an item the server does not have")
 	}
-	if it, seen, err := c.VisibleUserItem(ctx, "u1", "42"); err != nil || seen || it != nil {
-		t.Errorf("VisibleUserItem = %v, %v, %v, want not seen", it, seen, err)
+	// nor does the library have it: an id nothing has is an error, not an
+	// item the user cannot see
+	if it, seen, err := c.VisibleUserItem(ctx, "u1", "42"); err == nil || !strings.Contains(err.Error(), "no item with id 42") || seen || it != nil {
+		t.Errorf("VisibleUserItem = %v, %v, %v, want no item with id 42", it, seen, err)
 	}
 
 	// what has no answer to fall back on is an error rather than a zero
@@ -289,8 +291,10 @@ func TestSearchEmby(t *testing.T) {
 		t.Fatal(err)
 	}
 	q := f.only("GET /Items").query
-	// the item queries' SearchTerm comes from the emby-search-term workaround
-	for k, want := range map[string]string{"Recursive": "true", "Fields": FieldsDefault, "SearchTerm": "ali", "IncludeItemTypes": "Movie", "Limit": "1", "EnableUserData": "true"} {
+	// the item queries' SearchTerm comes from the emby-search-term workaround;
+	// with the user's state asked for, its play count and date are asked for
+	// too, which Emby's lists otherwise leave out
+	for k, want := range map[string]string{"Recursive": "true", "Fields": FieldsDefault + "," + embyPlayFields, "SearchTerm": "ali", "IncludeItemTypes": "Movie", "Limit": "1", "EnableUserData": "true"} {
 		if q.Get(k) != want {
 			t.Errorf("%s = %q, want %q", k, q.Get(k), want)
 		}
@@ -703,7 +707,7 @@ func TestPlaylists(t *testing.T) {
 			return http.StatusOK, `{"Items":[{"Id":"1"},{"Id":"2"}]}`
 		},
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	id, err := c.CreatePlaylist(t.Context(), "Mix", []string{"1", "2"}, "Video", "u1")
 	if err != nil || id != "p1" {
 		t.Fatalf("CreatePlaylist = %q, %v", id, err)
@@ -734,7 +738,7 @@ func TestPlaylists(t *testing.T) {
 		},
 		"POST /Collections": ok(`{"Id":"c1"}`),
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	if id, err := c.CreatePlaylist(t.Context(), "Mix", []string{"a"}, "Audio", "u1"); err != nil || id != "p2" {
 		t.Fatalf("CreatePlaylist = %q, %v", id, err)
 	}
@@ -863,7 +867,7 @@ func TestAddToPlaylist(t *testing.T) {
 				return http.StatusNoContent, ""
 			},
 		})
-		c.settle = time.Millisecond
+		c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 
 		return c, f
 	}
@@ -992,7 +996,7 @@ func TestRemoveFromCollection(t *testing.T) {
 				return http.StatusNoContent, ""
 			},
 		})
-		c.settle = time.Millisecond
+		c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 
 		return c, f
 	}
@@ -1050,6 +1054,65 @@ func TestRemoveFromCollection(t *testing.T) {
 	}
 }
 
+// Emby's resume list pads what is part way through with the next episode of
+// every series whose last one was marked watched, at position zero, and
+// those are dropped - after the read, so a limit asked of the server was
+// filled with them and the items really in progress never reached. The
+// limit is applied to what is left, a page at a time.
+func TestEmbyResumeLimit(t *testing.T) {
+	t.Parallel()
+
+	// sixty rows: fifty-five next episodes first, then five started films
+	row := func(i int) string {
+		if i < 55 {
+			return fmt.Sprintf(`{"Id":"e%d","Name":"Next","Type":"Episode","UserData":{"PlaybackPositionTicks":0}}`, i)
+		}
+		return fmt.Sprintf(`{"Id":"f%d","Name":"Started","Type":"Movie","UserData":{"PlaybackPositionTicks":300000000}}`, i)
+	}
+	c, f := newFake(t, Emby, map[string]route{
+		"GET /Users/u1/Items/Resume": func(r *http.Request, _ string) (int, string) {
+			start, _ := strconv.Atoi(r.URL.Query().Get("StartIndex"))
+			limit, _ := strconv.Atoi(r.URL.Query().Get("Limit"))
+			rows := []string{}
+			for i := start; i < min(start+limit, 60); i++ {
+				rows = append(rows, row(i))
+			}
+			return http.StatusOK, fmt.Sprintf(`{"Items":[%s],"TotalRecordCount":60}`, strings.Join(rows, ","))
+		},
+	})
+	for _, tc := range []struct {
+		limit, want, reads int
+	}{
+		{1, 1, 2},  // the first page is all next episodes
+		{2, 2, 2},  // and so is most of the second
+		{5, 5, 2},  // every started film, and no read past the last page
+		{10, 5, 2}, // asked for more than there are: every one, and no more reads
+		{0, 5, 2},  // no limit: every one
+	} {
+		before := len(f.all("GET /Users/u1/Items/Resume"))
+		items, err := c.Resume(t.Context(), "u1", tc.limit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(items) != tc.want {
+			t.Errorf("limit %d = %d items, want %d", tc.limit, len(items), tc.want)
+		}
+		for _, it := range items {
+			if it.Type != "Movie" {
+				t.Errorf("limit %d answered %s, a next episode never started", tc.limit, it.ID)
+			}
+		}
+		if reads := len(f.all("GET /Users/u1/Items/Resume")) - before; reads != tc.reads {
+			t.Errorf("limit %d read %d pages, want %d", tc.limit, reads, tc.reads)
+		}
+	}
+	// the second page starts where the first ended
+	reads := f.all("GET /Users/u1/Items/Resume")
+	if last := reads[len(reads)-1].query; last.Get("StartIndex") != "50" || last.Get("Limit") != "50" {
+		t.Errorf("the second page = %v", last)
+	}
+}
+
 func TestUserState(t *testing.T) {
 	t.Parallel()
 
@@ -1075,7 +1138,8 @@ func TestUserState(t *testing.T) {
 	if _, err := c.Resume(t.Context(), "u1", 0); err != nil {
 		t.Fatal(err)
 	}
-	if q := f.only("GET /Users/u1/Items/Resume").query; q.Get("Recursive") != "true" || q.Get("MediaTypes") != "Video" || q.Has("Limit") {
+	// read a page at a time, the limit applied after (TestEmbyResumeLimit)
+	if q := f.only("GET /Users/u1/Items/Resume").query; q.Get("Recursive") != "true" || q.Get("MediaTypes") != "Video" || q.Get("Limit") != "50" || q.Has("StartIndex") {
 		t.Errorf("Resume = %v", q)
 	}
 
@@ -1322,13 +1386,14 @@ func TestErrorsReachTheCaller(t *testing.T) {
 
 	c, _ := newFake(t, Jellyfin, map[string]route{
 		"GET /Items/404":              answer(http.StatusNotFound, "gone"),
+		"GET /Items":                  ok(`{"Items":[{"Id":"42","Name":"Zzyzx","Etag":"e1"}],"TotalRecordCount":1}`),
 		"POST /Items/42/Refresh":      answer(http.StatusForbidden, "no"),
 		"GET /Library/VirtualFolders": answer(http.StatusUnauthorized, ""),
 	})
 	if _, err := c.FullItem(t.Context(), "u", "404"); !client.IsNotFound(err) {
 		t.Errorf("a 404 = %v", err)
 	}
-	if err := c.RefreshItem(t.Context(), "42", true); client.StatusCode(err) != http.StatusForbidden || !strings.Contains(err.Error(), "lacks permission") {
+	if _, err := c.RefreshItem(t.Context(), "42", true); client.StatusCode(err) != http.StatusForbidden || !strings.Contains(err.Error(), "lacks permission") {
 		t.Errorf("a 403 = %v", err)
 	}
 	if _, err := c.VirtualFolders(t.Context()); client.StatusCode(err) != http.StatusUnauthorized {
@@ -1351,7 +1416,7 @@ func TestRemoteSearch(t *testing.T) {
 			return http.StatusNoContent, ""
 		},
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	if _, err := c.RemoteSearch(t.Context(), "book", "17", "", 0); err == nil || !strings.Contains(err.Error(), "unsupported identify kind") {
 		t.Errorf("an unsupported kind = %v", err)
 	}
@@ -1384,7 +1449,7 @@ func TestRemoteSearch(t *testing.T) {
 			return http.StatusNoContent, ""
 		},
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	_, err = c.ApplyRemoteSearchResult(t.Context(), "17", RemoteSearchResult{Name: "Dune", ProviderIDs: map[string]string{"Tmdb": "438631"}}, false)
 	if err == nil || !strings.Contains(err.Error(), "tmdb id is 841, not 438631") || !strings.Contains(err.Error(), "nfo") {
 		t.Errorf("an apply the server did not take = %v", err)
@@ -1495,15 +1560,29 @@ func TestLibraryEdits(t *testing.T) {
 		t.Errorf("scan = %v", q)
 	}
 
+	// the renamed library is listed without its id until the scan the rename
+	// asks for has run, and the rename waits for it
+	lists := 0
 	c, f = newFake(t, Jellyfin, map[string]route{
 		"POST /Library/VirtualFolders/Name":    noContent,
 		"POST /Library/VirtualFolders/Paths":   noContent,
 		"DELETE /Library/VirtualFolders/Paths": noContent,
 		"POST /Items/9/Refresh":                noContent,
 		"POST /Library/Refresh":                noContent,
+		"GET /Library/VirtualFolders": func(*http.Request, string) (int, string) {
+			lists++
+			if lists < 3 {
+				return http.StatusOK, `[{"Name":"Movies","Locations":["/media/films"]}]`
+			}
+			return http.StatusOK, `[{"Name":"Movies","ItemId":"10","Locations":["/media/films"]}]`
+		},
 	})
+	c.settle = time.Millisecond
 	if err := c.RenameLibrary(t.Context(), folder, "Movies"); err != nil {
 		t.Fatal(err)
+	}
+	if lists != 3 {
+		t.Errorf("the rename read the libraries %d times, want until the renamed one had its id (3)", lists)
 	}
 	if err := c.AddLibraryPath(t.Context(), folder, "/media/more"); err != nil {
 		t.Fatal(err)
@@ -1527,8 +1606,8 @@ func TestLibraryEdits(t *testing.T) {
 	if q := f.only("DELETE /Library/VirtualFolders/Paths").query; q.Get("name") != "Films" || q.Get("path") != "/media/old" || q.Get("refreshLibrary") != "false" {
 		t.Errorf("remove path = %v", q)
 	}
-	if n := len(f.all("POST /Library/Refresh")); n != 2 {
-		t.Errorf("the two folder changes asked for %d library scans, want 2", n)
+	if n := len(f.all("POST /Library/Refresh")); n != 3 {
+		t.Errorf("the rename and the two folder changes asked for %d library scans, want 3", n)
 	}
 	if q := f.only("POST /Items/9/Refresh").query; q.Get("metadataRefreshMode") != "Default" {
 		t.Errorf("scan = %v", q)
@@ -1711,7 +1790,7 @@ func TestPlaylistEdits(t *testing.T) {
 		"DELETE /Playlists/p8/Items": jfRemove("p8"),
 		"POST /Playlists/p8/Items":   jfAdd("p8"),
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	// Jellyfin's move wants a user behind the request, so the entries from
 	// the lower of the two positions on come out and go back in the new
 	// order; the ones before stay where they are
@@ -1895,7 +1974,7 @@ func TestJourneyFindings(t *testing.T) {
 			return http.StatusNoContent, ""
 		},
 	})
-	c.settle = time.Millisecond
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	if n, err := c.RemoveFromPlaylist(t.Context(), "p1", "u1", []string{"a"}); err != nil || n != 2 {
 		t.Errorf("removing a twice-held item's entry = %d, %v, want 2", n, err)
 	}

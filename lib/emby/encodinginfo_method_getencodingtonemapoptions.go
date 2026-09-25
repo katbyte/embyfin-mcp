@@ -12,7 +12,7 @@ import (
 // GetEncodingToneMapOptionsOperationResponse is the result of GetEncodingToneMapOptions.
 type GetEncodingToneMapOptionsOperationResponse struct {
 	HttpResponse *http.Response
-	Model        *ConfigurationToneMappingToneMapOptionsVisibility
+	Model        *ConfigurationToneMappingToneMapOptions
 }
 
 // GetEncodingToneMapOptions calls GET /Encoding/ToneMapOptions. Gets available tone mapping options.
@@ -44,7 +44,7 @@ func (c Client) GetEncodingToneMapOptions(ctx context.Context) (result GetEncodi
 		return
 	}
 
-	var model ConfigurationToneMappingToneMapOptionsVisibility
+	var model ConfigurationToneMappingToneMapOptions
 	result.Model = &model
 	if err = resp.Unmarshal(result.Model); err != nil {
 		return

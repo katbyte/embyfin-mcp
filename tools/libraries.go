@@ -403,11 +403,12 @@ func registerLibraryTools(r *registry) {
 	}
 	type editOut struct {
 		librarySummary
-		Changed []string `json:"changed" jsonschema:"what was done, in order"`
+		Changed []string `json:"changed"        jsonschema:"what was done, in order"`
+		Note    string   `json:"note,omitempty" jsonschema:"what the answer could not read back"`
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "library_edit",
-		Description: "Rename a library, add and remove the folders it is built from, or switch save_nfo: " + saveNfoSchema + ". On Emby nothing is scanned: run library_scan on the library afterwards to pick up what a new folder holds or drop what a removed one held. On Jellyfin a folder change starts a scan of every library, because a scan of one library does not see a changed folder. Jellyfin gives a renamed library a new id on its next scan. Changes server state.",
+		Description: "Rename a library (to a name no other library has, apart from case too), add and remove the folders it is built from, or switch save_nfo: " + saveNfoSchema + ". On Emby nothing is scanned: run library_scan on the library afterwards to pick up what a new folder holds or drop what a removed one held. On Jellyfin a folder change or a rename starts a scan of every library, because a scan of one library does not see a changed folder, and a renamed library is listed without its id or options until that scan gives it a new id: the answer waits for it. Changes server state.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
 		if in.Library == "" {
 			return nil, editOut{}, errors.New("library is required")
@@ -442,6 +443,23 @@ func registerLibraryTools(r *registry) {
 		for _, p := range in.RemovePaths {
 			if !slices.Contains(folder.Locations, p) {
 				return nil, editOut{}, fmt.Errorf("%s has no folder %s (have: %s)", folder.Name, p, strings.Join(folder.Locations, ", "))
+			}
+		}
+		// a name another library has, apart from case, is refused as
+		// library_create refuses it: two libraries a letter's case apart
+		// are one name to whoever picks a library by it, and to this tool's
+		// own lookups. The library's own name in another case is its own
+		if in.Name != "" && in.Name != folder.Name {
+			existing, lerr := client.VirtualFolders(ctx)
+			if lerr != nil {
+				return nil, editOut{}, lerr
+			}
+			for i := range existing {
+				other := &existing[i]
+				same := other.Name == folder.Name || (folder.ItemID != "" && other.ItemID == folder.ItemID)
+				if !same && strings.EqualFold(other.Name, in.Name) {
+					return nil, editOut{}, fmt.Errorf("a library named %q already exists: rename %s to a name no other library has, apart from case too", other.Name, folder.Name)
+				}
 			}
 		}
 
@@ -492,6 +510,16 @@ func registerLibraryTools(r *registry) {
 			return nil, editOut{}, failed("reading the library back", err)
 		}
 		out.librarySummary = summariseLibrary(updated)
+		if updated.ItemID == "" && folder.ItemID != "" {
+			// a renamed Jellyfin library the scan has not reached yet is
+			// listed with none of its options: the rename kept them, and
+			// the answer says so rather than reading nfo saving off
+			out.SavesNfo = folder.SavesNfo
+			if in.SaveNfo != nil {
+				out.SavesNfo = *in.SaveNfo
+			}
+			out.Note = "the server lists the renamed library without an id until its library scan reaches it; saves_nfo is as it was set, which a rename keeps"
+		}
 
 		return nil, out, nil
 	})

@@ -4,6 +4,7 @@ package jf
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,7 +15,7 @@ import (
 // GetPluginConfigurationOperationResponse is the result of GetPluginConfiguration.
 type GetPluginConfigurationOperationResponse struct {
 	HttpResponse *http.Response
-	Model        *BasePluginConfiguration
+	Model        json.RawMessage
 }
 
 // GetPluginConfiguration calls GET /Plugins/{pluginId}/Configuration. Gets plugin configuration.
@@ -41,9 +42,7 @@ func (c Client) GetPluginConfiguration(ctx context.Context, pluginId string) (re
 		return
 	}
 
-	var model BasePluginConfiguration
-	result.Model = &model
-	if err = resp.Unmarshal(result.Model); err != nil {
+	if err = resp.Unmarshal(&result.Model); err != nil {
 		return
 	}
 

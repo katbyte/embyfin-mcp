@@ -126,6 +126,16 @@ func registerSessionTools(r *registry) {
 		Name:        "session_play",
 		Description: "Play items on a connected device ('play Dune on the living-room TV'). Changes what the device is doing.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in playIn) (*mcp.CallToolResult, playOut, error) {
+		// both servers take a play of nothing, and Jellyfin one of an id it
+		// does not hold, and answer as if the device were playing it
+		if len(in.ItemIDs) == 0 {
+			return nil, playOut{}, errors.New("item_ids is required: the library items to play")
+		}
+		for _, id := range in.ItemIDs {
+			if _, err := client.ItemByID(ctx, id); err != nil {
+				return nil, playOut{}, err
+			}
+		}
 		session, err := resolveSession(ctx, client, in.Session)
 		if err != nil {
 			return nil, playOut{}, err

@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -112,5 +114,74 @@ func TestAuditProviderIDs(t *testing.T) {
 	keyless := session(t, f, Options{})
 	if _, msg := callTool(t, keyless, "audit_provider", map[string]any{}); !strings.Contains(msg, "EMBYFIN_TMDB_TOKEN") {
 		t.Errorf("without a key = %q", msg)
+	}
+}
+
+// Two films of one sort name (the messy library's two Aliens; a remake) come
+// back from a server's sort by name in either order, and paged by the
+// server, the order could change between one call and the next: one film
+// asked about twice and the other never. The films are put in an order of
+// the tool's own, by sort name and then id, so a walk at one lookup a call
+// asks about every film exactly once whatever order the server answers in.
+func TestAuditProviderWalksEveryFilmOnce(t *testing.T) {
+	t.Parallel()
+
+	films := []map[string]any{
+		{"Id": "31", "Name": "Alien", "SortName": "Alien", "Type": "Movie", "ProductionYear": 1979, "Path": "/m/Alien (1979)/Alien (1979).mp4", "ProviderIds": map[string]any{"Tmdb": "348"}, "RunTimeTicks": 60 * ticksPerSecond},
+		{"Id": "25", "Name": "Alien", "SortName": "Alien", "Type": "Movie", "ProductionYear": 1979, "Path": "/m/Alien (1979) Directors Cut/Alien (1979) Directors Cut.mp4", "ProviderIds": map[string]any{"Tmdb": "348"}, "RunTimeTicks": 60 * ticksPerSecond},
+		{"Id": "32", "Name": "Arrival", "SortName": "Arrival", "Type": "Movie", "ProductionYear": 2016, "Path": "/m/Arrival (2016)/Arrival (2016).mp4", "ProviderIds": map[string]any{"Tmdb": "329865"}, "RunTimeTicks": 60 * ticksPerSecond},
+		{"Id": "28", "Name": "Princess Mononoke", "SortName": "Princess Mononoke", "Type": "Movie", "ProductionYear": 1997, "Path": "/m/Princess Mononoke (1997)/Princess Mononoke (1997).mp4", "RunTimeTicks": 60 * ticksPerSecond},
+		{"Id": "29", "Name": "Blade Runner", "SortName": "Blade Runner", "Type": "Movie", "ProductionYear": 1982, "Path": "/m/Blade Runner (1982)/Blade Runner (1982).mp4", "ProviderIds": map[string]any{"Tmdb": "78"}, "RunTimeTicks": 60 * ticksPerSecond},
+	}
+	f, _ := zzyzxServer(t)
+	var calls atomic.Int32
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		// the two Aliens swap places on every read, as a server's sort by
+		// name is free to leave them
+		rows := slices.Clone(films)
+		if calls.Add(1)%2 == 0 {
+			rows[0], rows[1] = rows[1], rows[0]
+		}
+		if ids := param(r.URL.Query(), "Ids"); ids != "" {
+			rows = slices.DeleteFunc(rows, func(it map[string]any) bool { return !slices.Contains(strings.Split(ids, ","), text(it["Id"])) })
+		}
+		writeJSON(t, w, page(rows...))
+	})
+	// every film with an id runs a minute against TMDB's two hours: each one
+	// asked about is a finding naming it
+	cs := session(t, f, Options{TMDBKey: "k", ProviderTransport: tmdbTransport(t, map[string]int{"348": 117, "329865": 116, "78": 117})})
+
+	seen := map[string]int{}
+	scanned, offset := 0, 0
+	for step := 0; ; step++ {
+		if step > 10 {
+			t.Fatal("the walk never finished")
+		}
+		out := mustCall(t, cs, "audit_provider", map[string]any{"library": "Zzyzx Films", "checks": "runtime", "max_lookups": 1, "offset": offset})
+		scanned += number(t, out["items_scanned"], "items_scanned")
+		for _, row := range objects(t, out["findings"], "findings") {
+			seen[text(row["id"])]++
+		}
+		if out["next_offset"] == nil {
+			break
+		}
+		offset = number(t, out["next_offset"], "next_offset")
+	}
+	for _, id := range []string{"31", "25", "32", "29"} {
+		if seen[id] != 1 {
+			t.Errorf("film %s was asked about %d times, want once: %v", id, seen[id], seen)
+		}
+	}
+	if scanned != len(films) {
+		t.Errorf("the walk scanned %d films, want every one of the %d once", scanned, len(films))
+	}
+
+	// a handful by id, without a sweep
+	out := mustCall(t, cs, "audit_provider", map[string]any{"ids": []any{"32", "28"}, "checks": "runtime"})
+	if number(t, out["items_scanned"], "items_scanned") != 2 || number(t, out["total_findings"], "total_findings") != 1 {
+		t.Errorf("ids 32 and 28 = %v", out)
+	}
+	if msg := mustRefuse(t, cs, "audit_provider", map[string]any{"ids": []any{"32"}, "library": "Zzyzx Films"}); !strings.Contains(msg, "library or ids") {
+		t.Errorf("library and ids = %q", msg)
 	}
 }

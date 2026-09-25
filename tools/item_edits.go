@@ -106,6 +106,22 @@ func (e listEdit) apply(current []string) []string {
 	})
 }
 
+// setSortName sets the name an item sorts by. Emby works the sort name out
+// from the name again whenever the item is saved unless the field is locked,
+// so without the lock the edit was answered and never kept (seen live on Emby
+// 4.10). Jellyfin keeps a forced sort name as it is, and has no such lock:
+// it refuses an update naming one.
+func setSortName(full map[string]any, name string, emby bool) {
+	full["SortName"], full["ForcedSortName"] = name, name
+	var locked []any
+	if l, ok := full["LockedFields"].([]any); ok {
+		locked = l
+	}
+	if emby && !slices.Contains(locked, any("SortName")) {
+		full["LockedFields"] = append(locked, "SortName")
+	}
+}
+
 // cleanNames trims names and drops the empty ones.
 func cleanNames(names []string) []string {
 	out := make([]string, 0, len(names))
@@ -198,7 +214,7 @@ func registerItemEditTools(r *registry) {
 					full["Name"] = in.Name
 				}
 				if single["sort_name"] {
-					full["SortName"], full["ForcedSortName"] = in.SortName, in.SortName
+					setSortName(full, in.SortName, client.Backend() == embyfin.Emby)
 				}
 				if single["overview"] {
 					full["Overview"] = in.Overview

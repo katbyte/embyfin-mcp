@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/go-kt/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -62,6 +63,12 @@ func registerServerTools(r *registry) {
 		if err != nil {
 			return nil, serverStatsOut{}, err
 		}
+		// Emby's counts leave collections at 0 however many there are, so
+		// they are counted the way collection_list lists them
+		_, collections, err := client.Search(ctx, embyfin.SearchOptions{IncludeItemTypes: "BoxSet", Fields: embyfin.FieldsLean, Limit: 1})
+		if err != nil {
+			return nil, serverStatsOut{}, err
+		}
 
 		sessions, err := client.Sessions(ctx)
 		if err != nil {
@@ -85,7 +92,7 @@ func registerServerTools(r *registry) {
 			Episodes:       counts.EpisodeCount,
 			Albums:         counts.AlbumCount,
 			Songs:          counts.SongCount,
-			Collections:    counts.BoxSetCount,
+			Collections:    collections,
 			ActiveSessions: active,
 			Users:          len(users),
 		}, nil
@@ -240,6 +247,7 @@ func registerServerTools(r *registry) {
 	})
 
 	type taskOut struct {
+		ID         string `json:"id"                    jsonschema:"what task_run takes, as well as the name"`
 		Name       string `json:"name"`
 		Category   string `json:"category,omitempty"`
 		State      string `json:"state"`
@@ -251,7 +259,7 @@ func registerServerTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "task_list",
-		Description: "List the server's scheduled tasks (library scan, metadata refresh, backups...) with state and last result.",
+		Description: "List the server's scheduled tasks (library scan, metadata refresh, backups...) with their ids, state and last result.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, tasksOut, error) {
 		tasks, err := client.Tasks(ctx)
 		if err != nil {
@@ -260,7 +268,7 @@ func registerServerTools(r *registry) {
 
 		out := tasksOut{}
 		for _, t := range tasks {
-			row := taskOut{Name: t.Name, Category: t.Category, State: t.State}
+			row := taskOut{ID: t.ID, Name: t.Name, Category: t.Category, State: t.State}
 			if t.LastExecutionResult != nil {
 				row.LastStatus = t.LastExecutionResult.Status
 				row.LastRun = t.LastExecutionResult.EndTimeUtc
@@ -279,7 +287,7 @@ func registerServerTools(r *registry) {
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "task_run",
-		Description: "Start a scheduled task by name. Changes server state: the task runs immediately.",
+		Description: "Start a scheduled task by name or id. Changes server state: the task runs immediately.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in taskRunIn) (*mcp.CallToolResult, taskRunOut, error) {
 		task, err := client.RunTask(ctx, in.Task)
 		if err != nil {

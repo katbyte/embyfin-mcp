@@ -37,14 +37,18 @@ func TestJFSystem(t *testing.T) {
 	if ep := must(jfc.GetEndpointInfo(ctx)).Model; !pointer.From(ep.IsInNetwork) {
 		t.Errorf("GetEndpointInfo = %+v, want IsInNetwork from the docker bridge", ep)
 	}
-	// the storage report is newer than the spec's server: a 404 today, a
-	// populated report once the image catches up
-	if storage, err := jfc.GetSystemStorage(ctx); err != nil {
-		if !client.IsNotFound(err) {
-			t.Errorf("GetSystemStorage = %v", err)
-		}
-	} else if storage.Model.ProgramDataFolder == nil || storage.Model.ProgramDataFolder.Path == "" {
-		t.Errorf("GetSystemStorage = %+v", storage.Model)
+	// the storage report: the server's own folders with the space on their
+	// drives, and each library's folders
+	moviesID := jfLibrary(t, sdkMovies)
+	storage := must(jfc.GetSystemStorage(ctx)).Model
+	if storage.ProgramDataFolder == nil || storage.ProgramDataFolder.Path != "/config" || storage.ProgramDataFolder.FreeSpace == 0 || storage.ProgramDataFolder.UsedSpace == 0 ||
+		storage.WebFolder == nil || storage.WebFolder.Path == "" || storage.LogFolder == nil || storage.LogFolder.Path == "" {
+		t.Errorf("GetSystemStorage = %+v", storage)
+	}
+	if !slices.ContainsFunc(storage.Libraries, func(l jf.LibraryStorageDto) bool {
+		return l.Id == moviesID && l.Name == sdkMovies.Name && len(l.Folders) == 1 && l.Folders[0].Path == sdkMovies.Folder
+	}) {
+		t.Errorf("GetSystemStorage lists the libraries %+v, want %s over %s", storage.Libraries, sdkMovies.Name, sdkMovies.Folder)
 	}
 }
 

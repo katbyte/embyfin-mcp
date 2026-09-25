@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -35,7 +36,7 @@ const planBatchMax = 500
 // planEntry is one file a caller intends to write.
 type planEntry struct {
 	Path    string `json:"path"              jsonschema:"the full destination path the file would be written to"`
-	Size    int64  `json:"size,omitempty"    jsonschema:"the incoming file's size in bytes, to compare against what is there"`
+	Size    *int64 `json:"size,omitempty"    jsonschema:"the incoming file's size in bytes, to compare against what is there; 0 is an empty file, and is compared too"`
 	Series  string `json:"series,omitempty"  jsonschema:"the series the caller believes this is, checked against the series whose folder the path falls under"`
 	Season  int    `json:"season,omitempty"`
 	Episode int    `json:"episode,omitempty"`
@@ -43,29 +44,29 @@ type planEntry struct {
 
 // planCurrent is what the library holds at that path now.
 type planCurrent struct {
-	ItemID       string  `json:"item_id"`
-	Name         string  `json:"name,omitempty"`
-	Series       string  `json:"series,omitempty"`
-	Season       *int    `json:"season,omitempty"        jsonschema:"on an episode only, 0 for the specials"`
-	Episode      int     `json:"episode,omitempty"`
-	Size         int64   `json:"size,omitempty"          jsonschema:"the size of the file at this path in bytes: when the item holds several versions, the one here rather than the best of them"`
-	SizeRatio    float64 `json:"size_ratio,omitempty"    jsonschema:"the incoming size over this one, when a size was given: below 1 means the write would replace a bigger file with a smaller"`
-	RuntimeS     int     `json:"runtime_s,omitempty"`
-	Height       int     `json:"height,omitempty"`
-	VideoCodec   string  `json:"video_codec,omitempty"`
-	Bitrate      int64   `json:"bitrate,omitempty"`
-	DateCreated  string  `json:"date_created,omitempty"`
-	FileModified string  `json:"file_modified,omitempty" jsonschema:"Emby only"`
+	ItemID       string   `json:"item_id"`
+	Name         string   `json:"name,omitempty"`
+	Series       string   `json:"series,omitempty"`
+	Season       *int     `json:"season,omitempty"        jsonschema:"on an episode only, 0 for the specials"`
+	Episode      int      `json:"episode,omitempty"`
+	Size         int64    `json:"size,omitempty"          jsonschema:"the size of the file at this path in bytes: when the item holds several versions, the one here rather than the best of them"`
+	SizeRatio    *float64 `json:"size_ratio,omitempty"    jsonschema:"the incoming size over this one, whenever a size was given and the server knows this one's: below 1 means the write would replace a bigger file with a smaller, and 0 an empty or all but empty incoming file"`
+	RuntimeS     int      `json:"runtime_s,omitempty"`
+	Height       int      `json:"height,omitempty"`
+	VideoCodec   string   `json:"video_codec,omitempty"`
+	Bitrate      int64    `json:"bitrate,omitempty"`
+	DateCreated  string   `json:"date_created,omitempty"`
+	FileModified string   `json:"file_modified,omitempty" jsonschema:"Emby only"`
 }
 
 // planJoin is the series a path would become an episode of.
 type planJoin struct {
-	SeriesID   string  `json:"series_id"`
-	SeriesName string  `json:"series_name"`
-	SeriesYear int     `json:"series_year,omitempty"`
-	SeriesPath string  `json:"series_path"`
-	Claimed    string  `json:"claimed_series,omitempty"   jsonschema:"the series the caller said this was"`
-	ClaimScore float64 `json:"claim_similarity,omitempty" jsonschema:"0 to 1 between the claimed series and the one whose folder this path falls under, scored as show_resolve scores a name: its title and, when it gives one, its year. Low means the path is under a different show's folder than the caller thinks - which is how one series' episodes get written over another's of the same name"`
+	SeriesID   string   `json:"series_id"`
+	SeriesName string   `json:"series_name"`
+	SeriesYear int      `json:"series_year,omitempty"`
+	SeriesPath string   `json:"series_path"`
+	Claimed    string   `json:"claimed_series,omitempty"   jsonschema:"the series the caller said this was"`
+	ClaimScore *float64 `json:"claim_similarity,omitempty" jsonschema:"given whenever a series was claimed, 0 to 1 between the claimed series and the one whose folder this path falls under, scored as show_resolve scores a name: its title and, when it gives one, its year. Low means the path is under a different show's folder than the caller thinks - which is how one series' episodes get written over another's of the same name; 0 is a different show altogether"`
 }
 
 // planRow is the answer for one destination.
@@ -206,9 +207,12 @@ func registerPlanTools(r *registry) {
 					VideoCodec: q.VideoCodec, Bitrate: q.Bitrate,
 					DateCreated: item.DateCreated, FileModified: item.DateModified,
 				}
-				if entry.Size > 0 && q.Size > 0 {
-					current.SizeRatio = float64(entry.Size) / float64(q.Size)
-					current.SizeRatio = float64(int(current.SizeRatio*100+0.5)) / 100
+				// every ratio worked out is given, 0 above all: an empty
+				// incoming file, or one a hundredth the size, is the write
+				// most worth stopping, and a 0 left out read as no size given
+				if entry.Size != nil && *entry.Size >= 0 && q.Size > 0 {
+					ratio := math.Round(float64(*entry.Size)/float64(q.Size)*100) / 100
+					current.SizeRatio = &ratio
 				}
 				row.Current = &current
 				out.Existing++
@@ -220,8 +224,11 @@ func registerPlanTools(r *registry) {
 					SeriesYear: series.ProductionYear, SeriesPath: series.Path,
 				}
 				if entry.Series != "" {
+					// a score of 0 - another show altogether - is the one
+					// most worth reading, so it is given like any other
 					join.Claimed = entry.Series
-					join.ClaimScore = claimScore(entry.Series, series)
+					score := claimScore(entry.Series, series)
+					join.ClaimScore = &score
 				}
 				row.WouldJoin = &join
 			} else {

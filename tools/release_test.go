@@ -337,13 +337,23 @@ func TestParseReleaseAlwaysNamesSomething(t *testing.T) {
 }
 
 // A name with no title in it is refused rather than searched for, because a
-// search for nothing is a search for everything.
+// search for nothing is a search for everything - and so is a name that is
+// nothing but the season, episode, encode and group, which used to be
+// searched for as if it were the title.
 func TestShowResolveRefusesATitlelessName(t *testing.T) {
 	t.Parallel()
 
 	cs := session(t, tvServer(t, severance()), Options{})
-	if msg := mustRefuse(t, cs, "show_resolve", map[string]any{"title": "..."}); !strings.Contains(msg, "no title") {
-		t.Errorf("a titleless name said: %s", msg)
+	for _, name := range []string{"...", "S01E01.1080p.WEB-DL-GROUP", "S01E01", "1080p.WEB-DL", "1080p.WEB-DL-GROUP", "Season 2 720p HDTV x264-NGP", "2160p.HDR.x265"} {
+		if msg := mustRefuse(t, cs, "show_resolve", map[string]any{"title": name}); !strings.Contains(msg, "no title could be read out of") || !strings.Contains(msg, "all season, encode and group") {
+			t.Errorf("%q said: %s", name, msg)
+		}
+	}
+	// and a one-word title is a title, whatever it spells
+	for _, name := range []string{"Max", "Max.S01E01.1080p.WEB-DL-GROUP", "Severance.S01E01.1080p.WEB-DL-GROUP"} {
+		if rel := parseRelease(name); rel.Unread {
+			t.Errorf("parseRelease(%q) read no title: %+v", name, rel)
+		}
 	}
 }
 

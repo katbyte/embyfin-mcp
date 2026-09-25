@@ -136,14 +136,21 @@ func readSeriesIndex(ctx context.Context, client *embyfin.Client, parent string)
 	for start := 0; ; {
 		page, total, err := client.Search(ctx, embyfin.SearchOptions{
 			IncludeItemTypes: "Series", ParentID: parent,
-			SortBy: "SortName", SortOrder: "Ascending",
+			SortBy: "SortName,DateCreated", SortOrder: "Ascending",
 			StartIndex: start, Limit: episodePageMax,
 			Fields: "Path,ProductionYear,OriginalTitle,ProviderIds",
 		})
 		if err != nil {
 			return nil, err
 		}
-		idx.items = append(idx.items, page...)
+		// a series read twice across a page boundary would be a show held
+		// twice (otherEntriesFor): it is kept once
+		for i := range page {
+			if _, seen := idx.byID[page[i].ID]; !seen {
+				idx.byID[page[i].ID] = len(idx.items)
+				idx.items = append(idx.items, page[i])
+			}
+		}
 		start += len(page)
 		if len(page) == 0 || start >= total {
 			break
