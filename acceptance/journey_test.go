@@ -268,8 +268,10 @@ func rescanOrReport(t *testing.T, library string, check func() bool) {
 // the next scan has them to read and runs for seconds rather than the
 // fraction of one a scan with nothing new takes: long enough for what a test
 // does while one runs to land inside it. They go again once the test ends.
-// It returns what gives the scan after that the files to read again: their
-// times moved on, as a download writing them over would.
+// It returns what gives the scan after that more to read: the files' times
+// moved on, as a download writing them over would, and as many files again,
+// since a server that read forty before the edits landed reads faster than
+// that.
 func slowScan(t *testing.T) (again func()) {
 	t.Helper()
 
@@ -289,10 +291,14 @@ func slowScan(t *testing.T) (again func()) {
 	raw := fixtureVideo(t, "messy-movies", messyAlien, messyAlien+".mp4")
 	mediaMkdir(t, dir)
 	var files []string
-	for i := range 40 {
-		files = append(files, filepath.Join(dir, fmt.Sprintf("%s - part%d.mp4", name, i+1)))
-		mediaWrite(t, files[i], raw)
+	lay := func(n int) {
+		for range n {
+			f := filepath.Join(dir, fmt.Sprintf("%s - part%d.mp4", name, len(files)+1))
+			mediaWrite(t, f, raw)
+			files = append(files, f)
+		}
 	}
+	lay(40)
 
 	return func() {
 		now := time.Now()
@@ -301,6 +307,7 @@ func slowScan(t *testing.T) (again func()) {
 				t.Fatal(err)
 			}
 		}
+		lay(len(files))
 	}
 }
 
@@ -386,8 +393,8 @@ func TestEditsDuringAScan(t *testing.T) {
 		if idle, err := scanIdle(); err == nil && !idle {
 			break
 		}
-		if try == 3 {
-			t.Fatal("the scan had finished before the last edit, three times: the edits raced nothing")
+		if try == 4 {
+			t.Fatal("the scan had finished before the last edit, four times, the last with 320 files to read: the edits raced nothing")
 		}
 		// the scan finished first: once it has, put the lists back as the
 		// try found them and go again
