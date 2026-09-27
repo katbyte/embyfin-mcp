@@ -67,7 +67,8 @@ func registerPlaylistTools(r *registry) {
 		}
 
 		out := listOut{}
-		for _, it := range items {
+		for i := range items {
+			it := &items[i]
 			out.Playlists = append(out.Playlists, playlistRow{ID: it.ID, Name: it.Name})
 		}
 
@@ -270,7 +271,8 @@ func registerPlaylistTools(r *registry) {
 		}
 		out := removeOut{Removed: len(removal.Removed), From: pl.Name, Items: make([]removedEntry, 0, len(removal.Removed))}
 		gone := make([]memberRow, 0, len(removal.Removed))
-		for _, e := range removal.Removed {
+		for i := range removal.Removed {
+			e := &removal.Removed[i]
 			gone = append(gone, memberRow{ID: e.Item.ID, Name: e.Item.Name})
 			out.Items = append(out.Items, removedEntry{memberRow: gone[len(gone)-1], Position: e.Position})
 		}

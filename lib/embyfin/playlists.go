@@ -610,7 +610,8 @@ func (c *Client) playlistEntries(ctx context.Context, playlistID string, entryID
 		return nil, fmt.Errorf("the playlist changed since it was read (its fingerprint was %s and is %s now), so nothing was changed: read it again with playlist_get. It holds now, in order: %s", fingerprint, now, entriesSaid(entries))
 	}
 	have := make([]string, 0, len(entries))
-	for _, e := range entries {
+	for i := range entries {
+		e := &entries[i]
 		have = append(have, e.PlaylistItemID)
 	}
 	for i, id := range entryIDs {
@@ -726,8 +727,8 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 	// lower of the two positions, or from the first copy of an item in it
 	lo := stretchStart(entries, min(from, newIndex))
 	itemIDs := make([]string, 0, len(order)-lo)
-	for _, e := range order[lo:] {
-		itemIDs = append(itemIDs, e.ID)
+	for i := lo; i < len(order); i++ {
+		itemIDs = append(itemIDs, order[i].ID)
 	}
 	want := itemCounts(order)
 	now := entries
@@ -843,7 +844,8 @@ func stretchStart(entries []Item, lo int) int {
 // of an item share one.
 func entryIDsOf(entries []Item) []string {
 	ids := make([]string, 0, len(entries))
-	for _, e := range entries {
+	for i := range entries {
+		e := &entries[i]
 		if !slices.Contains(ids, e.PlaylistItemID) {
 			ids = append(ids, e.PlaylistItemID)
 		}
@@ -862,8 +864,8 @@ func tailReshuffled(now, entries []Item, lo int) bool {
 		return false
 	}
 	tail := itemCounts(entries[lo:])
-	for _, e := range now[lo:] {
-		if tail[e.ID] == 0 {
+	for i := lo; i < len(now); i++ {
+		if tail[now[i].ID] == 0 {
 			return false
 		}
 	}

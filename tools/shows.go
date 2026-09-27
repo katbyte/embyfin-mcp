@@ -621,7 +621,8 @@ func registerShowTools(r *registry) {
 		}
 
 		out := seasonsOut{Series: series.Name}
-		for _, s := range seasons {
+		for i := range seasons {
+			s := &seasons[i]
 			out.Seasons = append(out.Seasons, seasonRow{ID: s.ID, Name: s.Name, Season: s.IndexNumber, SeriesID: s.SeriesID, Path: s.Path})
 		}
 

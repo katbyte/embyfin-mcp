@@ -105,10 +105,11 @@ func findOrphans(ctx context.Context, client *embyfin.Client) ([]libraryPath, []
 func dropCaseTwins(ctx context.Context, client *embyfin.Client, orphans []embyfin.Item, libs []libraryPath) ([]embyfin.Item, error) {
 	folds := map[string]bool{} // library folder -> whether the disk ignores case there
 	kept := make([]embyfin.Item, 0, len(orphans))
-	for _, it := range orphans {
+	for j := range orphans {
+		it := &orphans[j]
 		i := slices.IndexFunc(libs, func(l libraryPath) bool { return within(strings.ToLower(it.Path), strings.ToLower(l.path)) })
 		if i < 0 {
-			kept = append(kept, it)
+			kept = append(kept, *it)
 
 			continue
 		}
@@ -124,7 +125,7 @@ func dropCaseTwins(ctx context.Context, client *embyfin.Client, orphans []embyfi
 			folds[folder] = ignores
 		}
 		if !ignores {
-			kept = append(kept, it)
+			kept = append(kept, *it)
 		}
 	}
 
@@ -161,7 +162,8 @@ func auditOrphans(ctx context.Context, client *embyfin.Client, in orphansIn) (or
 	for _, folder := range folders[:min(len(folders), limit)] {
 		p := places[folder]
 		group := orphanGroup{Folder: folder, OnServer: p.state, Note: p.note, Items: len(p.items), ByType: map[string]int{}, Examples: orphanRows(p.items, 5)}
-		for _, it := range p.items {
+		for i := range p.items {
+			it := &p.items[i]
 			group.ByType[it.Type]++
 		}
 		out.Folders = append(out.Folders, group)
@@ -227,16 +229,17 @@ func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin
 			return
 		}
 		below := map[string][]embyfin.Item{}
-		for _, it := range items {
+		for i := range items {
+			it := &items[i]
 			child := childOf(folder, it.Path)
 			if child == "" {
 				// the folder's own item: a Folder or a Series whose folder
 				// the server can see
-				*onDisk = append(*onDisk, it)
+				*onDisk = append(*onDisk, *it)
 
 				continue
 			}
-			below[child] = append(below[child], it)
+			below[child] = append(below[child], *it)
 		}
 		for _, child := range slices.Sorted(maps.Keys(below)) {
 			part := below[child]
@@ -252,9 +255,10 @@ func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin
 	}
 
 	byRegion := map[string][]embyfin.Item{}
-	for _, it := range orphans {
+	for i := range orphans {
+		it := &orphans[i]
 		region := orphanFolder(it.Path, libs)
-		byRegion[region] = append(byRegion[region], it)
+		byRegion[region] = append(byRegion[region], *it)
 	}
 	for _, region := range slices.Sorted(maps.Keys(byRegion)) {
 		items := byRegion[region]
@@ -275,8 +279,8 @@ func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin
 func holdingFolder(items []embyfin.Item, bound string) string {
 	first := trimSep(items[0].Path)
 	common, same := first, true
-	for _, it := range items[1:] {
-		p := trimSep(it.Path)
+	for i := 1; i < len(items); i++ {
+		p := trimSep(items[i].Path)
 		same = same && p == first
 		for common != "" && !within(p, common) {
 			common = parentDir(common)
@@ -507,7 +511,8 @@ type orphanRow struct {
 func orphanRows(items []embyfin.Item, n int) []orphanRow {
 	sorted := slices.SortedFunc(slices.Values(items), func(a, b embyfin.Item) int { return strings.Compare(a.Path, b.Path) })
 	out := make([]orphanRow, 0, min(n, len(sorted)))
-	for _, it := range sorted[:min(n, len(sorted))] {
+	for i := range min(n, len(sorted)) {
+		it := &sorted[i]
 		out = append(out, orphanRow{ID: it.ID, Type: it.Type, Name: it.Name, Path: it.Path})
 	}
 
@@ -535,7 +540,8 @@ func stillHeld(ctx context.Context, client *embyfin.Client, ids []string) (map[s
 		want[id] = true
 	}
 	held := map[string]bool{}
-	for _, it := range items {
+	for i := range items {
+		it := &items[i]
 		if want[it.ID] {
 			held[it.ID] = true
 		}
@@ -550,8 +556,8 @@ func stillHeld(ctx context.Context, client *embyfin.Client, ids []string) (map[s
 // left is deleted on its own, and what will not go is reported.
 func deleteOrphanBatch(ctx context.Context, client *embyfin.Client, batch []embyfin.Item) (int, []orphanFailure, error) {
 	ids := make([]string, len(batch))
-	for i, it := range batch {
-		ids[i] = it.ID
+	for i := range batch {
+		ids[i] = batch[i].ID
 	}
 	batchErr := client.DeleteItems(ctx, ids)
 	if batchErr == nil {
@@ -561,7 +567,8 @@ func deleteOrphanBatch(ctx context.Context, client *embyfin.Client, batch []emby
 	held, err := stillHeld(ctx, client, ids)
 	if err != nil {
 		failed := make([]orphanFailure, 0, len(batch))
-		for _, it := range batch {
+		for i := range batch {
+			it := &batch[i]
 			failed = append(failed, orphanFailure{ID: it.ID, Path: it.Path, Error: "the batch failed (" + batchErr.Error() + ") and what it left could not be read: " + err.Error()})
 		}
 
@@ -570,7 +577,8 @@ func deleteOrphanBatch(ctx context.Context, client *embyfin.Client, batch []emby
 
 	gone := 0
 	var failed []orphanFailure
-	for _, it := range batch {
+	for i := range batch {
+		it := &batch[i]
 		if !held[it.ID] {
 			gone++
 
@@ -734,7 +742,8 @@ func registerOrphanTools(r *registry) {
 			return nil, deleteOut{}, err
 		}
 		out := deleteOut{Folder: folder, Scanned: swept.Read, Found: len(orphans), ByType: map[string]int{}, Examples: orphanRows(orphans, 10), Note: swept.Changed()}
-		for _, it := range orphans {
+		for i := range orphans {
+			it := &orphans[i]
 			out.ByType[it.Type]++
 		}
 		lists, err := readMemberships(ctx, client)

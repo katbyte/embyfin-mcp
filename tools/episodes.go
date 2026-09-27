@@ -1050,14 +1050,16 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 	}
 	where := func(list []embyfin.Item) string {
 		at := make([]string, 0, len(list))
-		for _, it := range list {
+		for i := range list {
+			it := &list[i]
 			at = append(at, fmt.Sprintf("id %s at %s", it.ID, it.Path))
 		}
 
 		return strings.Join(at, "; ")
 	}
 	var warnings []string
-	for _, it := range others {
+	for i := range others {
+		it := &others[i]
 		out.Others = append(out.Others, it.ID)
 	}
 	if len(others) > 0 && out.Absent > 0 {
@@ -1066,7 +1068,8 @@ func existsAnswer(ctx context.Context, r *registry, q existsQuery, quality bool,
 	}
 	// an anime entry kept apart by its AniDB id is not this show, but the
 	// provider's numbering may put one of this show's episodes in it
-	for _, it := range anime {
+	for i := range anime {
+		it := &anime[i]
 		out.Anime = append(out.Anime, it.ID)
 	}
 	if len(anime) > 0 && out.Absent > 0 {
@@ -1096,7 +1099,8 @@ func entriesWarning(ctx context.Context, r *registry, series *embyfin.Item, seas
 		warning = fmt.Sprintf("whether the library holds %q under another entry could not be checked (the library's series could not be read: %v), so these may not be all of its episodes", series.Name, oerr)
 	case len(entries) > 0:
 		where := make([]string, 0, len(entries))
-		for _, it := range entries {
+		for i := range entries {
+			it := &entries[i]
 			others = append(others, it.ID)
 			where = append(where, fmt.Sprintf("id %s at %s", it.ID, it.Path))
 		}

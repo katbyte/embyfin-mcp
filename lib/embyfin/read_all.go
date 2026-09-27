@@ -352,8 +352,8 @@ func (c *Client) readPages(ctx context.Context, opts SearchOptions, page int, se
 		}
 		pos = start + len(items)
 		tail = tail[:0]
-		for _, it := range items[len(items)-overlap:] {
-			tail = append(tail, it.ID)
+		for i := len(items) - overlap; i < len(items); i++ {
+			tail = append(tail, items[i].ID)
 		}
 	}
 }
@@ -383,7 +383,8 @@ func placed(items []Item, ids []string) bool {
 		at[id] = i
 	}
 	last := -1
-	for _, it := range items {
+	for j := range items {
+		it := &items[j]
 		i, ok := at[it.ID]
 		if !ok {
 			continue

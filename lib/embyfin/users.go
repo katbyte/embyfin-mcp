@@ -344,11 +344,13 @@ func (c *Client) Resume(ctx context.Context, userID string, limit int) ([]Item, 
 				return nil, err
 			}
 			rows := orEmpty(res.Model)
-			for _, it := range itemsFromEmby(rows.Items) {
+			found := itemsFromEmby(rows.Items)
+			for i := range found {
+				it := &found[i]
 				if it.UserData == nil || it.UserData.PlaybackPositionTicks <= 0 {
 					continue
 				}
-				out = append(out, it)
+				out = append(out, *it)
 				if limit > 0 && len(out) == limit {
 					return out, nil
 				}

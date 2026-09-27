@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -51,7 +52,7 @@ func TestSharedNamesAndHeldItems(t *testing.T) {
 					rows = append(rows, `{"Id":"`+id+`"}`)
 				}
 			}
-			_, _ = io.WriteString(w, `{"Items":[`+strings.Join(rows, ",")+`],"TotalRecordCount":`+fmt.Sprint(len(rows))+`}`)
+			_, _ = io.WriteString(w, `{"Items":[`+strings.Join(rows, ",")+`],"TotalRecordCount":`+strconv.Itoa(len(rows))+`}`)
 		case q.Get("IncludeItemTypes") == "Playlist":
 			_, _ = io.WriteString(w, `{"Items":[{"Id":"p1","Name":"Mix"},{"Id":"p2","Name":"mix"}],"TotalRecordCount":2}`)
 		default:

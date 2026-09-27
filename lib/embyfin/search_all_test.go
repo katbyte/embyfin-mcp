@@ -154,7 +154,8 @@ func readEvery(t *testing.T, backend Backend, l *library) ([]string, ReadResult,
 	c, _ := newFake(t, backend, map[string]route{"GET /Items": l.route()})
 	var got []string
 	result, err := c.ReadAll(t.Context(), SearchOptions{PageSize: 10}, ToAnswer, func(items []Item) bool {
-		for _, it := range items {
+		for i := range items {
+			it := &items[i]
 			got = append(got, it.ID)
 		}
 		return true

@@ -818,12 +818,12 @@ func registerItemTools(r *registry) {
 		if it.IsFolder {
 			// what goes with it decides the delete: a read that cannot be
 			// sure of it fails, and nothing is deleted
-			read, err := client.ReadAll(ctx, embyfin.SearchOptions{ParentID: in.ID, ExcludeItemTypes: containerTypes, Fields: "Path"}, embyfin.ToAct, func(page []embyfin.Item) bool {
+			read, readErr := client.ReadAll(ctx, embyfin.SearchOptions{ParentID: in.ID, ExcludeItemTypes: containerTypes, Fields: "Path"}, embyfin.ToAct, func(page []embyfin.Item) bool {
 				under = append(under, page...)
 				return true
 			})
-			if err != nil {
-				return nil, deleteOut{}, fmt.Errorf("could not read the items under %s, which go with it, so nothing was deleted: %w", it.Name, err)
+			if readErr != nil {
+				return nil, deleteOut{}, fmt.Errorf("could not read the items under %s, which go with it, so nothing was deleted: %w", it.Name, readErr)
 			}
 			if changed := read.Changed(); changed != "" {
 				return nil, deleteOut{}, fmt.Errorf("can't be sure of the items under %s, which go with it, so nothing was deleted (%s): ask again", it.Name, changed)

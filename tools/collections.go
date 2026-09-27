@@ -222,7 +222,8 @@ func registerCollectionTools(r *registry) {
 		}
 
 		out := listOut{}
-		for _, it := range items {
+		for i := range items {
+			it := &items[i]
 			out.Collections = append(out.Collections, collectionRow{ID: it.ID, Name: it.Name})
 		}
 

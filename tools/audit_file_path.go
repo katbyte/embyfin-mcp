@@ -248,7 +248,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 	// every other version's file, read in batches: a film shown in two files
 	// can have the wrong one in either
 	for chunk := range slices.Chunk(versioned, idsPerRequest) {
-		versions, err := client.ReadAll(ctx, embyfin.SearchOptions{IDs: strings.Join(chunk, ","), Fields: opts.Fields + ",MediaSources"}, embyfin.ToAnswer, func(items []embyfin.Item) bool {
+		versions, readErr := client.ReadAll(ctx, embyfin.SearchOptions{IDs: strings.Join(chunk, ","), Fields: opts.Fields + ",MediaSources"}, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 			for i := range items {
 				for _, src := range items[i].MediaSources {
 					if src.Path == "" || src.Path == items[i].Path {
@@ -262,8 +262,8 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 
 			return true
 		})
-		if err != nil {
-			return pathOut{}, err
+		if readErr != nil {
+			return pathOut{}, readErr
 		}
 		out.changed = joinWarnings(out.changed, versions.Changed())
 	}

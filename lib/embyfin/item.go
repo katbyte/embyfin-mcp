@@ -560,10 +560,11 @@ func (c *Client) ItemsByProviderID(ctx context.Context, provider, id, types stri
 	// Jellyfin fallback: page through the films or series and match locally.
 	var matches []Item
 	result, err := c.ReadAll(ctx, SearchOptions{IncludeItemTypes: types}, ToAnswer, func(items []Item) bool {
-		for _, it := range items {
+		for i := range items {
+			it := &items[i]
 			for k, v := range it.ProviderIDs {
 				if strings.EqualFold(k, provider) && v == id {
-					matches = append(matches, it)
+					matches = append(matches, *it)
 				}
 			}
 		}
@@ -595,10 +596,12 @@ func (c *Client) ItemsByAnyProviderID(ctx context.Context, ids []string) ([]Item
 		return nil, err
 	}
 	var out []Item
-	for _, it := range itemsFromEmby(orEmpty(res.Model).Items) {
+	found := itemsFromEmby(orEmpty(res.Model).Items)
+	for i := range found {
+		it := &found[i]
 		for k, v := range it.ProviderIDs {
 			if slices.Contains(ids, strings.ToLower(k)+"."+v) {
-				out = append(out, it)
+				out = append(out, *it)
 				break
 			}
 		}

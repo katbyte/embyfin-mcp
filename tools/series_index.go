@@ -298,12 +298,13 @@ func (r *registry) matchSeries(ctx context.Context, rel release, parent string) 
 		return nil, nil, err
 	}
 	stale := false
-	for _, it := range found {
+	for i := range found {
+		it := &found[i]
 		if _, ok := idx.byID[it.ID]; !ok {
 			stale = true
 		}
 		if !slices.ContainsFunc(seen, func(s embyfin.Item) bool { return s.ID == it.ID }) {
-			seen = append(seen, it)
+			seen = append(seen, *it)
 		}
 	}
 	for _, row := range searched {

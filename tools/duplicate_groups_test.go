@@ -27,7 +27,8 @@ func groupIDs(groups [][]embyfin.Item) [][]string {
 	out := make([][]string, 0, len(groups))
 	for _, g := range groups {
 		var ids []string
-		for _, it := range g {
+		for i := range g {
+			it := &g[i]
 			ids = append(ids, it.ID)
 		}
 		out = append(out, ids)

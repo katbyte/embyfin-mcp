@@ -283,8 +283,9 @@ func registerAnimeAudit(r *registry) {
 				return runtime != 0 && runtime < minSpecialS
 			})
 			// a special with no number of its own sits at none
-			for _, s := range specials {
-				for _, n := range episodeSpan(&s) {
+			for i := range specials {
+				s := &specials[i]
+				for _, n := range episodeSpan(s) {
 					held[n] = true
 				}
 			}
@@ -295,8 +296,9 @@ func registerAnimeAudit(r *registry) {
 				}
 				numbers := place.in(held)
 				row := animeSplit{SeriesID: it.ID, Series: it.Name, AniDB: entryName(e), Where: place.where, HeldAlso: heldAs[e.AniDB], Specials: []animeSpecial{}}
-				for _, s := range specials {
-					span := episodeSpan(&s)
+				for i := range specials {
+					s := &specials[i]
+					span := episodeSpan(s)
 					if slices.ContainsFunc(numbers, func(n int) bool { return slices.Contains(span, n) }) {
 						row.Specials = append(row.Specials, animeSpecial{ID: s.ID, Episode: span[0], Name: s.Name, RuntimeS: int(s.RunTimeTicks / ticksPerSecond)})
 					}

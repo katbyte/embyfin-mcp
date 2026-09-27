@@ -102,7 +102,8 @@ func registerPersonTools(r *registry) {
 		}
 		if found == nil {
 			out := getOut{Candidates: make([]personRow, 0, len(near))}
-			for _, p := range near {
+			for i := range near {
+				p := &near[i]
 				out.Candidates = append(out.Candidates, personRow{Name: p.Name, ID: p.ID})
 			}
 
