@@ -115,7 +115,7 @@ func TestAWatchedMarkOnASeries(t *testing.T) {
 	// is read there
 	clean := findItem(t, "Movies", "Movie", "Alien")
 	var messy []string
-	for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348"})["items"], "items") {
+	for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348", "type": "movie"})["items"], "items") {
 		if id := str(it["id"]); id != clean {
 			messy = append(messy, id)
 		}
@@ -514,7 +514,7 @@ func TestACollectionOfASeries(t *testing.T) {
 // playlist is not deleted by item_delete.
 func TestDeletingOneCopyNamesOnlyItsLists(t *testing.T) {
 	var plain, cut string
-	for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348"})["items"], "items") {
+	for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348", "type": "movie"})["items"], "items") {
 		switch p := str(it["path"]); {
 		case strings.Contains(p, "/messy-movies/") && strings.Contains(p, "Directors Cut"):
 			cut = str(it["id"])

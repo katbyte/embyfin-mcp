@@ -689,9 +689,13 @@ fixtures() {
   } > "${g}/tvshow.nfo"
   # its episodes run three minutes but the last, cut to a second: the shortest
   # spread that clears the runtime audit's two-minute floor, since a file of a
-  # second rounds to 0 minutes like its median, and small, so cheap to make
+  # second rounds to 0 minutes like its median, and small, so cheap to make.
+  # The second is a little wider than the first so the two never come out
+  # the same size: x264 on one machine can make them match to the byte,
+  # and audit_duplicate_episodes reads a size only one other file has as
+  # a sign of a copy
   episode "${g}/Season 01/hack Liminality S01E01" 1 1 "In the Case of Mai Minase" 180 160x90
-  episode "${g}/Season 01/hack Liminality S01E02" 1 2 "In the Case of Yuki Aihara" 180 160x90
+  episode "${g}/Season 01/hack Liminality S01E02" 1 2 "In the Case of Yuki Aihara" 180 176x90
   episode "${g}/Season 01/hack Liminality S01E03" 1 3 "In the Case of Kyoko Tohno" 1 160x90
 
   # one show split by a folder rename: the old folder had no year, the new
