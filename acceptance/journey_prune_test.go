@@ -261,7 +261,7 @@ func TestPruningOneCopyOfAFilm(t *testing.T) {
 				t.Fatal(err)
 			}
 			var copies []string
-			for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "679"})["items"], "items") {
+			for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "679", "type": "movie"})["items"], "items") {
 				copies = append(copies, hostPath(str(it["path"])))
 			}
 			slices.Sort(copies)
@@ -340,9 +340,7 @@ func TestDeletingASeason(t *testing.T) {
 	})
 	const library = "Zzyzx Seasons"
 	t.Cleanup(func() {
-		if err := retried("library_delete", map[string]any{"library": library, "confirm": true}); err != nil {
-			t.Errorf("removing the library: %v", err)
-		}
+		removeLibrary(t, library)
 		if err := waitForExpectedScan(); err != nil {
 			t.Error(err)
 		}

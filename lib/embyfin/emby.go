@@ -46,12 +46,24 @@ func itemsFromEmby(dtos []emby.BaseItemDto) []Item {
 	return items
 }
 
+// lockedFromEmby is an item's locked fields, by name.
+func lockedFromEmby(fields []emby.MetadataFields) []string {
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		out = append(out, string(f))
+	}
+
+	return out
+}
+
 func itemFromEmby(d *emby.BaseItemDto) Item {
 	it := Item{
 		ID:                d.Id,
 		Name:              d.Name,
 		OriginalTitle:     d.OriginalTitle,
 		SortName:          d.SortName,
+		PresentationKey:   d.PresentationUniqueKey,
+		Settings:          settingsOf(d.ForcedSortName, lockedFromEmby(d.LockedFields)),
 		Type:              d.Type,
 		ProductionYear:    d.ProductionYear,
 		PremiereDate:      d.PremiereDate,
@@ -112,6 +124,7 @@ func mediaStreamFromEmby(d *emby.MediaStream) MediaStream {
 	return MediaStream{
 		Type: string(d.Type), Codec: d.Codec, Language: d.Language, Width: d.Width, Height: d.Height,
 		BitRate: int64(d.BitRate), Channels: d.Channels, DisplayTitle: d.DisplayTitle, IsExternal: pointer.From(d.IsExternal),
+		IsForced: pointer.From(d.IsForced),
 		// the servers give both; AverageFrameRate is the one over the whole
 		// file, RealFrameRate the container's nominal one, and either is
 		// enough to tell 23.976 from 60
@@ -120,6 +133,10 @@ func mediaStreamFromEmby(d *emby.MediaStream) MediaStream {
 		ColourPrimaries: d.ColorPrimaries,
 		VideoRange:      d.VideoRange,
 		AspectRatio:     d.AspectRatio,
+		// Emby's own reading of the format, which VideoRange ("HDR 10") does
+		// not narrow to Dolby Vision or HDR10+
+		ExtendedVideoType:    string(d.ExtendedVideoType),
+		ExtendedVideoSubType: string(d.ExtendedVideoSubType),
 	}
 }
 
@@ -165,11 +182,19 @@ func virtualFolderFromEmby(d *emby.VirtualFolderInfo) VirtualFolder {
 func userFromEmby(d *emby.UserDto) User {
 	u := User{ID: d.Id, Name: d.Name, LastActivityDate: d.LastActivityDate, LastLoginDate: d.LastLoginDate, HasPassword: pointer.From(d.HasPassword)}
 	if p := d.Policy; p != nil {
+		// Emby has one tag list: a block, or with IsTagBlockingModeInclusive
+		// the only tags shown. IncludeTags hid nothing on 4.10 in either
+		// mode, and is not read as a limit
+		blocked, allowed := p.BlockedTags, []string(nil)
+		if pointer.From(p.IsTagBlockingModeInclusive) {
+			blocked, allowed = nil, p.BlockedTags
+		}
 		u.Policy = UserPolicy{
 			IsAdministrator: pointer.From(p.IsAdministrator), IsDisabled: pointer.From(p.IsDisabled), IsHidden: pointer.From(p.IsHidden),
 			EnableAllFolders: pointer.From(p.EnableAllFolders), EnabledFolders: p.EnabledFolders,
 			EnableContentDeletion: pointer.From(p.EnableContentDeletion), EnableRemoteAccess: pointer.From(p.EnableRemoteAccess),
-			MaxParentalRating: p.MaxParentalRating,
+			BlockedTags: blocked, AllowedTags: allowed, BlockUnratedItems: unrated(p.BlockUnratedItems), BlockedFolders: p.ExcludedSubFolders,
+			EnableAllChannels: pointer.From(p.EnableAllChannels), MaxParentalRating: p.MaxParentalRating,
 		}
 	}
 	if c := d.Configuration; c != nil {
@@ -198,7 +223,7 @@ func sessionFromEmby(d *emby.SessionSessionInfo) Session {
 }
 
 func taskFromEmby(d *emby.TaskInfo) Task {
-	t := Task{ID: d.Id, Name: d.Name, Category: d.Category, State: string(d.State)}
+	t := Task{ID: d.Id, Key: d.Key, Name: d.Name, Category: d.Category, Description: d.Description, State: string(d.State)}
 	if r := d.LastExecutionResult; r != nil {
 		t.LastExecutionResult = &TaskResult{Status: string(r.Status), StartTimeUtc: r.StartTimeUtc, EndTimeUtc: r.EndTimeUtc, ErrorMessage: r.ErrorMessage}
 	}

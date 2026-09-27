@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -49,7 +51,7 @@ func TestSharedNamesAndHeldItems(t *testing.T) {
 					rows = append(rows, `{"Id":"`+id+`"}`)
 				}
 			}
-			_, _ = io.WriteString(w, `{"Items":[`+strings.Join(rows, ",")+`],"TotalRecordCount":1}`)
+			_, _ = io.WriteString(w, `{"Items":[`+strings.Join(rows, ",")+`],"TotalRecordCount":`+fmt.Sprint(len(rows))+`}`)
 		case q.Get("IncludeItemTypes") == "Playlist":
 			_, _ = io.WriteString(w, `{"Items":[{"Id":"p1","Name":"Mix"},{"Id":"p2","Name":"mix"}],"TotalRecordCount":2}`)
 		default:
@@ -61,6 +63,10 @@ func TestSharedNamesAndHeldItems(t *testing.T) {
 		added = append(added, r.URL.Query().Get("Ids"))
 		f.mu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
+	})
+	idleScans(t, f)
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"Items":[],"TotalRecordCount":0}`)
 	})
 	cs := session(t, f, Options{})
 
@@ -130,6 +136,9 @@ func TestParallelEditsKeepEveryChange(t *testing.T) {
 	f := newFakeServer(t)
 	f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true}}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[],"TotalRecordCount":0}`)
 	})
 	var mu sync.Mutex
 	tags := `[]`
@@ -342,6 +351,13 @@ func TestNoChangesForAUserWhoCannotSee(t *testing.T) {
 	f.mux.HandleFunc("POST /Users/{user}/PlayedItems/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, `{}`)
 	})
+	f.mux.HandleFunc("DELETE /Users/{user}/PlayedItems/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{}`)
+	})
+	idleScans(t, f)
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"Items":[],"TotalRecordCount":0}`)
+	})
 	cs := session(t, f, Options{})
 
 	for _, args := range []map[string]any{
@@ -356,7 +372,9 @@ func TestNoChangesForAUserWhoCannotSee(t *testing.T) {
 	if n := len(f.requests("/Users/u2/PlayedItems/e2")) + len(f.requests("/Users/u2/FavoriteItems/e2")) + len(f.requests("/Users/u2/Items/e2/UserData")); n != 0 {
 		t.Errorf("the refused change was sent %d times", n)
 	}
-	if _, msg := callTool(t, cs, "item_set_state", map[string]any{"id": "e2", "watched": true}); msg != "" {
+	// root, who can see it, may (the canned server keeps it unwatched, which
+	// a mark of unwatched reads back as asked)
+	if _, msg := callTool(t, cs, "item_set_state", map[string]any{"id": "e2", "watched": false}); msg != "" {
 		t.Errorf("item_set_state for root: %s", msg)
 	}
 
@@ -480,12 +498,16 @@ func TestIdentifyApplyWithTheFetchersOff(t *testing.T) {
 			})
 			cs := session(t, f, Options{})
 
-			out, msg := callTool(t, cs, "item_identify_apply", map[string]any{"id": c.id, "kind": "series", "candidate": 0})
+			out, msg := callTool(t, cs, "item_identify_apply", map[string]any{"id": c.id, "kind": "series", "candidate": 0, "candidate_ids": map[string]any{"tmdb": "655"}})
 			if msg != "" {
 				t.Fatal(msg)
 			}
 			if got, ok := out["metadata_provider_ids"].(map[string]any); !ok || got["tmdb"] != "655" {
 				t.Errorf("item_identify_apply = %v", out)
+			}
+			// what it was, to identify it back by: a show with no ids
+			if was := object(t, out["was"], "was"); was["name"] != "Zzyzx Show" || was["metadata_provider_ids"] != nil {
+				t.Errorf("was = %v", out["was"])
 			}
 			applied, edited := len(f.requests("/Items/RemoteSearch/Apply/"+c.id)), len(f.requests("/Items/"+c.id))
 			switch {
@@ -513,5 +535,244 @@ func TestIdentifyApplyWithTheFetchersOff(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A refresh reads the nfo beside the file again, and on Emby that puts back
+// the ids it names over a match made since: the answer gives the item's
+// name, year and ids before and after, and says when an id it held is gone
+// or another - not when the refresh only fills in one it lacked.
+func TestARefreshSaysWhenTheTitleChanged(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name, after string
+		changed     bool
+	}{
+		{"an id put back", `{"Tmdb":"841","Imdb":"tt0087182"}`, true},
+		{"an id filled in", `{"Tmdb":"438631","Imdb":"tt1160419"}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var mu sync.Mutex
+			saves := 0
+			f := newFakeServer(t)
+			f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				ids := `{"Tmdb":"438631"}`
+				if saves > 0 {
+					ids = tc.after
+				}
+				writeRaw(t, w, fmt.Sprintf(`{"Items":[{"Id":"1","Name":"Dune","ProductionYear":2021,"Type":"Movie","Etag":"e%d","ProviderIds":%s,"Path":"/media/films/Dune (2021)/Dune (2021).mp4"}],"TotalRecordCount":1}`, saves, ids))
+			})
+			f.mux.HandleFunc("POST /Items/{id}/Refresh", func(w http.ResponseWriter, _ *http.Request) {
+				mu.Lock()
+				saves++
+				mu.Unlock()
+				w.WriteHeader(http.StatusNoContent)
+			})
+			f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+				writeRaw(t, w, `{"Items":[],"TotalRecordCount":0}`)
+			})
+			cs := session(t, f, Options{})
+
+			out := mustCall(t, cs, "item_refresh", map[string]any{"id": "1"})
+			before, after := object(t, out["before"], "before"), object(t, out["after"], "after")
+			if object(t, before["metadata_provider_ids"], "before ids")["tmdb"] != "438631" || after["name"] != "Dune" {
+				t.Errorf("before = %v, after = %v", before, after)
+			}
+			if boolean(t, out["identity_changed"], "identity_changed") != tc.changed || strings.Contains(text(out["note"]), "changed which title") != tc.changed {
+				t.Errorf("refresh = %v, want identity_changed %v", out, tc.changed)
+			}
+		})
+	}
+}
+
+// A provider can list its candidates in another order from one search to
+// the next, and item_identify_apply asks again: the index alone applied
+// whichever title was at it now. The candidate carrying the ids given is
+// applied wherever it is listed, none carrying them is refused with nothing
+// sent, and so is a kind that is not the item's.
+func TestIdentifyApplyTakesTheCandidateByItsIDs(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	ids := map[string]any{"Tmdb": "111"}
+	searches := 0
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true,"EnableAllFolders":true}}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[{"Name":"Films","ItemId":"9","Locations":["/media/films"],"LibraryOptions":{"TypeOptions":[{"Type":"Movie","MetadataFetchers":["TheMovieDb"]}]}}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		writeJSON(t, w, page(map[string]any{"Id": "4", "Name": "Zzyzx", "Type": "Movie", "ProductionYear": 1999, "Path": "/media/films/Zzyzx/Zzyzx.mkv", "ProviderIds": ids}))
+	})
+	// the folder beside the film: the poster goes with the match, as Emby's does
+	var applied []string
+	f.mux.HandleFunc("GET /Environment/DirectoryContents", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		entries := []map[string]any{{"Name": "Zzyzx.mkv", "Path": "/media/films/Zzyzx/Zzyzx.mkv", "Type": "File"}}
+		if len(applied) == 0 {
+			entries = append(entries, map[string]any{"Name": "poster.jpg", "Path": "/media/films/Zzyzx/poster.jpg", "Type": "File"})
+		}
+		writeJSON(t, w, entries)
+	})
+	// the first search lists 655 first, every search after lists 999 first
+	f.mux.HandleFunc("POST /Items/RemoteSearch/Movie", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		searches++
+		if searches == 1 {
+			writeRaw(t, w, `[{"Name":"Zzyzx","ProductionYear":1999,"ProviderIds":{"Tmdb":"655"}},{"Name":"Zzyzx II","ProductionYear":2001,"ProviderIds":{"Tmdb":"999"}}]`)
+			return
+		}
+		writeRaw(t, w, `[{"Name":"Zzyzx II","ProductionYear":2001,"ProviderIds":{"Tmdb":"999"}},{"Name":"Zzyzx","ProductionYear":1999,"ProviderIds":{"Tmdb":"655"}}]`)
+	})
+	f.mux.HandleFunc("POST /Items/RemoteSearch/Apply/{id}", func(w http.ResponseWriter, r *http.Request) {
+		body := readBody(t, r)
+		mu.Lock()
+		defer mu.Unlock()
+		sent := object(t, body["ProviderIds"], "ProviderIds")
+		applied = append(applied, text(sent["Tmdb"]))
+		ids = map[string]any{"Tmdb": sent["Tmdb"]}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	cs := session(t, f, Options{})
+
+	cands := objects(t, mustCall(t, cs, "item_identify", map[string]any{"id": "4", "kind": "movie"})["candidates"], "candidates")
+	chosen := object(t, cands[0]["metadata_provider_ids"], "metadata_provider_ids")
+	if chosen["tmdb"] != "655" {
+		t.Fatalf("the first candidate = %v", cands[0])
+	}
+
+	// a kind that is not the item's: refused, nothing sent
+	if msg := mustRefuse(t, cs, "item_identify_apply", map[string]any{"id": "4", "kind": "series", "candidate": 0, "candidate_ids": chosen}); !strings.Contains(msg, "Zzyzx is a Movie, and kind series identifies a Series") {
+		t.Errorf("a kind that is not the item's: %s", msg)
+	}
+	// ids no candidate carries now: refused, nothing sent
+	if msg := mustRefuse(t, cs, "item_identify_apply", map[string]any{"id": "4", "kind": "movie", "candidate": 0, "candidate_ids": map[string]any{"tmdb": "777"}}); !strings.Contains(msg, "no candidate the search offers now carries") || !strings.Contains(msg, "at index 0 it now offers Zzyzx II (2001)") {
+		t.Errorf("ids no candidate carries: %s", msg)
+	}
+	mu.Lock()
+	if len(applied) != 0 {
+		t.Errorf("a refused apply was sent: %v", applied)
+	}
+	mu.Unlock()
+
+	// the chosen candidate, now listed second: it is the one applied
+	out := mustCall(t, cs, "item_identify_apply", map[string]any{"id": "4", "kind": "movie", "candidate": 0, "candidate_ids": chosen})
+	mu.Lock()
+	sent := slices.Clone(applied)
+	mu.Unlock()
+	if !slices.Equal(sent, []string{"655"}) || !strings.HasPrefix(text(out["applied"]), "Zzyzx (1999)") || !strings.Contains(text(out["note"]), "at index 1, not 0") {
+		t.Errorf("apply of a candidate that moved = %v, sent %v", out, sent)
+	}
+	if was := object(t, out["was"], "was"); object(t, was["metadata_provider_ids"], "was ids")["tmdb"] != "111" {
+		t.Errorf("was = %v, want the ids it had", out["was"])
+	}
+	if got := texts(out["removed_beside_media"]); !slices.Equal(got, []string{"/media/films/Zzyzx/poster.jpg"}) || !strings.Contains(text(out["note"]), "the server deleted /media/films/Zzyzx/poster.jpg from beside the media") {
+		t.Errorf("removed_beside_media = %v, note %q: want the poster the match took", got, out["note"])
+	}
+}
+
+// On Emby a refresh with replace_all, and a match, delete the poster.jpg
+// beside the media in favour of the provider's image, and only the
+// descriptions said so. The folder is read before and after, and the answer
+// names what went from it and what came; one that cannot be read first
+// stops the refresh before it is asked for.
+func TestARefreshNamesWhatItTookFromBesideTheMedia(t *testing.T) {
+	t.Parallel()
+
+	const dir = "/media/films/Dune (2021)"
+	var mu sync.Mutex
+	refreshed, listFails := false, false
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		etag := map[bool]string{false: "e0", true: "e1"}[refreshed]
+		writeRaw(t, w, `{"Items":[{"Id":"1","Name":"Dune","ProductionYear":2021,"Type":"Movie","Etag":"`+etag+`","ProviderIds":{"Tmdb":"438631"},"Path":"`+dir+`/Dune (2021).mp4"}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Environment/DirectoryContents", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if listFails || r.URL.Query().Get("Path") != dir {
+			http.Error(w, "the folder is busy", http.StatusInternalServerError)
+			return
+		}
+		files := []string{"Dune (2021).mp4", "poster.jpg"}
+		if refreshed {
+			files = []string{"Dune (2021).mp4", "backdrop.jpg"}
+		}
+		entries := make([]map[string]any, 0, len(files))
+		for _, name := range files {
+			entries = append(entries, map[string]any{"Name": name, "Path": dir + "/" + name, "Type": "File"})
+		}
+		writeJSON(t, w, entries)
+	})
+	f.mux.HandleFunc("POST /Environment/ValidatePath", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	// a library that saves nfos: the nfo written over is not seen, and said
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[{"Name":"Films","ItemId":"9","Locations":["/media/films"],"LibraryOptions":{"MetadataSavers":["Nfo"],"TypeOptions":[{"Type":"Movie","MetadataFetchers":["TheMovieDb"]}]}}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("POST /Items/{id}/Refresh", func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		refreshed = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+	cs := session(t, f, Options{})
+
+	mu.Lock()
+	listFails = true
+	mu.Unlock()
+	if msg := mustRefuse(t, cs, "item_refresh", map[string]any{"id": "1", "replace_all": true}); !strings.Contains(msg, "could not read the folder beside Dune's media") || !strings.Contains(msg, "nothing was changed") {
+		t.Errorf("a refresh with the folder unreadable: %s", msg)
+	}
+	mu.Lock()
+	if refreshed {
+		t.Error("the refresh was asked for with the folder unread")
+	}
+	listFails = false
+	mu.Unlock()
+
+	out := mustCall(t, cs, "item_refresh", map[string]any{"id": "1", "replace_all": true})
+	if got := texts(out["removed_beside_media"]); !slices.Equal(got, []string{dir + "/poster.jpg"}) {
+		t.Errorf("removed_beside_media = %v, want the poster", got)
+	}
+	if got := texts(out["added_beside_media"]); !slices.Equal(got, []string{dir + "/backdrop.jpg"}) || out["folder_read"] != dir {
+		t.Errorf("added_beside_media = %v in %v, want the backdrop in %s", got, out["folder_read"], dir)
+	}
+	if note := text(out["note"]); !strings.Contains(note, "the refresh deleted "+dir+"/poster.jpg from beside the media") || !strings.Contains(note, "the Films library saves nfos, so the server may have written the nfo beside the media over, which a listing of the folder does not show") {
+		t.Errorf("note = %q", note)
+	}
+}
+
+// A candidate the providers give no ids for cannot be applied: the server
+// applies a match by its ids, and nothing could say it landed. The refusal
+// told the caller to pass ids the candidate does not have; it says why
+// instead, and for a candidate with ids, which ones it carries now.
+func TestACandidateWithoutIDs(t *testing.T) {
+	t.Parallel()
+
+	results := []embyfin.RemoteSearchResult{
+		{Name: "Zzyzx", ProductionYear: 1999},
+		{Name: "Zzyzx II", ProductionYear: 2001, ProviderIDs: map[string]string{"Tmdb": "999"}},
+	}
+	for index, want := range map[int]string{
+		0: "the candidate at index 0, Zzyzx (1999), carries no metadata provider ids, so it cannot be applied",
+		1: "candidate_ids is required: at index 1 the search now offers Zzyzx II (2001) with map[tmdb:999]",
+		5: "candidate_ids is required, and the search now returns 2 results, none at index 5",
+	} {
+		if err := candidateIDsMissing(results, index); err == nil || !strings.Contains(err.Error(), want) || !strings.Contains(err.Error(), "othing was changed") {
+			t.Errorf("candidate %d without candidate_ids = %v, want %q", index, err, want)
+		}
 	}
 }

@@ -38,6 +38,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -108,6 +109,64 @@ type Client struct {
 	BaseURL    string
 	HTTPClient *http.Client
 	Authorizer Authorizer
+	// Retry is how a read is sent again when the server, or a proxy in
+	// front of it, answers that it is too busy or could not reach it; the
+	// zero value sends every request once.
+	Retry Retry
+}
+
+// Retry is how often, and after how long, a read is sent again after a
+// transient failure: a 502, 503 or 504 (what a reverse proxy answers when
+// the server behind it is slow or restarting, and a busy server itself), or
+// a connection the other end reset or closed before or part way through the
+// answer (a read whose answer is buffered reads it whole inside the retry,
+// so one cut short is sent again; a streamed file is handed on as it comes,
+// and is not). Only a GET or a HEAD with no body is retried: a read asked
+// twice reads the same, and a write or a delete asked twice is not the same
+// as asked once - whether the first one landed before the failure cannot be
+// known from here.
+type Retry struct {
+	// Tries is how many times a read is sent in all; 0 or 1 is once.
+	Tries int
+	// Wait is how long to wait before the nth retry (1 for the first);
+	// nil waits not at all.
+	Wait func(n int) time.Duration
+}
+
+// Backoff waits base before the first retry and doubles it before each one
+// after.
+func Backoff(base time.Duration) func(n int) time.Duration {
+	return func(n int) time.Duration { return base << (n - 1) }
+}
+
+// transient says whether a failure is one a read is worth sending again for:
+// a gateway or busy answer, or a connection dropped under it.
+func transient(status int, err error) bool {
+	if err != nil {
+		return errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) ||
+			errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || h2Transient(err.Error())
+	}
+
+	return status == http.StatusBadGateway || status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout
+}
+
+// h2Transient says whether an HTTP/2 failure, which the standard library
+// reports by text alone, is a read worth sending again: a stream the server
+// or a proxy gave up on part way (INTERNAL_ERROR, as one whose handler
+// aborted), cancelled, or turned away before starting it (REFUSED_STREAM), or
+// a connection lost under it, to an unanswered ping or a server that said it
+// was going away and closed. A stream reset for a broken protocol would be
+// broken the same way again.
+func h2Transient(msg string) bool {
+	if strings.Contains(msg, "stream error: ") {
+		for _, code := range []string{"; INTERNAL_ERROR", "; CANCEL", "; REFUSED_STREAM"} {
+			if strings.Contains(msg, code) {
+				return true
+			}
+		}
+	}
+
+	return strings.Contains(msg, "http2: client connection lost") || strings.Contains(msg, "http2: server sent GOAWAY and closed the connection")
 }
 
 // New returns a client for the server at baseURL (scheme and host,
@@ -308,7 +367,7 @@ func (r *Request) SetBody(body io.Reader, contentType string) error {
 // answered, including with a *StatusError, so the caller can read its status
 // and body. Its body is buffered (and readable again) unless the request
 // streams a successful response.
-func (r *Request) Execute(_ context.Context) (*Response, error) {
+func (r *Request) Execute(ctx context.Context) (*Response, error) {
 	hc := r.client.HTTPClient
 	if hc.CheckRedirect == nil {
 		// a client swapped in whole (a test server's, the TMDB facts' own)
@@ -317,20 +376,31 @@ func (r *Request) Execute(_ context.Context) (*Response, error) {
 		withPolicy.CheckRedirect = keepCredentialsOnHost
 		hc = &withPolicy
 	}
-	httpResp, err := hc.Do(r.Request) //nolint:bodyclose // buffered and closed below, or a stream handed to the caller to close
+	httpResp, tries, err := r.send(ctx, hc) //nolint:bodyclose // buffered and closed below, or a stream handed to the caller to close
 	if err != nil {
-		return nil, redactTransportError(err)
+		err = redactTransportError(err)
+		if tries > 1 {
+			return nil, fmt.Errorf("%w (tried %d times)", err, tries)
+		}
+
+		return nil, err
 	}
 	resp := &Response{Response: httpResp}
 
 	if !slices.Contains(r.ExpectedStatusCodes, httpResp.StatusCode) {
-		body, _ := resp.buffer()
+		body, berr := resp.buffer()
+		preview := truncate(strings.TrimSpace(string(body)), errBodyPreview)
+		if berr != nil {
+			preview = strings.TrimSpace(preview + " (reading the rest of the answer failed: " + berr.Error() + ")")
+		}
+
 		return resp, &StatusError{
 			Method:              r.Method,
 			Path:                r.URL.Path,
 			StatusCode:          httpResp.StatusCode,
 			ExpectedStatusCodes: r.ExpectedStatusCodes,
-			Body:                truncate(strings.TrimSpace(string(body)), errBodyPreview),
+			Body:                preview,
+			Tries:               tries,
 		}
 	}
 	if r.StreamResponse {
@@ -341,6 +411,65 @@ func (r *Request) Execute(_ context.Context) (*Response, error) {
 	}
 
 	return resp, nil
+}
+
+// send sends the request, and a read again after a transient failure while
+// the client's Retry allows, waiting between; it answers the last response or
+// error and how many times the request was sent. A retry ends early when the
+// context does.
+func (r *Request) send(ctx context.Context, hc *http.Client) (*http.Response, int, error) {
+	tries := 1
+	if (r.Method == http.MethodGet || r.Method == http.MethodHead) && (r.Body == nil || r.Body == http.NoBody) {
+		tries = max(r.client.Retry.Tries, 1)
+	}
+	for n := 1; ; n++ {
+		httpResp, err := hc.Do(r.Clone(ctx))
+		status := 0
+		if err == nil {
+			status = httpResp.StatusCode
+			// a buffered read's body is read here, so an answer the
+			// connection cut short part way is a failure to try again for,
+			// not a body found wanting after the retries are over
+			if tries > 1 && !r.StreamResponse && !transient(status, nil) {
+				err = readWhole(httpResp)
+			}
+		}
+		if n == tries || !transient(status, err) || ctx.Err() != nil {
+			if err != nil && status != 0 {
+				return nil, n, fmt.Errorf("%s %s: HTTP %d, reading the answer: %w", r.Method, r.URL.Path, status, err)
+			}
+
+			return httpResp, n, err
+		}
+		if httpResp != nil {
+			if cerr := httpResp.Body.Close(); cerr != nil {
+				return nil, n, fmt.Errorf("%s %s: HTTP %d, and closing that answer to try again failed: %w", r.Method, r.URL.Path, status, cerr)
+			}
+		}
+		var wait time.Duration
+		if r.client.Retry.Wait != nil {
+			wait = r.client.Retry.Wait(n)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, n, fmt.Errorf("%s %s: %w, waiting to try again after a failed read", r.Method, r.URL.Path, ctx.Err())
+		case <-time.After(wait):
+		}
+	}
+}
+
+// readWhole reads an answer's body to its end, up to one byte past
+// MaxResponseBytes (which buffer then refuses), and puts it back as one that
+// reads the bytes again, closing the connection's.
+func readWhole(resp *http.Response) error {
+	conn := resp.Body
+	body, err := io.ReadAll(io.LimitReader(conn, MaxResponseBytes+1))
+	if cerr := conn.Close(); err == nil {
+		err = cerr
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+
+	return err
 }
 
 // Response is a server's answer.
@@ -395,6 +524,9 @@ type StatusError struct {
 	ExpectedStatusCodes []int
 	// Body is the start of the response body.
 	Body string
+	// Tries is how many times the request was sent: more than once for a
+	// read the client retried after a transient failure (see Retry).
+	Tries int
 }
 
 func (e *StatusError) Error() string {
@@ -405,6 +537,9 @@ func (e *StatusError) Error() string {
 	msg := fmt.Sprintf("%s %s: HTTP %d (expected %s)", e.Method, e.Path, e.StatusCode, strings.Join(want, " or "))
 	if e.Body != "" {
 		msg += ": " + e.Body
+	}
+	if e.Tries > 1 {
+		msg += fmt.Sprintf(" (tried %d times)", e.Tries)
 	}
 	switch e.StatusCode {
 	case http.StatusUnauthorized:

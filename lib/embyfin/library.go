@@ -304,8 +304,11 @@ func (c *Client) DeleteLibrary(ctx context.Context, folder *VirtualFolder) error
 	if _, err := c.jf.RemoveVirtualFolder(ctx, jf.RemoveVirtualFolderOperationOptions{Name: folder.Name, RefreshLibrary: new(false)}); err != nil {
 		return err
 	}
+	if err := c.jfLibraryScan(ctx); err != nil {
+		return fmt.Errorf("the library %s was removed, and asking for the scan that drops its items failed, so they stay listed until a scan runs (library_scan): %w", folder.Name, err)
+	}
 
-	return c.jfLibraryScan(ctx)
+	return nil
 }
 
 // SetLibraryNfo turns a library's nfo saver on or off. The options are posted

@@ -11,11 +11,13 @@
 - `item_get` and `library_items` show `original_title` when it differs from the name.
 - `audit_all` counts a music library's missing album covers and genre spellings.
 - `task_list` shows each task's id.
+- `audit_whitespace`: doubled, leading, trailing and odd spaces, and a space before a colon or a file extension, in names, sort names, original titles, genres, tags, studios, people, folders and file names, with the fixed text beside each.
+- Every whole-library read says in `note` when the library changed while it read it (every audit, `library_export`, `library_items` title searches, `user_stats`, `metadata_rename`, `item_orphans_delete`); `audit_all` names the audits that saw it. It reads every match's id once more at the end to check.
 
 **Changed**
 
 - `show_episodes` is gone: `library_episodes` takes the show by name or id (`series`) and a `season`, so one tool reads a show's episodes, a season's or a library's.
-- `user_in_progress` is gone: `user_next_up` answers what to watch next and everything part way through (`in_progress`, was `resume`), with where each resumes. 87 tools: 60 read, 22 write, 5 delete.
+- `user_in_progress` is gone: `user_next_up` answers what to watch next and everything part way through (`in_progress`, was `resume`), with where each resumes.
 - `--allow-tools` without `--toolsets` chooses from every tool, so `essential` loads all five. Beside `--toolsets`, naming a tool the sets don't hold is refused, naming the set to add.
 - `item_refresh` waits for the refresh to land and says whether it did, so an edit made straight after is no longer undone.
 - `item_identify_apply` sets every id the chosen title goes by when the library's fetchers are off. It warns when an nfo beside the file may bring the old title back and, on Emby, that watch state follows the ids.
@@ -24,6 +26,24 @@
 - `audit_unwatched` and `item_last_watched` count watches by accounts that have since lost access to the library.
 - `collection_delete` on Jellyfin watches a just-changed collection long enough for a slow refresh to come back, and says why.
 - `audit_provider` pages in its own order, so every film is asked about once; the other paged lists break ties by date added.
+- Breaking: `playlist_remove` and `playlist_edit` name an entry by its entry id and the item it holds (`item_ids`, `move_item_id`), need the playlist's `fingerprint` for an item held twice, and refuse when the playlist changed. Removing both copies of a doubled item on Jellyfin needs `all_copies`.
+- Breaking: `item_identify_apply` takes the candidate's `candidate_ids` and applies only the candidate carrying them; a candidate without ids can't be applied.
+- Breaking: `library_edit remove_paths`, and `task_run` for anything but a scan, need `--enable-delete`.
+- Breaking: `item_delete` refuses collections, playlists, libraries, genres, studios, people and artists, naming the right tool.
+- Breaking: `item_edit`'s `nfo_written` is `nfo_expected`, for films, shows, seasons and episodes only.
+- `item_set_state` lists every item's state before a change, reads back what it set and is an error for anything the server didn't keep, counts what a folder stores as well as the rows shown, says what a mark in a limited user's name reaches, names copies elsewhere that changed with it, and refuses a folder mark reaching more than 1,000 items.
+- Write and delete tools say everything they change, on the server and on disk; MCP hints match (`collection_create` is destructive: the first collection starts a scan of every library).
+- Write tools say when a library scan was running that may undo or redo the change: `item_set_state`, `collection_create`, `collection_add`, `collection_remove`.
+- Collections and playlists are read whole, whoever can see their contents; on Jellyfin with no administrator seeing every library the read is refused and nothing is deleted.
+- `audit_duplicate_episodes` says how sure each group is (near certain only on file proof, lead, far apart) and what the files show; placeholder titles like "TBA" never count.
+- Version, duplicate and file-path warnings check a film whose file name has more after its year ("Dune (2021) Part Two", "Alien (1979) - Aliens") against TMDB and the film's TMDB collection, at most 500 new films per call ("call again to continue"). "Probably" only when a year or TMDB says another film; "may" otherwise.
+- `audit_all` keeps every row when one audit fails, says how long each took, and names libraries no audit reads.
+- When a read can't be sure, read tools answer with what they read and say so; nothing claims "not there", "never watched", "missing" or a total from a read cut short. `metadata_rename`, `item_orphans_delete` and `playlist_add` refuse instead.
+- On Emby, audits of what people are shown place each version the admin view folds away by the key Emby merges by, checking 20 against a read of each.
+- `plan_check` treats an empty folder listing up the path as not known, and says when the server can't see a folder its library holds.
+- Reads retry a 502, 503 or 504 and a cut-off answer, over HTTP/1.1 and HTTP/2; writes are sent once.
+- One TMDB breaker for every TMDB check; a cancelled call doesn't count.
+- 88 tools: 61 read, 22 write, 5 delete.
 
 **Fixed**
 
@@ -50,6 +70,22 @@
 - `quality_compare` refused the id `item_get` lists for a film's other version on Jellyfin.
 - `item_delete` says when a library scan was running: a scan that had read the folder can list the item again until the next scan.
 - Emby's "HDR 10" reads as HDR10.
+- `playlist_remove` on Emby 4.11 could remove the wrong entry: Emby renumbers entries a moment after a change.
+- `collection_create` could empty a renamed collection on Jellyfin, whose folder names turn `/ \ : * ? " < > |` into spaces.
+- Jellyfin collections were read recursively, counting a series' seasons and episodes as members.
+- `metadata_rename` answered before Emby's album genres caught up; it waits up to ten seconds and names anything still showing the old name.
+- `item_refresh` and `item_identify_apply` name files removed from or added beside the media, and say a file overwritten in place (the nfo) isn't seen.
+- A failed delete says what already went from disk and whether the item is still listed.
+- `audit_file_path` title and year rules: part 1 and part 2 kept apart, "Part One"/"Part 1"/"Pt. I" read alike, a closing "One" of a name ("Air Force One") isn't a part, country qualifiers ("(US)") match, "(OVA)"/"(TV)"/"(DC)" are words, Radarr and TRaSH release tags are not title words, a title's own year ("Blade Runner 2049") is never the release year, and a year after next year never dates a file.
+- `library_items` title searches gave a false total (Emby 0, Jellyfin at most three pages) and Jellyfin listed nothing past three pages.
+- A `saved_since` that isn't a date is refused.
+- User tools show a parental limit of 0 (Jellyfin's strictest) as a limit.
+- `audit_unwatched` listed items part way through as never watched.
+- `audit_spelling` grouped different studios whose names contain each other ("Warner Bros. Pictures" and "Warner Bros. Television").
+- `audit_disc_folders` counted a disc's titles more than once.
+- The history tools found nothing for a series or season id, and on Jellyfin called a window complete past the 30 days its activity log keeps.
+- `audit_runtime` judged a season split between two lengths by one median; each length is judged on its own.
+- TMDB collection parts decode their titles (a spec workaround, `tmdb-collection-parts`).
 
 ## 0.2.0 (2026-09-23)
 

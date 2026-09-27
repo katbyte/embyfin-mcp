@@ -2,6 +2,8 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -51,7 +53,7 @@ func TestDuplicateEpisodesMustBeOfTheSameShow(t *testing.T) {
 	episode := func(id, seriesID, series string) embyfin.Item {
 		return embyfin.Item{
 			ID: id, Name: "Pilot", Type: typeEpisode, SeriesID: seriesID, SeriesName: series,
-			ParentIndexNumber: 1, IndexNumber: 1, ProviderIDs: map[string]string{"Imdb": "tt0000002"},
+			ParentIndexNumber: new(1), IndexNumber: new(1), ProviderIDs: map[string]string{"Imdb": "tt0000002"},
 		}
 	}
 	if groups := groupByProviderID([]embyfin.Item{episode("a", "s1", "Zzyzx Show"), episode("b", "s2", "Another Zzyzx Show")}); len(groups) != 0 {
@@ -117,7 +119,7 @@ func TestRuntimeAuditReportsBrokenDurationsInAnySeason(t *testing.T) {
 			t.Errorf("%s: a broken duration was not reported: %v", name, details)
 		}
 	}
-	if detail := details["Zzyzx Show S03E04 Truncated"]; !strings.Contains(detail, "season median 22 min") {
+	if detail := details["Zzyzx Show S03E04 Truncated"]; detail != "5 min, far shorter than the rest of its season, which run 22 min: an incomplete or wrong file" {
 		t.Errorf("the truncated file = %q", detail)
 	}
 	if n := number(t, out["total_findings"], "total_findings"); n != 6 {
@@ -223,8 +225,12 @@ func TestAuditAllReadsAMusicLibrary(t *testing.T) {
 			t.Errorf("%s over the music library = %v, want %d of the 3 albums, read as MusicAlbum", audit, row, want)
 		}
 	}
+	// the spaces in names and folders are music's as much as anything's
+	if row := rows["audit_whitespace"]; row == nil || row["skipped"] != nil || number(t, row["items_scanned"], "items_scanned") != 3 {
+		t.Errorf("audit_whitespace over the music library = %v, want the 3 albums read", row)
+	}
 	for audit, row := range rows {
-		if audit != "audit_missing_poster" && audit != "audit_spelling" && row["skipped"] == nil {
+		if audit != "audit_missing_poster" && audit != "audit_spelling" && audit != "audit_whitespace" && row["skipped"] == nil {
 			t.Errorf("%s ran over a music library: %v", audit, row)
 		}
 	}
@@ -241,6 +247,189 @@ func TestAuditAllReadsAMusicLibrary(t *testing.T) {
 				t.Errorf("an audit with nothing to say about music names types over every library: %v", row)
 			}
 		}
+	}
+}
+
+// A season mostly of minute-long previews beside a few whole episodes had a
+// median of a minute: the whole episodes were reported as thousands of
+// percent off, and the broken files never named. What a season typically
+// runs is its largest group of like runtimes - never the longer minority,
+// which called nine good 22-minute files "incomplete" beside three wrong
+// 45-minute ones - and a season split between two lengths, each held by
+// more than a quarter of it, is one finding naming both and judging neither.
+func TestRuntimeAuditJudgesBySeasonsTypicalRuntime(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name         string
+		mins         []int
+		want, others int // the typical runtime, and the other's when split
+	}{
+		{"nine right beside three wrong", []int{22, 22, 22, 22, 22, 22, 22, 22, 22, 45, 45, 45}, 22, 0},
+		{"six beside two longer", []int{42, 42, 42, 42, 42, 42, 60, 60}, 42, 0},
+		{"twelve beside four far longer", []int{30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 120, 120, 120, 120}, 30, 0},
+		{"one double-length finale", []int{45, 44, 46, 45, 45, 45, 45, 45, 45, 45, 90}, 45, 0},
+		{"one truncated file", []int{22, 22, 22, 5}, 22, 0},
+		{"one truncated file of three", []int{3, 3, 0}, 3, 0},
+		{"two and two", []int{22, 22, 45, 45}, 45, 22},
+		{"six previews beside four whole episodes", []int{1, 1, 1, 1, 1, 1, 30, 30, 31, 30}, 1, 30},
+	} {
+		group, other := typicalRuntime(tc.mins)
+		switch {
+		case group.median != tc.want:
+			t.Errorf("%s: typical = %d, want %d", tc.name, group.median, tc.want)
+		case tc.others == 0 && other != nil:
+			t.Errorf("%s: split with %v, want judged by %d", tc.name, *other, tc.want)
+		case tc.others != 0 && (other == nil || other.median != tc.others):
+			t.Errorf("%s: other = %v, want the season split with %d", tc.name, other, tc.others)
+		}
+	}
+
+	season := func(runtimes ...int) []map[string]any {
+		t.Helper()
+		eps := make([]ep, 0, len(runtimes))
+		for n, minutes := range runtimes {
+			eps = append(eps, ep{season: 1, number: n + 1, name: fmt.Sprintf("E%d", n+1), path: fmt.Sprintf("/media/shows/Zzyzx Show/Season 01/s01e%02d.mkv", n+1), minutes: minutes})
+		}
+
+		return objects(t, mustCall(t, session(t, tvServer(t, &fakeSeries{id: "z", name: "Zzyzx Show", episodes: eps}), Options{}), "audit_runtime", map[string]any{})["findings"], "findings")
+	}
+	rows := season(22, 22, 45, 22, 22, 22, 45, 22, 22, 22, 45, 22)
+	if len(rows) != 3 {
+		t.Fatalf("nine right and three wrong = %v, want the three", rows)
+	}
+	for _, row := range rows {
+		if !strings.HasPrefix(text(row["detail"]), "45 min, where its season runs 22 min") {
+			t.Errorf("%v = %q", row["name"], row["detail"])
+		}
+	}
+	rows = season(1, 30, 1, 30, 1, 30, 1, 1, 30, 1)
+	if len(rows) != 1 || text(rows[0]["id"]) != "z" || text(rows[0]["name"]) != "Zzyzx Show season 1" || text(rows[0]["path"]) != "/media/shows/Zzyzx Show/Season 01" ||
+		text(rows[0]["detail"]) != "the season is split between two lengths: 6 files run about 1 min (E01, E03, E05, E07, E08, E10) and 4 about 30 min (E02, E04, E06, E09). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files" {
+		t.Errorf("six previews beside four whole episodes = %v, want the season split, judging neither", rows)
+	}
+
+	// a file running neither length is not listed under one: it is judged
+	// by the nearer, on a row of its own
+	details := func(rows []map[string]any) map[string]string {
+		out := map[string]string{}
+		for _, row := range rows {
+			out[text(row["name"])] = text(row["detail"])
+		}
+
+		return out
+	}
+	got := details(season(45, 45, 45, 45, 45, 45, 22, 22, 22, 1))
+	if want := map[string]string{
+		"Zzyzx Show season 1":   "the season is split between two lengths: 6 files run about 45 min (E01, E02, E03, E04, E05, E06) and 3 about 22 min (E07, E08, E09). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files",
+		"Zzyzx Show S01E10 E10": "1 min, far shorter than the nearer of the two lengths its season runs (22 min; the other 45): an incomplete or wrong file",
+	}; !maps.Equal(got, want) {
+		t.Errorf("a split season with a minute-long file = %v, want %v", got, want)
+	}
+
+	// and so are files far from both, and a file holding two episodes
+	eps := make([]ep, 0, 16)
+	for n, minutes := range []int{45, 45, 45, 45, 45, 45, 45, 45, 22, 22, 22, 22, 5, 90} {
+		eps = append(eps, ep{season: 1, number: n + 1, name: fmt.Sprintf("E%d", n+1), path: fmt.Sprintf("/media/shows/Zzyzx Show/Season 01/s01e%02d.mkv", n+1), minutes: minutes})
+	}
+	eps = append(eps,
+		ep{season: 1, number: 15, number2: 16, name: "E15", path: "/media/shows/Zzyzx Show/Season 01/s01e15e16.mkv", minutes: 44},
+		ep{season: 1, number: 17, number2: 18, name: "E17", path: "/media/shows/Zzyzx Show/Season 01/s01e17e18.mkv", minutes: 60})
+	got = details(objects(t, mustCall(t, session(t, tvServer(t, &fakeSeries{id: "z", name: "Zzyzx Show", episodes: eps}), Options{}), "audit_runtime", map[string]any{})["findings"], "findings"))
+	if want := map[string]string{
+		"Zzyzx Show season 1":   "the season is split between two lengths: 8 files run about 45 min (E01, E02, E03, E04, E05, E06, E07, E08) and 4 about 22 min (E09, E10, E11, E12). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files",
+		"Zzyzx Show S01E13 E13": "5 min, far shorter than the nearer of the two lengths its season runs (22 min; the other 45): an incomplete or wrong file",
+		"Zzyzx Show S01E14 E14": "90 min, where the nearer of the two lengths its season runs is 45 min (the other 22; 100% off)",
+		"Zzyzx Show S01E17 E17": "60 min for 2 episodes, where the nearer of the two lengths its season runs is 22 min each, 44 expected (the other 45; 36% off)",
+	}; !maps.Equal(got, want) {
+		t.Errorf("a split season with files far from both = %v, want %v", got, want)
+	}
+}
+
+// audit_all said less than it knew. Its missing-episodes row asks no
+// provider, so it can see only gaps between files, and "series with episodes
+// missing: 0" read as nothing missing; its runtime row counted files with no
+// runtime as scanned; and over a library of home videos every row counted 0,
+// which read as a clean library. Each now says what it left out.
+func TestAuditAllSaysWhatItDidNotCheck(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	shows := map[string]any{"Name": "Shows", "CollectionType": "tvshows", "ItemId": "lib", "Locations": []string{"/media/shows"}}
+	clips := map[string]any{"Name": "Clips", "CollectionType": "homevideos", "ItemId": "clips", "Locations": []string{"/media/clips"}}
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page(shows, clips)) })
+	series := map[string]any{"Id": "z", "Name": "Zzyzx Show", "Type": "Series", "Path": "/media/shows/Zzyzx Show"}
+	episode := func(n int, minutes int) map[string]any {
+		return map[string]any{
+			"Id": fmt.Sprintf("z%d", n), "Name": fmt.Sprintf("E%d", n), "Type": "Episode", "SeriesId": "z", "SeriesName": "Zzyzx Show",
+			"ParentIndexNumber": 1, "IndexNumber": n, "LocationType": "FileSystem", "Path": fmt.Sprintf("/media/shows/Zzyzx Show/S01E%02d.mkv", n),
+			"RunTimeTicks": int64(minutes) * 60 * ticksPerSecond,
+		}
+	}
+	// E02 is missing between the files, and E03 was never probed
+	episodes := []map[string]any{episode(1, 30), episode(3, 0)}
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		switch types := param(r.URL.Query(), "IncludeItemTypes"); {
+		case types == "Episode":
+			writeJSON(t, w, page(episodes...))
+		case strings.Contains(types, "Series") && param(r.URL.Query(), "Ids") != "":
+			writeJSON(t, w, page(series))
+		default:
+			writeJSON(t, w, page())
+		}
+	})
+	adminView(t, f)
+	cs := session(t, f, Options{})
+
+	// over a library of home videos, every audit has a row, and every row
+	// says it was not checked
+	clipRows := objects(t, mustCall(t, cs, "audit_all", map[string]any{"library": "Clips"})["audits"], "audits")
+	clipNames := make([]string, 0, len(clipRows))
+	for _, row := range clipRows {
+		clipNames = append(clipNames, text(row["audit"]))
+		want := "not checked for this library type: a homevideos library"
+		if text(row["audit"]) == "audit_orphans" {
+			want = "server-wide"
+		}
+		if !boolean(t, row["skipped"], "skipped") || !strings.Contains(text(row["note"]), want) {
+			t.Errorf("over home videos %v, want it skipped: %q", row, want)
+		}
+	}
+	if !slices.Equal(clipNames, auditAllNames()) {
+		t.Errorf("over home videos the rows are %v, want one for every audit: %v", clipNames, auditAllNames())
+	}
+
+	// and the list those rows are made from is every row a real run makes,
+	// in its order
+	out := mustCall(t, cs, "audit_all", map[string]any{})
+	if got := texts(out["libraries_not_checked"]); !slices.Equal(got, []string{"Clips (homevideos)"}) {
+		t.Errorf("libraries_not_checked = %v", got)
+	}
+	names := func(out map[string]any) ([]string, map[string]map[string]any) {
+		audits := objects(t, out["audits"], "audits")
+		names, byName := make([]string, 0, len(audits)), map[string]map[string]any{}
+		for _, row := range audits {
+			byName[text(row["audit"])] = row
+			names = append(names, text(row["audit"]))
+		}
+
+		return names, byName
+	}
+	got, rows := names(out)
+	if !slices.Equal(got, auditAllNames()) {
+		t.Errorf("audit_all over every library has rows %v, want auditAllNames %v", got, auditAllNames())
+	}
+	if showNames, _ := names(mustCall(t, cs, "audit_all", map[string]any{"library": "Shows"})); !slices.Equal(showNames, auditAllNames()) {
+		t.Errorf("audit_all over one library has rows %v, want auditAllNames %v", showNames, auditAllNames())
+	}
+	if row := rows["audit_missing_episodes"]; number(t, row["findings"], "findings") != 1 || !boolean(t, row["partial"], "partial") || !strings.Contains(text(row["note"]), "runs not known: 1 of the 1 shows") {
+		t.Errorf("audit_missing_episodes row = %v, want the gap counted and the run said to be unknown", row)
+	}
+	if row := rows["audit_runtime"]; number(t, row["items_scanned"], "items_scanned") != 2 || !boolean(t, row["partial"], "partial") || !strings.Contains(text(row["note"]), "1 episode files the server holds no runtime for") {
+		t.Errorf("audit_runtime row = %v, want the unprobed file said", row)
+	}
+	if n := number(t, mustCall(t, cs, "audit_runtime", map[string]any{})["unprobed"], "unprobed"); n != 1 {
+		t.Errorf("audit_runtime unprobed = %d, want 1", n)
 	}
 }
 

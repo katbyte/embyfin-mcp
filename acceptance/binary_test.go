@@ -13,6 +13,7 @@ package acceptance
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -153,20 +154,26 @@ func listedTools(t *testing.T, cs *mcp.ClientSession) []*mcp.Tool {
 	return res.Tools
 }
 
-// kindOf reads a tool's kind from the hints a client sees: read-only, or
-// destructive (a delete), or neither (a write).
-func kindOf(tool *mcp.Tool) string {
-	a := tool.Annotations
-	switch {
-	case a == nil:
-		return "unannotated"
-	case a.ReadOnlyHint:
-		return "read"
-	case a.DestructiveHint != nil && *a.DestructiveHint:
-		return "delete"
+// kindOf is a listed tool's kind - read, write or delete - as the tools
+// package registers it: what --read-only and --enable-delete choose between.
+// The hints a client sees say more than the kind, and so cannot give it back:
+// a write that can take away what was there is marked destructive as a
+// delete is, and library_export, a read of the server that writes a file on
+// this machine, is not marked read-only.
+func kindOf(t *testing.T, tool *mcp.Tool) string {
+	t.Helper()
+
+	infos, err := tools.Describe(tools.Options{Toolsets: []string{"all"}, EnableDelete: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, info := range infos {
+		if info.Name == tool.Name {
+			return info.Kind
+		}
 	}
 
-	return "write"
+	return "unregistered"
 }
 
 // callOn calls a tool on a session and returns its structured result.
@@ -396,10 +403,26 @@ func TestTheBinary(t *testing.T) {
 			cs := bin.serveStdio(t, nil, "--toolsets", "all", "--enable-delete")
 			kinds := map[string][]string{}
 			for _, tool := range listedTools(t, cs) {
-				kinds[kindOf(tool)] = append(kinds[kindOf(tool)], tool.Name)
+				kind := kindOf(t, tool)
+				kinds[kind] = append(kinds[kind], tool.Name)
+				// and the hints agree with the kind: a delete is destructive,
+				// a read is read-only unless it writes a file here, which is
+				// additive, and nothing that changes anything claims not to
+				a := tool.Annotations
+				if a == nil || a.DestructiveHint == nil {
+					t.Errorf("%s has no hints", tool.Name)
+					continue
+				}
+				switch {
+				case kind == "delete" && (a.ReadOnlyHint || !*a.DestructiveHint),
+					kind == "write" && a.ReadOnlyHint,
+					kind == "read" && tool.Name != "library_export" && !a.ReadOnlyHint,
+					tool.Name == "library_export" && (a.ReadOnlyHint || *a.DestructiveHint):
+					t.Errorf("%s, a %s tool, is hinted read-only %v, destructive %v", tool.Name, kind, a.ReadOnlyHint, *a.DestructiveHint)
+				}
 			}
-			if len(kinds["read"]) != 60 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
-				t.Errorf("read %d, write %d, delete %d, want 60, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
+			if len(kinds["read"]) != 61 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
+				t.Errorf("read %d, write %d, delete %d, want 61, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
 			}
 			if want := []string{"collection_delete", "item_delete", "item_orphans_delete", "library_delete", "playlist_delete"}; !slices.Equal(sorted(kinds["delete"]), want) {
 				t.Errorf("delete tools = %v, want %v", kinds["delete"], want)
@@ -414,7 +437,7 @@ func TestTheBinary(t *testing.T) {
 			cs := bin.serveStdio(t, nil, "--toolsets", "all")
 			got := listed(t, cs)
 			for _, tool := range listedTools(t, cs) {
-				if kindOf(tool) == "delete" {
+				if kindOf(t, tool) == "delete" {
 					t.Errorf("%s is listed without --enable-delete", tool.Name)
 				}
 			}
@@ -422,6 +445,34 @@ func TestTheBinary(t *testing.T) {
 				return !slices.Contains([]string{"collection_delete", "item_delete", "item_orphans_delete", "library_delete", "playlist_delete"}, n)
 			}); !slices.Equal(got, want) {
 				t.Errorf("tools = %v\nwant %v", got, want)
+			}
+			// and the writes that can delete are held back from it: task_run
+			// starts nothing but the library scan, and library_edit takes no
+			// folder out, each refusing before it asks the server anything
+			type scheduledTask struct {
+				ID  string `json:"Id"`
+				Key string
+			}
+			status, raw := api(t, http.MethodGet, "/ScheduledTasks", "", nil)
+			var tasks []scheduledTask
+			if status != http.StatusOK || json.Unmarshal(raw, &tasks) != nil {
+				t.Fatalf("listing the tasks: HTTP %d: %.200s", status, raw)
+			}
+			cleanup := slices.IndexFunc(tasks, func(task scheduledTask) bool { return task.Key == "DeleteCacheFiles" })
+			if cleanup < 0 {
+				t.Fatalf("no cache cleanup task among %v", tasks)
+			}
+			for name, args := range map[string]map[string]any{
+				"task_run":     {"task": tasks[cleanup].ID},
+				"library_edit": {"library": "Movies", "remove_paths": []any{"/media/movies"}},
+			} {
+				res, err := cs.CallTool(t.Context(), &mcp.CallToolParams{Name: name, Arguments: args})
+				if err != nil || !res.IsError || !strings.Contains(fmt.Sprint(res.Content[0]), "without --enable-delete") {
+					t.Errorf("%s without --enable-delete: %v %v, want it refused naming the flag", name, err, res)
+				}
+			}
+			if locs := strs(t, call(t, "library_get", map[string]any{"library": "Movies"})["locations"], "locations"); !slices.Equal(locs, []string{"/media/movies"}) {
+				t.Errorf("Movies' folders after the refusal: %v", locs)
 			}
 		})
 
@@ -434,7 +485,7 @@ func TestTheBinary(t *testing.T) {
 			var got []string
 			for _, tool := range served {
 				got = append(got, tool.Name)
-				if k := kindOf(tool); k != "read" {
+				if k := kindOf(t, tool); k != "read" {
 					t.Errorf("%s is listed under --read-only as a %s tool", tool.Name, k)
 				}
 			}

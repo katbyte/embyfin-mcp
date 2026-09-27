@@ -2,10 +2,13 @@ package tools
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 )
 
 // Both servers answer a single read in a user's view with 404 for an item the
@@ -219,6 +222,109 @@ func TestItemLastWatchedCountsAnAccountThatLostAccess(t *testing.T) {
 		want := `[{"played":false,"user":"root"},{"last_played":"2026-09-01T20:00:00Z","no_access":true,"play_count":2,"played":true,"user":"alice"}]`
 		if string(got) != want {
 			t.Errorf("jellyfin %v: users = %s, want root's row and alice's watch before she lost the library, and nothing of bob's", jellyfin, got)
+		}
+	}
+}
+
+// audit_unwatched read only what was played to the end, so a film stopped at
+// four fifths - or begun and abandoned in its first minutes, which both
+// servers count as a play with no resume point - was "never watched" beside
+// the films nobody opened, on the list of what to archive or delete. Those
+// are listed apart as started, with who and how far. And an account whose
+// view hides part of a library is named, since what it played there is not
+// read.
+func TestUnwatchedListsWhatIsStartedApart(t *testing.T) {
+	t.Parallel()
+
+	for _, sorted := range []bool{true, false} {
+		f := newFakeServer(t)
+		f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(t, w, page(map[string]any{"Name": "Zzyzx Films", "CollectionType": "movies", "ItemId": "lib9", "Locations": []string{"/zz/films"}}))
+		})
+		users := []map[string]any{
+			{"Id": "u1", "Name": "root", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}},
+			{"Id": "u2", "Name": "alice", "Policy": map[string]any{"EnableAllFolders": true, "BlockedTags": []string{"gore"}}},
+		}
+		f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page(users...)) })
+		alien, arrival, dune := film("1", "Alien", 1979), film("2", "Arrival", 2016), film("3", "Dune", 2021)
+		for i, it := range []map[string]any{alien, arrival, dune} {
+			it["ProviderIds"] = map[string]any{"Tmdb": []string{"348", "329865", "438631"}[i]}
+			it["DateCreated"] = []string{"2020-01-01T00:00:00Z", "2020-02-01T00:00:00Z", "2020-03-01T00:00:00Z"}[i]
+		}
+		withData := func(it map[string]any, data map[string]any) map[string]any {
+			out := map[string]any{"UserData": data}
+			maps.Copy(out, it)
+
+			return out
+		}
+		// alice is four fifths through Arrival, and began Dune and stopped
+		// in its first minutes: a play counted, no resume point
+		resumable := withData(arrival, map[string]any{"PlaybackPositionTicks": 90 * 60 * ticksPerSecond, "PlayedPercentage": 80, "PlayCount": 1, "LastPlayedDate": "2026-09-01T20:00:00Z"})
+		begun := withData(dune, map[string]any{"PlayCount": 1, "LastPlayedDate": "2026-09-02T20:00:00Z"})
+		never := withData(alien, map[string]any{})
+		f.mux.HandleFunc("GET /Users/{user}/Items", func(w http.ResponseWriter, r *http.Request) {
+			if r.PathValue("user") != "u2" {
+				writeJSON(t, w, page())
+
+				return
+			}
+			switch param(r.URL.Query(), "Filters") {
+			case "IsResumable":
+				writeJSON(t, w, page(resumable))
+			case "IsUnplayed":
+				if !sorted {
+					// a server that did not keep the order asked for
+					writeJSON(t, w, page(never, begun, resumable))
+
+					return
+				}
+				writeJSON(t, w, page(resumable, begun, never))
+			default:
+				writeJSON(t, w, page())
+			}
+		})
+		f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page(alien, arrival, dune)) })
+		out := mustCall(t, session(t, f, Options{}), "audit_unwatched", nil)
+
+		findings := objects(t, out["findings"], "findings")
+		if len(findings) != 1 || text(findings[0]["name"]) != "Alien" || number(t, out["total_findings"], "total_findings") != 1 {
+			t.Errorf("sorted %v: findings = %v, want Alien alone", sorted, findings)
+		}
+		started := objects(t, out["started"], "started")
+		details := map[string]string{}
+		for _, row := range started {
+			details[text(row["name"])] = text(row["detail"])
+		}
+		if len(started) != 2 || number(t, out["total_started"], "total_started") != 2 ||
+			details["Arrival"] != "started and never finished, by alice (80%); added 2020-02-01" || details["Dune"] != "started and never finished, by alice; added 2020-03-01" {
+			t.Errorf("sorted %v: started = %v", sorted, details)
+		}
+		if limited := texts(out["views_limited"]); !slices.Equal(limited, []string{"alice: items tagged gore blocked"}) {
+			t.Errorf("sorted %v: views_limited = %v", sorted, limited)
+		}
+	}
+}
+
+// What an account's view hides is said whatever hides it: a parental rating
+// limit of 0 (Jellyfin's strictest) is a limit, and no limit is none; an
+// allowed-tags list shows only those tags.
+func TestViewLimitsNameWhatHides(t *testing.T) {
+	t.Parallel()
+
+	zero, twelve := 0, 12
+	for _, tc := range []struct {
+		policy embyfin.UserPolicy
+		want   string
+	}{
+		{embyfin.UserPolicy{}, ""},
+		{embyfin.UserPolicy{MaxParentalRating: &zero}, "a parental rating limit"},
+		{embyfin.UserPolicy{MaxParentalRating: &twelve}, "a parental rating limit"},
+		{embyfin.UserPolicy{AllowedTags: []string{"kids"}}, "only items tagged kids shown"},
+		{embyfin.UserPolicy{BlockedTags: []string{"gore"}, BlockUnratedItems: []string{"Movie"}}, "unrated Movie blocked; items tagged gore blocked"},
+		{embyfin.UserPolicy{BlockedFolders: []string{"a", "b"}}, "2 folders blocked by id"},
+	} {
+		if got := viewLimits(&embyfin.User{Policy: tc.policy}); got != tc.want {
+			t.Errorf("%+v: %q, want %q", tc.policy, got, tc.want)
 		}
 	}
 }

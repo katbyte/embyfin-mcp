@@ -15,7 +15,27 @@ import (
 	"time"
 )
 
+// noLeftoverLibraries stops a test that counts the libraries when one an
+// earlier test made is still there, naming it: the earlier test's clean-up
+// says why it could not remove it, and the count here would only be wrong.
+func noLeftoverLibraries(t *testing.T) {
+	t.Helper()
+
+	var left []string
+	for _, row := range rows(t, call(t, "library_list", nil)["libraries"], "libraries") {
+		name := str(row["name"])
+		if slices.ContainsFunc(libraries, func(l libraryFixture) bool { return l.Name == name }) || serverFolders[name] != "" && serverFolders[name] == str(row["collection_type"]) {
+			continue
+		}
+		left = append(left, name)
+	}
+	if len(left) > 0 {
+		t.Fatalf("a library an earlier test made is still there, so the libraries cannot be counted here: %s (the test that made it says why it was left)", strings.Join(left, ", "))
+	}
+}
+
 func TestLibraryList(t *testing.T) {
+	noLeftoverLibraries(t)
 	out := call(t, "library_list", nil)
 	got := map[string]map[string]any{}
 	for _, row := range rows(t, out["libraries"], "libraries") {

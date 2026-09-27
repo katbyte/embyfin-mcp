@@ -59,7 +59,7 @@ type UserPolicy struct {
 	MaxActiveSessions          int   `json:"MaxActiveSessions,omitempty"`
 
 	// Gets or sets the max parental rating.
-	MaxParentalRating        int    `json:"MaxParentalRating,omitempty"`
+	MaxParentalRating        *int   `json:"MaxParentalRating,omitempty"`
 	MaxParentalSubRating     int    `json:"MaxParentalSubRating,omitempty"`
 	PasswordResetProviderId  string `json:"PasswordResetProviderId,omitempty"`
 	RemoteClientBitrateLimit int    `json:"RemoteClientBitrateLimit,omitempty"`

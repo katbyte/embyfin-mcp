@@ -8,6 +8,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -76,17 +77,69 @@ func libraryPaths(ctx context.Context, client *embyfin.Client) ([]libraryPath, e
 }
 
 // findOrphans is the sweep audit_orphans counts: every item outside every
-// library folder, and the library folders it was read against. audit_all
-// reports its count without placing the items in folders, which asks the
-// server about each folder.
-func findOrphans(ctx context.Context, client *embyfin.Client) ([]libraryPath, []embyfin.Item, int, error) {
+// library folder, the library folders it was read against, and what the
+// sweep saw. audit_all reports its count without placing the items in
+// folders, which asks the server about each folder.
+func findOrphans(ctx context.Context, client *embyfin.Client) ([]libraryPath, []embyfin.Item, embyfin.ReadResult, error) {
 	libs, err := libraryPaths(ctx, client)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, nil, embyfin.ReadResult{}, err
 	}
-	orphans, scanned, err := sweepOrphans(ctx, client, libs, "")
+	orphans, swept, err := sweepOrphans(ctx, client, libs, "", embyfin.ToAnswer)
+	if err != nil {
+		return libs, orphans, swept, err
+	}
+	orphans, err = dropCaseTwins(ctx, client, orphans, libs)
 
-	return libs, orphans, scanned, err
+	return libs, orphans, swept, err
+}
+
+// dropCaseTwins takes out of the orphans the items under a library's folder
+// spelled with other case, when the server's disk ignores case (Windows, and
+// macOS by default): there the two spellings are one folder, and a library
+// added as D:\Movies whose items the server stores under D:\movies read as
+// every film in it orphaned. The paths are compared as written everywhere
+// else, so this asks the disk: whether it finds the library's folder spelled
+// with every letter's case turned over. On a disk that tells case apart the
+// two are different folders, and the items stay orphans.
+func dropCaseTwins(ctx context.Context, client *embyfin.Client, orphans []embyfin.Item, libs []libraryPath) ([]embyfin.Item, error) {
+	folds := map[string]bool{} // library folder -> whether the disk ignores case there
+	kept := make([]embyfin.Item, 0, len(orphans))
+	for _, it := range orphans {
+		i := slices.IndexFunc(libs, func(l libraryPath) bool { return within(strings.ToLower(it.Path), strings.ToLower(l.path)) })
+		if i < 0 {
+			kept = append(kept, it)
+
+			continue
+		}
+		folder := libs[i].path
+		ignores, asked := folds[folder]
+		if !asked {
+			turned := turnCase(folder)
+			there, err := client.PathExists(ctx, turned)
+			if err != nil {
+				return nil, fmt.Errorf("asking the server whether its disk ignores case (whether it finds %s as %s): %w", folder, turned, err)
+			}
+			ignores = there && turned != folder
+			folds[folder] = ignores
+		}
+		if !ignores {
+			kept = append(kept, it)
+		}
+	}
+
+	return kept, nil
+}
+
+// turnCase is a path with every letter's case turned over.
+func turnCase(p string) string {
+	return strings.Map(func(r rune) rune {
+		if u := unicode.ToUpper(r); u != r {
+			return u
+		}
+
+		return unicode.ToLower(r)
+	}, p)
 }
 
 func auditOrphans(ctx context.Context, client *embyfin.Client, in orphansIn) (orphansOut, error) {
@@ -94,7 +147,7 @@ func auditOrphans(ctx context.Context, client *embyfin.Client, in orphansIn) (or
 	if limit <= 0 {
 		limit = 50
 	}
-	libs, orphans, scanned, err := findOrphans(ctx, client)
+	libs, orphans, swept, err := findOrphans(ctx, client)
 	if err != nil {
 		return orphansOut{}, err
 	}
@@ -104,7 +157,7 @@ func auditOrphans(ctx context.Context, client *embyfin.Client, in orphansIn) (or
 		return cmp.Or(cmp.Compare(len(places[b].items), len(places[a].items)), strings.Compare(a, b))
 	})
 
-	out := orphansOut{Scanned: scanned, Found: len(orphans), Folders: []orphanGroup{}}
+	out := orphansOut{Scanned: swept.Read, Found: len(orphans), Folders: []orphanGroup{}, Note: swept.Changed()}
 	for _, folder := range folders[:min(len(folders), limit)] {
 		p := places[folder]
 		group := orphanGroup{Folder: folder, OnServer: p.state, Note: p.note, Items: len(p.items), ByType: map[string]int{}, Examples: orphanRows(p.items, 5)}
@@ -391,11 +444,12 @@ func orphanFolder(path string, libs []libraryPath) string {
 
 // sweepOrphans reads every item standing for a file or folder and keeps the
 // ones outside every library folder - with root set, only those at or below
-// it. It names no library and no user, because an orphan belongs to neither:
-// only a sweep of everything the server holds reaches it.
-func sweepOrphans(ctx context.Context, client *embyfin.Client, libs []libraryPath, root string) ([]embyfin.Item, int, error) {
+// it - and says what the sweep saw, read for purpose. It names no library and
+// no user, because an orphan belongs to neither: only a sweep of everything
+// the server holds reaches it.
+func sweepOrphans(ctx context.Context, client *embyfin.Client, libs []libraryPath, root string, purpose embyfin.ReadPurpose) ([]embyfin.Item, embyfin.ReadResult, error) {
 	var found []embyfin.Item
-	scanned, err := sweepAll(ctx, client, embyfin.SearchOptions{IncludeItemTypes: orphanTypes, Fields: "Path,ParentId"}, func(items []embyfin.Item) {
+	swept, err := sweepAll(ctx, client, embyfin.SearchOptions{IncludeItemTypes: orphanTypes, Fields: "Path,ParentId"}, purpose, func(items []embyfin.Item) {
 		for i := range items {
 			it := items[i]
 			if !onDisk(it.Path) {
@@ -411,7 +465,7 @@ func sweepOrphans(ctx context.Context, client *embyfin.Client, libs []libraryPat
 		}
 	})
 
-	return found, scanned, err
+	return found, swept, err
 }
 
 // folderState asks the server whether it can see a folder.
@@ -494,23 +548,24 @@ func stillHeld(ctx context.Context, client *embyfin.Client, ids []string) (map[s
 // request that fails part-way - Jellyfin stops at the first id it cannot
 // find - is settled one id at a time: what is already gone counts, what is
 // left is deleted on its own, and what will not go is reported.
-func deleteOrphanBatch(ctx context.Context, client *embyfin.Client, batch []embyfin.Item) (int, []orphanFailure) {
+func deleteOrphanBatch(ctx context.Context, client *embyfin.Client, batch []embyfin.Item) (int, []orphanFailure, error) {
 	ids := make([]string, len(batch))
 	for i, it := range batch {
 		ids[i] = it.ID
 	}
-	if err := client.DeleteItems(ctx, ids); err == nil {
-		return len(batch), nil
+	batchErr := client.DeleteItems(ctx, ids)
+	if batchErr == nil {
+		return len(batch), nil, nil
 	}
 
 	held, err := stillHeld(ctx, client, ids)
 	if err != nil {
 		failed := make([]orphanFailure, 0, len(batch))
 		for _, it := range batch {
-			failed = append(failed, orphanFailure{ID: it.ID, Path: it.Path, Error: "the batch failed and what it left could not be read: " + err.Error()})
+			failed = append(failed, orphanFailure{ID: it.ID, Path: it.Path, Error: "the batch failed (" + batchErr.Error() + ") and what it left could not be read: " + err.Error()})
 		}
 
-		return 0, failed
+		return 0, failed, batchErr
 	}
 
 	gone := 0
@@ -522,24 +577,30 @@ func deleteOrphanBatch(ctx context.Context, client *embyfin.Client, batch []emby
 			continue
 		}
 		if err := client.DeleteItem(ctx, it.ID); err != nil {
-			if still, serr := stillHeld(ctx, client, []string{it.ID}); serr == nil && !still[it.ID] {
+			still, serr := stillHeld(ctx, client, []string{it.ID})
+			if serr == nil && !still[it.ID] {
 				gone++
 
 				continue
 			}
-			failed = append(failed, orphanFailure{ID: it.ID, Path: it.Path, Error: err.Error()})
+			msg := err.Error()
+			if serr != nil {
+				msg += "; and reading whether it went anyway failed: " + serr.Error()
+			}
+			failed = append(failed, orphanFailure{ID: it.ID, Path: it.Path, Error: msg})
 
 			continue
 		}
 		gone++
 	}
 
-	return gone, failed
+	return gone, failed, batchErr
 }
 
 // settled reads back the items a delete would not take, and says how many
 // are gone anyway and which are still there. A server that deletes a folder's
-// items with it takes some of them after the failure.
+// items with it takes some of them after the failure. A batch whose read
+// fails is left as it was reported, saying so.
 func settled(ctx context.Context, client *embyfin.Client, failures []orphanFailure) (int, []orphanFailure) {
 	gone := 0
 	var left []orphanFailure
@@ -551,7 +612,10 @@ func settled(ctx context.Context, client *embyfin.Client, failures []orphanFailu
 		}
 		held, err := stillHeld(ctx, client, ids)
 		if err != nil {
-			left = append(left, batch...)
+			for _, f := range batch {
+				f.Error += "; and reading whether it went since failed: " + err.Error()
+				left = append(left, f)
+			}
 
 			continue
 		}
@@ -588,6 +652,7 @@ type orphansOut struct {
 	Scanned int           `json:"items_scanned"`
 	Found   int           `json:"total_findings" jsonschema:"items outside every library, under every folder"`
 	Folders []orphanGroup `json:"folders"        jsonschema:"one row per folder, most items first; capped at limit"`
+	Note    string        `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 }
 
 func registerOrphanTools(r *registry) {
@@ -597,6 +662,7 @@ func registerOrphanTools(r *registry) {
 		Name: "audit_orphans",
 		Description: "Find items the server still holds under a folder no library covers: what a renamed or removed library folder leaves behind. " +
 			"No library lists them and no scan revisits them, but every sweep of the server counts them. " +
+			"A folder spelled like a library's folder but for its case is that library's when the server's disk ignores case (the disk is asked), and another folder when it does not. " +
 			"Grouped by the folder they were under, each saying whether the server can still see it; item_orphans_delete removes the items under a folder it cannot.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in orphansIn) (*mcp.CallToolResult, orphansOut, error) {
 		out, err := auditOrphans(ctx, client, in)
@@ -619,12 +685,17 @@ func registerOrphanTools(r *registry) {
 		Examples  []orphanRow     `json:"examples"          jsonschema:"the first few, by path"`
 		Failed    []orphanFailure `json:"failed,omitempty"  jsonschema:"items the server would not delete, the first 20"`
 		Stopped   string          `json:"stopped,omitempty" jsonschema:"why deleting stopped before it reached limit"`
+		Note      string          `json:"note,omitempty"    jsonschema:"set when the server was seen to change while it was read for the items to delete: items added meanwhile may be missing, so remaining may be low, and items removed may be listed though gone, and fail to delete. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read. A read that cannot be sure fails instead, and nothing is changed"`
+		// what went with them, and what the server said on the way
+		ListsAffected []listRef `json:"lists_affected"         jsonschema:"the playlists and collections holding items under the folder, which lose them when they are deleted"`
+		BatchErrors   []string  `json:"batch_errors,omitempty" jsonschema:"what the server answered a batch it would not delete whole, each item of which was then deleted on its own; the first 10"`
 	}
 	add(r, deleteTool, &mcp.Tool{
 		Name: "item_orphans_delete",
 		Description: "PERMANENTLY delete the items the server still holds under a folder no library covers and the server can no longer see: what a renamed or removed library folder leaves behind (audit_orphans lists the folders). " +
-			"Refuses a folder inside a library's folder or holding one, and a folder the server can still see, because deleting an item deletes its file; the folder is checked again before every batch. " +
-			"Without confirm=true it only reports what it would delete. Deletes at most limit items a call, deepest first; remaining says how many are left.",
+			"Refuses a folder inside a library's folder or holding one, and a folder the server can still see, because deleting an item deletes its file; the folder is checked again before every batch. A disk not mounted or a network share offline reads as gone just the same: its items are deleted, and when it is back its files are new to the server. " +
+			"What goes with the items: " + goneWithItems + ". lists_affected names the playlists and collections. " +
+			"Without confirm=true it only reports what it would delete, and the lists that hold them. Deletes at most limit items a call, deepest first; remaining says how many are left.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
 		folder := trimSep(strings.TrimSpace(in.Folder))
 		switch {
@@ -656,14 +727,21 @@ func registerOrphanTools(r *registry) {
 			return nil, deleteOut{}, err
 		}
 
-		orphans, scanned, err := sweepOrphans(ctx, client, libs, folder)
+		// what to delete: a sweep that cannot be sure of it fails, and
+		// nothing is deleted
+		orphans, swept, err := sweepOrphans(ctx, client, libs, folder, embyfin.ToAct)
 		if err != nil {
 			return nil, deleteOut{}, err
 		}
-		out := deleteOut{Folder: folder, Scanned: scanned, Found: len(orphans), ByType: map[string]int{}, Examples: orphanRows(orphans, 10)}
+		out := deleteOut{Folder: folder, Scanned: swept.Read, Found: len(orphans), ByType: map[string]int{}, Examples: orphanRows(orphans, 10), Note: swept.Changed()}
 		for _, it := range orphans {
 			out.ByType[it.Type]++
 		}
+		lists, err := readMemberships(ctx, client)
+		if err != nil {
+			return nil, deleteOut{}, fmt.Errorf("could not read the playlists and collections the items under %s would leave, so nothing was deleted: %w", folder, err)
+		}
+		out.ListsAffected = lists.holding(idsOf(orphans))
 		if !in.Confirm {
 			out.Remaining = out.Found
 
@@ -690,9 +768,12 @@ func registerOrphanTools(r *registry) {
 
 				break
 			}
-			deleted, failed := deleteOrphanBatch(ctx, client, targets[start:min(start+orphanBatch, len(targets))])
+			deleted, failed, batchErr := deleteOrphanBatch(ctx, client, targets[start:min(start+orphanBatch, len(targets))])
 			out.Deleted += deleted
 			failures = append(failures, failed...)
+			if batchErr != nil && len(out.BatchErrors) < 10 {
+				out.BatchErrors = append(out.BatchErrors, batchErr.Error())
+			}
 		}
 		// a failure can be undone later in the same run: an item the server
 		// would not delete on its own goes when the folder holding it does,

@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -211,14 +212,21 @@ func TestAnIndexReadJustAfterAWriteIsNotTrustedForLong(t *testing.T) {
 		}
 	}
 
-	// with no write, one read is trusted for the TTL
+	// with no write, one read is trusted for the TTL, and no longer: a scan
+	// or the web client changes the library without this server knowing
 	get()
 	before := reads()
-	now = now.Add(4 * time.Minute)
+	now = now.Add(seriesIndexTTL - time.Second)
 	get()
 	if reads() != before {
 		t.Fatal("an index read with no write since was read again inside its TTL")
 	}
+	now = now.Add(2 * time.Second)
+	get()
+	if reads() == before {
+		t.Fatal("an index read with no write since was trusted past its TTL")
+	}
+	before = reads()
 
 	// a write drops it, and the read after it is the library mid-change
 	cache.invalidate()
@@ -251,7 +259,7 @@ func TestAnIndexReadJustAfterAWriteIsNotTrustedForLong(t *testing.T) {
 	if settled == settling {
 		t.Error("the last index read while settling was trusted past it")
 	}
-	now = now.Add(4 * time.Minute)
+	now = now.Add(seriesIndexTTL - time.Second)
 	get()
 	if reads() != settled {
 		t.Error("an index read after the writes settled was not kept for the TTL")
@@ -367,5 +375,63 @@ func TestAnIndexThatCannotBeReadIsSaidNotHidden(t *testing.T) {
 		if !strings.Contains(warning, want) {
 			t.Errorf("the warning does not carry %q: %q", want, warning)
 		}
+	}
+}
+
+// A show held twice after a folder rename usually has one entry with the
+// show's ids and one with none - nothing matched the second - so it shares
+// no id to be found by. The folder rule audit_duplicate_series groups by
+// finds it: two folders side by side whose names differ only in spacing,
+// case, accents or punctuation. And a shared id is not the same show when
+// the two entries' AniDB ids differ: an anime entry kept apart carries its
+// parent's TVDB id beside an AniDB id of its own.
+func TestAnotherEntryIsFoundByItsFolderAndNotByAnAnimeParentsID(t *testing.T) {
+	t.Parallel()
+
+	matched := &fakeSeries{
+		id: "tw-a", name: "Zzyzx Knight", path: "/media/shows/Zzyzx Knight", ids: map[string]string{"Tmdb": "90001"},
+		episodes: []ep{{season: 1, number: 1, name: "One", path: "/media/shows/Zzyzx Knight/S01E01.mkv"}},
+	}
+	renamed := &fakeSeries{
+		id: "tw-b", name: "Zzyzx  Knight", path: "/media/shows/Zzyzx  knight",
+		episodes: []ep{{season: 1, number: 2, name: "Two", path: "/media/shows/Zzyzx  knight/S01E02.mkv"}},
+	}
+	// the same name in another folder is another library's copy, not a twin
+	elsewhere := &fakeSeries{id: "tw-c", name: "Zzyzx Knight", path: "/media/other/Zzyzx Knight"}
+	parent := &fakeSeries{
+		id: "an-p", name: "Zzyzx Anime", ids: map[string]string{"Tvdb": "5", "AniDB": "1"},
+		episodes: []ep{{season: 1, number: 1, name: "One", path: "/media/shows/Zzyzx Anime/S01E01.mkv"}},
+	}
+	ova := &fakeSeries{
+		id: "an-o", name: "Zzyzx Anime OVA", ids: map[string]string{"Tvdb": "5", "AniDB": "2"},
+		episodes: []ep{{season: 1, number: 2, name: "OVA", path: "/media/shows/Zzyzx Anime OVA/S01E02.mkv"}},
+	}
+	cs := session(t, tvServer(t, matched, renamed, elsewhere, parent, ova), Options{})
+
+	ask := func(id string) map[string]any {
+		return mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": id, "episodes": []map[string]any{{"season": 1, "episode": 2}}})
+	}
+	for id, other := range map[string]string{"tw-a": "tw-b", "tw-b": "tw-a"} {
+		out := ask(id)
+		if others := texts(out["duplicate_entries"]); len(others) != 1 || others[0] != other {
+			t.Errorf("%s: duplicate_entries = %v, want the folder beside it, %s", id, out["duplicate_entries"], other)
+		}
+		if id == "tw-a" && !strings.Contains(text(out["warning"]), "id tw-b at /media/shows/Zzyzx  knight") {
+			t.Errorf("%s: an absence against a show held twice = %q, want the other folder named", id, out["warning"])
+		}
+	}
+
+	// an anime kept apart from its parent by its AniDB id is not the same
+	// show, but an episode the provider numbers into the parent may be filed
+	// under it: named apart, with a warning of its own
+	out := ask("an-p")
+	if out["duplicate_entries"] != nil || !slices.Equal(texts(out["anime_entries"]), []string{"an-o"}) ||
+		text(out["warning"]) != `the library also holds 1 entry sharing "Zzyzx Anime"'s provider id under another AniDB id (id an-o at /media/shows/Zzyzx Anime OVA): an OVA, a film or a season AniDB counts as a show of its own, and an episode the provider numbers into this show may be filed there, so an absence above is not proof - ask it as well` {
+		t.Errorf("an anime kept apart from its parent by its AniDB id: duplicate_entries %v, anime_entries %v, warning %q", out["duplicate_entries"], out["anime_entries"], out["warning"])
+	}
+	// and nothing absent, nothing to warn of
+	held := mustCall(t, cs, "show_episodes_exist", map[string]any{"series_id": "an-p", "episodes": []map[string]any{{"season": 1, "episode": 1}}})
+	if !slices.Equal(texts(held["anime_entries"]), []string{"an-o"}) || held["warning"] != nil {
+		t.Errorf("an anime kept apart, nothing absent: anime_entries %v, warning %q", held["anime_entries"], held["warning"])
 	}
 }

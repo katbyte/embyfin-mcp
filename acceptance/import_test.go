@@ -196,13 +196,16 @@ func TestPlanCheckCatchesMistakes(t *testing.T) {
 	if current, ok := entries[5]["current"].(map[string]any); !ok || entries[5]["exists"] != true || str(current["item_id"]) != arrival {
 		t.Errorf("a film's path = %v, want Arrival there", entries[5])
 	}
-	// and the free path beside it, which only Emby can settle
+	// and the free path beside it: the disk has nothing there on both
+	// servers, but only Emby's library can be asked which item is there -
+	// on Jellyfin an item whose file is gone could still be at it, so
+	// whether a write replaces anything is not known
 	free := entries[6]
 	if isJellyfin() {
-		if free["checked"] != false || free["exists"] != nil || !strings.Contains(str(free["note"]), "not known whether a file is here") {
-			t.Errorf("a free film path on Jellyfin = %v, want unknown", free)
+		if !isBool(free["checked"], false) || free["exists"] != nil || !isBool(free["on_disk"], false) || free["in_library"] != nil || !strings.Contains(str(free["note"]), "exists is true only when the server's disk has a file here, and null otherwise") {
+			t.Errorf("a free film path on Jellyfin = %v, want nothing on the disk, the library not asked, exists not known", free)
 		}
-	} else if free["checked"] != true || free["exists"] != false {
+	} else if !isBool(free["checked"], true) || !isBool(free["exists"], false) || !isBool(free["on_disk"], false) || !isBool(free["in_library"], false) {
 		t.Errorf("a free film path on Emby = %v, want free", free)
 	}
 	wantUnchecked := 0
@@ -231,10 +234,11 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 	if title(str(group["series"])) != "Breaking Bad" || !strings.Contains(str(group["title"]), "Cat") {
 		t.Errorf("group = %v", group)
 	}
-	// both files are a second long, so the runtimes agree and it is not a
-	// guess
-	if str(group["confidence"]) != "near_certain" {
-		t.Errorf("confidence = %v (runtime_gap %v)", group["confidence"], group["runtime_gap"])
+	// both files are a second long, as is the season's other episode, and
+	// too small for their size to say anything: the files cannot tell them
+	// from two episodes, so it is a lead, and the evidence says why
+	if str(group["confidence"]) != "lead" || !slices.Equal(strs(t, group["evidence"], "evidence"), []string{"E02 and E03: the same runtime to the second, but E01 of the season runs within a few seconds of it too, so no sign alone"}) {
+		t.Errorf("confidence = %v, evidence %v (runtime_gap %v)", group["confidence"], group["evidence"], group["runtime_gap"])
 	}
 	eps := rows(t, group["episodes"], "episodes")
 	if len(eps) != 2 || num(t, eps[0]["episode"], "episode") != 2 || num(t, eps[1]["episode"], "episode") != 3 {

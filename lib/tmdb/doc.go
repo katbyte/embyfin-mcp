@@ -48,4 +48,5 @@
 //   - tmdb-list-ids
 //   - tmdb-change-values
 //   - tmdb-display-priorities
+//   - tmdb-collection-parts
 package tmdb

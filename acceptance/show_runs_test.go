@@ -70,10 +70,14 @@ func TestAShowHoldingAFilmsIDs(t *testing.T) {
 	if msg := callErr(t, "audit_provider", map[string]any{"library": "Messy Shows", "types": "Series"}); !strings.Contains(msg, "types must be Movie") {
 		t.Errorf("audit_provider over series = %s", msg)
 	}
-	// and the film's TMDB number finds the series, the one thing holding it
-	found := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "11625"})["items"], "items")
+	// and the film's TMDB number, looked up as a series, finds the series
+	// holding it; looked up as the film it is, nothing
+	found := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "11625", "type": "series"})["items"], "items")
 	if len(found) != 1 || str(found[0]["id"]) != asterix || str(found[0]["type"]) != "Series" {
 		t.Errorf("tmdb 11625 = %v, want the series holding the film's number", found)
+	}
+	if film := rowsOf(call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "11625", "type": "movie"})["items"]); len(film) != 0 {
+		t.Errorf("the film tmdb 11625 = %v, want none: the library holds only a series carrying its number", film)
 	}
 }
 
@@ -119,13 +123,20 @@ func TestAShowHeldFromALaterSeason(t *testing.T) {
 
 	sweep := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true})
 	var detail string
+	known := false
 	for _, f := range rows(t, sweep["findings"], "findings") {
 		if str(f["id"]) == dwarf {
-			detail = str(f["detail"])
+			detail, known = str(f["detail"]), boolOf(f["run_known"])
 		}
 	}
-	if want := "listed by TMDB without a file: S01E01, S01E02, S01E03, S01E04, S01E05, S01E06, S02E01, S02E02, S02E03, S02E04, S02E05, S02E06 and "; !strings.HasPrefix(detail, want) || sweep["runs_known"] != true {
-		t.Errorf("Red Dwarf = %q (runs known %v), want %q and a count of the rest", detail, sweep["runs_known"], want)
+	if want := "listed by TMDB without a file: S01E01, S01E02, S01E03, S01E04, S01E05, S01E06, S02E01, S02E02, S02E03, S02E04, S02E05, S02E06 and "; !strings.HasPrefix(detail, want) || !known {
+		t.Errorf("Red Dwarf = %q (run known %v), want %q and a count of the rest", detail, known, want)
+	}
+	// its files are numbered as TMDB's aired order numbers them
+	for _, o := range rowsOf(sweep["numbered_otherwise"]) {
+		if str(o["id"]) == dwarf {
+			t.Errorf("Red Dwarf is said to be numbered otherwise: %v", o)
+		}
 	}
 	if n := len(got) - 12; !strings.HasSuffix(detail, fmt.Sprintf(" and %d more", n)) {
 		t.Errorf("Red Dwarf = %q, want the rest counted: %d more", detail, n)

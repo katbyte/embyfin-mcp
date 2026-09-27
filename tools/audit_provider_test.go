@@ -185,3 +185,85 @@ func TestAuditProviderWalksEveryFilmOnce(t *testing.T) {
 		t.Errorf("library and ids = %q", msg)
 	}
 }
+
+// The ids an audit is narrowed to are read before it runs. Emby drops an Ids
+// filter it cannot parse and answers with the whole library, so an audit
+// pointed at a mistyped id ran over every film as if for that one, a TMDB
+// lookup each; an id no item has, or a series' id, came back as nothing
+// scanned and no findings, which reads as checked and clean.
+func TestAuditsRefuseIDsTheyCannotRead(t *testing.T) {
+	t.Parallel()
+
+	rows := []map[string]any{
+		{"Id": "32", "Name": "Arrival", "Type": "Movie", "ProductionYear": 2016, "Path": "/zz/films/Arrival (2016)/Arrival (2016).mkv", "ProviderIds": map[string]any{"Tmdb": "329865"}, "RunTimeTicks": 60 * ticksPerSecond},
+		{"Id": "40", "Name": "Zzyzx Show", "Type": "Series", "Path": "/zz/shows/Zzyzx Show"},
+		{"Id": "41", "Name": "Season 1", "Type": "Season", "SeriesName": "Zzyzx Show", "Path": "/zz/shows/Zzyzx Show/Season 01"},
+	}
+	f, _ := zzyzxServer(t)
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		ids := param(r.URL.Query(), "Ids")
+		// as Emby 4.10 answers: a filter of no id it can use (0) is dropped
+		// and the whole library answered, and one that is no number at all
+		// refused
+		for id := range strings.SplitSeq(ids, ",") {
+			if _, err := strconv.Atoi(id); err != nil {
+				http.Error(w, "Unrecognized Guid format.", http.StatusInternalServerError)
+
+				return
+			}
+		}
+		if ids == "0" {
+			writeJSON(t, w, page(rows...))
+
+			return
+		}
+		kept := slices.DeleteFunc(slices.Clone(rows), func(it map[string]any) bool {
+			return ids != "" && !slices.Contains(strings.Split(ids, ","), text(it["Id"]))
+		})
+		writeJSON(t, w, page(kept...))
+	})
+	var lookups atomic.Int32
+	tmdb := cannedTMDB(t, map[string]string{"329865": `{"id":329865,"title":"Arrival","runtime":116}`}, nil)
+	counted := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		lookups.Add(1)
+
+		return tmdb.RoundTrip(r)
+	})
+	cs := session(t, f, Options{TMDBKey: "k", ProviderTransport: counted})
+
+	for _, tool := range []string{"audit_provider", "audit_file_path"} {
+		for _, tc := range []struct {
+			ids  []any
+			want string
+		}{
+			{[]any{"0"}, "no item has the id 0: the server answered with other items instead"},
+			{[]any{"x32"}, "reading the items the ids x32 name: GET /Items: HTTP 500"},
+			{[]any{"99"}, "no item has the id 99"},
+			{[]any{"32", "99"}, "no item has the id 99"},
+			{[]any{"41"}, `41 is a season, "Zzyzx Show: Season 1"`},
+		} {
+			if msg := mustRefuse(t, cs, tool, map[string]any{"ids": tc.ids}); !strings.Contains(msg, tc.want) {
+				t.Errorf("%s ids %v = %q, want %q", tool, tc.ids, msg, tc.want)
+			}
+		}
+	}
+	if msg := mustRefuse(t, cs, "audit_provider", map[string]any{"ids": []any{"40"}}); !strings.Contains(msg, `40 is a series, "Zzyzx Show", not one of the films this checks`) {
+		t.Errorf("audit_provider on a series' id = %q", msg)
+	}
+	if n := lookups.Load(); n != 0 {
+		t.Errorf("TMDB was asked %d times for ids that were refused", n)
+	}
+
+	// the ids that are right still run, and only over themselves
+	if out := mustCall(t, cs, "audit_provider", map[string]any{"ids": []any{"32"}, "checks": "runtime"}); number(t, out["items_scanned"], "items_scanned") != 1 {
+		t.Errorf("audit_provider ids 32 = %v", out)
+	}
+	if out := mustCall(t, cs, "audit_file_path", map[string]any{"ids": []any{"32", "40"}}); number(t, out["items_scanned"], "items_scanned") != 2 {
+		t.Errorf("audit_file_path ids 32 and 40 = %v", out)
+	}
+}
+
+// roundTripFunc is a transport made of a function.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

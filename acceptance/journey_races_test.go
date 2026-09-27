@@ -38,9 +38,10 @@ func missingID() string {
 }
 
 // A bulk edit that stops part way: the items before the bad id are changed,
-// the ones after it are not, and the error says how many were done. Run
-// again without the bad id it finishes the rest and changes the done ones no
-// further: the tag is on each once.
+// the ones after it are not, and the error names the ones done - the answer
+// that would have listed them is lost with the error - and says the same call
+// finishes it. Run again without the bad id it finishes the rest and changes
+// the done ones no further: the tag is on each once.
 func TestABulkEditStoppedPartWay(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	dune := findItem(t, "Movies", "Movie", "Dune")
@@ -60,7 +61,7 @@ func TestABulkEditStoppedPartWay(t *testing.T) {
 
 	bad := missingID()
 	msg := callErr(t, "item_edit", map[string]any{"ids": []any{arrival, bad, dune}, "add_tags": []any{"zzyzx-bulk"}})
-	if !strings.Contains(msg, bad+": ") || !strings.Contains(msg, "(1 items were updated before it)") {
+	if !strings.Contains(msg, bad+": ") || !strings.Contains(msg, "1 of the 3 items were already changed: Arrival ("+arrival+")") || !strings.Contains(msg, "run the same call again to finish") {
 		t.Errorf("the edit stopped at the bad id with: %s", msg)
 	}
 	if a, d := tagged(arrival), tagged(dune); a != 1 || d != 0 {
@@ -69,7 +70,7 @@ func TestABulkEditStoppedPartWay(t *testing.T) {
 
 	for range 2 {
 		out := call(t, "item_edit", map[string]any{"ids": []any{arrival, dune}, "add_tags": []any{"zzyzx-bulk"}})
-		if num(t, out["updated"], "updated") != 2 || !slices.Equal(strs(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
+		if num(t, out["updated"], "updated") != 2 || !slices.Equal(names(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
 			t.Errorf("the edit again = %v", out)
 		}
 		if a, d := tagged(arrival), tagged(dune); a != 1 || d != 1 {
@@ -126,10 +127,20 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	}
 	const overview = "Zzyzx: fixed while a scan ran."
 	call(t, "item_edit", map[string]any{"ids": []any{arrival}, "overview": overview})
-	if out := call(t, "item_identify_apply", map[string]any{"id": mononoke, "kind": "movie", "candidate": idx}); !strings.Contains(str(out["note"]), "metadata fetchers off") {
+	if out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx})); !strings.Contains(str(out["note"]), "metadata fetchers off") {
 		t.Errorf("item_identify_apply = %v", out)
 	}
-	call(t, "item_set_state", map[string]any{"id": blade, "user": "alice", "watched": true, "favourite": true})
+	// on Jellyfin the scan can undo the change within the second the tool
+	// reads it back (seen on 12.1: the favourite), and the tool then says so
+	// as an error naming the field and the scan; on Emby it must hold
+	markArgs := map[string]any{"id": blade, "user": "alice", "watched": true, "favourite": true}
+	var marked map[string]any
+	var markErr error
+	if isJellyfin() {
+		marked, markErr = invoke("item_set_state", markArgs)
+	} else {
+		marked = call(t, "item_set_state", markArgs)
+	}
 	deleted := call(t, "item_delete", map[string]any{"id": staged, "confirm": true})
 	if idle, err := scanIdle(); err != nil || idle {
 		t.Fatalf("the scan had finished before the last fix (%v): the fixes raced nothing", err)
@@ -137,9 +148,16 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	if err := waitForScan(); err != nil {
 		t.Fatal(err)
 	}
-	// the delete says what the scan it raced may do
-	if note := str(deleted["note"]); !strings.Contains(note, "a library scan was running") {
+	// the delete says what the scan it raced may do, and so does the change
+	// of alice's state, which a scan saving the item can undo
+	if note := str(deleted["note"]); !strings.Contains(note, "was running: it can list this item again") {
 		t.Errorf("item_delete during a scan: note = %q, want it to say a scan was running", note)
+	}
+	switch msg := fmt.Sprint(markErr); {
+	case markErr != nil && (!strings.Contains(msg, "favourite reads false, not true: the server did not keep it") || !strings.Contains(msg, "was running, and saving the item can undo a change")):
+		t.Errorf("item_set_state during a scan failed without naming the favourite and the scan: %v", markErr)
+	case markErr == nil && !strings.Contains(str(marked["note"]), "was running: it may overwrite this change once it finishes; check it afterwards"):
+		t.Errorf("item_set_state during a scan: note = %q, want it to say a scan was running", marked["note"])
 	}
 
 	// Jellyfin's scan, having read the copy's folder before the delete,
@@ -159,8 +177,23 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 		if ids, _ := call(t, "item_get", map[string]any{"id": mononoke})["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "128" && str(ids["imdb"]) != "tt0119698" {
 			t.Errorf("%s the messy Princess Mononoke holds %v, want its own tmdb or imdb id", when, ids)
 		}
-		if w, f := stateOf(t, blade, "alice"); !w || !f {
-			t.Errorf("%s Blade Runner for alice: watched %v favourite %v", when, w, f)
+		// a scan saving the item can undo a change made while it ran (seen
+		// on Jellyfin 12.1: the favourite came back unset); that is allowed
+		// there only when the change's answer said so - as an error naming
+		// the favourite, which must then read unset, or read back as kept
+		// with a note that a scan was running
+		w, f := stateOf(t, blade, "alice")
+		switch {
+		case markErr != nil:
+			if f {
+				t.Errorf("%s Blade Runner for alice reads favourite, where item_set_state's error said the server did not keep it", when)
+			}
+		case !w || !f:
+			if isJellyfin() && strings.Contains(str(marked["note"]), "was running: it may overwrite this change") {
+				t.Logf("%s Blade Runner for alice: watched %v favourite %v - the scan undid the change its answer read back as kept, and said a scan could", when, w, f)
+			} else {
+				t.Errorf("%s Blade Runner for alice: watched %v favourite %v", when, w, f)
+			}
 		}
 		if _, err := os.Stat(copied); !os.IsNotExist(err) {
 			t.Errorf("%s the deleted copy's folder is on disk: %v", when, err)

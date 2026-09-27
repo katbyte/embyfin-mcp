@@ -56,8 +56,10 @@ func TestExtrasAreNeitherCopiesNorEpisodes(t *testing.T) {
 		switch {
 		case isJellyfin() && asEpisode != nil:
 			t.Errorf("Jellyfin holds the season's featurette as an episode: %v", asEpisode)
-		case !isJellyfin() && (asEpisode == nil || str(asEpisode["series"]) != "Severance" || numOr0(asEpisode["episode"]) != 0 || numOr0(asEpisode["season"]) != 0):
-			t.Errorf("Emby holds the season's featurette as %v, want an episode of Severance with no number, in no season", asEpisode)
+		// Emby files it in season 0 though it sits in season one's folder, and
+		// gives it no number: episode null, not 0
+		case !isJellyfin() && (asEpisode == nil || str(asEpisode["series"]) != "Severance" || asEpisode["episode"] != nil || asEpisode["season"] == nil || numOr0(asEpisode["season"]) != 0):
+			t.Errorf("Emby holds the season's featurette as %v, want an episode of Severance in season 0 with no number", asEpisode)
 		}
 		for _, audit := range []string{"audit_quality", "audit_runtime", "audit_duplicate_episodes"} {
 			out := call(t, audit, map[string]any{"library": "Messy Shows"})

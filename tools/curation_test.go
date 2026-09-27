@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -280,6 +281,153 @@ func TestProgressAndDates(t *testing.T) {
 	}
 }
 
+// An edit of many items that fails part way loses its answer with the error,
+// so the error itself names the items already changed and says the same call
+// again finishes it: item_edit and metadata_rename alike.
+func TestPartEditsSayWhatLanded(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true}}],"TotalRecordCount":1}`)
+	})
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[],"TotalRecordCount":0}`)
+	})
+	names := map[string]string{"1": "Alien", "2": "Aliens", "3": "Alien 3"}
+	f.mux.HandleFunc("GET /Users/admin/Items/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		writeRaw(t, w, `{"Id":"`+id+`","Name":"`+names[id]+`","Genres":["Sci-Fi"]}`)
+	})
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[{"Id":"1","Genres":["Sci-Fi"]},{"Id":"2","Genres":["Sci-Fi"]},{"Id":"3","Genres":["Sci-Fi"]}],"TotalRecordCount":3}`)
+	})
+	// the second item's save is refused
+	f.mux.HandleFunc("POST /Items/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if r.PathValue("id") == "2" {
+			http.Error(w, "the item is locked", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	cs := session(t, f, Options{})
+
+	for name, args := range map[string]map[string]any{
+		"item_edit":       {"ids": []any{"1", "2", "3"}, "add_tags": []any{"space"}},
+		"metadata_rename": {"field": "genres", "from": "Sci-Fi", "to": "Science Fiction"},
+	} {
+		msg := mustRefuse(t, cs, name, args)
+		if !strings.Contains(msg, "1 of the 3 items were already changed: Alien (1)") || !strings.Contains(msg, "run the same call again to finish") || !strings.HasPrefix(msg, "2: ") {
+			t.Errorf("%s stopped part way: %s", name, msg)
+		}
+	}
+}
+
+// Emby shows an album with its tracks' old genre as well as the new one for
+// a moment after they are renamed - to its genre filter, and on the album's
+// own row, which item_get reads - while the album's own record has the new
+// one alone (seen on 4.10), and a list or an item_get straight after the
+// rename showed the old genre still on it. The rename reads the items again,
+// both ways, until none shows the old value; one still shown is named in
+// still_listed, and one whose own record has the old value again is an error
+// naming it.
+func TestARenameWaitsForTheServersListsToCatchUp(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		// filterLag and rowLag are how many reads after the rename still
+		// show the album with the old genre, to the filter and on its row by
+		// id; -1 for every read
+		filterLag, rowLag int
+		// kept: the album's edit does not hold
+		kept      bool
+		stillSaid string
+		errSaid   string
+	}{
+		"the filter catches up":      {filterLag: 2},
+		"the album's row catches up": {rowLag: 2},
+		"never catches up":           {filterLag: -1, stillSaid: "2"},
+		"puts it back":               {filterLag: -1, kept: true, errSaid: "renamed, but a few seconds after, the server has Electronica on Afterworld (2) again: it kept the old value or put it back; the 2 items edited were: Afterworld (1), Afterworld (2)"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newFakeServer(t)
+			f.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+				writeRaw(t, w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true}}],"TotalRecordCount":1}`)
+			})
+			f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+				writeRaw(t, w, `{"Items":[],"TotalRecordCount":0}`)
+			})
+			// a track, 1, and its album, 2
+			genres := map[string]string{"1": "Electronica", "2": "Electronica"}
+			renamed, filterReads, rowReads := false, 0, 0
+			f.mux.HandleFunc("GET /Users/admin/Items/{id}", func(w http.ResponseWriter, r *http.Request) {
+				f.mu.Lock()
+				defer f.mu.Unlock()
+				id := r.PathValue("id")
+				writeRaw(t, w, `{"Id":"`+id+`","Name":"Afterworld","Genres":["`+genres[id]+`"]}`)
+			})
+			f.mux.HandleFunc("POST /Items/{id}", func(w http.ResponseWriter, r *http.Request) {
+				body := readBody(t, r)
+				f.mu.Lock()
+				defer f.mu.Unlock()
+				id := r.PathValue("id")
+				if g, ok := body["Genres"].([]any); ok && len(g) == 1 && (id != "2" || !tc.kept) {
+					genres[id] = text(g[0])
+				}
+				renamed = genres["1"] == "Electronic"
+				w.WriteHeader(http.StatusNoContent)
+			})
+			lagging := func(lag, reads int) bool { return lag < 0 || reads <= lag }
+			f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+				f.mu.Lock()
+				defer f.mu.Unlock()
+				q := r.URL.Query()
+				album := `{"Id":"2","Genres":["Electronic"]}`
+				switch {
+				case !renamed:
+					writeRaw(t, w, `{"Items":[{"Id":"1","Genres":["Electronica"]},{"Id":"2","Genres":["Electronica"]}],"TotalRecordCount":2}`)
+					return
+				case q.Get("Genres") != "":
+					filterReads++
+					if lagging(tc.filterLag, filterReads) {
+						writeRaw(t, w, `{"Items":[{"Id":"2","Genres":["Electronic","Electronica"]}],"TotalRecordCount":1}`)
+						return
+					}
+					writeRaw(t, w, `{"Items":[],"TotalRecordCount":0}`)
+					return
+				}
+				rowReads++
+				if lagging(tc.rowLag, rowReads) {
+					album = `{"Id":"2","Genres":["Electronic","Electronica"]}`
+				}
+				writeRaw(t, w, `{"Items":[{"Id":"1","Genres":["Electronic"]},`+album+`],"TotalRecordCount":2}`)
+			})
+			r := &registry{client: f.client(t), settle: time.Millisecond}
+			registerSpellingTools(r)
+			cs := hostRegistry(t, r)
+
+			out, msg := callTool(t, cs, "metadata_rename", map[string]any{"field": "genres", "from": "Electronica", "to": "Electronic"})
+			if tc.errSaid != "" {
+				if !strings.Contains(msg, tc.errSaid) {
+					t.Errorf("metadata_rename = %v %q, want %q", out, msg, tc.errSaid)
+				}
+				return
+			}
+			if msg != "" || number(t, out["updated"], "updated") != 2 || strings.Join(texts(out["still_listed"]), ",") != tc.stillSaid {
+				t.Errorf("metadata_rename = %v %s, want both renamed and still_listed %q", out, msg, tc.stillSaid)
+			}
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			// read until both ways stopped showing the old genre, and no more
+			if want := max(tc.filterLag, tc.rowLag) + 1; tc.stillSaid == "" && (filterReads != want || rowReads != want) {
+				t.Errorf("read the filter %d and the rows %d times after the rename, want %d each: until both caught up", filterReads, rowReads, want)
+			}
+		})
+	}
+}
+
 // item_edit over several ids and metadata_rename against a canned Emby: the
 // full item is read in the administrator's view and posted back with both
 // spellings of each list, a field that is one item's own is refused for
@@ -292,9 +440,18 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 		_, _ = io.WriteString(w, `{"Items":[{"Id":"admin","Name":"root","Policy":{"IsAdministrator":true}}],"TotalRecordCount":1}`)
 	})
 	full := map[string]string{
-		"1": `{"Id":"1","Name":"Alien","Genres":["Sci-Fi","Horror"],"TagItems":[{"Name":"space","Id":1}],"Studios":[]}`,
-		"2": `{"Id":"2","Name":"Aliens","Genres":["sci-fi"],"TagItems":[],"Studios":[{"Name":"Brandywine","Id":4}]}`,
+		"1": `{"Id":"1","Name":"Alien","Type":"Movie","Path":"/zz/saved/Alien/Alien.mkv","Genres":["Sci-Fi","Horror"],"TagItems":[{"Name":"space","Id":1}],"Studios":[]}`,
+		"2": `{"Id":"2","Name":"Aliens","Type":"Movie","Path":"/zz/films/Aliens/Aliens.mkv","Genres":["sci-fi"],"TagItems":[],"Studios":[{"Name":"Brandywine","Id":4}]}`,
+		// a song in the library that saves nfos, which gets none (seen on
+		// Jellyfin 12.1)
+		"3": `{"Id":"3","Name":"Afterworld","Type":"Audio","Path":"/zz/saved/Music/Afterworld.mp3","Genres":[],"TagItems":[],"Studios":[]}`,
 	}
+	// Alien's library writes an edit to its nfo, Aliens' does not
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeRaw(t, w, `{"Items":[
+			{"Name":"Saved","ItemId":"7","Locations":["/zz/saved"],"LibraryOptions":{"MetadataSavers":["Nfo"]}},
+			{"Name":"Films","ItemId":"8","Locations":["/zz/films"],"LibraryOptions":{"MetadataSavers":[]}}],"TotalRecordCount":2}`)
+	})
 	f.mux.HandleFunc("GET /Users/admin/Items/{id}", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, full[r.PathValue("id")])
 	})
@@ -307,7 +464,15 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
-		// the server's genre filter is not exact: both spellings come back
+		// the server's genre filter is not exact: both spellings come back,
+		// until Aliens is renamed
+		f.mu.Lock()
+		renamed := strings.Contains(posted["2"], `"Genres":["Science Fiction"]`)
+		f.mu.Unlock()
+		if renamed {
+			_, _ = io.WriteString(w, `{"Items":[{"Id":"1","Name":"Alien","Genres":["Sci-Fi","Horror"]}],"TotalRecordCount":1}`)
+			return
+		}
 		_, _ = io.WriteString(w, `{"Items":[{"Id":"1","Name":"Alien","Genres":["Sci-Fi","Horror"]},{"Id":"2","Name":"Aliens","Genres":["sci-fi"]}],"TotalRecordCount":2}`)
 	})
 	cs := session(t, f, Options{})
@@ -326,8 +491,20 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 	if got := strings.Join(changed, ","); got != "genres,officialrating,tags" {
 		t.Errorf("changed = %s, want genres, official rating and tags", got)
 	}
-	if got, _ := json.Marshal(out["items"]); string(got) != `["Alien","Aliens"]` {
-		t.Errorf("items = %s, want the titles in the order given", got)
+	// each item in the order given, with what the fields changed were, to
+	// set them back by; and the one whose library saves nfos named
+	items := objects(t, out["items"], "items")
+	if len(items) != 2 || items[0]["id"] != "1" || items[0]["name"] != "Alien" || items[1]["name"] != "Aliens" {
+		t.Fatalf("items = %v, want each in the order given", items)
+	}
+	if got, err := json.Marshal(items[0]["was"]); err != nil || string(got) != `{"genres":["Sci-Fi","Horror"],"official_rating":null,"tags":["space"]}` {
+		t.Errorf("Alien was = %s (%v), want the genres, tags and rating it had (none)", got, err)
+	}
+	if got := strings.Join(texts(out["nfo_expected"]), ","); got != "1" {
+		t.Errorf("nfo_expected = %v, want Alien's alone", out["nfo_expected"])
+	}
+	if song, refusal := callTool(t, cs, "item_edit", map[string]any{"ids": []any{"3"}, "add_tags": []any{"Classic"}}); refusal != "" || song["nfo_expected"] != nil {
+		t.Errorf("a song's edit = %v %s, want no nfo expected", song, refusal)
 	}
 	for _, want := range []string{`"TagItems":[{"Name":"space"},{"Name":"Classic"}]`, `"Tags":["space","Classic"]`, `"Genres":["Sci-Fi"]`, `"GenreItems":[{"Name":"Sci-Fi"}]`, `"OfficialRating":"R"`} {
 		if !strings.Contains(posted["1"], want) {
@@ -364,6 +541,10 @@ func TestVocabularyEditsAgainstAFake(t *testing.T) {
 	}
 	if _, touched := posted["1"]; touched || !strings.Contains(posted["2"], `"Genres":["Science Fiction"]`) {
 		t.Errorf("the rename posted %v", posted)
+	}
+	// every item changed by id, to put the value back on
+	if got := strings.Join(texts(out["ids"]), ","); got != "2" || out["merged"] != nil {
+		t.Errorf("the rename's ids = %v, merged %v", out["ids"], out["merged"])
 	}
 	if q := f.requests("/Items")[0].Query; !strings.Contains(q, "Genres=sci-fi") || !strings.Contains(q, "ExcludeItemTypes=") {
 		t.Errorf("the rename's lookup = %s", q)
@@ -408,13 +589,38 @@ func TestHDRFormatSaysWhenItDoesNotKnow(t *testing.T) {
 		{"jellyfin's narrow reading wins", embyfin.MediaStream{VideoRangeType: "DOVIWithHDR10", VideoRange: "HDR"}, "dovi_hdr10"},
 		{"jellyfin plain dolby vision", embyfin.MediaStream{VideoRangeType: "DOVI"}, "dovi"},
 		{"emby says only HDR, the transfer says which", embyfin.MediaStream{VideoRange: "HDR", ColourTransfer: "arib-std-b67"}, "hlg"},
-		{"emby says HDR and nothing else", embyfin.MediaStream{VideoRange: "HDR"}, "hdr10"},
+		// HDR of no named kind is not HDR10 for want of saying which
+		{"a server says HDR and nothing else", embyfin.MediaStream{VideoRange: "HDR"}, "hdr"},
 		// what Emby 4.10 answered for an HEVC file tagged with HDR10's colours
 		{"emby names HDR10 itself, with a space", embyfin.MediaStream{VideoRange: "HDR 10"}, "hdr10"},
 		{"emby names HDR10 and the transfer agrees", embyfin.MediaStream{VideoRange: "HDR 10", ColourTransfer: "smpte2084"}, "hdr10"},
 		{"emby says SDR", embyfin.MediaStream{VideoRange: "SDR", ColourTransfer: "bt709"}, "sdr"},
 		{"only a transfer, and it is an HDR one", embyfin.MediaStream{ColourTransfer: "smpte2084"}, "hdr10"},
 		{"only a transfer, and it is not", embyfin.MediaStream{ColourTransfer: "bt709"}, "sdr"},
+		// a transfer the file leaves unset is no SDR one
+		{"only a transfer, and it says nothing", embyfin.MediaStream{ColourTransfer: "unknown"}, "unknown"},
+		{"only a transfer, and it is unspecified", embyfin.MediaStream{ColourTransfer: "unspecified"}, "unknown"},
+		// Jellyfin's Dolby Vision kinds each by name: DOVIWithEL and the rest
+		// read as hdr10 when only the base layer's transfer was left to go on
+		{"jellyfin dolby vision with an enhancement layer", embyfin.MediaStream{VideoRangeType: "DOVIWithEL", VideoRange: "HDR", ColourTransfer: "smpte2084"}, "dovi_el"},
+		{"jellyfin dolby vision over HDR10+", embyfin.MediaStream{VideoRangeType: "DOVIWithHDR10Plus", VideoRange: "HDR", ColourTransfer: "smpte2084"}, "dovi_hdr10plus"},
+		{"jellyfin dolby vision with both", embyfin.MediaStream{VideoRangeType: "DOVIWithELHDR10Plus", VideoRange: "HDR", ColourTransfer: "smpte2084"}, "dovi_el_hdr10plus"},
+		{"jellyfin dolby vision it calls invalid", embyfin.MediaStream{VideoRangeType: "DOVIInvalid", VideoRange: "HDR", ColourTransfer: "smpte2084"}, "dovi_invalid"},
+		{"jellyfin dolby vision over HLG", embyfin.MediaStream{VideoRangeType: "DOVIWithHLG", VideoRange: "HDR", ColourTransfer: "arib-std-b67"}, "dovi_hlg"},
+		{"jellyfin dolby vision over SDR", embyfin.MediaStream{VideoRangeType: "DOVIWithSDR", VideoRange: "HDR", ColourTransfer: "bt709"}, "dovi_sdr"},
+		{"jellyfin HDR10+", embyfin.MediaStream{VideoRangeType: "HDR10Plus", VideoRange: "HDR", ColourTransfer: "smpte2084"}, "hdr10plus"},
+		{"jellyfin's own unknown, and a transfer", embyfin.MediaStream{VideoRangeType: "Unknown", ColourTransfer: "smpte2084"}, "hdr10"},
+		// Emby's narrow reading, which its broad one ("HDR 10") hides
+		{"emby dolby vision 8.1", embyfin.MediaStream{VideoRange: "HDR 10", ExtendedVideoType: "DolbyVision", ExtendedVideoSubType: "DoviProfile81", ColourTransfer: "smpte2084"}, "dovi_hdr10"},
+		{"emby dolby vision 5", embyfin.MediaStream{VideoRange: "HDR 10", ExtendedVideoType: "DolbyVision", ExtendedVideoSubType: "DoviProfile50"}, "dovi"},
+		{"emby dolby vision 8.4", embyfin.MediaStream{ExtendedVideoType: "DolbyVision", ExtendedVideoSubType: "DoviProfile84"}, "dovi_hlg"},
+		{"emby dolby vision 7.6", embyfin.MediaStream{ExtendedVideoType: "DolbyVision", ExtendedVideoSubType: "DoviProfile76"}, "dovi_el"},
+		{"emby dolby vision of no named profile", embyfin.MediaStream{ExtendedVideoType: "DolbyVision", ExtendedVideoSubType: "None"}, "dovi"},
+		{"emby HDR10+", embyfin.MediaStream{VideoRange: "HDR 10", ExtendedVideoType: "Hdr10Plus", ExtendedVideoSubType: "Hdr10Plus0"}, "hdr10plus"},
+		{"emby HLG", embyfin.MediaStream{ExtendedVideoType: "HyperLogGamma"}, "hlg"},
+		// what Emby 4.10 answered for the fixtures' HDR10-tagged upscale
+		{"emby HDR10", embyfin.MediaStream{VideoRange: "HDR 10", ExtendedVideoType: "Hdr10", ExtendedVideoSubType: "Hdr10", ColourTransfer: "smpte2084"}, "hdr10"},
+		{"emby's none leaves it to the broad reading", embyfin.MediaStream{VideoRange: "SDR", ExtendedVideoType: "None", ExtendedVideoSubType: "None"}, "sdr"},
 	} {
 		if got := hdrFormat(&tc.stream); got != tc.want {
 			t.Errorf("%s: hdr = %q, want %q", tc.name, got, tc.want)
@@ -529,10 +735,12 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 		t.Fatalf("groups = %v", groups)
 	}
 
-	// the near-certain one comes first: a caller working a capped list gets
-	// the ones the runtimes agree on
+	// the canned server gives every file one size, so two alike in size say
+	// nothing when the season's other episode is that size too: a lead, and
+	// the evidence says why
 	first := groups[0]
-	if text(first["confidence"]) != "near_certain" || text(first["title"]) != "Half Loop" {
+	if text(first["confidence"]) != "lead" || text(first["title"]) != "Half Loop" ||
+		!slices.Equal(texts(first["evidence"]), []string{"E02 and E04: the same size to the byte, which E01 of the season is too, so no sign alone"}) {
 		t.Errorf("first group = %v", first)
 	}
 	if eps := objects(t, first["episodes"], "episodes"); len(eps) != 2 ||
@@ -543,9 +751,10 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 		t.Errorf("a row lacks what a caller decides on: %v", eps[0])
 	}
 
-	// the same title at half the length is a lead, not a finding to act on
+	// the same title at half the length is said, as far apart: a copy cut
+	// short, one file holding two, or two episodes
 	second := groups[1]
-	if text(second["confidence"]) != "lead" {
+	if text(second["confidence"]) != "far_apart" {
 		t.Errorf("a shared title at half the runtime = %v", second)
 	}
 	if gap, ok := second["runtime_gap"].(float64); !ok || gap < 0.4 {

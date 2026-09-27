@@ -171,6 +171,19 @@ func TestAuditAnimeIDs(t *testing.T) {
 	// begins. The History of Trunks' place, 11, is the next entry, and the
 	// library holds that one as a series of its own as well.
 	dbz, trunks := str(split["series_id"]), str(named("ids_disagree", "Dragon Ball Z: The History of Trunks")["id"])
+	// the two share TMDB's tv 12971, and their AniDB ids say they are two
+	// shows: neither is named as the other's second entry, where a shared
+	// id alone used to join them, but each is named apart as an anime entry
+	// an episode may be filed under, and an absence warns of it
+	for id, other := range map[string]string{dbz: trunks, trunks: dbz} {
+		out := call(t, "show_episodes_exist", map[string]any{"series_id": id, "episodes": []map[string]any{{"season": 1, "episode": 99}}})
+		if slices.Contains(strs(t, orEmptyList(out["duplicate_entries"]), "duplicate_entries"), other) {
+			t.Errorf("show_episodes_exist %s names %s as its other entry: %v", id, other, out["duplicate_entries"])
+		}
+		if !slices.Contains(strs(t, orEmptyList(out["anime_entries"]), "anime_entries"), other) || !strings.Contains(str(out["warning"]), "under another AniDB id (id "+other+" at ") {
+			t.Errorf("show_episodes_exist %s, S01E99 absent: anime_entries %v, warning %q: want %s named apart", id, out["anime_entries"], out["warning"], other)
+		}
+	}
 	season0 := filepath.Join(root, staged[0], "Season 00")
 	short := fixture(t, "messy-shows/Severance/Season 01/Severance S01E01.mp4")
 	// lays specials out, or takes them away, and scans until the library

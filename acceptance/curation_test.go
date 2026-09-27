@@ -272,7 +272,7 @@ func TestItemEditMany(t *testing.T) {
 		"add_genres": []any{"Mystery"}, "add_tags": []any{"watchlist", "alien"}, "studios": []any{"Paramount Pictures"},
 		"official_rating": "R",
 	})
-	if num(t, out["updated"], "updated") != 2 || !slices.Equal(strs(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
+	if num(t, out["updated"], "updated") != 2 || !slices.Equal(names(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
 		t.Errorf("item_edit = %v", out)
 	}
 	// the fields changed, sorted
@@ -705,12 +705,20 @@ func TestAuditMissingEpisodes(t *testing.T) {
 	// and the unidentified Star Trek is a series nobody can be asked about
 	needsTMDBRecording(t, "GET api.themoviedb.org/3/tv/95396")
 	out = call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true})
-	if !boolOf(out["runs_known"]) || str(out["note"]) != "" {
-		t.Errorf("with the provider runs_known = %v, note %q", out["runs_known"], out["note"])
-	}
 	found := map[string]string{}
+	runKnown := map[string]bool{}
 	for _, f := range rows(t, out["findings"], "findings") {
 		found[title(str(f["name"]))] = str(f["detail"])
+		runKnown[title(str(f["name"]))] = boolOf(f["run_known"])
+	}
+	// every show's run is not known - the unidentified ones' is not - so a
+	// show not listed is not known to be complete, and the answer says so;
+	// each finding says whether its own show's run is known
+	if boolOf(out["runs_known"]) || !strings.Contains(str(out["note"]), "could not be read") || str(out["order"]) != "TMDB aired order" {
+		t.Errorf("with the provider runs_known = %v, note %q, order %v", out["runs_known"], out["note"], out["order"])
+	}
+	if !runKnown["Severance"] || runKnown["Star Trek The Next Generation"] {
+		t.Errorf("run_known by show = %v, want Severance's known and Star Trek's not", runKnown)
 	}
 	// the sixteen aired episodes of its first two seasons past the three
 	// files, the first twelve by name; TMDB's third season is empty

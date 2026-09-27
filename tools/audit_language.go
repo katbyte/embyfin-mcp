@@ -66,28 +66,38 @@ func untaggedLanguage(code string) bool {
 
 // trackLanguages is what an item's files carry, across every version of it:
 // a language one version has is a language the item can be played in.
+//
+// A forced subtitle track is kept apart: it shows only the lines spoken in
+// another language than the audio's (a sign, a scene in another tongue), so
+// an English forced track on a German film is no English subtitles to follow
+// it by.
 type trackLanguages struct {
-	audio, subtitles                 []string
+	audio, subtitles, forced         []string
 	untaggedAudio, untaggedSubtitles bool
 }
 
 func languagesOf(it *embyfin.Item) trackLanguages {
 	var out trackLanguages
+	add := func(list *[]string, code string) {
+		if key := languageKey(code); !slices.Contains(*list, key) {
+			*list = append(*list, key)
+		}
+	}
 	for i := range it.MediaSources {
 		for _, st := range it.MediaSources[i].MediaStreams {
-			switch st.Type {
-			case "Audio":
-				if untaggedLanguage(st.Language) {
-					out.untaggedAudio = true
-				} else if key := languageKey(st.Language); !slices.Contains(out.audio, key) {
-					out.audio = append(out.audio, key)
-				}
-			case "Subtitle":
-				if untaggedLanguage(st.Language) {
-					out.untaggedSubtitles = true
-				} else if key := languageKey(st.Language); !slices.Contains(out.subtitles, key) {
-					out.subtitles = append(out.subtitles, key)
-				}
+			switch {
+			case st.Type == "Audio" && untaggedLanguage(st.Language):
+				out.untaggedAudio = true
+			case st.Type == "Audio":
+				add(&out.audio, st.Language)
+			// a forced track with no language says nothing either way
+			case st.Type == "Subtitle" && st.IsForced && !untaggedLanguage(st.Language):
+				add(&out.forced, st.Language)
+			case st.Type == "Subtitle" && st.IsForced:
+			case st.Type == "Subtitle" && untaggedLanguage(st.Language):
+				out.untaggedSubtitles = true
+			case st.Type == "Subtitle":
+				add(&out.subtitles, st.Language)
 			}
 		}
 	}
@@ -108,7 +118,12 @@ func (l trackLanguages) String() string {
 		return strings.Join(parts, ", ")
 	}
 
-	return "audio: " + list(l.audio, l.untaggedAudio) + "; subtitles: " + list(l.subtitles, l.untaggedSubtitles)
+	out := "audio: " + list(l.audio, l.untaggedAudio) + "; subtitles: " + list(l.subtitles, l.untaggedSubtitles)
+	if len(l.forced) > 0 {
+		out += "; forced subtitles only: " + strings.Join(l.forced, ", ")
+	}
+
+	return out
 }
 
 // noAudio says the files carry no audio track at all. A file like that is as
@@ -123,7 +138,10 @@ func (l trackLanguages) noAudio() bool {
 // something the files do not say: a track that names no language, which
 // may well be the language asked about, or no audio track at all. An item is
 // never reported as lacking a language on the strength of a fact it does not
-// have.
+// have, nor left out of both the findings and the count of what could not
+// be judged: asked what has English audio, an item whose one audio track
+// names no language may have it. A forced subtitle track is not subtitles in
+// its language (see trackLanguages).
 func checkLanguage(it *embyfin.Item, language, find string) (detail string, match, unknown bool) {
 	l := languagesOf(it)
 	key := languageKey(language)
@@ -132,8 +150,12 @@ func checkLanguage(it *embyfin.Item, language, find string) (detail string, matc
 	switch find {
 	case findAudio:
 		match = hasAudio
+		unknown = !match && (l.untaggedAudio || l.noAudio())
 	case findSubtitles:
+		// a file with no audio track at all is as often one the server never
+		// probed, whose streams it has not read
 		match = hasSubtitles
+		unknown = !match && (l.untaggedSubtitles || l.noAudio())
 	case findNoAudio:
 		if !hasAudio {
 			unknown = l.untaggedAudio || l.noAudio()
@@ -161,8 +183,8 @@ type languageIn struct {
 // languageOut is audit_language's answer.
 type languageOut struct {
 	auditOut
-	Untagged int `json:"untagged"       jsonschema:"items not judged because the track the answer turns on names no language; counted in neither total_findings nor the rest"`
-	NoAudio  int `json:"no_audio_track" jsonschema:"no_audio and unwatchable: files not judged because they carry no audio track at all, as often because the server never probed them as because they are silent; counted in neither total_findings nor untagged"`
+	Untagged int `json:"untagged"       jsonschema:"items not judged because a track the answer turns on names no language, which may be the one asked about; counted in neither total_findings nor the rest"`
+	NoAudio  int `json:"no_audio_track" jsonschema:"items not judged because their files carry no audio track at all, as often because the server never probed them as because they are silent; counted in neither total_findings nor untagged"`
 }
 
 func auditLanguage(ctx context.Context, client *embyfin.Client, in languageIn) (languageOut, error) {
@@ -194,16 +216,18 @@ func auditLanguage(ctx context.Context, client *embyfin.Client, in languageIn) (
 	// as people are shown it, every version together: on Emby each version
 	// is stored as an item of its own, and one read alone lacked what
 	// another version has
-	items, err := shownItems(ctx, client, opts)
+	items, note, placing, err := shownItems(ctx, client, opts)
 	if err != nil {
 		return languageOut{}, err
 	}
+	out.changed, out.Note = note, joinWarnings(note, placing)
 	for i := range items {
 		it := &items[i]
 		// the record a server keeps of an episode it has no file for has no
 		// streams to read, and is not something the library can be watched
-		// in or not
-		if !it.HasFile() {
+		// in or not; nor is a series or a season, whose path is a folder of
+		// files and no file
+		if !it.HasFile() || it.IsFolder {
 			continue
 		}
 		out.Scanned++
@@ -216,7 +240,7 @@ func auditLanguage(ctx context.Context, client *embyfin.Client, in languageIn) (
 		case match:
 			name := it.Name
 			if it.SeriesName != "" {
-				name = fmt.Sprintf("%s S%02dE%02d %s", it.SeriesName, it.ParentIndexNumber, it.IndexNumber, it.Name)
+				name = fmt.Sprintf("%s %s %s", it.SeriesName, episodeCode(it), it.Name)
 			}
 			findings = append(findings, auditFinding{ID: it.ID, Name: name, Year: it.ProductionYear, Path: it.Path, Detail: detail})
 		}
@@ -235,7 +259,7 @@ func registerLanguageAudit(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_language",
 		Description: "Find films and episodes by the language of their audio or subtitles: what has audio or subtitles in a language, what has no audio in it, or what cannot be watched in it at all (neither audio nor subtitles). Any version of an item counts, every version the server shows it in read together (Emby stores each as an item of its own and merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it). " +
-			"A track with no language tag is never taken as lacking the language: an item whose answer turns on one is counted in untagged instead of reported. Nor is a file with no audio track at all, which as often means the server never probed it as that it is silent: those are counted in no_audio_track. A record of an episode with no file is left out.",
+			"A track with no language tag is never taken as lacking the language, nor as having it: an item whose answer turns on one is counted in untagged instead of reported. Nor is a file with no audio track at all, which as often means the server never probed it as that it is silent: those are counted in no_audio_track. A forced subtitle track (signs and foreign lines only) is not subtitles in its language. A record of an episode with no file is left out.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in languageIn) (*mcp.CallToolResult, languageOut, error) {
 		out, err := auditLanguage(ctx, client, in)
 

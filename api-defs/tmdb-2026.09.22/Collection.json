@@ -218,13 +218,6 @@
           }
         },
         {
-          "Name": "Name",
-          "JsonName": "name",
-          "Type": {
-            "Type": "String"
-          }
-        },
-        {
           "Name": "OriginalLanguage",
           "JsonName": "original_language",
           "Type": {
@@ -232,8 +225,8 @@
           }
         },
         {
-          "Name": "OriginalName",
-          "JsonName": "original_name",
+          "Name": "OriginalTitle",
+          "JsonName": "original_title",
           "Type": {
             "Type": "String"
           }
@@ -262,6 +255,13 @@
         {
           "Name": "ReleaseDate",
           "JsonName": "release_date",
+          "Type": {
+            "Type": "String"
+          }
+        },
+        {
+          "Name": "Title",
+          "JsonName": "title",
           "Type": {
             "Type": "String"
           }

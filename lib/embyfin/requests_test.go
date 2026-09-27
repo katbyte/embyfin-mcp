@@ -49,6 +49,9 @@ type fake struct {
 func newFake(t *testing.T, backend Backend, routes map[string]route) (*Client, *fake) {
 	t.Helper()
 
+	if backend == Jellyfin {
+		fullView(t, routes)
+	}
 	f := &fake{t: t, routes: routes}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
@@ -87,6 +90,20 @@ func answer(status int, body string) route {
 }
 
 func ok(body string) route { return answer(http.StatusOK, body) }
+
+// fullView gives a canned Jellyfin the accounts choosing one that sees
+// everything reads (see FullViewerID), where a test does not name them: an
+// administrator given every library.
+func fullView(t *testing.T, routes map[string]route) {
+	t.Helper()
+
+	if _, given := routes["GET /Users"]; !given {
+		routes["GET /Users"] = ok(`[{"Id":"u1","Name":"root","Policy":{"IsAdministrator":true,"EnableAllFolders":true,"EnableAllChannels":true}}]`)
+	}
+	if _, given := routes["GET /Library/VirtualFolders"]; !given {
+		routes["GET /Library/VirtualFolders"] = ok(`[]`)
+	}
+}
 
 var noContent = answer(http.StatusNoContent, "")
 
@@ -212,9 +229,12 @@ func TestEmbyNullResults(t *testing.T) {
 			items, _, err := c.Search(ctx, SearchOptions{UserID: "u1"})
 			return empty(len(items), err)
 		},
-		"ItemsByProviderID": func() error { items, err := c.ItemsByProviderID(ctx, "tmdb", "348"); return empty(len(items), err) },
-		"Similar":           func() error { items, err := c.Similar(ctx, "1", "u1", 5); return empty(len(items), err) },
-		"InstantMix":        func() error { items, err := c.InstantMix(ctx, "1", 5); return empty(len(items), err) },
+		"ItemsByProviderID": func() error {
+			items, _, err := c.ItemsByProviderID(ctx, "tmdb", "348", ProviderIDTypes)
+			return empty(len(items), err)
+		},
+		"Similar":    func() error { items, err := c.Similar(ctx, "1", "u1", 5); return empty(len(items), err) },
+		"InstantMix": func() error { items, err := c.InstantMix(ctx, "1", 5); return empty(len(items), err) },
 		"PlaylistItems": func() error {
 			items, total, err := c.PlaylistItems(ctx, "p1", "u1")
 			return empty(len(items)+total, err)
@@ -357,7 +377,8 @@ func TestEmbyPerUserRouteKeepsEveryFilter(t *testing.T) {
 			t.Fatalf("SearchOptions.%s is a %s: teach this test to set one", v.Type().Field(i).Name, f.Kind())
 		}
 	}
-	full.UserID = ""
+	// a saved-since has to be a date to be sent at all
+	full.UserID, full.SavedSince = "", "2026-01-02"
 	if _, _, err := c.Search(t.Context(), full); err != nil {
 		t.Fatal(err)
 	}
@@ -398,35 +419,52 @@ func TestSearchJellyfin(t *testing.T) {
 	}
 }
 
-func TestSearchAllAndLookups(t *testing.T) {
+func TestLookupsByProviderIDAndID(t *testing.T) {
 	t.Parallel()
 
-	var pages int
+	// 1500 films, the first and the last carrying tmdb 348, one spelling
+	// the provider Tmdb and the other tmdb
+	var pages, checks int
 	c, f := newFake(t, Jellyfin, map[string]route{
 		"GET /Items": func(r *http.Request, _ string) (int, string) {
-			pages++
-			if r.URL.Query().Get("startIndex") == "" {
-				return http.StatusOK, `{"Items":[{"Id":"a","ProviderIds":{"Tmdb":"348"}}],"TotalRecordCount":1001}`
+			// the read again at the end, which reads what the pages did
+			if readingAgain(r) {
+				checks++
+			} else {
+				pages++
 			}
-			return http.StatusOK, `{"Items":[{"Id":"b","ProviderIds":{"tmdb":"348"}}],"TotalRecordCount":1001}`
+			start, _ := strconv.Atoi(r.URL.Query().Get("startIndex"))
+			limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+			var rows []string
+			for i := start; i < min(start+limit, 1500); i++ {
+				ids := `{}`
+				switch i {
+				case 0:
+					ids = `{"Tmdb":"348"}`
+				case 1499:
+					ids = `{"tmdb":"348"}`
+				}
+				rows = append(rows, fmt.Sprintf(`{"Id":"%d","ProviderIds":%s}`, i, ids))
+			}
+			return http.StatusOK, `{"Items":[` + strings.Join(rows, ",") + `],"TotalRecordCount":1500}`
 		},
 	})
 	// Jellyfin has no provider-id query: every movie and series is paged
-	matches, err := c.ItemsByProviderID(t.Context(), "TMDB", "348")
+	matches, changed, err := c.ItemsByProviderID(t.Context(), "TMDB", "348", ProviderIDTypes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pages != 2 || len(matches) != 2 || f.requests[1].query.Get("startIndex") != "1000" {
-		t.Errorf("%d pages, %d matches", pages, len(matches))
+	if pages != 2 || checks != 1 || len(matches) != 2 || matches[0].ID != "0" || matches[1].ID != "1499" || f.requests[1].query.Get("startIndex") != "1000" || changed != "" {
+		t.Errorf("%d pages and %d read again, matches %+v, second page from %s", pages, checks, matches, f.requests[1].query.Get("startIndex"))
 	}
 
 	c, f = newFake(t, Emby, map[string]route{
 		"GET /Items": ok(`{"Items":[{"Id":"1","Name":"Alien"}],"TotalRecordCount":1}`),
 	})
-	if _, err := c.ItemsByProviderID(t.Context(), "tmdb", "348"); err != nil {
+	if _, _, err := c.ItemsByProviderID(t.Context(), "tmdb", "348", typeMovieForTest); err != nil {
 		t.Fatal(err)
 	}
-	if q := f.requests[0].query; q.Get("AnyProviderIdEquals") != "tmdb.348" {
+	if q := f.requests[0].query; q.Get("AnyProviderIdEquals") != "tmdb.348" || q.Get("IncludeItemTypes") != typeMovieForTest {
 		t.Errorf("Emby lookup = %v", q)
 	}
 	// Emby drops an Ids filter it cannot parse and answers the whole library
@@ -444,10 +482,14 @@ func TestSearchAllAndLookups(t *testing.T) {
 	}
 }
 
+// typeMovieForTest is the film type a lookup is narrowed to.
+const typeMovieForTest = "Movie"
+
 // A provider id names a film or a series. TMDB numbers its collections apart
 // from its films, so collection 10 and film 10 are different things, and a
 // box set, season or episode carrying the number is not the film: both
-// servers are asked for films and series only.
+// servers are asked for films and series only - or for the one of the two
+// the caller names, since TMDB numbers those apart as well.
 func TestItemsByProviderIDFindsFilmsAndSeries(t *testing.T) {
 	t.Parallel()
 
@@ -465,16 +507,18 @@ func TestItemsByProviderIDFindsFilmsAndSeries(t *testing.T) {
 	}
 	for _, backend := range []Backend{Emby, Jellyfin} {
 		c, _ := newFake(t, backend, map[string]route{"GET /Items": items})
-		found, err := c.ItemsByProviderID(t.Context(), "tmdb", "10")
-		if err != nil {
-			t.Fatal(err)
-		}
-		var got []string
-		for _, it := range found {
-			got = append(got, it.Type)
-		}
-		if !slices.Equal(got, []string{"Movie", "Series"}) {
-			t.Errorf("%s: tmdb 10 found %v, want the film and the series only", backend, got)
+		for types, want := range map[string][]string{ProviderIDTypes: {"Movie", "Series"}, "Movie": {"Movie"}, "Series": {"Series"}} {
+			found, _, err := c.ItemsByProviderID(t.Context(), "tmdb", "10", types)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, it := range found {
+				got = append(got, it.Type)
+			}
+			if !slices.Equal(got, want) {
+				t.Errorf("%s: tmdb 10 among %s found %v, want %v", backend, types, got, want)
+			}
 		}
 	}
 }
@@ -649,6 +693,13 @@ func TestLibraries(t *testing.T) {
 		t.Errorf("delete = %v", q)
 	}
 	f.only("POST /Library/Refresh")
+
+	// the removal landed and the scan it asks for failed: the error says the
+	// library is gone, not only the scan's status
+	c, _ = newFake(t, Jellyfin, map[string]route{"DELETE /Library/VirtualFolders": noContent, "POST /Library/Refresh": answer(http.StatusInternalServerError, "busy")})
+	if err := c.DeleteLibrary(t.Context(), &VirtualFolder{Name: "Films", ItemID: "9"}); err == nil || !strings.Contains(err.Error(), "the library Films was removed, and asking for the scan that drops its items failed") {
+		t.Errorf("a removal whose scan failed = %v", err)
+	}
 }
 
 func TestEditItem(t *testing.T) {
@@ -761,8 +812,8 @@ func TestPlaylists(t *testing.T) {
 	if err != nil || total != 2 || items[0].PlaylistItemID != "e1" {
 		t.Errorf("PlaylistItems = %+v, %d, %v", items, total, err)
 	}
-	if n, err := c.RemoveFromPlaylist(t.Context(), "p2", "u1", []string{"e1", "e2"}); err != nil || n != 2 {
-		t.Fatalf("RemoveFromPlaylist = %d, %v", n, err)
+	if gone, err := c.RemoveFromPlaylist(t.Context(), "p2", EntriesToRemove{EntryIDs: []string{"e1", "e2"}, ItemIDs: []string{"a", "b"}}); err != nil || len(gone.Removed) != 2 || gone.Removed[0].Item.ID != "a" || gone.Removed[1].Position != 2 {
+		t.Fatalf("RemoveFromPlaylist = %+v, %v", gone, err)
 	}
 	if q := f.only("DELETE /Playlists/p2/Items").query; !slices.Equal(q["entryIds"], []string{"e1", "e2"}) {
 		t.Errorf("remove = %v", q)
@@ -995,6 +1046,7 @@ func TestRemoveFromCollection(t *testing.T) {
 				}
 				return http.StatusOK, `{"Items":[` + strings.Join(items, ",") + `]}`
 			},
+			"GET /Users": ok(`[{"Id":"u2","Name":"alice","Policy":{"IsAdministrator":false}},{"Id":"u1","Name":"root","Policy":{"IsAdministrator":true,"EnableAllFolders":true,"EnableAllChannels":true}}]`),
 			"DELETE /Collections/c1/Items": func(r *http.Request, _ string) (int, string) {
 				if ignore > 0 {
 					ignore--
@@ -1035,6 +1087,22 @@ func TestRemoveFromCollection(t *testing.T) {
 	if q := f.only("DELETE /Collections/c1/Items").query; !slices.Equal(q["ids"], []string{"a", "c"}) {
 		t.Errorf("Jellyfin remove = %v", q)
 	}
+	// what a Jellyfin collection holds is read one level deep, in the first
+	// administrator's view: read recursively it lists a series' seasons and
+	// episodes as its own, and without a view one level deep lists nothing
+	for _, r := range f.all("GET /Items") {
+		// the counts that choose the account are not reads of it
+		if r.query.Get("includeItemTypes") != "" {
+			continue
+		}
+		if q := r.query; q.Get("recursive") != "false" || q.Get("parentId") != "c1" || q.Get("userId") != "u1" {
+			t.Errorf("a Jellyfin collection was read with %v, want one level deep in root's view", q)
+		}
+	}
+	// the administrator is read once, not with every read of the collection
+	if n := len(f.all("GET /Users")); n != 1 {
+		t.Errorf("the accounts were read %d times, want once", n)
+	}
 
 	// an item the collection does not hold is an error, and nothing is sent
 	c, f = collection(t, Jellyfin, 0)
@@ -1056,11 +1124,89 @@ func TestRemoveFromCollection(t *testing.T) {
 
 	// and one that never lands is an error, not a success
 	c, f = collection(t, Emby, 2)
-	if err := c.RemoveFromCollection(t.Context(), "c1", []string{"b"}); err == nil || !strings.Contains(err.Error(), "did not remove b") {
+	if err := c.RemoveFromCollection(t.Context(), "c1", []string{"b"}); err == nil || !strings.Contains(err.Error(), "did not keep b out of the collection") {
 		t.Errorf("a removal the server never applies = %v", err)
 	}
 	if n := removals(f); n != 2 {
 		t.Errorf("%d removals sent, want two", n)
+	}
+}
+
+// A scan's refresh of a collection can save the members it read before a
+// removal and put an item back after the removal was answered and seen to
+// land (seen on Jellyfin 12.1: Dune held again after collection_remove said
+// it was gone). The collection is read again a moment after the removal
+// lands, and an item asked for that came back is sent again, alone; one
+// that keeps coming back is an error saying so.
+func TestARemovalAScanPutsBack(t *testing.T) {
+	t.Parallel()
+
+	// backs is how many times the refresh puts b back, two reads after a
+	// removal of it lands
+	collection := func(t *testing.T, backs int) (*Client, *fake, *[]string) {
+		t.Helper()
+
+		var mu sync.Mutex
+		held := []string{"a", "b", "c"}
+		since := -1
+		c, f := newFake(t, Emby, map[string]route{
+			"GET /Items": func(*http.Request, string) (int, string) {
+				mu.Lock()
+				defer mu.Unlock()
+				if since >= 0 {
+					since++
+					if since == 2 && backs > 0 {
+						backs--
+						held, since = append(held, "b"), -1
+					}
+				}
+				items := make([]string, 0, len(held))
+				for _, id := range held {
+					items = append(items, `{"Id":"`+id+`"}`)
+				}
+				return http.StatusOK, `{"Items":[` + strings.Join(items, ",") + `]}`
+			},
+			"DELETE /Collections/c1/Items": func(r *http.Request, _ string) (int, string) {
+				mu.Lock()
+				defer mu.Unlock()
+				gone := strings.Split(r.URL.Query().Get("Ids"), ",")
+				held = slices.DeleteFunc(held, func(id string) bool { return slices.Contains(gone, id) })
+				if slices.Contains(gone, "b") {
+					since = 0
+				}
+				return http.StatusNoContent, ""
+			},
+		})
+		c.settle, c.saveGrain = time.Millisecond, time.Millisecond
+
+		return c, f, &held
+	}
+	sent := func(f *fake) []string {
+		reqs := f.all("DELETE /Collections/c1/Items")
+		out := make([]string, 0, len(reqs))
+		for _, r := range reqs {
+			out = append(out, r.query.Get("Ids"))
+		}
+		return out
+	}
+
+	c, f, held := collection(t, 1)
+	if err := c.RemoveFromCollection(t.Context(), "c1", []string{"a", "b"}); err != nil {
+		t.Fatalf("a removal a refresh put one item back: %v", err)
+	}
+	if got := sent(f); !slices.Equal(got, []string{"a,b", "b"}) {
+		t.Errorf("removals sent = %v, want both, then b alone once it came back", got)
+	}
+	if !slices.Equal(*held, []string{"c"}) {
+		t.Errorf("the collection holds %v, want [c]", *held)
+	}
+
+	c, f, _ = collection(t, 2)
+	if err := c.RemoveFromCollection(t.Context(), "c1", []string{"b"}); err == nil || !strings.Contains(err.Error(), "did not keep b out of the collection") {
+		t.Errorf("a removal a refresh keeps putting back = %v", err)
+	}
+	if got := sent(f); !slices.Equal(got, []string{"b", "b"}) {
+		t.Errorf("removals sent = %v, want two", got)
 	}
 }
 
@@ -1628,6 +1774,89 @@ func TestLibraryEdits(t *testing.T) {
 	}
 }
 
+// An artist whose songs change while they are read for what an add should
+// put in the playlist is refused before anything is sent: the add is checked
+// against those songs, and read while they changed that could send a song
+// again that is gone, or pass an add short of what the server put in. One
+// that holds still goes in.
+func TestAddToPlaylistRefusesAFolderThatChangedWhileRead(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range []Backend{Emby, Jellyfin} {
+		for _, change := range []string{"none", "growing", "unchecked"} {
+			grow, unchecked := change == "growing", change == "unchecked"
+			var mu sync.Mutex
+			asked, added := 0, 0
+			var held []string
+			// the artist's songs, more than one request reads, one more at
+			// the front before every request after the first when growing
+			songs := func() []string {
+				out := numbered("n", added)
+				slices.Reverse(out)
+				return append(out, numbered("t", 1500)...)
+			}
+			items := func(r *http.Request, _ string) (int, string) {
+				mu.Lock()
+				defer mu.Unlock()
+				if ids := queryList(r.URL.Query(), "Ids"); len(ids) > 0 {
+					return http.StatusOK, `{"Items":[{"Id":"ar","Name":"Artist ar","Type":"MusicArtist","IsFolder":true}],"TotalRecordCount":1}`
+				}
+				asked++
+				if grow && asked > 1 {
+					added++
+				}
+				// the read again at the end failing
+				if unchecked && readingAgain(r) {
+					return http.StatusInternalServerError, "boom"
+				}
+				start, limit := startLimit(r)
+				all := songs()
+				rows := make([]string, 0, limit)
+				for _, id := range all[min(start, len(all)):min(start+limit, len(all))] {
+					rows = append(rows, fmt.Sprintf(`{"Id":%q,"Name":"Song %s","Type":"Audio","MediaType":"Audio","LocationType":"FileSystem"}`, id, id))
+				}
+				return http.StatusOK, `{"Items":[` + strings.Join(rows, ",") + `],"TotalRecordCount":` + strconv.Itoa(len(all)) + `}`
+			}
+			c, f := newFake(t, backend, map[string]route{
+				"GET /Items":          items,
+				"GET /Users/u1/Items": items,
+				"GET /Playlists/p1/Items": func(*http.Request, string) (int, string) {
+					mu.Lock()
+					defer mu.Unlock()
+					entries := make([]string, 0, len(held))
+					for _, id := range held {
+						entries = append(entries, `{"Id":"`+id+`"}`)
+					}
+					return http.StatusOK, `{"Items":[` + strings.Join(entries, ",") + `]}`
+				},
+				"POST /Playlists/p1/Items": func(*http.Request, string) (int, string) {
+					mu.Lock()
+					defer mu.Unlock()
+					held = append(held, songs()...)
+					return http.StatusNoContent, ""
+				},
+			})
+			c.settle, c.saveGrain = time.Millisecond, time.Millisecond
+
+			err := c.AddToPlaylist(t.Context(), "p1", []string{"ar"}, "u1")
+			sent := len(f.all("POST /Playlists/p1/Items"))
+			switch {
+			case grow && (err == nil || !strings.Contains(err.Error(), "changed while what it holds was read") || !strings.Contains(err.Error(), "nothing was sent") || sent != 0):
+				t.Errorf("%s: an artist changing under the read = %v, %d adds sent; want it refused, nothing sent", backend, err, sent)
+			// said as a read that could not be checked, not as one that
+			// saw a change
+			case unchecked && (err == nil || !strings.Contains(err.Error(), "reading every match again") || strings.Contains(err.Error(), "changed while") || sent != 0):
+				t.Errorf("%s: an artist whose songs could not be checked = %v, %d adds sent; want it refused, nothing sent", backend, err, sent)
+			case change == "none" && (err != nil || sent != 1):
+				t.Errorf("%s: an artist holding still = %v, %d adds sent; want it added once", backend, err, sent)
+			}
+			if asked < 2 {
+				t.Errorf("%s: the songs were read in %d requests, not two", backend, asked)
+			}
+		}
+	}
+}
+
 func TestPlaylistEdits(t *testing.T) {
 	t.Parallel()
 
@@ -1685,48 +1914,49 @@ func TestPlaylistEdits(t *testing.T) {
 		"GET /Users/u1/Items/p1": ok(`{"Id":"p1","Name":"Mix","Type":"Playlist"}`),
 		"POST /Items/p1":         noContent,
 	})
-	if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "7", 0); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "7", "b", "", 0); err != nil {
 		t.Fatal(err)
 	}
 	f.only("POST /Playlists/p1/Items/7/Move/0")
 	// already there: nothing to send
-	if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "7", 0); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "7", "b", "", 0); err != nil {
 		t.Fatal(err)
 	}
 	f.only("POST /Playlists/p1/Items/7/Move/0")
 	// Emby answers a move or removal of an entry it does not hold with a 204
 	// and changes nothing, so an unknown entry is caught first
 	for _, entry := range []string{"3", "abc"} {
-		if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", entry, 0); err == nil || !strings.Contains(err.Error(), "no entry "+entry+" (its entry ids are 7, 5)") {
+		if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", entry, "a", "", 0); err == nil || !strings.Contains(err.Error(), "no entry "+entry+" (its entry ids are 7, 5)") {
 			t.Errorf("moving unknown entry %s = %v", entry, err)
 		}
-		if _, err := c.RemoveFromPlaylist(t.Context(), "p1", "u1", []string{"5", entry}); err == nil || !strings.Contains(err.Error(), "no entry "+entry) {
+		if _, err := c.RemoveFromPlaylist(t.Context(), "p1", EntriesToRemove{EntryIDs: []string{"5", entry}, ItemIDs: []string{"a", "a"}}); err == nil || !strings.Contains(err.Error(), "no entry "+entry) {
 			t.Errorf("removing unknown entry %s = %v", entry, err)
 		}
 	}
-	if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "5", 2); err == nil || !strings.Contains(err.Error(), "outside the playlist's 2 entries") {
+	if err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "5", "a", "", 2); err == nil || !strings.Contains(err.Error(), "outside the playlist's 2 entries") {
 		t.Errorf("moving past the end = %v", err)
 	}
-	if n, err := c.RemoveFromPlaylist(t.Context(), "p1", "u1", []string{"5"}); err != nil || n != 1 {
-		t.Fatalf("RemoveFromPlaylist = %d, %v", n, err)
+	if gone, err := c.RemoveFromPlaylist(t.Context(), "p1", EntriesToRemove{EntryIDs: []string{"5"}, ItemIDs: []string{"a"}}); err != nil || len(gone.Removed) != 1 || gone.Removed[0].Position != 2 {
+		t.Fatalf("RemoveFromPlaylist = %+v, %v", gone, err)
 	}
 	if q := f.only("DELETE /Playlists/p1/Items").query; q.Get("EntryIds") != "5" {
 		t.Errorf("remove = %v", q)
 	}
 	// a refresh renumbered the entries between the read and the move: the
 	// entry is found again by its position and moved once more
-	if err := c.MovePlaylistEntry(t.Context(), "p3", "u1", "3", 0); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p3", "u1", "3", "b", "", 0); err != nil {
 		t.Fatal(err)
 	}
 	f.only("POST /Playlists/p3/Items/3/Move/0")
 	f.only("POST /Playlists/p3/Items/2/Move/0")
 	// anything else changing the playlist is an error, not a guess
-	if err := c.MovePlaylistEntry(t.Context(), "p4", "u1", "2", 0); err == nil || !strings.Contains(err.Error(), "changed while entry 2") {
+	// (the listing here carries no names)
+	if err := c.MovePlaylistEntry(t.Context(), "p4", "u1", "2", "b", "", 0); err == nil || !strings.Contains(err.Error(), "changed while entry 2 was being moved, so the move was not sent again: it held, in order,  (a),  (b), and holds now  (c).") {
 		t.Errorf("a playlist changed during the move = %v", err)
 	}
 	// a move the server accepted and a scan's refresh then wrote back is
 	// sent once more
-	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "2", 0); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "2", "b", "", 0); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(f.all("POST /Playlists/p6/Items/2/Move/0")); n != 2 {
@@ -1804,7 +2034,7 @@ func TestPlaylistEdits(t *testing.T) {
 	// Jellyfin's move wants a user behind the request, so the entries from
 	// the lower of the two positions on come out and go back in the new
 	// order; the ones before stay where they are
-	if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", "c", 1); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", "c", "c", "", 1); err != nil {
 		t.Fatal(err)
 	}
 	if q := f.only("DELETE /Playlists/p2/Items").query; !slices.Equal(q["entryIds"], []string{"b", "c"}) {
@@ -1819,7 +2049,7 @@ func TestPlaylistEdits(t *testing.T) {
 	// a put-back the server undoes (a scan re-reading the playlist file
 	// between the removal and the add) is sent once more, then an error,
 	// rather than the old order being reported as moved
-	if err := c.MovePlaylistEntry(t.Context(), "p5", "u1", "b", 0); err == nil || !strings.Contains(err.Error(), "did not move entry b") {
+	if err := c.MovePlaylistEntry(t.Context(), "p5", "u1", "b", "b", "", 0); err == nil || !strings.Contains(err.Error(), "did not move entry b") {
 		t.Errorf("a move whose put-back is lost = %v", err)
 	}
 	if n := len(f.all("POST /Playlists/p5/Items")); n != 2 {
@@ -1827,7 +2057,7 @@ func TestPlaylistEdits(t *testing.T) {
 	}
 	// a refresh that restores the old tail beside the new one is not
 	// someone else's edit: the tail goes out and back once more
-	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "c", 1); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p6", "u1", "c", "c", "", 1); err != nil {
 		t.Fatal(err)
 	}
 	if got := jf["p6"]; !slices.Equal(got, []string{"a", "c", "b"}) {
@@ -1839,7 +2069,7 @@ func TestPlaylistEdits(t *testing.T) {
 	// an item the playlist holds twice: removing it from the moved stretch
 	// takes its copy above the stretch too, so the stretch starts at that
 	// copy and the playlist ends as asked, both copies kept
-	if err := c.MovePlaylistEntry(t.Context(), "p7", "u1", "c", 2); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p7", "u1", "c", "c", "", 2); err != nil {
 		t.Fatal(err)
 	}
 	if got := jf["p7"]; !slices.Equal(got, []string{"a", "b", "c", "a"}) {
@@ -1847,7 +2077,7 @@ func TestPlaylistEdits(t *testing.T) {
 	}
 	// and it starts no higher than a copy needs: x, above every copy of what
 	// moves, is never taken out
-	if err := c.MovePlaylistEntry(t.Context(), "p8", "u1", "z", 3); err != nil {
+	if err := c.MovePlaylistEntry(t.Context(), "p8", "u1", "z", "z", "", 3); err != nil {
 		t.Fatal(err)
 	}
 	if got := jf["p8"]; !slices.Equal(got, []string{"x", "a", "y", "z", "a"}) {
@@ -1857,7 +2087,7 @@ func TestPlaylistEdits(t *testing.T) {
 		t.Errorf("remove = %v, want each item from the first a on, once", q)
 	}
 	for entry, index := range map[string]int{"nope": 0, "a": 3} {
-		if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", entry, index); err == nil {
+		if err := c.MovePlaylistEntry(t.Context(), "p2", "u1", entry, entry, "", index); err == nil {
 			t.Errorf("moving %s to %d succeeded", entry, index)
 		}
 	}
@@ -1887,20 +2117,73 @@ func TestPersonAndUsers(t *testing.T) {
 	}
 	u := users[0]
 	if !u.HasPassword || u.LastLoginDate == "" || !u.Policy.IsAdministrator || !u.Policy.IsHidden || u.Policy.EnableAllFolders ||
-		!slices.Equal(u.Policy.EnabledFolders, []string{"9"}) || !u.Policy.EnableContentDeletion || u.Policy.MaxParentalRating != 10 {
+		!slices.Equal(u.Policy.EnabledFolders, []string{"9"}) || !u.Policy.EnableContentDeletion || u.Policy.MaxParentalRating == nil || *u.Policy.MaxParentalRating != 10 {
 		t.Errorf("user = %+v", u)
 	}
 	f.only("GET /Users/Query")
 
+	// Emby's tag list is a block, or with IsTagBlockingModeInclusive the
+	// only tags shown; IncludeTags hid nothing on 4.10 in either mode
+	for _, tc := range []struct {
+		policy           string
+		blocked, allowed []string
+	}{
+		{`"BlockedTags":["gore"],"IsTagBlockingModeInclusive":false,"IncludeTags":["kids"]`, []string{"gore"}, nil},
+		{`"BlockedTags":["kids"],"IsTagBlockingModeInclusive":true`, nil, []string{"kids"}},
+		{`"BlockedTags":[],"IsTagBlockingModeInclusive":true,"IncludeTags":["kids"]`, nil, nil},
+	} {
+		policied, _ := newFake(t, Emby, map[string]route{
+			"GET /Users/Query": ok(`{"Items":[{"Id":"u1","Name":"alice","Policy":{"EnableAllFolders":true,` + tc.policy + `}}],"TotalRecordCount":1}`),
+		})
+		listed, lerr := policied.Users(t.Context())
+		if lerr != nil {
+			t.Fatal(lerr)
+		}
+		if p := listed[0].Policy; !slices.Equal(p.BlockedTags, tc.blocked) || !slices.Equal(p.AllowedTags, tc.allowed) || p.MaxParentalRating != nil {
+			t.Errorf("%s: blocked %v, allowed %v, rating limit %v; want %v, %v and none", tc.policy, p.BlockedTags, p.AllowedTags, p.MaxParentalRating, tc.blocked, tc.allowed)
+		}
+	}
+
 	c, f = newFake(t, Jellyfin, map[string]route{
 		"GET /Persons/Denis%20Villeneuve": ok(`{"Id":"p","Name":"Denis Villeneuve"}`),
-		"GET /Users":                      ok(`[{"Id":"u2","Name":"alice","Policy":{"IsDisabled":true,"EnableAllFolders":true}}]`),
+		"GET /Users": ok(`[{"Id":"u2","Name":"alice","Policy":{"IsDisabled":true,"EnableAllFolders":true}},
+			{"Id":"u3","Name":"kid","Policy":{"EnableAllFolders":true,"MaxParentalRating":0}}]`),
 	})
 	if p, err := c.Person(t.Context(), "Denis Villeneuve", "u2"); err != nil || p.Name != "Denis Villeneuve" || f.only("GET /Persons/Denis%20Villeneuve").query.Get("userId") != "u2" {
 		t.Errorf("Person = %+v, %v", p, err)
 	}
-	if users, err := c.Users(t.Context()); err != nil || !users[0].Policy.IsDisabled || !users[0].Policy.EnableAllFolders || users[0].Policy.IsAdministrator {
-		t.Errorf("Users = %+v, %v", users, err)
+	users, err = c.Users(t.Context())
+	if err != nil || len(users) != 2 || !users[0].Policy.IsDisabled || !users[0].Policy.EnableAllFolders || users[0].Policy.IsAdministrator {
+		t.Fatalf("Users = %+v, %v", users, err)
+	}
+	// no limit is none, and a limit of 0 is Jellyfin's strictest (G, TV-G):
+	// read as the same, a child's account read as unrestricted
+	if users[0].Policy.MaxParentalRating != nil {
+		t.Errorf("alice has no limit, read as %d", *users[0].Policy.MaxParentalRating)
+	}
+	if limit := users[1].Policy.MaxParentalRating; limit == nil || *limit != 0 {
+		t.Errorf("a limit of 0 read as %v, want 0", limit)
+	}
+
+	// Jellyfin's rating limit is nullable: null or absent is none, and 0
+	// is a limit, the strictest there is
+	c, _ = newFake(t, Jellyfin, map[string]route{
+		"GET /Users": ok(`[{"Id":"zero","Name":"a","Policy":{"MaxParentalRating":0}},{"Id":"absent","Name":"b","Policy":{}},` +
+			`{"Id":"null","Name":"c","Policy":{"MaxParentalRating":null}},{"Id":"twelve","Name":"d","Policy":{"MaxParentalRating":12}}]`),
+	})
+	jfUsers, err := c.Users(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	limits := map[string]string{}
+	for _, u := range jfUsers {
+		limits[u.ID] = "none"
+		if l := u.Policy.MaxParentalRating; l != nil {
+			limits[u.ID] = strconv.Itoa(*l)
+		}
+	}
+	if want := map[string]string{"zero": "0", "absent": "none", "null": "none", "twelve": "12"}; !maps.Equal(limits, want) {
+		t.Errorf("Jellyfin's rating limits = %v, want %v", limits, want)
 	}
 }
 
@@ -1985,8 +2268,15 @@ func TestJourneyFindings(t *testing.T) {
 		},
 	})
 	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
-	if n, err := c.RemoveFromPlaylist(t.Context(), "p1", "u1", []string{"a"}); err != nil || n != 2 {
-		t.Errorf("removing a twice-held item's entry = %d, %v, want 2", n, err)
+	// without the choice to take every copy it is refused, nothing sent
+	if _, err := c.RemoveFromPlaylist(t.Context(), "p1", EntriesToRemove{EntryIDs: []string{"a"}, ItemIDs: []string{"a"}}); err == nil || !strings.Contains(err.Error(), "entry a names all 2 entries of") || !strings.Contains(err.Error(), "pass all_copies") {
+		t.Errorf("removing one entry of a twice-held item without all_copies = %v", err)
+	}
+	if n := len(f.all("DELETE /Playlists/p1/Items")); n != 0 {
+		t.Fatalf("a refused removal sent %d removals", n)
+	}
+	if gone, err := c.RemoveFromPlaylist(t.Context(), "p1", EntriesToRemove{EntryIDs: []string{"a"}, ItemIDs: []string{"a"}, AllCopies: true}); err != nil || len(gone.Removed) != 2 || gone.Removed[0].Position != 1 || gone.Removed[1].Position != 3 {
+		t.Errorf("removing a twice-held item's entry = %+v, %v, want both, first and third", gone, err)
 	}
 	if len(f.all("DELETE /Playlists/p1/Items")) != 2 {
 		t.Errorf("a removal the server lost was not sent again: %d removals", removals)

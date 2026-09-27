@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"slices"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -29,23 +31,54 @@ func subtitleStreams(it *embyfin.Item) int {
 	return n
 }
 
-// subtitleArrived reads an item back until it carries more subtitle streams
-// than it did before a download, or subtitlePolls reads have found none.
-func subtitleArrived(ctx context.Context, r *registry, itemID string, before int) (bool, error) {
+// subtitleFile is a subtitle's file name, as a server writes one beside the
+// media it is for.
+var subtitleFile = regexp.MustCompile(`(?i)\.(srt|ass|ssa|vtt|sub|sup|smi|idx|ttml)$`)
+
+// subtitlesBeside lists the subtitle files in a folder, by path.
+func subtitlesBeside(ctx context.Context, client *embyfin.Client, dir string) ([]string, error) {
+	entries, found, err := client.ListFolder(ctx, dir)
+	if err != nil || !found {
+		return nil, err
+	}
+	var out []string
+	for _, e := range entries {
+		if !e.IsDir && subtitleFile.MatchString(e.Name) {
+			out = append(out, e.Path)
+		}
+	}
+	slices.Sort(out)
+
+	return out, nil
+}
+
+// subtitleArrived reads an item and its folder back until the item carries
+// more subtitle streams than it did before a download, or a subtitle file
+// the folder did not hold is there, or subtitlePolls reads have found
+// neither. It answers the files new beside the media, and whether a new
+// stream was seen.
+func subtitleArrived(ctx context.Context, r *registry, it *embyfin.Item, dir string, streams int, files []string) (written []string, arrived bool, err error) {
 	for range subtitlePolls {
 		if err := r.pause(ctx); err != nil {
-			return false, err
+			return nil, false, err
 		}
-		it, err := r.client.ItemByID(ctx, itemID)
+		now, err := r.client.ItemByID(ctx, it.ID)
 		if err != nil {
-			return false, err
+			return nil, false, err
 		}
-		if subtitleStreams(it) > before {
-			return true, nil
+		if dir != "" {
+			after, err := subtitlesBeside(ctx, r.client, dir)
+			if err != nil {
+				return nil, false, err
+			}
+			written = slices.DeleteFunc(after, func(p string) bool { return slices.Contains(files, p) })
+		}
+		if arrived = subtitleStreams(now) > streams; arrived || len(written) > 0 {
+			return written, arrived, nil
 		}
 	}
 
-	return false, nil
+	return written, false, nil
 }
 
 func registerSubtitleTools(r *registry) {
@@ -73,6 +106,12 @@ func registerSubtitleTools(r *registry) {
 		if lang == "" {
 			lang = "eng"
 		}
+		// an id no item has: Emby answers the search with a bare 500 and
+		// Jellyfin with a 404, neither of which says the id is wrong. A
+		// version's own id is an item's, which the search answers for
+		if _, err := itemOrVersion(ctx, client, in.ID); err != nil {
+			return nil, searchOut{}, err
+		}
 
 		subs, err := client.SearchSubtitles(ctx, in.ID, lang)
 		if err != nil {
@@ -99,17 +138,30 @@ func registerSubtitleTools(r *registry) {
 		SubtitleID string `json:"subtitle_id" jsonschema:"a candidate id from item_subtitle_search"`
 	}
 	type downloadOut struct {
-		Downloaded bool `json:"downloaded" jsonschema:"true once the new subtitle shows on the item"`
+		Downloaded bool     `json:"downloaded"        jsonschema:"true once the new subtitle shows on the item or beside it"`
+		Written    []string `json:"written,omitempty" jsonschema:"subtitle files beside the media that were not there before the download"`
+		Note       string   `json:"note,omitempty"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "item_subtitle_download",
-		Description: "Download a chosen remote subtitle for an item, and wait (up to ten seconds) for it to show on the item. Changes server state (writes a subtitle file).",
+		Name: "item_subtitle_download",
+		Description: "Download a chosen remote subtitle for an item: the server writes it as a file beside the media and then refreshes the item to find it - a refresh that reads the nfo beside the file again, which on Emby puts back the ids it names over a match made since. " +
+			"A subtitle file of that language and format already there is written over without a word, and no tool puts it back. The call waits up to ten seconds for a new subtitle file beside the media or a new subtitle on the item, and answers the files written; when neither comes, the error lists the subtitle files beside the media, one of which may have been written over.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in downloadIn) (*mcp.CallToolResult, downloadOut, error) {
 		it, err := client.ItemByID(ctx, in.ID)
 		if err != nil {
 			return nil, downloadOut{}, err
 		}
-		before := subtitleStreams(it)
+		streams := subtitleStreams(it)
+		dir := ""
+		if onDisk(it.Path) && !it.IsFolder {
+			dir = parentDir(it.Path)
+		}
+		var files []string
+		if dir != "" {
+			if files, err = subtitlesBeside(ctx, client, dir); err != nil {
+				return nil, downloadOut{}, fmt.Errorf("could not read the subtitle files beside %s, so nothing was downloaded: %w", it.Name, err)
+			}
+		}
 
 		if err := client.DownloadSubtitle(ctx, in.ID, in.SubtitleID); err != nil {
 			return nil, downloadOut{}, err
@@ -117,15 +169,24 @@ func registerSubtitleTools(r *registry) {
 
 		// the server's answer is not the subtitle: Jellyfin answers an id
 		// that names nothing with the same empty success as a real download,
-		// so the item is read back for a subtitle it did not have before
-		arrived, err := subtitleArrived(ctx, r, in.ID, before)
+		// so the item and its folder are read back for a subtitle they did
+		// not have before
+		written, arrived, err := subtitleArrived(ctx, r, it, dir, streams, files)
 		if err != nil {
-			return nil, downloadOut{}, err
+			return nil, downloadOut{}, fmt.Errorf("the download of %s was sent, and may have written a subtitle file beside %s, but reading it back failed: %w", in.SubtitleID, it.Name, err)
 		}
-		if !arrived {
-			return nil, downloadOut{}, fmt.Errorf("the server answered the download of %s, but no new subtitle reached %s within ten seconds: pass an id item_subtitle_search offered for this item (a download that replaced a subtitle file of the same language and format adds none)", in.SubtitleID, it.Name)
+		if !arrived && len(written) == 0 {
+			there := "none"
+			if len(files) > 0 {
+				there = listed(files, 20)
+			}
+			return nil, downloadOut{}, fmt.Errorf("the server answered the download of %s, but no new subtitle file appeared beside %s and no new subtitle reached it within ten seconds. Either the id names nothing the server could download (Jellyfin answers one with the same success as a real download: pass an id item_subtitle_search offered for this item), or the download was written over a subtitle file of the same language and format already there - the subtitle files beside the media are: %s", in.SubtitleID, it.Name, there)
+		}
+		out := downloadOut{Downloaded: true, Written: written}
+		if len(written) == 0 {
+			out.Note = "a new subtitle shows on the item, and no new file appeared beside the media: the server may have written it over a subtitle file already there, of those: " + listed(files, 20)
 		}
 
-		return nil, downloadOut{Downloaded: true}, nil
+		return nil, out, nil
 	})
 }

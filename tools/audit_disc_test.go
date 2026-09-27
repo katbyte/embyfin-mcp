@@ -115,10 +115,11 @@ func TestAuditDiscFolders(t *testing.T) {
 		t.Errorf("the dvd = %v", dvd)
 	}
 
-	// the sweep reads in the cheap order and in big pages: this one reads
-	// every episode on a server, where the default order costs half an hour
+	// the sweep reads in the cheap order and in big pages (and the overlap
+	// each request re-reads): this one reads every episode on a server,
+	// where the default order costs half an hour
 	for _, req := range f.requests("/Items") {
-		if !strings.Contains(req.Query, "SortBy=DateCreated%2CSortName") || !strings.Contains(req.Query, "Limit=10000") {
+		if !strings.Contains(req.Query, "SortBy=DateCreated%2CSortName") || !strings.Contains(req.Query, "Limit=10100") {
 			t.Errorf("the sweep reads in the slow order or small pages: %s", req.Query)
 		}
 	}
@@ -128,5 +129,56 @@ func TestAuditDiscFolders(t *testing.T) {
 		if strings.Contains(text(folder["folder"]), "Kept") || strings.Contains(text(folder["folder"]), "Ordinary") {
 			t.Errorf("reported something that is not a disc: %v", folder)
 		}
+	}
+}
+
+// Pieces of one disc sharing any id are one title. The feature matched by
+// its TMDB and IMDb ids and a trailer matched by the TMDB id alone were
+// counted as two titles, so a disc read right was reported as matched to the
+// wrong film. A piece matched to an id nothing else carries is still another
+// title, and a film's TMDB number is not an episode's.
+func TestAuditDiscFoldersCountsTitlesByAnySharedID(t *testing.T) {
+	t.Parallel()
+
+	rows := []discItem{
+		{ID: "a", Name: "Iron Gate", Type: "Movie", Path: "/m/Iron Gate (1968)/00000.m2ts", ProviderIDs: map[string]string{"Tmdb": "770001", "Imdb": "tt7700001"}},
+		{ID: "b", Name: "Iron Gate", Type: "Movie", Path: "/m/Iron Gate (1968)/00001.m2ts", ProviderIDs: map[string]string{"Tmdb": "770001"}},
+		{ID: "c", Name: "Iron Gate", Type: "Movie", Path: "/m/Iron Gate (1968)/00002.m2ts", ProviderIDs: map[string]string{"Imdb": "tt7700001"}},
+		{ID: "d", Name: "00003", Type: "Movie", Path: "/m/Iron Gate (1968)/00003.m2ts"},
+		// a second disc: two pieces matched to the feature, one to another
+		// film, and one an episode carrying the feature's TMDB number, which
+		// as an episode's is another title altogether
+		{ID: "e", Name: "Doc", Type: "Movie", Path: "/m/Doc (1999)/VTS_01_1.VOB", ProviderIDs: map[string]string{"Tmdb": "42", "Imdb": "tt0000042"}},
+		{ID: "f", Name: "Doc", Type: "Movie", Path: "/m/Doc (1999)/VTS_01_2.VOB", ProviderIDs: map[string]string{"Imdb": "tt0000042"}},
+		{ID: "g", Name: "Another Film", Type: "Movie", Path: "/m/Doc (1999)/VTS_02_1.VOB", ProviderIDs: map[string]string{"Tmdb": "43"}},
+		{ID: "h", Name: "An Episode", Type: "Episode", Path: "/m/Doc (1999)/VTS_03_1.VOB", ProviderIDs: map[string]string{"Tmdb": "42"}},
+		// a third disc: two films of one TMDB collection, sharing its id and
+		// a placeholder, are two titles
+		{ID: "i", Name: "Zzyzx One", Type: "Movie", Path: "/m/Saga (2001)/00000.m2ts", ProviderIDs: map[string]string{"Tmdb": "501", "TmdbCollection": "900", "Imdb": "0"}},
+		{ID: "j", Name: "Zzyzx Two", Type: "Movie", Path: "/m/Saga (2001)/00001.m2ts", ProviderIDs: map[string]string{"Tmdb": "502", "TmdbCollection": "900", "Imdb": "0"}},
+	}
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page()) })
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		start := startIndex(t, r.URL.Query())
+		writeJSON(t, w, map[string]any{"Items": rows[min(start, len(rows)):], "TotalRecordCount": len(rows)})
+	})
+
+	out := mustCall(t, session(t, f, Options{}), "audit_disc_folders", map[string]any{})
+	notes := map[string]any{}
+	for _, folder := range objects(t, out["folders"], "folders") {
+		notes[text(folder["folder"])] = folder["note"]
+	}
+	if len(notes) != 3 {
+		t.Fatalf("folders = %v", out["folders"])
+	}
+	if note := text(notes["/m/Saga (2001)"]); !strings.Contains(note, "matched to 2 different titles") {
+		t.Errorf("two films of one collection = %q, want 2 titles", note)
+	}
+	if note, noted := notes["/m/Iron Gate (1968)"]; !noted || note != nil {
+		t.Errorf("one film matched three ways, and a piece matched to nothing, noted as several titles: %v", note)
+	}
+	if note := text(notes["/m/Doc (1999)"]); !strings.Contains(note, "matched to 3 different titles, so at least 2") {
+		t.Errorf("the feature, another film and an episode = %q, want 3 titles", note)
 	}
 }

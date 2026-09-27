@@ -1,7 +1,10 @@
 package tools
 
 import (
+	"encoding/json"
+	"net/http"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -23,7 +26,9 @@ func TestPlanCheck(t *testing.T) {
 		id: "sev", name: "Severance", year: 2022, path: "/media/shows/Severance",
 		episodes: []ep{{season: 1, number: 1, name: "One", path: "/media/shows/Severance/S01E01.mkv"}},
 	}
-	cs := session(t, tvServer(t, old, other), Options{})
+	f := tvServer(t, old, other)
+	(&fakeDisk{files: map[string]bool{old.episodes[0].path: true, other.episodes[0].path: true}}).serve(t, f)
+	cs := session(t, f, Options{})
 
 	out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
 		// straight onto an existing file, from a different show entirely
@@ -153,7 +158,9 @@ func TestPlanCheckOnJellyfinSaysWhatItCouldNotCheck(t *testing.T) {
 
 	film := &fakeSeries{id: "alien", name: "Alien", year: 1979, film: true, path: "/media/films/Alien (1979)/Alien (1979).mkv"}
 	for _, jellyfin := range []bool{false, true} {
-		cs := session(t, tvServerFor(t, jellyfin, severance(), film), Options{})
+		f := tvServerFor(t, jellyfin, severance(), film)
+		(&fakeDisk{jellyfin: jellyfin, files: map[string]bool{film.path: true}}).serve(t, f)
+		cs := session(t, f, Options{})
 
 		out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
 			{"path": "/media/films/Alien (1979)/Alien (1979).mkv"},
@@ -186,10 +193,13 @@ func TestPlanCheckOnJellyfinSaysWhatItCouldNotCheck(t *testing.T) {
 
 			continue
 		}
-		if boolean(t, free["checked"], "checked") || free["exists"] != nil {
+		// the library could not be asked, and says so; the disk has no file
+		// here, but an item whose file is gone may still be at the path, so
+		// whether writing here replaces anything is not known either
+		if boolean(t, free["checked"], "checked") || free["in_library"] != nil || free["exists"] != nil || boolean(t, free["on_disk"], "on_disk") {
 			t.Errorf("Jellyfin: a path it could not look up answered as though it had: %v", free)
 		}
-		if note := text(free["note"]); !strings.Contains(note, "not known") || !strings.Contains(note, "Jellyfin") {
+		if note := text(free["note"]); !strings.Contains(note, "not known") || !strings.Contains(note, "Jellyfin") || !strings.Contains(note, "exists is true only when the server's disk has a file here, and null otherwise") {
 			t.Errorf("Jellyfin: the note does not say it could not tell: %q", note)
 		}
 		if number(t, out["unchecked"], "unchecked") != 1 {
@@ -277,5 +287,332 @@ func TestPlanCheckGivesAZero(t *testing.T) {
 	}
 	if _, ok := object(t, rows[1]["would_join"], "would_join")["claim_similarity"]; ok {
 		t.Errorf("no series claimed, yet claim_similarity: %v", rows[1]["would_join"])
+	}
+}
+
+// fakeDisk is the server's own disk as a canned server shows it: the folder
+// listing and the path check, each server's way, over the files given. A
+// disk that ignores case finds a path under any spelling. A hidden folder is
+// one the server's process cannot read: its parent lists it, but listing it
+// fails and the path check finds nothing in it, as .NET's Directory.Exists
+// answers for a folder it may not enter. A blank folder is one listed as
+// empty whatever it holds.
+type fakeDisk struct {
+	mu            sync.Mutex
+	files         map[string]bool
+	hidden, blank map[string]bool
+	ignoreCase    bool
+	jellyfin      bool
+}
+
+// unreadable says whether a path is a hidden folder or inside one, or inside
+// a blank one: what the path check cannot find.
+func (d *fakeDisk) unreadable(p string) bool {
+	for dir := p; dir != ""; dir = parentDir(dir) {
+		if d.hidden[dir] || dir != p && d.blank[dir] {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *fakeDisk) serve(t *testing.T, f *fakeServer) {
+	t.Helper()
+
+	dirs := func() map[string]bool {
+		out := map[string]bool{}
+		for p := range d.files {
+			for dir := parentDir(p); dir != ""; dir = parentDir(dir) {
+				out[dir] = true
+			}
+		}
+
+		return out
+	}
+	f.mux.HandleFunc("GET /Environment/DirectoryContents", func(w http.ResponseWriter, r *http.Request) {
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		folder := param(r.URL.Query(), "Path")
+		if !dirs()[folder] || d.unreadable(folder) {
+			http.Error(w, "not found", http.StatusNotFound)
+
+			return
+		}
+		entries := []map[string]any{}
+		if d.blank[folder] {
+			writeJSON(t, w, entries)
+
+			return
+		}
+		for p := range d.files {
+			if parentDir(p) == folder {
+				entries = append(entries, map[string]any{"Name": baseName(p), "Path": p, "Type": "File"})
+			}
+		}
+		for p := range dirs() {
+			if parentDir(p) == folder {
+				entries = append(entries, map[string]any{"Name": baseName(p), "Path": p, "Type": "Directory"})
+			}
+		}
+		writeJSON(t, w, entries)
+	})
+	f.mux.HandleFunc("POST /Environment/ValidatePath", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Path   string
+			IsFile bool
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("ValidatePath body: %v", err)
+		}
+		path := body.Path
+		if !d.jellyfin {
+			path = r.URL.Query().Get("Path")
+		}
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		held := d.dirsOrFiles(dirs(), body.IsFile)
+		for p := range held {
+			if (p == path || d.ignoreCase && strings.EqualFold(p, path)) && !d.unreadable(p) {
+				w.WriteHeader(http.StatusNoContent)
+
+				return
+			}
+		}
+		http.Error(w, "not found", http.StatusNotFound)
+	})
+}
+
+func (d *fakeDisk) dirsOrFiles(dirs map[string]bool, files bool) map[string]bool {
+	if files {
+		return d.files
+	}
+
+	return dirs
+}
+
+// plan_check read the library alone, so a file written by a previous batch
+// and not yet scanned read as a free path, and the next write replaced it.
+// The server's disk is read too, on both servers: a file no item holds is
+// there all the same.
+func TestPlanCheckReadsTheDiskAsWellAsTheLibrary(t *testing.T) {
+	t.Parallel()
+
+	for _, jellyfin := range []bool{false, true} {
+		s := severance()
+		film := &fakeSeries{id: "alien", name: "Alien", year: 1979, film: true, path: "/media/films/Alien (1979)/Alien (1979).mkv"}
+		f := tvServerFor(t, jellyfin, s, film)
+		disk := &fakeDisk{jellyfin: jellyfin, files: map[string]bool{
+			"/media/shows/Severance/Season 01/S01E01.mkv": true,
+			// written by the last batch, not scanned yet
+			"/media/shows/Severance/Season 01/S01E03.mkv":    true,
+			"/media/films/Aliens (1986)/Aliens (1986).mkv":   true,
+			"/media/shows/Severance/Season 01/s01e04.mkv":    true,
+			"/media/films/Alien (1979)/Alien (1979).mkv":     true,
+			"/media/shows/Severance/Season 01/Other.nfo":     true,
+			"/media/shows/Severance/Season 01/S01E09 folder": true,
+		}}
+		disk.serve(t, f)
+		cs := session(t, f, Options{})
+
+		out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
+			{"path": "/media/shows/Severance/Season 01/S01E03.mkv"},
+			{"path": "/media/films/Aliens (1986)/Aliens (1986).mkv"},
+			{"path": "/media/shows/Severance/Season 01/S01E05.mkv"},
+			{"path": "/media/shows/Severance/Season 01/S01E04.mkv"},
+			{"path": "/media/shows/Severance/Season 01/S01E02.mkv"},
+		}})
+		rows := objects(t, out["entries"], "entries")
+
+		// in a series folder: on the disk, in no item, and replaced all the same
+		unscanned := rows[0]
+		if !boolean(t, unscanned["exists"], "exists") || boolean(t, unscanned["in_library"], "in_library") || !boolean(t, unscanned["on_disk"], "on_disk") ||
+			!strings.Contains(text(unscanned["note"]), "no item holds") || unscanned["current"] != nil {
+			t.Errorf("jellyfin %v: an unscanned file = %v", jellyfin, unscanned)
+		}
+		// a film's folder: Emby asks the library by path and it holds nothing;
+		// Jellyfin cannot ask, and the disk alone says a file is there
+		loose := rows[1]
+		if !boolean(t, loose["exists"], "exists") || !boolean(t, loose["on_disk"], "on_disk") {
+			t.Errorf("jellyfin %v: an unscanned film = %v", jellyfin, loose)
+		}
+		if jellyfin && loose["in_library"] != nil || !jellyfin && boolean(t, loose["in_library"], "in_library") {
+			t.Errorf("jellyfin %v: an unscanned film's in_library = %v", jellyfin, loose["in_library"])
+		}
+		// nothing anywhere is free
+		if free := rows[2]; boolean(t, free["exists"], "exists") || boolean(t, free["on_disk"], "on_disk") || boolean(t, free["in_library"], "in_library") {
+			t.Errorf("jellyfin %v: a free path = %v", jellyfin, free)
+		}
+		// a name differing only in case: a different file on this disk
+		if cased := rows[3]; boolean(t, cased["exists"], "exists") || !strings.Contains(text(cased["note"]), `"s01e04.mkv" is beside this path`) {
+			t.Errorf("jellyfin %v: a file differing in case on a disk that tells case apart = %v", jellyfin, cased)
+		}
+		// held by the library, its file gone from the disk: a file written
+		// there becomes that item, which is what exists warns of
+		if gone := rows[4]; !boolean(t, gone["exists"], "exists") || !boolean(t, gone["in_library"], "in_library") || boolean(t, gone["on_disk"], "on_disk") || !strings.Contains(text(gone["note"]), "the item's file is gone") {
+			t.Errorf("jellyfin %v: an item whose file is gone = %v", jellyfin, gone)
+		}
+		// the film is in no item Emby could find by its path; Jellyfin could
+		// not ask, so only the season's file is known to be unscanned there
+		notScanned := 2
+		if jellyfin {
+			notScanned = 1
+		}
+		if number(t, out["existing"], "existing") != 3 || number(t, out["not_scanned"], "not_scanned") != notScanned {
+			t.Errorf("jellyfin %v: existing %v, not_scanned %v", jellyfin, out["existing"], out["not_scanned"])
+		}
+
+		// on a disk that ignores case, the same name is the same file
+		disk.mu.Lock()
+		disk.ignoreCase = true
+		disk.mu.Unlock()
+		out = mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
+			{"path": "/media/shows/Severance/Season 01/S01E04.mkv"},
+			{"path": "/media/shows/Severance/Season 01/s01e01.mkv"},
+		}})
+		rows = objects(t, out["entries"], "entries")
+		if cased := rows[0]; !boolean(t, cased["exists"], "exists") || !strings.Contains(text(cased["note"]), "ignores case") {
+			t.Errorf("jellyfin %v: a file differing in case on a disk that ignores it = %v", jellyfin, cased)
+		}
+		// and a file the library holds, spelled otherwise, is that item's
+		if cased := rows[1]; !boolean(t, cased["exists"], "exists") || !boolean(t, cased["in_library"], "in_library") || text(object(t, cased["current"], "current")["item_id"]) != "sev-1-1" {
+			t.Errorf("jellyfin %v: the library's file spelled otherwise on a disk that ignores case = %v", jellyfin, cased)
+		}
+	}
+
+	// a path that is not a full one is refused rather than answered free
+	cs := session(t, tvServer(t, severance()), Options{})
+	if msg := mustRefuse(t, cs, "plan_check", map[string]any{"entries": []map[string]any{{"path": "Severance/S01E01.mkv"}}}); !strings.Contains(msg, "not a full path") {
+		t.Errorf("a relative path = %q", msg)
+	}
+}
+
+// A folder the server could not list read as holding nothing, and so did a
+// folder it listed as empty - which is how a folder its process cannot read
+// can answer - so a path in either read free. The nearest folder above that
+// the server can list settles a folder that is not there; one it lists but
+// cannot read, or lists as empty, leaves the path not known. And a film the
+// library holds under another spelling of the path, on a disk that ignores
+// case, is that film, not a file no item holds.
+func TestPlanCheckSaysWhatTheDiskCannotTell(t *testing.T) {
+	t.Parallel()
+
+	for _, jellyfin := range []bool{false, true} {
+		film := &fakeSeries{id: "alien", name: "Alien", year: 1979, film: true, path: "/media/films/Alien (1979)/Alien (1979).mkv"}
+		f := tvServerFor(t, jellyfin, severance(), film)
+		disk := &fakeDisk{jellyfin: jellyfin, files: map[string]bool{
+			"/media/shows/Severance/Season 01/S01E01.mkv": true,
+			"/media/shows/Severance/Season 01/S01E02.mkv": true,
+			film.path: true,
+			"/media/shows/Severance/Season 03/S03E01.mkv": true,
+			"/media/shows/Severance/Season 04/S04E01.mkv": true,
+		}, hidden: map[string]bool{"/media/shows/Severance/Season 03": true}, blank: map[string]bool{"/media/shows/Severance/Season 04": true}}
+		disk.serve(t, f)
+		cs := session(t, f, Options{})
+
+		out := mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{
+			{"path": "/media/shows/Severance/Season 02/S02E01.mkv"},
+			{"path": "/media/shows/Severance/Season 03/S03E01.mkv"},
+			{"path": "/media/shows/Severance/Season 04/S04E01.mkv"},
+			{"path": "/media/shows/Zzyzx Qwerty/Season 01/S01E01.mkv"},
+			{"path": "/media/films/Aliens (1986)/Aliens (1986).mkv"},
+		}})
+		rows := objects(t, out["entries"], "entries")
+
+		// a season folder that is not there: its show's folder says so
+		if r := rows[0]; boolean(t, r["exists"], "exists") || boolean(t, r["on_disk"], "on_disk") ||
+			!strings.Contains(text(r["note"]), "the folder /media/shows/Severance/Season 02 is not on the server's disk (the nearest folder there is /media/shows/Severance), so the disk has nothing at this path") {
+			t.Errorf("jellyfin %v: a season folder not there = %v", jellyfin, r)
+		}
+		// a folder its show's folder lists, which the server cannot read
+		if r := rows[1]; r["exists"] != nil || r["on_disk"] != nil ||
+			!strings.Contains(text(r["note"]), "the server's disk lists the folder /media/shows/Severance/Season 03, but the server could not read it: whether a file is at this path is not known") {
+			t.Errorf("jellyfin %v: a folder the server cannot read = %v", jellyfin, r)
+		}
+		// a folder it lists as empty
+		if r := rows[2]; r["exists"] != nil || r["on_disk"] != nil ||
+			!strings.Contains(text(r["note"]), "the server lists nothing in /media/shows/Severance/Season 04: an empty folder, or one its process cannot read, so whether a file is at this path is not known") {
+			t.Errorf("jellyfin %v: a folder listed as empty = %v", jellyfin, r)
+		}
+		// two folders down that are not there: the nearest is the library's
+		// shows folder; Jellyfin cannot ask the library about a path under
+		// no series folder, so whether an item is still at it is not known
+		r := rows[3]
+		if boolean(t, r["on_disk"], "on_disk") || !strings.Contains(text(r["note"]), "the folder /media/shows/Zzyzx Qwerty is not on the server's disk (the nearest folder there is /media/shows), so the disk has nothing at this path") {
+			t.Errorf("jellyfin %v: a show's folder not there = %v", jellyfin, r)
+		}
+		if jellyfin && r["exists"] != nil || !jellyfin && boolean(t, r["exists"], "exists") {
+			t.Errorf("jellyfin %v: a show's folder not there, exists = %v", jellyfin, r["exists"])
+		}
+		// a film's folder not there: Emby asked the library by the path
+		if r := rows[4]; boolean(t, r["on_disk"], "on_disk") || jellyfin && r["exists"] != nil || !jellyfin && boolean(t, r["exists"], "exists") {
+			t.Errorf("jellyfin %v: a film's folder not there = %v", jellyfin, r)
+		}
+		if n := number(t, out["disk_unknown"], "disk_unknown"); n != 2 {
+			t.Errorf("jellyfin %v: disk_unknown = %d, want the two folders it could not read", jellyfin, n)
+		}
+
+		// the film the library holds, asked after by another spelling on a
+		// disk that ignores case
+		disk.mu.Lock()
+		disk.ignoreCase = true
+		disk.mu.Unlock()
+		out = mustCall(t, cs, "plan_check", map[string]any{"entries": []map[string]any{{"path": "/media/films/Alien (1979)/alien (1979).mkv"}}})
+		cased := objects(t, out["entries"], "entries")[0]
+		if !boolean(t, cased["checked"], "checked") || !boolean(t, cased["exists"], "exists") || !boolean(t, cased["in_library"], "in_library") ||
+			text(object(t, cased["current"], "current")["item_id"]) != "alien" || strings.Contains(text(cased["note"]), "no item holds") || number(t, out["not_scanned"], "not_scanned") != 0 {
+			t.Errorf("jellyfin %v: the library's film spelled otherwise on a disk that ignores case = %v, not_scanned %v", jellyfin, cased, out["not_scanned"])
+		}
+	}
+}
+
+// The walk up to a folder the server can list took an empty listing as
+// proof, where an empty listing is how a share gone offline answers: an
+// unscanned file there read free and a held one read as gone. And a folder
+// the library holds items under, which the disk does not list, is the
+// server not seeing its own library folder, not a folder that is not there.
+func TestPlanCheckDoesNotTakeAnUnseenShareForAnEmptyOne(t *testing.T) {
+	t.Parallel()
+
+	for _, jellyfin := range []bool{false, true} {
+		plan := func(disk *fakeDisk, paths ...string) (map[string]any, []map[string]any) {
+			t.Helper()
+			f := tvServerFor(t, jellyfin, severance())
+			disk.jellyfin = jellyfin
+			disk.serve(t, f)
+			entries := make([]map[string]any, 0, len(paths))
+			for _, p := range paths {
+				entries = append(entries, map[string]any{"path": p})
+			}
+			out := mustCall(t, session(t, f, Options{}), "plan_check", map[string]any{"entries": entries})
+
+			return out, objects(t, out["entries"], "entries")
+		}
+		const unscanned, held = "/media/shows/Severance/Season 01/S01E05.mkv", "/media/shows/Severance/Season 01/S01E01.mkv"
+
+		// the shows share lists empty
+		offline := &fakeDisk{files: map[string]bool{held: true, "/media/films/Zzyzx (2001)/Zzyzx (2001).mkv": true}, blank: map[string]bool{"/media/shows": true}}
+		out, rows := plan(offline, unscanned, held)
+		if r := rows[0]; r["exists"] != nil || r["on_disk"] != nil || !strings.Contains(text(r["note"]), "the server lists nothing in /media/shows") {
+			t.Errorf("jellyfin %v: an unscanned file on a share that lists empty = %v", jellyfin, r)
+		}
+		if r := rows[1]; !boolean(t, r["exists"], "exists") || !boolean(t, r["in_library"], "in_library") || r["on_disk"] != nil || strings.Contains(text(r["note"]), "file is gone") {
+			t.Errorf("jellyfin %v: a held file on a share that lists empty = %v", jellyfin, r)
+		}
+		if n := number(t, out["disk_unknown"], "disk_unknown"); n != 2 {
+			t.Errorf("jellyfin %v: disk_unknown = %d, want both", jellyfin, n)
+		}
+
+		// the shows folder lists another show, and not the one the library
+		// holds under it
+		unseen := &fakeDisk{files: map[string]bool{"/media/shows/Zzyzx Other/Season 01/S01E01.mkv": true}}
+		out, rows = plan(unseen, unscanned)
+		if r := rows[0]; r["exists"] != nil || r["on_disk"] != nil ||
+			!strings.Contains(text(r["note"]), "the server's disk does not list /media/shows/Severance, yet the library holds items there: the server cannot see its own library folder") {
+			t.Errorf("jellyfin %v: a path under a library folder the disk does not list = %v", jellyfin, r)
+		}
+		if n := number(t, out["disk_unknown"], "disk_unknown"); n != 1 {
+			t.Errorf("jellyfin %v: disk_unknown = %d, want 1", jellyfin, n)
+		}
 	}
 }

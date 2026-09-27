@@ -152,7 +152,7 @@ func TestIdentifyingAnUnmatchedShow(t *testing.T) {
 		return [3]any{item["Name"], item["ProductionYear"], item["Overview"]}
 	}
 	before := identity()
-	applied := call(t, "item_identify_apply", map[string]any{"id": tng, "kind": "series", "candidate": idx, "name": name, "replace_all_images": true})
+	applied := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": tng, "kind": "series", "candidate": idx, "name": name, "replace_all_images": true}))
 	if ids, _ := applied["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "655" {
 		t.Fatalf("item_identify_apply = %v, want tmdb 655", applied)
 	}
@@ -283,7 +283,7 @@ func TestAMismatchedIDPutRight(t *testing.T) {
 	// it by the time it answers; Emby answers first and runs it a moment
 	// later, and the tool waits for it, so its answer is the item as the
 	// refresh left it on both
-	applied := call(t, "item_identify_apply", map[string]any{"id": blade, "kind": "movie", "candidate": idx})
+	applied := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": blade, "kind": "movie", "candidate": idx}))
 	if got, _ := applied["metadata_provider_ids"].(map[string]any); str(got["tmdb"]) != "78" || str(got["imdb"]) != "tt0083658" {
 		t.Errorf("item_identify_apply = %v, want Blade Runner's own TMDB and IMDb ids", applied)
 	}
@@ -359,7 +359,7 @@ func TestAFilmWithASeriesIDPutRight(t *testing.T) {
 	// the candidate is a TMDB search result, which carries TMDB's id alone;
 	// the server's provider, asked by that id, gives Memento's IMDb id, and
 	// the edit sets both in place of the ids the film held
-	applied := call(t, "item_identify_apply", map[string]any{"id": memento, "kind": "movie", "candidate": idx})
+	applied := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": memento, "kind": "movie", "candidate": idx}))
 	if got, _ := applied["metadata_provider_ids"].(map[string]any); str(got["tmdb"]) != "77" || str(got["imdb"]) != film {
 		t.Errorf("item_identify_apply = %v, want Memento's TMDB and IMDb ids", applied)
 	}

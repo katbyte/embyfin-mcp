@@ -106,9 +106,10 @@ func TestItemGetSubtitles(t *testing.T) {
 	}
 }
 
-// A film held as two files reads as its best: Jellyfin folds the messy Blade
-// Runner's 1080p and 2160p files into one film, which reads 2160 high; Emby
-// keeps them as two films, each read as its own file.
+// A film held as two files reads as the file at its path: Jellyfin folds the
+// messy Blade Runner's 1080p and 2160p files into one film at its 2160p file,
+// which reads 2160 high; Emby keeps them as two films, each read as its own
+// file.
 func TestItemGetOfTwoFiles(t *testing.T) {
 	out := call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Blade Runner"})
 	var heights []int
@@ -134,7 +135,8 @@ func TestItemGetOfTwoFiles(t *testing.T) {
 
 // An episode, a season and a series each read with what places them: an
 // episode its series and numbers, a season its series and number, a series
-// neither. The people are capped at fifteen, however many the server holds.
+// neither. The people are cut at fifteen, however many the server holds, and
+// the director and the writer are never the ones cut (TestItemGetKeepsTheCrew).
 func TestItemGetOfAShow(t *testing.T) {
 	bb := findItem(t, "Shows", "Series", "Breaking Bad")
 	eps := rows(t, call(t, "library_episodes", map[string]any{"series_id": bb})["episodes"], "episodes")
@@ -178,7 +180,7 @@ func TestItemGetOfAShow(t *testing.T) {
 
 func TestItemFindByMetadataID(t *testing.T) {
 	// Alien is in the library three times: once clean, twice messy
-	out := call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348"})
+	out := call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348", "type": "movie"})
 	if found, _ := out["found"].(bool); !found {
 		t.Fatalf("tmdb 348 not found: %v", out)
 	}
@@ -192,7 +194,7 @@ func TestItemFindByMetadataID(t *testing.T) {
 		}
 	}
 	// the provider and the id are trimmed as well as folded
-	if spaced := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": " TMDB ", "id": " 348 "})["items"], "items"); len(spaced) != 3 {
+	if spaced := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": " TMDB ", "id": " 348 ", "type": " Movie "})["items"], "items"); len(spaced) != 3 {
 		t.Errorf("tmdb 348 with spaces round it matched %v", spaced)
 	}
 
@@ -211,8 +213,22 @@ func TestItemFindByMetadataID(t *testing.T) {
 		t.Errorf("imdb tt0903747 = %v, want the Breaking Bad series and the Memento film", got)
 	}
 
+	// TMDB numbers films and series apart: its series 1396 is Breaking Bad,
+	// and no film the library holds is its film 1396. Looked up without
+	// saying which, the series answered a caller asking after a film
+	if msg := callErr(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "1396"}); !strings.Contains(msg, "give type movie or series") {
+		t.Errorf("tmdb 1396 with no type = %s, want it refused", msg)
+	}
+	if film := call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "1396", "type": "movie"}); boolOf(film["found"]) || len(rowsOf(film["items"])) != 0 {
+		t.Errorf("the film tmdb 1396 = %v, want nothing: Breaking Bad is the series 1396", film)
+	}
+	bb := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "1396", "type": "series"})["items"], "items")
+	if len(bb) != 1 || str(bb[0]["name"]) != "Breaking Bad" || str(bb[0]["type"]) != "Series" {
+		t.Errorf("the series tmdb 1396 = %v, want Breaking Bad", bb)
+	}
+
 	// a series by tvdb
-	out = call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tvdb", "id": "371980"})
+	out = call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tvdb", "id": "371980", "type": "series"})
 	items = rows(t, out["items"], "items")
 	var series int
 	for _, it := range items {
@@ -230,7 +246,7 @@ func TestItemFindByMetadataID(t *testing.T) {
 		t.Errorf("anidb 222 = %v", anidb)
 	}
 
-	out = call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "1"})
+	out = call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "1", "type": "movie"})
 	if found, _ := out["found"].(bool); found || len(rowsOf(out["items"])) != 0 {
 		t.Errorf("tmdb 1 = %v", out)
 	}
@@ -348,7 +364,7 @@ func TestItemEdit(t *testing.T) {
 		t.Errorf("an empty edit: %s", msg)
 	}
 	// an id nothing has fails naming it, and says nothing was changed
-	if msg := callErr(t, "item_edit", map[string]any{"ids": []any{unknownID()}, "overview": "Zzyzx: nowhere."}); !strings.HasPrefix(msg, "item_edit: "+unknownID()+": ") || !strings.Contains(msg, "(0 items were updated before it)") {
+	if msg := callErr(t, "item_edit", map[string]any{"ids": []any{unknownID()}, "overview": "Zzyzx: nowhere."}); !strings.HasPrefix(msg, "item_edit: "+unknownID()+": ") || !strings.Contains(msg, "nothing was changed") {
 		t.Errorf("an edit of an unknown id: %s", msg)
 	}
 }

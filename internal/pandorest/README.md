@@ -142,10 +142,7 @@ emby: 1 added, 0 removed, 2 changed (1 breaking)
     ~ field RunTimeTicks: Integer -> Integer64 [breaking]
 ```
 
-A change is breaking when it would break a caller of the generated SDK: a
-removal, a changed type or name, a new request body, a status code no longer
-expected, a list that changes how it travels. A reworded description or a
-nullable flag is reported and not breaking: the generated code is the same.
+A change is breaking when it would break a caller of the generated SDK: a removal, a changed type or name, a new request body, a status code no longer expected, a list that changes how it travels, a number held by pointer or no longer (`KeepNull`). A reworded description or a nullable flag is reported and not breaking: the generated code is the same.
 
 ## Generating
 
@@ -205,6 +202,7 @@ all.Items        // every page
 - In models, booleans are `*bool` and lists and maps are `omitzero`, so a body
   can leave a flag to the server's default, send an explicit false, and clear a
   list with an empty one.
+- Numbers in models are held by value, a null read as 0, except the fields a service's config names in `KeepNull`, which are pointers because their 0 means something: an episode's season and number (season 0 is the specials) and a user's parental limit (Jellyfin scores G at 0). Each must be a number the document declares nullable, or the import fails.
 - `Model` is a pointer for a struct, enum or primitive, and the value for a
   list, map or raw JSON. An operation that answers a file has no `Model`: its
   body is left unread in `HttpResponse.Body` for the caller to read and close.

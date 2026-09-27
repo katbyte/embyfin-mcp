@@ -77,7 +77,7 @@ const miniSpec = `{
       "Id": {"type": "string"}, "IsFolder": {"type": "boolean"}, "Parent": {"$ref": "#/components/schemas/Item"},
       "Kind": {"$ref": "#/components/schemas/Kind"}, "Children": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}},
       "Blur": {"type": "object", "properties": {"Primary": {"type": "object", "additionalProperties": {"type": "string"}}}},
-      "Rating": {"type": "number", "format": "float"}}},
+      "Rating": {"type": "number", "format": "float"}, "Season": {"type": "integer", "nullable": true}, "Episode": {"type": "integer", "nullable": true}}},
     "QueryResult": {"type": "object", "properties": {"Items": {"type": "array", "items": {"$ref": "#/components/schemas/Item"}}, "TotalRecordCount": {"type": "integer"}}}
   }}
 }`
@@ -89,7 +89,7 @@ func miniDefinitions(t *testing.T) *definitions.Service {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc, err := importer.FromSpec(config.Service{Name: "mini", Package: "mini", Naming: config.OperationIDNaming, Auth: "Jellyfin"}, spec, []string{"mini-fix"}, nil)
+	svc, err := importer.FromSpec(config.Service{Name: "mini", Package: "mini", Naming: config.OperationIDNaming, Auth: "Jellyfin", KeepNull: []string{"Item.Season"}}, spec, []string{"mini-fix"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestGenerate(t *testing.T) {
 				t.Errorf("the package lacks %q", want)
 			}
 		}
-		for _, re := range []string{"`json:\"IsFolder,omitempty\"`", "`json:\"Children,omitzero\"`", "`json:\"Parent,omitempty\"`", `Parent +\*Item`, `Blur +\*ItemBlur`, `Rating +float32`, `Ticks +\*int64`} {
+		for _, re := range []string{"`json:\"IsFolder,omitempty\"`", "`json:\"Children,omitzero\"`", "`json:\"Parent,omitempty\"`", `Parent +\*Item`, `Blur +\*ItemBlur`, `Rating +float32`, `Ticks +\*int64`, `Season +\*int `, `Episode +int `} {
 			if !regexp.MustCompile(re).MatchString(all) {
 				t.Errorf("the package lacks %s", re)
 			}

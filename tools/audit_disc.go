@@ -87,6 +87,7 @@ type discOut struct {
 	Scanned int         `json:"items_scanned"`
 	Found   int         `json:"total_findings"`
 	Folders []discGroup `json:"folders"        jsonschema:"most items first; capped at limit"`
+	Note    string      `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 }
 
 type discRow struct {
@@ -134,13 +135,13 @@ func auditDiscFolders(ctx context.Context, client *embyfin.Client, in discIn) (d
 	type group struct {
 		kind    string
 		entries []discRow
-		// what each piece was matched to, as one string per piece: two
+		// what each piece was matched to, one list of ids per piece: two
 		// pieces of one disc matched to different titles is the defect
-		matches map[string]bool
+		matches [][]string
 	}
 	byFolder := map[string]*group{}
 	out := discOut{Folders: []discGroup{}}
-	scanned, err := sweepAll(ctx, client, opts, func(items []embyfin.Item) {
+	swept, err := sweepAll(ctx, client, opts, embyfin.ToAnswer, func(items []embyfin.Item) {
 		for i := range items {
 			it := &items[i]
 			root, kind, isDisc := discRoot(it.Path)
@@ -149,17 +150,34 @@ func auditDiscFolders(ctx context.Context, client *embyfin.Client, in discIn) (d
 			}
 			g := byFolder[root]
 			if g == nil {
-				g = &group{kind: kind, matches: map[string]bool{}}
+				g = &group{kind: kind}
 				byFolder[root] = g
 			}
 			ids := make([]string, 0, 2)
+			keys := make([]string, 0, 2)
 			for provider, id := range providerKeys(it.ProviderIDs) {
-				ids = append(ids, strings.ToLower(provider)+":"+id)
+				if id == "" {
+					continue
+				}
+				ids = append(ids, provider+":"+id)
+				// a title is named by its TMDB, IMDb or TVDB id alone: two
+				// films of one TMDB collection share its collection id, and
+				// a placeholder (0) names nothing
+				if (provider != "tmdb" && provider != "imdb" && provider != "tvdb") || realID(id) == "" {
+					continue
+				}
+				// a TMDB or TVDB number is a film's in one list and an
+				// episode's in another (see idSpace)
+				key := provider + ":" + id
+				if provider == "tmdb" || provider == "tvdb" {
+					key = idSpace(it.Type) + ":" + key
+				}
+				keys = append(keys, key)
 			}
 			slices.Sort(ids)
 			matched := strings.Join(ids, " ")
-			if matched != "" {
-				g.matches[matched] = true
+			if len(keys) > 0 {
+				g.matches = append(g.matches, keys)
 			}
 			g.entries = append(g.entries, discRow{
 				ID: it.ID, Name: it.Name, File: baseName(it.Path),
@@ -168,10 +186,10 @@ func auditDiscFolders(ctx context.Context, client *embyfin.Client, in discIn) (d
 			})
 		}
 	})
-	out.Scanned = scanned
 	if err != nil {
 		return discOut{}, err
 	}
+	out.Scanned, out.Note = swept.Read, swept.Changed()
 
 	groups := make([]discGroup, 0, len(byFolder))
 	for folder, g := range byFolder {
@@ -179,8 +197,8 @@ func auditDiscFolders(ctx context.Context, client *embyfin.Client, in discIn) (d
 		row := discGroup{Folder: folder, Kind: g.kind, Items: len(g.entries), Entries: g.entries}
 		// the tell that the pieces were matched on their own: one disc
 		// cannot be several films
-		if len(g.matches) > 1 {
-			row.Note = fmt.Sprintf("matched to %d different titles, so at least %d of these are the wrong film", len(g.matches), len(g.matches)-1)
+		if titles := titlesMatched(g.matches); titles > 1 {
+			row.Note = fmt.Sprintf("matched to %d different titles, so at least %d of these are the wrong film", titles, titles-1)
 		}
 		groups = append(groups, row)
 	}
@@ -196,4 +214,31 @@ func auditDiscFolders(ctx context.Context, client *embyfin.Client, in discIn) (d
 	out.Folders = append(out.Folders, groups[:min(len(groups), limit)]...)
 
 	return out, nil
+}
+
+// titlesMatched is how many titles a disc's pieces were matched to, each
+// piece given as the ids it carries. Pieces sharing any id are one title: the
+// feature matched by its TMDB and IMDb ids and a trailer by the TMDB id alone
+// are two matches to the same film, not two films, and counted apart they
+// said a disc read right was matched to the wrong one.
+func titlesMatched(pieces [][]string) int {
+	j := newJoins(len(pieces))
+	firstWith := map[string]int{}
+	for i, ids := range pieces {
+		for _, id := range ids {
+			if first, ok := firstWith[id]; ok {
+				j.join(first, i)
+			} else {
+				firstWith[id] = i
+			}
+		}
+	}
+	titles := 0
+	for i := range pieces {
+		if j.find(i) == i {
+			titles++
+		}
+	}
+
+	return titles
 }

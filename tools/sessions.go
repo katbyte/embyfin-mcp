@@ -73,13 +73,14 @@ func resolveSession(ctx context.Context, client *embyfin.Client, target string) 
 func registerSessionTools(r *registry) {
 	client := r.client
 	type sessionRow struct {
-		ID         string `json:"id"`
-		User       string `json:"user,omitempty"`
-		Device     string `json:"device"`
-		App        string `json:"app,omitempty"`
-		NowPlaying string `json:"now_playing,omitempty"`
-		Position   string `json:"position,omitempty"`
-		Paused     bool   `json:"paused,omitempty"`
+		ID           string `json:"id"`
+		User         string `json:"user,omitempty"`
+		Device       string `json:"device"`
+		App          string `json:"app,omitempty"`
+		NowPlaying   string `json:"now_playing,omitempty"    jsonschema:"what is playing: an episode by its series and number (Breaking Bad S01E01 Pilot), anything else by its name"`
+		NowPlayingID string `json:"now_playing_id,omitempty" jsonschema:"the library item playing"`
+		Position     string `json:"position,omitempty"`
+		Paused       bool   `json:"paused,omitempty"`
 	}
 	type sessionsOut struct {
 		Sessions []sessionRow `json:"sessions"`
@@ -101,8 +102,12 @@ func registerSessionTools(r *registry) {
 				Device: s.DeviceName,
 				App:    s.Client,
 			}
-			if s.NowPlayingItem != nil {
-				row.NowPlaying = s.NowPlayingItem.Name
+			if it := s.NowPlayingItem; it != nil {
+				// an episode's own title alone is one of a dozen "Pilot"s
+				row.NowPlaying, row.NowPlayingID = it.Name, it.ID
+				if it.Type == typeEpisode && it.SeriesName != "" {
+					row.NowPlaying = fmt.Sprintf("%s %s %s", it.SeriesName, episodeCode(it), it.Name)
+				}
 				row.Paused = s.PlayState.IsPaused
 				pos := time.Duration(s.PlayState.PositionTicks * 100)
 				total := time.Duration(s.NowPlayingItem.RunTimeTicks * 100)
@@ -121,10 +126,13 @@ func registerSessionTools(r *registry) {
 	}
 	type playOut struct {
 		PlayingOn string `json:"playing_on"`
+		User      string `json:"user,omitempty" jsonschema:"the session's user, whose watch state what plays is recorded to"`
+		Was       string `json:"was,omitempty"  jsonschema:"what the device was playing before, and where in it; empty when nothing"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "session_play",
-		Description: "Play items on a connected device ('play Dune on the living-room TV'). Changes what the device is doing.",
+		Name: "session_play",
+		Description: "Play items on a connected device ('play Dune on the living-room TV'). The device is someone's: with PlayNow whatever it was playing stops for this, and what plays is recorded as its session's user watching it - their progress, resume point and watched mark move as if they had played it. PlayNext and PlayLast queue the items after what is playing. " +
+			"The answer names the session's user and what the device was playing, and where in it.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in playIn) (*mcp.CallToolResult, playOut, error) {
 		// both servers take a play of nothing, and Jellyfin one of an id it
 		// does not hold, and answer as if the device were playing it
@@ -150,7 +158,7 @@ func registerSessionTools(r *registry) {
 			return nil, playOut{}, err
 		}
 
-		return nil, playOut{PlayingOn: session.DeviceName}, nil
+		return nil, playOut{PlayingOn: session.DeviceName, User: session.UserName, Was: nowPlaying(session)}, nil
 	})
 
 	type commandIn struct {
@@ -160,10 +168,13 @@ func registerSessionTools(r *registry) {
 	}
 	type commandOut struct {
 		Sent string `json:"sent"`
+		User string `json:"user,omitempty" jsonschema:"the session's user"`
+		Was  string `json:"was,omitempty"  jsonschema:"what the device was playing when the command was sent, and where in it; empty when nothing"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "session_command",
-		Description: "Send a playback command (pause, stop, seek...) to a device. Changes what the device is doing.",
+		Name: "session_command",
+		Description: "Send a playback command (pause, stop, seek...) to a connected device. The device is someone's: the command changes what they are watching now, and a stop, a seek or a skip moves the progress and resume point the server records for the session's user. " +
+			"The answer names the session's user and what the device was playing, and where in it.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in commandIn) (*mcp.CallToolResult, commandOut, error) {
 		session, err := resolveSession(ctx, client, in.Session)
 		if err != nil {
@@ -175,7 +186,7 @@ func registerSessionTools(r *registry) {
 			return nil, commandOut{}, err
 		}
 
-		return nil, commandOut{Sent: in.Command + " → " + session.DeviceName}, nil
+		return nil, commandOut{Sent: in.Command + " → " + session.DeviceName, User: session.UserName, Was: nowPlaying(session)}, nil
 	})
 
 	type messageIn struct {
@@ -186,10 +197,11 @@ func registerSessionTools(r *registry) {
 	}
 	type messageOut struct {
 		SentTo string `json:"sent_to"`
+		User   string `json:"user,omitempty" jsonschema:"the session's user, who sees it"`
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name:        "session_message",
-		Description: "Display a text message on a device's screen ('dinner is ready').",
+		Description: "Display a text message on a connected device's screen ('dinner is ready'), over whatever is on it, for its session's user to see. The answer names that user.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in messageIn) (*mcp.CallToolResult, messageOut, error) {
 		session, err := resolveSession(ctx, client, in.Session)
 		if err != nil {
@@ -205,6 +217,22 @@ func registerSessionTools(r *registry) {
 			return nil, messageOut{}, err
 		}
 
-		return nil, messageOut{SentTo: session.DeviceName}, nil
+		return nil, messageOut{SentTo: session.DeviceName, User: session.UserName}, nil
 	})
+}
+
+// nowPlaying says what a session is playing and where in it, as it was read
+// just before a change: "Dune at 1h2m3s of 2h35m0s, paused", "" for nothing.
+func nowPlaying(s *embyfin.Session) string {
+	if s.NowPlayingItem == nil {
+		return ""
+	}
+	pos := time.Duration(s.PlayState.PositionTicks * 100).Round(time.Second)
+	total := time.Duration(s.NowPlayingItem.RunTimeTicks * 100).Round(time.Second)
+	out := fmt.Sprintf("%s at %s of %s", s.NowPlayingItem.Name, pos, total)
+	if s.PlayState.IsPaused {
+		out += ", paused"
+	}
+
+	return out
 }

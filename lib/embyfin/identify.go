@@ -229,7 +229,13 @@ func (c *Client) ApplyRemoteSearchResult(ctx context.Context, itemID string, res
 
 	provider, want := primaryProviderID(result.ProviderIDs)
 	if provider == "" {
-		return c.ItemByID(ctx, itemID) // nothing to know it by
+		// nothing to know it by
+		it, err := c.ItemByID(ctx, itemID)
+		if err != nil {
+			return nil, fmt.Errorf("the match was sent to the server, which may apply it, but reading the item back failed: %w", err)
+		}
+
+		return it, nil
 	}
 	// at the settle interval, a minute for the refresh to run and a few
 	// seconds for other ids to show they are what the server settled on.
@@ -242,17 +248,19 @@ func (c *Client) ApplyRemoteSearchResult(ctx context.Context, itemID string, res
 	// be waited on this way, and is taken at its first matching read.
 	const settled, steady = 12, 4
 	other, held := 0, 0
-	moved := state.etag == ""
+	// moved counts a read as after the refresh's save; saved says a save
+	// was seen, which a server sending no etag never shows
+	moved, saved := state.etag == "", false
 	last := state
 	var it *Item
 	for range savePolls {
 		var now saveState
 		var readErr error
 		if it, now, readErr = c.savedItem(ctx, itemID); readErr != nil {
-			return nil, readErr
+			return nil, fmt.Errorf("the match was sent to the server, which may apply it, but reading the item back failed: %w", readErr)
 		}
 		if now.etag != state.etag {
-			moved = true
+			moved, saved = true, true
 		}
 		have := providerIDOf(it.ProviderIDs, provider)
 		switch {
@@ -277,17 +285,44 @@ func (c *Client) ApplyRemoteSearchResult(ctx context.Context, itemID string, res
 		}
 		last = now
 		if err := c.pause(ctx); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("the match was sent to the server, which may apply it, but the wait for it ended: %w", err)
 		}
 	}
 
 	// the wait ran out: an item holding the candidate's id took it, whether
-	// or not a save of the refresh was seen
+	// or not a save of the refresh was seen. On Emby, which answers the
+	// apply before its refresh runs, one still holding the ids it had and
+	// never seen saved has not been reached yet - a refresh queued behind a
+	// scan runs minutes later - which is not a refusal: the match can still
+	// land. Saved without taking the ids, the refresh ran and kept the old
+	// ones; and Jellyfin runs the refresh before it answers the apply, so
+	// there nothing is left to land
 	if have := providerIDOf(it.ProviderIDs, provider); have != want {
+		if c.isEmby() && !saved && maps.Equal(it.ProviderIDs, before.ProviderIDs) {
+			return it, &MatchPendingError{Provider: provider, Want: want, Have: have}
+		}
+
 		return it, c.notApplied(provider, want, have)
 	}
 
 	return it, nil
+}
+
+// MatchPendingError is a match Emby was sent and had not been seen to apply
+// when the wait ran out: the item still held the ids it had, and no save of
+// it was seen. The refresh that applies it may be queued (behind a scan,
+// say) and land later.
+type MatchPendingError struct {
+	Provider, Want, Have string
+}
+
+func (e *MatchPendingError) Error() string {
+	have := e.Have
+	if have == "" {
+		have = "none"
+	}
+
+	return fmt.Sprintf("the match was sent and not yet seen to land: after a minute the item's %s id is still %s, not %s. It may still apply - the refresh that applies it can be queued behind a scan - so read the item again later before sending another", e.Provider, have, e.Want)
 }
 
 // SetProviderIDs gives an item a candidate's identity by a plain edit of the
@@ -311,7 +346,7 @@ func (c *Client) SetProviderIDs(ctx context.Context, userID, itemID string, ids 
 
 	it, err := c.ItemByID(ctx, itemID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("the ids were set, but reading the item back failed: %w", err)
 	}
 	if provider, want := primaryProviderID(ids); provider != "" {
 		if have := providerIDOf(it.ProviderIDs, provider); have != want {

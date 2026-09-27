@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
@@ -67,14 +68,14 @@ var releaseJunk = map[string]bool{}
 func init() {
 	for _, w := range []string{
 		// resolution and shape
-		"480p", "540p", "576p", "720p", "1080p", "1080i", "2160p", "4k", "uhd", "hd", "sd",
+		"240p", "360p", "480p", "540p", "576p", "720p", "1080p", "1080i", "2160p", "4k", "uhd", "hd", "sd",
 		// where it came from
 		"hdtv", "pdtv", "web", "webrip", "web-dl", "webdl", "bluray", "blu-ray", "brrip", "bdrip",
 		"dvdrip", "dvd", "hdrip", "remux", "amzn", "nf", "dsnp", "atvp", "hmax", "max", "cr",
 		"crunchyroll", "itunes", "pcok", "stan", "ip", "all4", "uktv",
 		// what it was encoded with
 		"x264", "x265", "h264", "h265", "h", "hevc", "avc", "xvid", "divx", "av1", "vp9",
-		"10bit", "8bit", "hi10p", "hdr", "hdr10", "dv", "sdr",
+		"10bit", "8bit", "hi10p", "hdr", "hdr10", "dv", "sdr", "imax",
 		// sound
 		"aac", "aac2", "ac3", "eac3", "ddp", "ddp5", "dd5", "dts", "dts-hd", "truehd", "atmos", "flac", "opus", "mp3",
 		// the rest
@@ -93,6 +94,10 @@ type release struct {
 	Season     int
 	Episode    int
 	EpisodeEnd int
+	// HasSeason and HasEpisode say the name carried a season or an episode
+	// number: 0 is a number too - S00 is the specials, E00 a pilot numbered
+	// before the first - and read as "none" an S00E01 had no season at all
+	HasSeason, HasEpisode bool
 	// Unread is set when no title could be read out of the name - it is
 	// all season, episode, encode and group - and Title is the name itself
 	Unread bool
@@ -144,8 +149,9 @@ func parseRelease(name string) release {
 		if seg.Title != "" {
 			out.Title = seg.Title
 		}
-		if seg.Season > 0 || seg.Episode > 0 {
+		if seg.HasSeason || seg.HasEpisode {
 			out.Season, out.Episode, out.EpisodeEnd = seg.Season, seg.Episode, seg.EpisodeEnd
+			out.HasSeason, out.HasEpisode = seg.HasSeason, seg.HasEpisode
 		}
 		if seg.Year > 0 {
 			out.Year = seg.Year
@@ -206,7 +212,7 @@ func looksLikePath(name string) bool {
 		if folderYear.MatchString(seg) {
 			return true
 		}
-		if p := parseSegment(seg); p.Season > 0 || p.Episode > 0 {
+		if p := parseSegment(seg); p.HasSeason || p.HasEpisode {
 			return true
 		}
 	}
@@ -221,6 +227,12 @@ func splitPath(name string) []string {
 // parseSegment reads one path segment. Its title is empty when the segment
 // holds no show name - a "Season 01" folder, or a bare "S01E01.mkv".
 func parseSegment(name string) release {
+	return parseSegmentAsOf(name, latestReleaseYear())
+}
+
+// parseSegmentAsOf is parseSegment with latest the latest year a release
+// can be dated (see datingYear), for a reading as of a year.
+func parseSegmentAsOf(name string, latest int) release {
 	s := fileExtension.ReplaceAllString(strings.TrimSpace(name), "")
 	for _, re := range sitePrefix {
 		// only a pattern that matched ends the search, and only if it left
@@ -250,22 +262,25 @@ func parseSegment(name string) release {
 		case 0: // SxxExx, maybe a run of them: E01E02, E01-05, S01E01.S01E02
 			out.Season, out.Episode = atoi(groups[2]), atoi(groups[3])
 			out.EpisodeEnd = runEnd(out.Season, out.Episode, groups[4])
+			out.HasSeason, out.HasEpisode = true, true
 		case 1: // 1x02
 			out.Season, out.Episode = atoi(groups[2]), atoi(groups[3])
+			out.HasSeason, out.HasEpisode = true, true
 		default: // Sxx or Season xx
-			out.Season = atoi(groups[2])
+			out.Season, out.HasSeason = atoi(groups[2]), true
 		}
 	}
 	head := s[:cut]
 
 	// the year, when the name gives one: parenthesised anywhere, or a bare
-	// 19xx/20xx that is not the whole title (1600 Penn, 2012)
+	// 19xx/20xx that is not the whole title (1600 Penn, 2012) - see
+	// datingYear for which of several
 	if m := bracketedYear.FindStringSubmatch(head); m != nil {
 		out.Year = atoi(m[1])
 		head = strings.Replace(head, m[0], " ", 1)
-	} else if m := bareYear.FindStringSubmatchIndex(head); len(m) > 5 && m[4] > 0 {
-		out.Year = atoi(head[m[4]:m[5]])
-		head = head[:m[4]] + " " + head[m[5]:]
+	} else if at := datingYear(head, latest); at > 0 {
+		out.Year = atoi(head[at : at+4])
+		head = head[:at] + " " + head[at+4:]
 	}
 
 	// dots and underscores stand in for spaces; hyphens do not, because a
@@ -289,19 +304,25 @@ func parseSegment(name string) release {
 	if len(words) > 1 && !slices.ContainsFunc(words, func(w string) bool { return !encodeWord(w) }) {
 		return out
 	}
+	// an edition's words end a title with no season marker, and a
+	// re-release's year with them: "Zzyzx.1982.Remastered.2021" is Zzyzx
+	if e := editionAt(words); cut == len(s) && e > 0 {
+		words = words[:e]
+	}
 	if cut == len(s) && len(words) > 1 {
 		for i, w := range words[1:] {
-			word := strings.ToLower(strings.Trim(w, "()[]-"))
-			if !releaseJunk[word] {
+			// the encode's words, and those joined by a hyphen or a plus
+			// ("Remux-2160p", "HDR10+"), or with the group riding on one
+			if !encodeWord(w) {
 				continue
 			}
 			// a single letter is junk only in front of a number: the h of
 			// "H 264" ends a title, the H of "S H I E L D" is in one. Every
 			// other junk word is junk wherever it stands.
-			if len(word) == 1 && !startsWithDigit(words[min(i+2, len(words)-1)]) {
+			if word := strings.ToLower(strings.Trim(w, "()[]-")); len(word) == 1 && !startsWithDigit(words[min(i+2, len(words)-1)]) {
 				continue
 			}
-			words = words[:i+1]
+			words = append(words[:i+1:i+1], editionsIn(words[i+1:])...)
 
 			break
 		}
@@ -311,17 +332,149 @@ func parseSegment(name string) release {
 	return out
 }
 
+// datingYear is where in a name the year that dates the release begins, -1
+// for none: a bare 19xx or 20xx standing as a word of its own, never the
+// name's first word (a title that is a year, 2012), never one after the
+// encode's first word ("x264-2023"), and never one later than latest - next
+// year: a later one is the title's own ("Blade Runner 2049") or a number.
+// Of two years side by side the later dates it and the one before is the
+// title's own ("Blade.Runner.2049.2017"); otherwise the first does, and a
+// year after it - past an edition's words, a re-release's
+// ("Remastered.2021") - dates nothing. Blind to the titles, as a release
+// name is read: the path audit, which knows them, takes the later of two
+// only when the earlier is a number of one (titleAndYearFromPath).
+func datingYear(s string, latest int) int {
+	years := releaseYears(s, latest)
+	for i, y := range years {
+		if i+1 < len(years) && years[i+1].word == y.word+1 {
+			return years[i+1].at
+		}
+	}
+	if len(years) > 0 {
+		return years[0].at
+	}
+
+	return -1
+}
+
+// latestReleaseYear is the latest year a release can be dated: next year,
+// by the clock.
+func latestReleaseYear() int {
+	return time.Now().Year() + 1
+}
+
+// nameYear is a year standing as a word of a release name: where it begins,
+// and which word it is.
+type nameYear struct{ at, word int }
+
+// releaseYears are the years of a name that may date its release: each a
+// bare 19xx or 20xx word of its own, past the name's first word, before the
+// encode's first word, and no later than latest (see datingYear). An
+// edition's words end a title, not this search: "Zzyzx.Theatrical.Cut.1999"
+// is dated 1999.
+func releaseYears(s string, latest int) []nameYear {
+	tokens := nameToken.FindAllStringIndex(s, -1)
+	words := make([]string, 0, len(tokens))
+	for _, t := range tokens {
+		words = append(words, s[t[0]:t[1]])
+	}
+	stop := len(words)
+	for i := 1; i < stop; i++ {
+		// an edition's words - IMAX, 3D, Extended - name the release as
+		// much as its encode, and come before its year as often as after
+		if w := strings.ToLower(words[i]); encodeWord(words[i]) && !editionish[w] {
+			stop = i
+
+			break
+		}
+	}
+	var out []nameYear
+	for i := 1; i < stop; i++ {
+		if len(words[i]) == 4 && yearDigits.MatchString(words[i]) && isNumber(words[i]) && yearAt(words[i], 0) <= latest {
+			out = append(out, nameYear{at: tokens[i][0], word: i})
+		}
+	}
+
+	return out
+}
+
+// editionish are the encode's words that name an edition, which a release
+// year can follow.
+var editionish = map[string]bool{"imax": true, "3d": true, "2d": true, "extended": true, "uncut": true, "unrated": true, "remastered": true}
+
+// nameToken is a word of a release name, between its spaces, points and
+// underscores.
+var nameToken = regexp.MustCompile(`[^\s._]+`)
+
+// editionAt is where an edition's words begin among a name's, -1 for none:
+// Remastered, Re-Edit, Unrated, or a Director's, Directors, Final,
+// Theatrical or Extended Cut - with the article before it ("Blade Runner
+// The Final Cut"). Never one that would leave the title nothing but an
+// article: "The Final Cut" and "A Directors Cut" are titles.
+func editionAt(words []string) int {
+	lower := func(i int) string { return strings.ToLower(strings.Trim(words[i], "()[]-,:")) }
+	article := func(i int) bool { a := lower(i); return a == "the" || a == "a" || a == "an" }
+	for i := 1; i < len(words); i++ {
+		w := lower(i)
+		cut := i+1 < len(words) && lower(i+1) == "cut" && (w == "directors" || w == "director's" || w == "final" || w == "theatrical" || w == "extended")
+		if !cut && w != "remastered" && w != "re-edit" && w != "reedit" && w != "unrated" {
+			continue
+		}
+		at := i
+		if article(i - 1) {
+			at = i - 1
+		}
+		// what the edition would leave: nothing, or only an article, and
+		// the edition's words are the title's
+		if at == 0 || at == 1 && article(0) {
+			continue
+		}
+
+		return at
+	}
+
+	return -1
+}
+
+// editionWords are the words of an edition a title keeps, the encode's words
+// around them or not: "Hubble IMAX 3D" is Hubble 3D.
+var editionWords = map[string]bool{"3d": true, "2d": true}
+
+// editionsIn are the edition's words among an encode's, up to the first
+// word that is neither: what a title keeps of the words it was cut at.
+func editionsIn(tail []string) []string {
+	var out []string
+	for _, w := range tail {
+		switch word := strings.ToLower(strings.Trim(w, "()[]-")); {
+		case editionWords[word]:
+			out = append(out, w)
+		case !encodeWord(w):
+			return out
+		}
+	}
+
+	return out
+}
+
 // encodeWord says whether a word of a release name is one of the encode's,
 // the source's or the sound's, or one of them with the group after a hyphen
 // (x264-NGP, WEB-DL-GROUP).
 func encodeWord(w string) bool {
 	w = strings.ToLower(strings.Trim(w, "()[]-"))
-	if releaseJunk[w] {
+	if releaseJunk[w] || encodeParts(w, releaseJunk) {
 		return true
 	}
 	i := strings.LastIndex(w, "-")
 
 	return i > 0 && releaseJunk[w[:i]]
+}
+
+// encodeParts says whether a word joined of parts by "-" or "+" is every
+// part one of words: "Remux-2160p", "WEBDL-1080p", "HDR10+", "DTS-HD".
+func encodeParts(w string, words map[string]bool) bool {
+	parts := strings.FieldsFunc(w, func(r rune) bool { return r == '-' || r == '+' })
+
+	return len(parts) > 0 && !slices.ContainsFunc(parts, func(p string) bool { return !words[p] })
 }
 
 func startsWithDigit(s string) bool {
@@ -510,7 +663,12 @@ func dice(a, b []string) float64 {
 // titleScore is how sure we are that two titles name the same show, and what
 // made us think so. 1 is the same title once both are folded.
 func titleScore(query, candidate string) (score float64, matchedOn string) {
-	q, c := normaliseTitle(query), normaliseTitle(candidate)
+	return foldedScore(normaliseTitle(query), normaliseTitle(candidate))
+}
+
+// foldedScore is titleScore over two titles already folded (normaliseTitle),
+// for a caller comparing one title against many to fold each once.
+func foldedScore(q, c string) (score float64, matchedOn string) {
 	if q == "" || c == "" {
 		return 0, ""
 	}
@@ -679,8 +837,8 @@ func registerResolveTools(r *registry) {
 	type resolveOut struct {
 		Title      string            `json:"parsed_title"                 jsonschema:"the title read out of the name, with the season, encode and group taken off"`
 		Year       int               `json:"parsed_year,omitempty"`
-		Season     int               `json:"parsed_season,omitempty"      jsonschema:"the season the name carried, when it carried one"`
-		Episode    int               `json:"parsed_episode,omitempty"`
+		Season     *int              `json:"parsed_season,omitempty"      jsonschema:"the season the name carried, when it carried one: 0 is the specials (S00), and absent is a name with no season in it"`
+		Episode    *int              `json:"parsed_episode,omitempty"     jsonschema:"the episode the name carried, when it carried one: 0 included (E00)"`
 		EpisodeEnd int               `json:"parsed_episode_end,omitempty" jsonschema:"set when the name covers several episodes (S01E01E02)"`
 		Candidates []seriesCandidate `json:"candidates"                   jsonschema:"the library's series that could be it, best first"`
 	}
@@ -704,7 +862,13 @@ func registerResolveTools(r *registry) {
 		if rel.Unread || normaliseTitle(rel.Title) == "" {
 			return nil, resolveOut{}, fmt.Errorf("no title could be read out of %q: it is all season, encode and group", in.Title)
 		}
-		out := resolveOut{Title: rel.Title, Year: rel.Year, Season: rel.Season, Episode: rel.Episode, EpisodeEnd: rel.EpisodeEnd, Candidates: []seriesCandidate{}}
+		out := resolveOut{Title: rel.Title, Year: rel.Year, EpisodeEnd: rel.EpisodeEnd, Candidates: []seriesCandidate{}}
+		if rel.HasSeason {
+			out.Season = new(rel.Season)
+		}
+		if rel.HasEpisode {
+			out.Episode = new(rel.Episode)
+		}
 
 		folder, err := resolveLibrary(ctx, client, in.Library)
 		if err != nil {

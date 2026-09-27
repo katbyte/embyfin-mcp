@@ -45,7 +45,60 @@ type UserPolicy struct {
 	EnabledFolders        []string `json:"EnabledFolders,omitempty"` // the libraries it sees, when not every one: see CanSee
 	EnableContentDeletion bool     `json:"EnableContentDeletion"`
 	EnableRemoteAccess    bool     `json:"EnableRemoteAccess"`
-	MaxParentalRating     int      `json:"MaxParentalRating,omitempty"`
+	// MaxParentalRating is the rating score above which items are hidden
+	// from the account, nil when nothing is: 0 is a limit, and on Jellyfin
+	// the strictest (G, TV-G and TV-Y score 0).
+	MaxParentalRating *int `json:"MaxParentalRating,omitempty"`
+	// what an account's own view leaves out of a library it can see, which
+	// CanSee does not answer for: items by their tags (blocked, or all but
+	// the allowed: on Emby its one tag list with IsTagBlockingModeInclusive
+	// set), unrated items, and folders blocked by id (on Emby folders inside
+	// a library, its ExcludedSubFolders; on Jellyfin its BlockedMediaFolders)
+	BlockedTags       []string `json:"BlockedTags,omitempty"`
+	AllowedTags       []string `json:"AllowedTags,omitempty"`
+	BlockUnratedItems []string `json:"BlockUnratedItems,omitempty"`
+	BlockedFolders    []string `json:"BlockedFolders,omitempty"`
+	// EnableAllChannels says the account sees every channel, whose items a
+	// playlist can hold
+	EnableAllChannels bool `json:"EnableAllChannels"`
+}
+
+// Unlimited reports whether the account's policy lets it see everything the
+// libraries hold: enabled, given every library - by the setting, or with
+// each of folders (the libraries there are now) ticked - and with no tag,
+// rating or folder taken out of its view.
+func (u *User) Unlimited(folders []VirtualFolder) bool {
+	p := u.Policy
+	every := p.EnableAllFolders
+	if !every {
+		every = len(folders) > 0
+		for i := range folders {
+			if !u.CanSee(&folders[i]) {
+				every = false
+				break
+			}
+		}
+	}
+
+	return !p.IsDisabled && every && p.MaxParentalRating == nil &&
+		len(p.BlockedTags) == 0 && len(p.AllowedTags) == 0 && len(p.BlockUnratedItems) == 0 && len(p.BlockedFolders) == 0
+}
+
+// SeesAll reports whether the account can read any list whole: an
+// administrator who is Unlimited and sees every channel too, since a
+// playlist can hold a channel's item.
+func (u *User) SeesAll(folders []VirtualFolder) bool {
+	return u.Policy.IsAdministrator && u.Policy.EnableAllChannels && u.Unlimited(folders)
+}
+
+// unrated spells the kinds of unrated item a policy blocks.
+func unrated[T ~string](kinds []T) []string {
+	out := make([]string, 0, len(kinds))
+	for _, k := range kinds {
+		out = append(out, string(k))
+	}
+
+	return out
 }
 
 // CanSee reports whether the account may see a library. EnabledFolders lists
@@ -65,27 +118,23 @@ func (u *User) CanSee(folder *VirtualFolder) bool {
 }
 
 func (c *Client) Users(ctx context.Context) ([]User, error) {
+	var users []User
 	if c.isEmby() {
 		res, err := c.emby.GetUsersQuery(ctx, emby.GetUsersQueryOperationOptions{})
 		if err != nil {
 			return nil, err
 		}
-		listed := orEmpty(res.Model).Items
-		users := make([]User, 0, len(listed))
-		for i := range listed {
-			users = append(users, userFromEmby(&listed[i]))
+		for _, d := range orEmpty(res.Model).Items {
+			users = append(users, userFromEmby(&d))
 		}
-
-		return users, nil
-	}
-
-	res, err := c.jf.GetUsers(ctx, jf.GetUsersOperationOptions{})
-	if err != nil {
-		return nil, err
-	}
-	users := make([]User, 0, len(res.Model))
-	for i := range res.Model {
-		users = append(users, userFromJF(&res.Model[i]))
+	} else {
+		res, err := c.jf.GetUsers(ctx, jf.GetUsersOperationOptions{})
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range res.Model {
+			users = append(users, userFromJF(&d))
+		}
 	}
 
 	return users, nil
@@ -120,6 +169,70 @@ func (c *Client) ResolveUser(ctx context.Context, nameOrID string) (*User, error
 	}
 
 	return nil, fmt.Errorf("no user named %q (have: %s)", nameOrID, strings.Join(names, ", "))
+}
+
+// ForgetFullViewer drops the account FullViewerID chose, so the next read
+// that needs one chooses again: an account narrowed since would read a list
+// short without a word. The tools call it at the start of each call.
+func (c *Client) ForgetFullViewer() {
+	if c == nil {
+		return
+	}
+	c.adminMu.Lock()
+	defer c.adminMu.Unlock()
+	c.admin = ""
+}
+
+// ErrNoFullView is why a read Jellyfin answers only in a user's view cannot
+// be made whole: no account sees everything the server holds, and a read in
+// a narrower view leaves out, without a word, what that account cannot see.
+var ErrNoFullView = errors.New("no administrator sees every library")
+
+// FullViewerID is the id of an account that sees everything the server
+// holds, for the reads Jellyfin answers only in a user's view: a
+// collection's own members, a playlist's entries. Read in a narrower view,
+// what the account cannot see is left out without a word (a collection
+// holding a show its administrator was not given read as the film alone).
+// It is an enabled administrator given every library and channel, with
+// nothing taken out of its view (see SeesAll), chosen once and kept until
+// ForgetFullViewer;
+// fresh chooses again, for when a read with the one kept fails. Counting
+// what an account's view holds against the server's own count cannot stand
+// in for its policy: an item no library holds any more is counted with no
+// user and seen by none (seen on Jellyfin 12.1, the first administrator
+// seeing 79 of 81 on a fresh server). None is ErrNoFullView, saying why.
+func (c *Client) FullViewerID(ctx context.Context, fresh bool) (string, error) {
+	c.adminMu.Lock()
+	defer c.adminMu.Unlock()
+	if c.admin != "" && !fresh {
+		return c.admin, nil
+	}
+	users, err := c.Users(ctx)
+	if err != nil {
+		return "", err
+	}
+	// the libraries there are now: an account with each one ticked sees all
+	// of them, and it is chosen again with every call
+	folders, err := c.VirtualFolders(ctx)
+	if err != nil {
+		return "", err
+	}
+	why := "no account is an administrator"
+	for i := range users {
+		u := &users[i]
+		if !u.Policy.IsAdministrator {
+			continue
+		}
+		if !u.SeesAll(folders) {
+			why = u.Name + "'s view is narrowed (libraries, channels, tags, ratings or folders)"
+			continue
+		}
+		c.admin = u.ID
+
+		return c.admin, nil
+	}
+
+	return "", fmt.Errorf("%w: %s", ErrNoFullView, why)
 }
 
 // SetPlayed marks an item played or unplayed for a user.

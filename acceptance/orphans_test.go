@@ -128,9 +128,7 @@ func TestOrphans(t *testing.T) {
 		_ = os.RemoveAll(kept)
 		for _, library := range []string{name, again} {
 			if _, err := invoke("library_get", map[string]any{"library": library}); err == nil {
-				if _, err := invoke("library_delete", map[string]any{"library": library, "confirm": true}); err != nil {
-					t.Errorf("removing %s: %v", library, err)
-				}
+				removeLibrary(t, library)
 			}
 		}
 		if err := waitForExpectedScan(); err != nil {
@@ -468,9 +466,7 @@ func TestDeleteItemsInOneRequest(t *testing.T) {
 		mediaWrite(t, filepath.Join(root, f, f+".mp4"), raw)
 	}
 	t.Cleanup(func() {
-		if _, err := invoke("library_delete", map[string]any{"library": name, "confirm": true}); err != nil {
-			t.Errorf("removing the library: %v", err)
-		}
+		removeLibrary(t, name)
 		if err := waitForExpectedScan(); err != nil {
 			t.Error(err)
 		}

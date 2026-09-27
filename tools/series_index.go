@@ -26,10 +26,15 @@ import (
 
 // seriesIndexTTL is how long a read of the index is trusted. A write through
 // this server drops it at once; the TTL is for changes made anywhere else - a
-// scan, the server's own web client - and a name the index cannot place
-// falls back to a live search regardless, so a show added a minute ago still
-// resolves.
-const seriesIndexTTL = 5 * time.Minute
+// scan, the server's own web client, a folder renamed on disk - and a name
+// the index cannot place falls back to a live search regardless, so a show
+// added a moment ago still resolves. What the index alone answers is the
+// negative: no other entry holds this show, no series folder holds this path.
+// Trusted for five minutes, a second entry made by a scan in that time was
+// not there to be seen, so the TTL is a minute - a read of every series is a
+// page or three, and a loop of calls pays for one a minute - and plan_check,
+// which answers where a write lands, reads the index afresh every call.
+const seriesIndexTTL = time.Minute
 
 // A write drops the index, but several writes finish after they return:
 // library_scan, item_refresh, task_run and item_identify_apply only queue the
@@ -59,7 +64,10 @@ type seriesIndex struct {
 	byID       map[string]int
 	byWord     map[string][]int
 	byProvider map[string][]int
-	read       time.Time
+	// byFolder is the series by the folder rule audit_duplicate_series
+	// groups by (twinFolderKey): two folders of one show beside each other
+	byFolder map[string][]int
+	read     time.Time
 	// ttl is how long this read is trusted: the full TTL, or the short one
 	// when it was read while a write may still have been landing
 	ttl time.Duration
@@ -108,10 +116,26 @@ func (c *seriesCache) get(ctx context.Context, client *embyfin.Client, parent st
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	now := c.clock()
-	if idx, ok := c.indexes[parent]; ok && now.Sub(idx.read) < idx.ttl {
+	if idx, ok := c.indexes[parent]; ok && c.clock().Sub(idx.read) < idx.ttl {
 		return idx, nil
 	}
+
+	return c.readLocked(ctx, client, parent)
+}
+
+// fresh reads the index for a library now, whatever is held, and keeps the
+// read for the calls after it: for an answer that must not rest on a read
+// from before a scan the caller cannot see.
+func (c *seriesCache) fresh(ctx context.Context, client *embyfin.Client, parent string) (*seriesIndex, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.readLocked(ctx, client, parent)
+}
+
+// readLocked reads and keeps the index for a library; c.mu is held.
+func (c *seriesCache) readLocked(ctx context.Context, client *embyfin.Client, parent string) (*seriesIndex, error) {
+	now := c.clock()
 	idx, err := readSeriesIndex(ctx, client, parent)
 	if err != nil {
 		return nil, err
@@ -130,6 +154,7 @@ func readSeriesIndex(ctx context.Context, client *embyfin.Client, parent string)
 		byID:       map[string]int{},
 		byWord:     map[string][]int{},
 		byProvider: map[string][]int{},
+		byFolder:   map[string][]int{},
 		read:       time.Now(),
 	}
 
@@ -173,9 +198,41 @@ func readSeriesIndex(ctx context.Context, client *embyfin.Client, parent string)
 				idx.byProvider[key] = append(idx.byProvider[key], i)
 			}
 		}
+		if key := twinFolderKey(it.Path); key != "" {
+			idx.byFolder[key] = append(idx.byFolder[key], i)
+		}
 	}
 
 	return idx, nil
+}
+
+// twinFolderKey is what two folders of one show have in common when a rename
+// changed only spacing, case, an accent or punctuation, by the rule
+// audit_duplicate_series groups by: the folder above, and the folder's own
+// name, each folded (folderKey). "" for a path with no name to compare: one
+// that folds to nothing ("???") would otherwise meet every other like it.
+func twinFolderKey(path string) string {
+	if path == "" {
+		return ""
+	}
+	name := folderKey(baseName(path))
+	if name == "" {
+		return ""
+	}
+
+	return folderKey(parentDir(path)) + "/" + name
+}
+
+// sameAnime says whether two entries could be one show by their AniDB ids:
+// not when each carries one and the two differ. An anime entry kept apart -
+// an OVA, a film, a second season AniDB counts as a show of its own - carries
+// its parent's TVDB or TMDB id beside its own AniDB id (audit_anime_ids
+// reports it as ids_disagree), and read by the shared id alone it was joined
+// to its parent, its episodes counted as the parent's.
+func sameAnime(a, b *embyfin.Item) bool {
+	x, y := providerID(a, "anidb"), providerID(b, "anidb")
+
+	return x == "" || y == "" || x == y
 }
 
 // rank scores the series a parsed name could mean, best first. Only series
@@ -266,38 +323,55 @@ func (r *registry) matchSeries(ctx context.Context, rel release, parent string) 
 
 // otherEntriesFor finds the other library entries for a series: the same show
 // held twice, which a folder rename leaves behind and which nothing in the
-// server's UI points at.
+// server's UI points at. Two ways: entries sharing a tmdb, tvdb or imdb id
+// (unless their AniDB ids differ, see sameAnime), and entries built from a
+// folder beside this one whose name differs only in spacing, case, accents
+// or punctuation (twinFolderKey) - which is the usual case after a rename,
+// because the second entry was matched to nothing and carries no ids at all.
 //
 // This is not tidiness. A show split across two entries is split by EPISODE -
 // one entry holding season 1 and another holding the rest is a real shape in a
 // real library - so an exists check against one of them answers "known:
 // false" for an episode the library is holding in the other.
 //
+// An entry sharing the id whose AniDB id differs is returned apart, in
+// anime: not the same show, but an episode the provider numbers into this
+// one may be filed there.
+//
 // It fails when the library's series could not be read, and the caller has to
 // say so: answering "no other entries" in its place is the one thing that
 // makes an absence read as proof.
-func (r *registry) otherEntriesFor(ctx context.Context, series *embyfin.Item) ([]embyfin.Item, error) {
+func (r *registry) otherEntriesFor(ctx context.Context, series *embyfin.Item) (same, anime []embyfin.Item, err error) {
 	idx, err := r.seriesCache().get(ctx, r.client, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	seen := map[string]bool{series.ID: true}
-	var out []embyfin.Item
-	for _, provider := range []string{"tmdb", "tvdb", "imdb"} {
-		id := providerID(series, provider)
-		if id == "" {
-			continue
-		}
-		for _, i := range idx.byProvider[provider+":"+id] {
-			if it := idx.items[i]; !seen[it.ID] {
-				seen[it.ID] = true
-				out = append(out, it)
+	take := func(list []int) {
+		for _, i := range list {
+			it := idx.items[i]
+			if seen[it.ID] {
+				continue
+			}
+			seen[it.ID] = true
+			if sameAnime(series, &it) {
+				same = append(same, it)
+			} else {
+				anime = append(anime, it)
 			}
 		}
 	}
+	for _, provider := range []string{"tmdb", "tvdb", "imdb"} {
+		if id := providerID(series, provider); id != "" {
+			take(idx.byProvider[provider+":"+id])
+		}
+	}
+	if key := twinFolderKey(series.Path); key != "" {
+		take(idx.byFolder[key])
+	}
 
-	return out, nil
+	return same, anime, nil
 }
 
 func sortCandidates(rows []seriesCandidate) {

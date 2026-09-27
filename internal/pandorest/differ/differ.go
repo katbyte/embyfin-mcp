@@ -347,6 +347,10 @@ func diffModels(older, newer map[string]*definitions.Model) []Change {
 					d.change(true, "field %s: %s -> %s", field, of.Type, nf.Type)
 				case of.Name != nf.Name:
 					d.change(true, "field %s: Go name %s -> %s", field, of.Name, nf.Name)
+				case of.KeepsNull != nf.KeepsNull:
+					// a number held by pointer, or no longer: every reader of
+					// the field changes
+					d.change(true, "field %s: keeps null %t -> %t", field, of.KeepsNull, nf.KeepsNull)
 				case of.Nullable != nf.Nullable:
 					// the generator reads nothing from it: booleans are
 					// pointers and lists omitzero whatever the document says

@@ -103,6 +103,8 @@ type orphanServer struct {
 	refuse map[string]bool
 	// unanswered makes every path check fail, as a server that errors does
 	unanswered bool
+	// members are what each collection holds, by id
+	members map[string][]string
 }
 
 func newOrphanServer(t *testing.T, jellyfin bool) *orphanServer {
@@ -147,6 +149,13 @@ func newOrphanServerOf(t *testing.T, jellyfin bool, libraries []map[string]any) 
 		_ = json.NewEncoder(w).Encode(libraries)
 	})
 	o.mux.HandleFunc("GET /Items", o.list)
+	// the administrator whose view a playlist is read in, for the lists a
+	// delete would take items out of
+	admin := []map[string]any{{"Id": "u1", "Name": "Quux", "Policy": map[string]any{"IsAdministrator": true, "EnableAllFolders": true}}}
+	o.mux.HandleFunc("GET /Users/Query", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"Items": admin, "TotalRecordCount": len(admin)})
+	})
+	o.mux.HandleFunc("GET /Users", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, admin) })
 	o.mux.HandleFunc("POST /Environment/ValidatePath", o.validate)
 	o.mux.HandleFunc("DELETE /Items", o.deleteBatch)
 	o.mux.HandleFunc("DELETE /Items/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -182,10 +191,11 @@ func (o *orphanServer) list(w http.ResponseWriter, r *http.Request) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	types, ids := values(r, "IncludeItemTypes"), values(r, "Ids")
+	types, ids, parents := values(r, "IncludeItemTypes"), values(r, "Ids"), values(r, "ParentId")
 	var rows []orphanItem
 	for _, it := range o.items {
-		if (len(types) == 0 || slices.Contains(types, it.Type)) && (len(ids) == 0 || slices.Contains(ids, it.ID)) {
+		member := len(parents) == 0 || slices.Contains(parents, it.ParentID) || len(parents) == 1 && slices.Contains(o.members[parents[0]], it.ID)
+		if (len(types) == 0 || slices.Contains(types, it.Type)) && (len(ids) == 0 || slices.Contains(ids, it.ID)) && member {
 			rows = append(rows, it)
 		}
 	}
@@ -348,9 +358,10 @@ func TestAuditOrphans(t *testing.T) {
 		if types := strings.Split(q.Get("IncludeItemTypes"), ","); !slices.Contains(types, "Episode") || !slices.Contains(types, "Folder") || slices.Contains(types, "AudioBook") {
 			t.Errorf("the sweep asks for the wrong kinds of item: %v", types)
 		}
-		// the cheap order and big pages: on a large library the default order
-		// made a sweep take half an hour
-		if q.Get("SortBy") != "DateCreated,SortName" || q.Get("Limit") != "10000" {
+		// the cheap order and big pages (and the overlap each request
+		// re-reads): on a large library the default order made a sweep take
+		// half an hour
+		if q.Get("SortBy") != "DateCreated,SortName" || q.Get("Limit") != "10100" {
 			t.Errorf("the sweep reads in the slow order or small pages: %s", req.Query)
 		}
 	}
@@ -360,6 +371,9 @@ func TestItemOrphansDelete(t *testing.T) {
 	t.Parallel()
 
 	o := newOrphanServer(t, false)
+	// a collection holding one of the leftovers and a film that stays
+	o.items = append(o.items, orphanItem{ID: "c9", Name: "Zzyzx Docs", Type: "BoxSet", Path: "/config/collections/Zzyzx Docs [boxset]"})
+	o.members = map[string][]string{"c9": {"o1", "m1"}}
 	cs := session(t, o.fakeServer, Options{EnableDelete: true})
 
 	for folder, want := range map[string]string{
@@ -395,6 +409,10 @@ func TestItemOrphansDelete(t *testing.T) {
 	}
 	if n := o.deletes(); n != 0 {
 		t.Fatalf("a preview sent %d deletes", n)
+	}
+	// and names the lists the items would leave, counting only theirs
+	if lists := objects(t, preview["lists_affected"], "lists_affected"); len(lists) != 1 || text(lists[0]["name"]) != "Zzyzx Docs" || text(lists[0]["kind"]) != "collection" || number(t, lists[0]["held"], "held") != 1 {
+		t.Errorf("lists_affected = %v, want the collection holding one of them", lists)
 	}
 
 	o.reset()
@@ -462,6 +480,11 @@ func TestItemOrphansDeleteOnJellyfin(t *testing.T) {
 	failed := objects(t, out["failed"], "failed")
 	if len(failed) != 1 || text(failed[0]["id"]) != "f2" || text(failed[0]["path"]) != "/data/doc/Other Doc (2019)" {
 		t.Errorf("failed = %v", failed)
+	}
+	// what the server answered the batch with is said, not dropped once the
+	// items settled one by one
+	if errs := texts(out["batch_errors"]); len(errs) != 1 || !strings.Contains(errs[0], "400") {
+		t.Errorf("batch_errors = %v, want the batch's 400", out["batch_errors"])
 	}
 	for _, id := range []string{"o1", "o2", "o3", "f1"} {
 		if o.holds(id) {
@@ -600,5 +623,34 @@ func TestAuditOrphansSaysWhenTheServerCannotBeAsked(t *testing.T) {
 	folders := objects(t, out["folders"], "folders")
 	if len(folders) != 1 || text(folders[0]["folder"]) != "/mnt/old/films" || text(folders[0]["on_server"]) != folderUnknown || !strings.Contains(text(folders[0]["note"]), "could not ask") {
 		t.Errorf("folders = %v", folders)
+	}
+}
+
+// The paths were compared as written, so on a server whose disk ignores case
+// a library added as /data/Films whose items the server stores under
+// /data/films read as every film in it orphaned. The disk is asked whether
+// it ignores case; where it tells case apart, the two are different folders.
+func TestAuditOrphansAsksWhetherTheDiskIgnoresCase(t *testing.T) {
+	t.Parallel()
+
+	for _, ignores := range []bool{false, true} {
+		o := newOrphanServerOf(t, false, []map[string]any{{"Name": "Movies", "CollectionType": "movies", "ItemId": "lib1", "Locations": []string{"/data/Films"}}})
+		o.items = []orphanItem{
+			{ID: "lm", Name: "films", Type: "Folder", Path: "/data/films"},
+			{ID: "m1", Name: "Alien", Type: "Movie", Path: "/data/films/Alien (1979)/Alien (1979).mkv", ParentID: "lm"},
+		}
+		o.dirs = map[string]bool{"/data": true, "/data/Films": true, "/data/films": true}
+		if ignores {
+			// the library's folder, every letter's case turned over
+			o.dirs["/DATA/fILMS"] = true
+		}
+		out := mustCall(t, session(t, o.fakeServer, Options{}), "audit_orphans", nil)
+		want := 2
+		if ignores {
+			want = 0
+		}
+		if n := number(t, out["total_findings"], "total_findings"); n != want {
+			t.Errorf("a disk that ignores case %v: %d orphans, want %d: %v", ignores, n, want, out["folders"])
+		}
 	}
 }

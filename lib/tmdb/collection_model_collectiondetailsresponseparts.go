@@ -9,13 +9,13 @@ type CollectionDetailsResponseParts struct {
 	GenreIds         []int   `json:"genre_ids,omitzero"`
 	Id               int     `json:"id,omitempty"`
 	MediaType        string  `json:"media_type,omitempty"`
-	Name             string  `json:"name,omitempty"`
 	OriginalLanguage string  `json:"original_language,omitempty"`
-	OriginalName     string  `json:"original_name,omitempty"`
+	OriginalTitle    string  `json:"original_title,omitempty"`
 	Overview         string  `json:"overview,omitempty"`
 	Popularity       float64 `json:"popularity,omitempty"`
 	PosterPath       string  `json:"poster_path,omitempty"`
 	ReleaseDate      string  `json:"release_date,omitempty"`
+	Title            string  `json:"title,omitempty"`
 	Video            *bool   `json:"video,omitempty"`
 	VoteAverage      float64 `json:"vote_average,omitempty"`
 	VoteCount        int     `json:"vote_count,omitempty"`

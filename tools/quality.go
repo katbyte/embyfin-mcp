@@ -158,7 +158,7 @@ type copyIn struct {
 	AspectRatio string       `json:"aspect_ratio,omitempty" jsonschema:"the shape the picture is shown at, when the file states one (16:9, 4:3): an anamorphic DVD is 720x480 either way"`
 	VideoCodec  string       `json:"video_codec,omitempty"  jsonschema:"h264, hevc, av1..."`
 	FrameRate   float64      `json:"frame_rate,omitempty"   jsonschema:"frames per second"`
-	HDR         string       `json:"hdr,omitempty"          jsonschema:"sdr, hdr10, hlg, dovi, dovi_hdr10; omit when unknown"`
+	HDR         string       `json:"hdr,omitempty"          jsonschema:"sdr, hdr10, hdr10plus, hlg, dovi, dovi_hdr10, dovi_hdr10plus, dovi_hlg, dovi_sdr, dovi_el, dovi_el_hdr10plus, or hdr when only HDR of some kind is known; omit when unknown"`
 	Bitrate     int64        `json:"bitrate,omitempty"      jsonschema:"the video stream's bits per second, as a library item reports it. When only the whole file's rate is known, leave this out and give size and runtime_s: the audio is taken out of that when the audio tracks' bitrates are given"`
 	Size        int64        `json:"size,omitempty"         jsonschema:"bytes"`
 	RuntimeS    int          `json:"runtime_s,omitempty"    jsonschema:"seconds"`
@@ -185,7 +185,7 @@ type copyFacts struct {
 	Size            int64    `json:"size,omitempty"`
 	RuntimeS        int      `json:"runtime_s,omitempty"`
 	AudioTracks     int      `json:"audio_tracks,omitempty"`
-	AudioLanguages  []string `json:"audio_languages,omitempty"`
+	AudioLanguages  []string `json:"audio_languages,omitempty"   jsonschema:"each as ISO 639-2 (eng, deu), however the server or the caller spelled it, und when untagged"`
 	AudioCodec      string   `json:"audio_codec,omitempty"       jsonschema:"the codec of the best track: most channels, then highest bitrate"`
 	AudioChannels   int      `json:"audio_channels,omitempty"`
 	AudioBitrate    int64    `json:"audio_bitrate,omitempty"     jsonschema:"that track's bits per second, when known"`
@@ -256,7 +256,7 @@ func registerQualityTools(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "quality_compare",
 		Description: "Which of two copies is better, by how much, and why. Each side is an item_id or a file's numbers. Decides on resolution class, then bitrate with the codec taken out, measured alike on both sides - both video streams, or both whole files, as bitrate_basis says - and unknown where they cannot be; the working and every constant come back with it. " +
-			"Caveats flag what the numbers cannot see: frames of different shapes (black bars), an interpolated frame rate, a starved bitrate, and two items that may be two different films (a file naming another title, years more than one apart, runtimes far apart). Audio is reported beside the verdict, never folded in. It compares; it does not say what to do.",
+			"Caveats flag what the numbers cannot see: frames of different shapes (black bars), a frame rate that may be interpolated (50 or 60 against 24 or 25, which on a film is made up, and on sport or broadcast TV is how it was shot), a starved bitrate, and two items that may be two different films (a file naming another title, years more than one apart, runtimes far apart). Audio is reported beside the verdict, never folded in. It compares; it does not say what to do.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in compareIn) (*mcp.CallToolResult, compareOut, error) {
 		// a margin under 1 calls the worse copy better: identical copies
 		// measure 1.00x, which clears any margin below it
@@ -442,19 +442,20 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 // apart.
 func copyItem(ctx context.Context, client *embyfin.Client, id string) (*embyfin.Item, *embyfin.MediaSource, error) {
 	item, err := client.ItemByID(ctx, id)
-	if err == nil {
+	var none *embyfin.NoItemError
+	switch {
+	case err == nil:
 		if src := bestSource(item); src != nil {
 			return item, src, nil
 		}
 
 		return item, &embyfin.MediaSource{}, nil
-	}
-	admin, aerr := client.ResolveUser(ctx, "")
-	if aerr != nil {
+	case !errors.As(err, &none):
+		// the lookup failed, which says nothing of the id
 		return nil, nil, err
 	}
-	version, verr := client.UserItem(ctx, admin.ID, id)
-	if verr != nil || version == nil || version.ID != id {
+	version, err := versionByID(ctx, client, id, none)
+	if err != nil {
 		return nil, nil, err
 	}
 	for i := range version.MediaSources {
@@ -463,7 +464,7 @@ func copyItem(ctx context.Context, client *embyfin.Client, id string) (*embyfin.
 		}
 	}
 
-	return nil, nil, err
+	return nil, nil, none
 }
 
 // decide weighs the two sides and says which is better, by how much, and on
@@ -483,28 +484,33 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 		out.BitrateRatio = math.Round(float64(a.Effective)/float64(b.Effective)*100) / 100
 	}
 
-	// a frame rate no camera or telecine produces says the file was made by
-	// something rather than shot. This is the one claim a release cannot
-	// inflate - width, codec and HDR can all be asserted by an encoder, and
-	// 60fps on a 24fps master cannot be anything but interpolation - so it
-	// outranks the frame size rather than sitting beside it.
+	// two copies of one thing at 24 or 25 and at 50 or 60: a film or a
+	// scripted show at the higher rate was most likely interpolated, which
+	// adds frames and no picture, and a bigger frame on it is no better copy.
+	// But sport, much broadcast TV and some documentaries are shot at 50 or
+	// 60, and there the faster copy is the source's own rate: a lead to
+	// check, not a verdict.
 	//
 	// Only between two rates that are known: an unknown rate is not a slower
 	// master, and reading its 0 as one called every 50p copy interpolated.
-	if a.FrameRate > 0 && b.FrameRate > 0 && interpolated(a.FrameRate) != interpolated(b.FrameRate) {
-		synthetic := a
-		if interpolated(b.FrameRate) {
-			synthetic = b
+	if a.FrameRate > 0 && b.FrameRate > 0 && highFrameRate(a.FrameRate) != highFrameRate(b.FrameRate) {
+		faster := a
+		if highFrameRate(b.FrameRate) {
+			faster = b
 		}
 		out.Caveats = append(out.Caveats, fmt.Sprintf(
-			"one copy runs at %.3g fps and the other at %.3g: no broadcast or disc master of a scripted show ships at 60p, so the %.3g fps copy was interpolated from a slower master. Whatever it measures, it holds no frames the other does not - and an upscale of the same master carries no detail either. Treat it as worse at equal resolution, and do not let a bigger frame on it read as a better copy",
-			a.FrameRate, b.FrameRate, synthetic.FrameRate))
+			"one copy runs at %.3g fps and the other at %.3g. If this is a film or a scripted show, mastered at 24 or 25, the %.3g fps copy was most likely interpolated from it: then it holds no frames the other does not, an upscale of the same master carries no detail either, and a bigger frame on it does not make it the better copy. If it is sport, broadcast TV or anything else shot at 50 or 60, the faster copy may be the source's own rate. Check which before weighing it",
+			a.FrameRate, b.FrameRate, faster.FrameRate))
 	}
 
 	// an HDR claim on a copy whose partner is SD-era is a claim about the
 	// encode, not the picture
 	// unknown is not a claim, so it cannot disagree with one
-	if a.HDR != "" && b.HDR != "" && !strings.EqualFold(a.HDR, hdrUnknown) && !strings.EqualFold(b.HDR, hdrUnknown) && !strings.EqualFold(a.HDR, b.HDR) {
+	// and hdr, HDR of no named kind, cannot disagree with one either - only
+	// with sdr
+	unnamed := strings.EqualFold(a.HDR, hdrAny) && specificHDR(b.HDR) && !strings.EqualFold(b.HDR, hdrSDR) ||
+		strings.EqualFold(b.HDR, hdrAny) && specificHDR(a.HDR) && !strings.EqualFold(a.HDR, hdrSDR)
+	if a.HDR != "" && b.HDR != "" && !strings.EqualFold(a.HDR, hdrUnknown) && !strings.EqualFold(b.HDR, hdrUnknown) && !strings.EqualFold(a.HDR, b.HDR) && !unnamed {
 		out.Caveats = append(out.Caveats, fmt.Sprintf("the copies claim different HDR formats (%s against %s)", a.HDR, b.HDR))
 	}
 
@@ -638,11 +644,11 @@ func audioTotal(tracks []audioTrack) int64 {
 	return total
 }
 
-// interpolated says whether a frame rate is one no scripted master is shot or
-// mastered at. 23.976, 24 and 25 are film and PAL; 29.97 and 30 are NTSC
-// video; 50 and 60 are sport, soaps and video game capture - and on a drama
-// they are what a frame interpolator leaves behind.
-func interpolated(fps float64) bool {
+// highFrameRate says whether a frame rate is 50 or more. 23.976, 24 and 25
+// are film and PAL; 29.97 and 30 are NTSC video; 50 and 60 are sport,
+// broadcast TV shot as video, soaps and game capture - and on a film or a
+// drama they are what a frame interpolator leaves behind.
+func highFrameRate(fps float64) bool {
 	return fps >= 47
 }
 
@@ -679,11 +685,14 @@ func compareAudio(a, b copyFacts) audioNote {
 }
 
 // audioLanguages is the languages a track list names, in order and without
-// repeats.
+// repeats, each by the one spelling languages are compared by (languageKey):
+// Emby writes English "en" and Jellyfin and most files "eng", and compared
+// as written, two English copies read as each carrying a language the other
+// lacks.
 func audioLanguages(tracks []audioTrack) []string {
 	out := []string{}
 	for _, track := range tracks {
-		lang := cmp.Or(track.Language, "und")
+		lang := languageKey(cmp.Or(track.Language, "und"))
 		if !slices.Contains(out, lang) {
 			out = append(out, lang)
 		}

@@ -3,12 +3,16 @@
 package acceptance
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 )
 
 // findings returns the titles in an audit's worklist, sorted.
@@ -66,6 +70,7 @@ func TestAuditsLeaveTheCleanLibrariesAlone(t *testing.T) {
 		"audit_duplicate_series":   {seriesOnly: true},
 		"audit_runtime":            {seriesOnly: true},
 		"audit_missing_episodes":   {seriesOnly: true},
+		"audit_whitespace":         {},
 	} {
 		for lib, n := range map[string]int{"Movies": want.movies, "Shows": want.shows} {
 			out := call(t, audit, map[string]any{"library": lib})
@@ -531,8 +536,207 @@ func TestAuditDuplicates(t *testing.T) {
 	}
 }
 
-// The films a server shows as one title in several versions. Both show the
-// two Blade Runner files, named as versions in one folder, as one film;
+// On Emby the items an administrator's view leaves out are placed with the
+// item they are versions of by the key Emby merges them by, rather than each
+// read on its own: the view names no version, and only the single read of an
+// item does, which on a library of 20,244 films held 901 in two files was 901
+// reads. Every placing agrees with what those single reads say, film for film
+// and episode for episode:
+//
+//   - a TMDB id shared across folders merges (the two Aliens);
+//   - an IMDb id merges where neither film has a TMDB id (Memento, and a copy
+//     holding its IMDb id alone);
+//   - an IMDb id shared under a TMDB id of its own does not (The Thirteenth
+//     Floor, holding Interstellar's IMDb id beside TMDB 1090);
+//   - a second file in a film's folder merges, ids or none (Arrival, Dune and
+//     Memento held twice, and the unmatched Princess Mononoke);
+//   - a site shared merges nothing: Princess Mononoke's second file and the
+//     unmatched もののけ姫 given one Facebook account are placed by their key,
+//     not the account;
+//   - an episode's number under two folders of one show merges (The Wire's
+//     second episode), as does a second file of one (Severance's first);
+//     two episodes of different numbers sharing a TVDB id do not.
+//
+// Which item of a group the view lists follows the order asked for, so groups
+// are matched by their files, not their ids.
+func TestEmbyVersionsArePlacedAsItsSingleReadsSay(t *testing.T) {
+	if isJellyfin() {
+		t.Skip("Jellyfin stores its versions: nothing is placed")
+	}
+	if dataDir() == "" {
+		t.Skip("EMBYFIN_TEST_DATA is not set")
+	}
+	client, err := embyfin.New(backend, os.Getenv("EMBYFIN_SERVER"), os.Getenv("EMBYFIN_TOKEN"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	movies, shows := filepath.Join(dataDir(), "messy-movies"), filepath.Join(dataDir(), "messy-shows")
+	movieNfo := func(title string, year int, tmdb, imdb string) []byte {
+		ids := ""
+		if tmdb != "" {
+			ids += fmt.Sprintf("  <tmdbid>%s</tmdbid>\n  <uniqueid type=\"tmdb\" default=\"true\">%s</uniqueid>\n", tmdb, tmdb)
+		}
+		if imdb != "" {
+			ids += fmt.Sprintf("  <imdbid>%s</imdbid>\n  <uniqueid type=\"imdb\">%s</uniqueid>\n", imdb, imdb)
+		}
+		return fmt.Appendf(nil, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<movie>\n  <title>%s</title>\n  <year>%d</year>\n%s  <lockdata>true</lockdata>\n</movie>\n", title, year, ids)
+	}
+	episodeWith := func(season, episode int, tvdb string) []byte {
+		ids := ""
+		if tvdb != "" {
+			ids = fmt.Sprintf("  <uniqueid type=\"tvdb\" default=\"true\">%s</uniqueid>\n", tvdb)
+		}
+		return fmt.Appendf(nil, "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<episodedetails>\n  <season>%d</season>\n  <episode>%d</episode>\n%s  <lockdata>true</lockdata>\n</episodedetails>\n", season, episode, ids)
+	}
+	video := fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4")
+	messyShows := str(call(t, "library_get", map[string]any{"library": "Messy Shows"})["id"])
+	severance := len(itemsTitledEpisodes(t.Context(), t, client, messyShows, "Severance"))
+	// the scans back to the fixtures run after the staged files go
+	t.Cleanup(func() {
+		for _, dir := range []string{"The Thirteenth Floor (1999)", "Memento (2000) Extended", "もののけ姫 (1997)"} {
+			if err := os.RemoveAll(filepath.Join(movies, dir)); err != nil {
+				t.Error(err)
+			}
+		}
+		if err := scanUntil("Messy Movies", messyMovies()); err != nil {
+			t.Error(err)
+		}
+		// the test's own context is over by now
+		scanUntilTrue(t, "Messy Shows", func() bool {
+			return len(itemsTitledEpisodes(context.Background(), t, client, messyShows, "Severance")) == severance
+		})
+	})
+	for _, film := range []string{messyArrival, messyDune, messyCrossed, "Princess Mononoke (1997)"} {
+		stageFile(t, filepath.Join(movies, film, film+" - 720p.mp4"), video)
+	}
+	for _, f := range []struct {
+		dir, title string
+		year       int
+		tmdb, imdb string
+	}{
+		{"The Thirteenth Floor (1999)", "The Thirteenth Floor", 1999, "1090", "tt0816692"},
+		{"Memento (2000) Extended", "Memento", 2000, "", "tt0903747"},
+		{"もののけ姫 (1997)", "もののけ姫", 1997, "", ""},
+	} {
+		stageFile(t, filepath.Join(movies, f.dir, f.dir+".mp4"), video)
+		stageFile(t, filepath.Join(movies, f.dir, "movie.nfo"), movieNfo(f.title, f.year, f.tmdb, f.imdb))
+	}
+	season := filepath.Join(shows, "Severance", "Season 01")
+	stageFile(t, filepath.Join(season, "Severance S01E01 - 720p.mp4"), video)
+	stageFile(t, filepath.Join(season, "Severance S01E01 - 720p.nfo"), episodeWith(1, 1, ""))
+	for _, n := range []int{8, 9} {
+		name := fmt.Sprintf("Severance S01E%02d", n)
+		stageFile(t, filepath.Join(season, name+".mp4"), video)
+		stageFile(t, filepath.Join(season, name+".nfo"), episodeWith(1, n, "99999901"))
+	}
+	if err := scanUntil("Messy Movies", messyMovies()+7); err != nil {
+		t.Fatal(err)
+	}
+	scanUntilTrue(t, "Messy Shows", func() bool {
+		return len(itemsTitledEpisodes(t.Context(), t, client, messyShows, "Severance")) == severance+3
+	})
+
+	// a Facebook account on Princess Mononoke's second file and on もののけ姫,
+	// which a match on every provider id took for one film
+	admin, err := client.ResolveUser(t.Context(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	library := func(name string) string { return str(call(t, "library_get", map[string]any{"library": name})["id"]) }
+	stored, _, err := client.Search(t.Context(), embyfin.SearchOptions{ParentID: library("Messy Movies"), IncludeItemTypes: "Movie", Fields: "Path", Limit: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared := 0
+	for _, it := range stored {
+		if strings.Contains(it.Path, "Princess Mononoke (1997) - 720p") || strings.Contains(it.Path, "/もののけ姫 (1997)/") {
+			if _, err := client.EditItem(t.Context(), admin.ID, it.ID, func(full map[string]any) (bool, error) {
+				full["ProviderIds"] = map[string]any{"Facebook": "zzyzx"}
+				full["LockData"] = true
+				return true, nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			shared++
+		}
+	}
+	if shared != 2 {
+		t.Fatalf("gave %d items the Facebook account, want 2", shared)
+	}
+
+	for _, c := range []struct {
+		library, types string
+		groups         int
+	}{
+		// Alien, Blade Runner, Arrival, Dune, Memento (with its copy and
+		// its second file) and Princess Mononoke
+		{"Messy Movies", "Movie", 6},
+		// The Wire's second episode and Severance's first
+		{"Messy Shows", "Episode", 2},
+	} {
+		listed, _, err := client.Search(t.Context(), embyfin.SearchOptions{ParentID: library(c.library), IncludeItemTypes: c.types, Fields: "Path", UserID: admin.ID, Limit: 1000})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var want []string
+		for _, it := range listed {
+			single, err := client.UserItem(t.Context(), admin.ID, it.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(single.MediaSources) < 2 {
+				continue
+			}
+			var files []string
+			for _, src := range single.MediaSources {
+				files = append(files, filepath.Base(src.Path))
+			}
+			slices.Sort(files)
+			want = append(want, strings.Join(files, " + "))
+		}
+		slices.Sort(want)
+		if len(want) != c.groups {
+			t.Fatalf("%s: %d read as held in several files, want %d: %v", c.library, len(want), c.groups, want)
+		}
+
+		out := call(t, "audit_multiple_versions", map[string]any{"library": c.library, "types": c.types})
+		found := rows(t, out["findings"], "findings")
+		got := make([]string, 0, len(found))
+		for _, f := range found {
+			_, list, _ := strings.Cut(str(f["detail"]), ": ")
+			files := strings.Split(list, ", ")
+			slices.Sort(files)
+			got = append(got, strings.Join(files, " + "))
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: in versions by the audit: %v; by their own reads: %v", c.library, got, want)
+		}
+		// placed by the key, and the sample of those placings agreeing
+		if note := str(out["note"]); !strings.Contains(note, "were placed by the key Emby merges versions by") || !strings.Contains(note, "all agreeing") {
+			t.Errorf("%s: note = %q, want the placings by key, checked", c.library, note)
+		}
+	}
+}
+
+// itemsTitledEpisodes are the paths of a series' episode files in a library.
+func itemsTitledEpisodes(ctx context.Context, t *testing.T, client *embyfin.Client, library, series string) []string {
+	t.Helper()
+
+	items, _, err := client.Search(ctx, embyfin.SearchOptions{ParentID: library, IncludeItemTypes: "Episode", Fields: "Path", Limit: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for _, it := range items {
+		if strings.Contains(it.Path, "/"+series+"/") {
+			paths = append(paths, it.Path)
+		}
+	}
+
+	return paths
+}
+
 // Emby also shows the two messy Aliens, in two folders and sharing a TMDB id,
 // as one. Jellyfin stores its merge (a sweep holds one Blade Runner with two
 // files); Emby stores each file as an item and merges them only in what it
@@ -591,7 +795,7 @@ func TestAuditRuntimeEpisodes(t *testing.T) {
 	if f := found[0]; str(f["name"]) != "Star Trek: Deep Space Nine S03E01 The Search (1)" || str(f["detail"]) != "720 min: not a runtime, the file's duration metadata is broken" || !strings.HasSuffix(str(f["path"]), "/Season 03/Star Trek Deep Space Nine S03E01.mkv") {
 		t.Errorf("the broken duration = %v", f)
 	}
-	if f := found[1]; str(f["name"]) != ".hack//Liminality S01E03 In the Case of Kyoko Tohno" || str(f["detail"]) != "0 min, season median 3 min (100% off)" || !strings.HasSuffix(str(f["path"]), "/hack Liminality S01E03.mp4") {
+	if f := found[1]; str(f["name"]) != ".hack//Liminality S01E03 In the Case of Kyoko Tohno" || str(f["detail"]) != "0 min, far shorter than the rest of its season, which run 3 min: an incomplete or wrong file" || !strings.HasSuffix(str(f["path"]), "/hack Liminality S01E03.mp4") {
 		t.Errorf("finding = %v", f)
 	}
 	// the broken file's own row says what the file claims: twelve hours
@@ -746,7 +950,8 @@ func TestAuditAll(t *testing.T) {
 		"audit_quality":          10,
 		"audit_missing_episodes": 0,
 		// the Despecialized Edition's Science-Fiction
-		"audit_spelling": 1,
+		"audit_spelling":   1,
+		"audit_whitespace": 0,
 	}
 	if !isJellyfin() {
 		// Emby shows the two messy Aliens, sharing a TMDB id, as one film's
@@ -783,6 +988,15 @@ func TestAuditAll(t *testing.T) {
 	}
 	if got, want := skippedIn(out), []string{"audit_anime_ids", "audit_language", "audit_orphans", "audit_provider"}; !slices.Equal(got, want) {
 		t.Errorf("skipped for one library = %v, want %v", got, want)
+	}
+	// nothing failed, and every row that ran says how long it took
+	if out["failed"] != nil {
+		t.Errorf("failed = %v", out["failed"])
+	}
+	for _, row := range rows(t, out["audits"], "audits") {
+		if _, timed := row["took_s"].(float64); timed == (row["skipped"] == true) || row["failed"] != nil {
+			t.Errorf("row %v: a row that ran is timed, a skipped one is not, and none failed", row)
+		}
 	}
 	if len(counts) != len(want)+5 {
 		t.Errorf("audits = %v, want %d rows", counts, len(want)+5)
@@ -846,6 +1060,17 @@ func TestAuditAll(t *testing.T) {
 			continue
 		}
 		ran[name] = true
+		// the spaces in the artists', albums' and tracks' names and folders,
+		// of which there are none out of place
+		if name == "audit_whitespace" {
+			own := call(t, name, map[string]any{"library": "Music"})
+			if items := artists() + musicAlbums() + songs(); num(t, row["findings"], "findings") != 0 || num(t, row["items_scanned"], "items_scanned") != items ||
+				num(t, own["total_findings"], name) != 0 || num(t, own["items_scanned"], name) != items {
+				t.Errorf("Music %s = %v and on its own %v, want the %d artists, albums and songs read and nothing found", name, row, own, items)
+			}
+
+			continue
+		}
 		want, applies := map[string]int{"audit_missing_poster": covers, "audit_spelling": 1}[name]
 		switch {
 		case !applies:
@@ -859,8 +1084,8 @@ func TestAuditAll(t *testing.T) {
 			t.Errorf("Music %s: audit_all counted %v of %v, the audit %v of %v", name, row["findings"], row["items_scanned"], own["total_findings"], own["items_scanned"])
 		}
 	}
-	if !ran["audit_missing_poster"] || !ran["audit_spelling"] || len(ran) != 2 {
-		t.Errorf("over Music audit_all ran %v, want the covers and the spellings", ran)
+	if !ran["audit_missing_poster"] || !ran["audit_spelling"] || !ran["audit_whitespace"] || len(ran) != 3 {
+		t.Errorf("over Music audit_all ran %v, want the covers, the spellings and the spaces", ran)
 	}
 	if num(t, music["total_findings"], "total_findings") != covers+1 {
 		t.Errorf("Music total_findings = %v, want the %d albums with no cover and the one spelling", music["total_findings"], covers)
@@ -903,6 +1128,7 @@ func TestAuditAll(t *testing.T) {
 		"audit_quality":                   messyEpisodesJudged() - 1,
 		"audit_missing_episodes":          3, // Andor, Deep Space Nine and The Next Generation
 		"audit_spelling":                  1,
+		"audit_whitespace":                2, // the Knight pair's renamed folder, and the show named from it
 	} {
 		n0, ok := shows[audit]
 		if !ok || n0 != n {
@@ -923,7 +1149,7 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 		"audit_all", "audit_anime_ids", "audit_disc_folders", "audit_duplicate_episodes", "audit_duplicate_series", "audit_duplicates", "audit_file_path", "audit_language",
 		"audit_missing_episodes", "audit_missing_metadata_provider", "audit_missing_overview",
 		"audit_missing_poster", "audit_multiple_versions", "audit_orphans", "audit_provider", "audit_quality", "audit_runtime", "audit_spelling",
-		"audit_unwatched",
+		"audit_unwatched", "audit_whitespace",
 	}
 	slices.Sort(got)
 	if !slices.Equal(got, want) {

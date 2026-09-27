@@ -147,7 +147,7 @@ type BaseItemDto struct {
 	ImageTags map[string]string `json:"ImageTags,omitzero"`
 
 	// Gets or sets the index number.
-	IndexNumber int `json:"IndexNumber,omitempty"`
+	IndexNumber *int `json:"IndexNumber,omitempty"`
 
 	// Gets or sets the index number end.
 	IndexNumberEnd int `json:"IndexNumberEnd,omitempty"`
@@ -252,7 +252,7 @@ type BaseItemDto struct {
 	ParentId string `json:"ParentId,omitempty"`
 
 	// Gets or sets the parent index number.
-	ParentIndexNumber int `json:"ParentIndexNumber,omitempty"`
+	ParentIndexNumber *int `json:"ParentIndexNumber,omitempty"`
 
 	// Gets or sets the parent logo image tag.
 	ParentLogoImageTag string `json:"ParentLogoImageTag,omitempty"`

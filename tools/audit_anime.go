@@ -38,7 +38,7 @@ func heldSpecials(ctx context.Context, client *embyfin.Client, seriesID string) 
 	if err != nil {
 		return nil, err
 	}
-	i := slices.IndexFunc(seasons, func(s embyfin.Item) bool { return s.IndexNumber == 0 })
+	i := slices.IndexFunc(seasons, func(s embyfin.Item) bool { return s.IndexNumber != nil && *s.IndexNumber == 0 })
 	if i < 0 {
 		return nil, nil
 	}
@@ -184,6 +184,7 @@ func registerAnimeAudit(r *registry) {
 		TotalDisagree int           `json:"total_ids_disagree"`
 		TotalSplit    int           `json:"total_split_out"`
 		TotalSeparate int           `json:"total_kept_separate"`
+		Note          string        `json:"note,omitempty"      jsonschema:"set when the library was seen to change while its series were read: series added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 
 	add(r, readTool, &mcp.Tool{
@@ -209,15 +210,16 @@ func registerAnimeAudit(r *registry) {
 			opts.ParentID = folder.ItemID
 		}
 		var series []embyfin.Item
-		if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+		read, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 			series = append(series, items...)
 
 			return true
-		}); err != nil {
+		})
+		if err != nil {
 			return nil, animeOut{}, err
 		}
 
-		out := animeOut{Source: lists.Source(), Entries: list.Len(), Scanned: len(series)}
+		out := animeOut{Source: lists.Source(), Entries: list.Len(), Scanned: len(series), Note: read.Changed()}
 		heldAs := map[string]string{} // AniDB id to the series holding it as its own
 		for i := range series {
 			if aid := providerID(&series[i], "anidb"); aid != "" {
@@ -280,8 +282,9 @@ func registerAnimeAudit(r *registry) {
 				runtime := int(s.RunTimeTicks / ticksPerSecond)
 				return runtime != 0 && runtime < minSpecialS
 			})
+			// a special with no number of its own sits at none
 			for _, s := range specials {
-				for n := s.IndexNumber; n <= max(s.IndexNumber, s.IndexNumberEnd); n++ {
+				for _, n := range episodeSpan(&s) {
 					held[n] = true
 				}
 			}
@@ -293,9 +296,9 @@ func registerAnimeAudit(r *registry) {
 				numbers := place.in(held)
 				row := animeSplit{SeriesID: it.ID, Series: it.Name, AniDB: entryName(e), Where: place.where, HeldAlso: heldAs[e.AniDB], Specials: []animeSpecial{}}
 				for _, s := range specials {
-					last := max(s.IndexNumber, s.IndexNumberEnd)
-					if slices.ContainsFunc(numbers, func(n int) bool { return n >= s.IndexNumber && n <= last }) {
-						row.Specials = append(row.Specials, animeSpecial{ID: s.ID, Episode: s.IndexNumber, Name: s.Name, RuntimeS: int(s.RunTimeTicks / ticksPerSecond)})
+					span := episodeSpan(&s)
+					if slices.ContainsFunc(numbers, func(n int) bool { return slices.Contains(span, n) }) {
+						row.Specials = append(row.Specials, animeSpecial{ID: s.ID, Episode: span[0], Name: s.Name, RuntimeS: int(s.RunTimeTicks / ticksPerSecond)})
 					}
 				}
 				if len(row.Specials) > 0 {

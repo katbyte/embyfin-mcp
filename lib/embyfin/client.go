@@ -26,8 +26,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
@@ -55,6 +57,10 @@ type Client struct {
 	// items serialises this process's changes to one item (an item's
 	// metadata, a playlist's entries): see keyedLocks
 	items keyedLocks
+	// admin is the id of an account that sees everything, chosen once, for
+	// the reads only a user's view answers (see FullViewerID)
+	adminMu sync.Mutex
+	admin   string
 }
 
 func New(backend Backend, baseURL, token string) (*Client, error) {
@@ -80,6 +86,7 @@ func New(backend Backend, baseURL, token string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.base().Retry = readRetry
 
 	return c, nil
 }
@@ -103,6 +110,39 @@ func (c *Client) BaseURL() string { return c.baseURL }
 // isEmby reports whether the client talks to Emby; the other branch of every
 // method is Jellyfin.
 func (c *Client) isEmby() bool { return c.backend == Emby }
+
+// readRetry is how a read is sent again when the server, or the reverse
+// proxy in front of it, answers 502, 503 or 504, or drops the connection:
+// four tries in all, two, four and eight seconds apart. A sweep of a large
+// library is thousands of reads over hours, and one gateway hiccup failed all
+// of it (seen against a real Emby behind a proxy: a 502 after nearly three
+// hours). A write or a delete is never sent again (see apiclient.Retry).
+var readRetry = apiclient.Retry{Tries: 4, Wait: apiclient.Backoff(2 * time.Second)}
+
+// base is the shared client the typed one sends through.
+func (c *Client) base() *apiclient.Client {
+	if c.isEmby() {
+		return c.emby.Client
+	}
+
+	return c.jf.Client
+}
+
+// LooksLikeID says whether s is shaped like the server's item ids: Emby
+// numbers its items, and Jellyfin gives them Guids (32 hex digits, or 36
+// with the dashes). Emby answers an id of another shape with a 500
+// ("Unrecognized Guid format"), so a name is not asked after as an id.
+func (c *Client) LooksLikeID(s string) bool {
+	if s == "" {
+		return false
+	}
+	if c.isEmby() {
+		return strings.Trim(s, "0123456789") == ""
+	}
+	hex := strings.ReplaceAll(s, "-", "")
+
+	return (len(s) == 32 || len(s) == 36 && len(hex) == 32) && strings.Trim(strings.ToLower(hex), "0123456789abcdef") == ""
+}
 
 // list splits a comma-separated option into the typed slice a Jellyfin
 // parameter takes (the typed client joins it back with commas on the wire).

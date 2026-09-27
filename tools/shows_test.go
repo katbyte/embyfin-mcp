@@ -42,6 +42,9 @@ type ep struct {
 	alt string
 	// width and height are the file's frame, 1920x1080 when not given
 	width, height int
+	// noSeason and noNumber leave out the numbers the server holds none of:
+	// a file named without SxxEyy, which Jellyfin holds with neither
+	noSeason, noNumber bool
 }
 
 // fakeSeries is one series the canned server holds.
@@ -50,6 +53,8 @@ type ep struct {
 
 type fakeSeries struct {
 	id, name string
+	// original is the title the series was first made under, when not its name
+	original string
 	year     int
 	ids      map[string]string
 	episodes []ep
@@ -68,13 +73,14 @@ type fakeSeries struct {
 type wireItem struct {
 	ID                string            `json:"Id"`
 	Name              string            `json:"Name"`
+	OriginalTitle     string            `json:"OriginalTitle,omitempty"`
 	Type              string            `json:"Type"`
 	Path              string            `json:"Path,omitempty"`
 	ProviderIDs       map[string]string `json:"ProviderIds,omitempty"`
 	SeriesName        string            `json:"SeriesName,omitempty"`
 	SeriesID          string            `json:"SeriesId,omitempty"`
-	ParentIndexNumber int               `json:"ParentIndexNumber,omitempty"`
-	IndexNumber       int               `json:"IndexNumber,omitempty"`
+	ParentIndexNumber *int              `json:"ParentIndexNumber,omitempty"`
+	IndexNumber       *int              `json:"IndexNumber,omitempty"`
 	IndexNumberEnd    int               `json:"IndexNumberEnd,omitempty"`
 	LocationType      string            `json:"LocationType,omitempty"`
 	DateCreated       string            `json:"DateCreated,omitempty"`
@@ -83,9 +89,34 @@ type wireItem struct {
 	ProductionYear    int               `json:"ProductionYear,omitempty"`
 	RunTimeTicks      int64             `json:"RunTimeTicks,omitempty"`
 	MediaSources      []wireSource      `json:"MediaSources,omitempty"`
+	MediaSourceCount  int               `json:"MediaSourceCount,omitempty"`
+}
+
+// asked keeps what a read's Fields asked for, as the servers do: the media
+// sources only when named, and on Jellyfin how many files an item is held in
+// when that is more than one and asked for. A fake answering every field
+// whatever was asked hides a read that forgot to ask.
+func asked(rows []wireItem, q url.Values, jellyfin bool) []wireItem {
+	fields := strings.Split(param(q, "Fields"), ",")
+	out := make([]wireItem, 0, len(rows))
+	for _, it := range rows {
+		if jellyfin && slices.Contains(fields, "MediaSourceCount") && len(it.MediaSources) > 1 {
+			it.MediaSourceCount = len(it.MediaSources)
+		}
+		if !slices.Contains(fields, "MediaSources") {
+			it.MediaSources = nil
+		}
+		out = append(out, it)
+	}
+
+	return out
 }
 
 type wireSource struct {
+	// a version's own id: Emby names it ItemId, Jellyfin Id
+	ID           string       `json:"Id,omitempty"`
+	ItemID       string       `json:"ItemId,omitempty"`
+	Name         string       `json:"Name,omitempty"`
 	Path         string       `json:"Path,omitempty"`
 	Container    string       `json:"Container"`
 	Size         int64        `json:"Size"`
@@ -127,7 +158,7 @@ func (s *fakeSeries) item() wireItem {
 		}
 	}
 
-	return wireItem{ID: s.id, Name: s.name, Type: "Series", Path: cmp.Or(s.path, "/media/shows/"+s.name), ProviderIDs: s.ids, ProductionYear: s.year}
+	return wireItem{ID: s.id, Name: s.name, OriginalTitle: s.original, Type: "Series", Path: cmp.Or(s.path, "/media/shows/"+s.name), ProviderIDs: s.ids, ProductionYear: s.year}
 }
 
 // items spells a series' episodes the way the server answers them, with the
@@ -142,8 +173,8 @@ func (s *fakeSeries) items() []wireItem {
 			Path:              e.path,
 			SeriesName:        s.name,
 			SeriesID:          s.id,
-			ParentIndexNumber: e.season,
-			IndexNumber:       e.number,
+			ParentIndexNumber: new(e.season),
+			IndexNumber:       new(e.number),
 			IndexNumberEnd:    e.number2,
 			LocationType:      "FileSystem",
 			RunTimeTicks:      int64(cmp.Or(e.minutes, 30)) * 600_000_000,
@@ -151,13 +182,23 @@ func (s *fakeSeries) items() []wireItem {
 			DateModified:      "2026-09-17T22:30:00.0000000Z",
 			PremiereDate:      e.premiere,
 		}
+		if e.noSeason {
+			it.ParentIndexNumber = nil
+		}
+		if e.noNumber {
+			it.IndexNumber = nil
+		}
 		if e.missing {
 			it.LocationType = "Virtual"
 		}
 		if e.path != "" && !e.missing {
-			it.MediaSources = []wireSource{probedSource(e.path, cmp.Or(e.width, 1920), cmp.Or(e.height, 1080), 700<<20)}
+			own := probedSource(e.path, cmp.Or(e.width, 1920), cmp.Or(e.height, 1080), 700<<20)
+			own.ID, own.ItemID = it.ID, it.ID
+			it.MediaSources = []wireSource{own}
 			if e.alt != "" {
-				it.MediaSources = append(it.MediaSources, probedSource(e.alt, 1280, 720, 350<<20))
+				alt := probedSource(e.alt, 1280, 720, 350<<20)
+				alt.ID, alt.ItemID, alt.Name = it.ID+"-alt", it.ID+"-alt", "720p"
+				it.MediaSources = append(it.MediaSources, alt)
 			}
 		}
 		out = append(out, it)
@@ -231,13 +272,13 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		}
 		if season := param(r.URL.Query(), "Season"); season != "" {
 			n, _ := strconv.Atoi(season)
-			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.ParentIndexNumber != n })
+			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.ParentIndexNumber == nil || *it.ParentIndexNumber != n })
 		}
 		if jellyfin {
 			want := r.URL.Query().Get("isMissing") == "true"
 			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return (it.LocationType == "Virtual") != want })
 		}
-		writeJSON(t, w, map[string]any{"Items": rows, "TotalRecordCount": len(rows)})
+		writeJSON(t, w, map[string]any{"Items": asked(rows, r.URL.Query(), jellyfin), "TotalRecordCount": len(rows)})
 	})
 
 	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
@@ -266,7 +307,9 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		// a season by number, as both servers take it on a search
 		if season := param(q, "ParentIndexNumber"); season != "" {
 			n, _ := strconv.Atoi(season)
-			rows = slices.DeleteFunc(rows, func(it wireItem) bool { return it.Type != "Episode" || it.ParentIndexNumber != n })
+			rows = slices.DeleteFunc(rows, func(it wireItem) bool {
+				return it.Type != "Episode" || it.ParentIndexNumber == nil || *it.ParentIndexNumber != n
+			})
 		}
 		// a series as the parent is its own episodes; the library is all of them
 		if parent := param(q, "ParentId"); parent != "" && parent != "lib" {
@@ -276,10 +319,10 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 			if c := strings.Compare(a.SeriesName, b.SeriesName); c != 0 {
 				return c
 			}
-			if c := a.ParentIndexNumber - b.ParentIndexNumber; c != 0 {
+			if c := compareNumbers(a.ParentIndexNumber, b.ParentIndexNumber); c != 0 {
 				return c
 			}
-			return a.IndexNumber - b.IndexNumber
+			return compareNumbers(a.IndexNumber, b.IndexNumber)
 		})
 
 		total := len(rows)
@@ -291,7 +334,7 @@ func tvServerFor(t *testing.T, jellyfin bool, series ...*fakeSeries) *fakeServer
 		if limit, _ := strconv.Atoi(param(q, "Limit")); limit > 0 && limit < len(rows) {
 			rows = rows[:limit]
 		}
-		writeJSON(t, w, map[string]any{"Items": rows, "TotalRecordCount": total})
+		writeJSON(t, w, map[string]any{"Items": asked(rows, q, jellyfin), "TotalRecordCount": total})
 	})
 
 	return f
@@ -616,6 +659,33 @@ func TestShowMissingReadsTheWholeRun(t *testing.T) {
 	if reason := text(out["reason"]); reason != "" {
 		t.Errorf("an answered question carries a reason: %q", reason)
 	}
+	// the run is TMDB's aired order, and the files hold nothing it lacks
+	if text(out["order"]) != "TMDB aired order" || out["held_not_in_run"] != nil || out["warning"] != nil {
+		t.Errorf("order %v, held_not_in_run %v, warning %v", out["order"], out["held_not_in_run"], out["warning"])
+	}
+}
+
+// Files numbered another way than TMDB's aired order - TVDB's, which Sonarr
+// names files by - were compared with it number by number, and the answer
+// was supported with a missing list and nothing to say it might be wrong.
+// A held number the run has no episode for is the sign, and it is said.
+func TestShowMissingSaysWhenTheFilesAreNumberedAnotherWay(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.episodes = append(s.episodes, ep{season: 1, number: 12, name: "Twelve", path: "/media/shows/Severance/Season 01/S01E12.mkv"}, ep{season: 0, number: 3, name: "Special", path: "/media/shows/Severance/Specials/S00E03.mkv"})
+	run := map[int][]string{1: {"Good News About Hell", "Half Loop", "In Perpetuity"}}
+	out := mustCall(t, session(t, tvServer(t, s), Options{TMDBKey: "k", ProviderTransport: guideServer(t, run, aired2022)}), "show_missing", map[string]any{"series_id": "sev"})
+	if !boolean(t, out["supported"], "supported") || !slices.Equal(codes(t, out["missing"], "missing"), []string{"S01E03"}) {
+		t.Fatalf("show_missing = %v", out)
+	}
+	// the special is no part of a run
+	if got := codes(t, out["held_not_in_run"], "held_not_in_run"); !slices.Equal(got, []string{"S01E12"}) {
+		t.Errorf("held_not_in_run = %v, want S01E12", got)
+	}
+	if w := text(out["warning"]); !strings.Contains(w, "the files hold S01E12, which TMDB's aired order has no episode for") {
+		t.Errorf("warning = %q", w)
+	}
 }
 
 // A complete series says so with supported and an empty list, which is a
@@ -877,26 +947,32 @@ func TestShowMissingReadsTheServersRecordsByTheSameRules(t *testing.T) {
 }
 
 // A special is season 0 and a film has no season: the one is said, the other
-// left out, so a 0 is never the absence of a number.
+// left out, so a 0 is never the absence of a number. An episode or a season
+// the server holds no number for says none either: it is not the specials.
 func TestSummariesSayASpecialIsSeasonZero(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
 		item          embyfin.Item
 		season        *int
-		episode       int
+		episode       *int
 		name, because string
 	}{
-		{embyfin.Item{Type: "Episode", ParentIndexNumber: 0, IndexNumber: 3}, new(0), 3, "special", "a special is season 0"},
-		{embyfin.Item{Type: "Episode", ParentIndexNumber: 2, IndexNumber: 5}, new(2), 5, "episode", "an episode has its season"},
-		{embyfin.Item{Type: "Season", IndexNumber: 0}, new(0), 0, "specials", "the specials are season 0, and not episode anything"},
-		{embyfin.Item{Type: "Season", IndexNumber: 4}, new(4), 0, "season", "a season's number is its season, not an episode"},
-		{embyfin.Item{Type: "Movie"}, nil, 0, "film", "a film has no season at all"},
-		{embyfin.Item{Type: "Series"}, nil, 0, "series", "nor does a series"},
+		{embyfin.Item{Type: "Episode", ParentIndexNumber: new(0), IndexNumber: new(3)}, new(0), new(3), "special", "a special is season 0"},
+		{embyfin.Item{Type: "Episode", ParentIndexNumber: new(2), IndexNumber: new(5)}, new(2), new(5), "episode", "an episode has its season"},
+		{embyfin.Item{Type: "Episode", ParentIndexNumber: new(1), IndexNumber: new(0)}, new(1), new(0), "episode 0", "an episode numbered 0 says so"},
+		{embyfin.Item{Type: "Episode"}, nil, nil, "unnumbered", "an episode the server holds no numbers for is not the specials, nor episode 0"},
+		{embyfin.Item{Type: "Episode", ParentIndexNumber: new(0)}, new(0), nil, "unnumbered special", "a special with no number of its own is not special 0"},
+		{embyfin.Item{Type: "Season", IndexNumber: new(0)}, new(0), nil, "specials", "the specials are season 0, and not episode anything"},
+		{embyfin.Item{Type: "Season", IndexNumber: new(4)}, new(4), nil, "season", "a season's number is its season, not an episode"},
+		{embyfin.Item{Type: "Season"}, nil, nil, "season unknown", "a season the server holds no number for is not the specials"},
+		{embyfin.Item{Type: "Movie"}, nil, nil, "film", "a film has no season at all"},
+		{embyfin.Item{Type: "Series"}, nil, nil, "series", "nor does a series"},
 	} {
 		got := summarise(&tc.item)
-		if (got.Season == nil) != (tc.season == nil) || (got.Season != nil && *got.Season != *tc.season) || got.Episode != tc.episode {
-			t.Errorf("%s: season %v episode %d: %s", tc.name, got.Season, got.Episode, tc.because)
+		same := func(a, b *int) bool { return (a == nil) == (b == nil) && (a == nil || *a == *b) }
+		if !same(got.Season, tc.season) || !same(got.Episode, tc.episode) {
+			t.Errorf("%s: season %v episode %v: %s", tc.name, got.Season, got.Episode, tc.because)
 		}
 	}
 

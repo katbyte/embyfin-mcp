@@ -153,6 +153,10 @@ type Field struct {
 	Description string  `json:"Description,omitempty"`
 	Type        TypeRef `json:"Type"`
 	Nullable    bool    `json:"Nullable,omitempty"`
+	// KeepsNull makes the generated field a pointer, so the document's null
+	// is told from the number's zero: the fields the service config names
+	// in KeepNull. Every other number is held by value.
+	KeepsNull bool `json:"KeepsNull,omitempty"`
 }
 
 // Constant is a string enum.
@@ -218,6 +222,12 @@ func (t TypeRef) String() string {
 
 // Equal reports whether two types are the same.
 func (t TypeRef) Equal(o TypeRef) bool { return t.String() == o.String() }
+
+// Numeric reports whether the type is a number: an integer or a float of
+// either size.
+func (t TypeRef) Numeric() bool {
+	return t.Type == Integer || t.Type == Integer64 || t.Type == Float || t.Type == Double
+}
 
 // Operations returns every operation of the service.
 func (s *Service) Operations() []*Operation {

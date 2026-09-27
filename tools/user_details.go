@@ -75,7 +75,7 @@ func registerUserDetailTools(r *registry) {
 		RemoteAccess      bool     `json:"remote_access"                 jsonschema:"may connect from outside the local network"`
 		Libraries         []string `json:"libraries"                     jsonschema:"the libraries the account can see; every library when all_libraries"`
 		AllLibraries      bool     `json:"all_libraries"`
-		MaxParentalRating int      `json:"max_parental_rating,omitempty" jsonschema:"the server's rating value above which items are hidden; absent when nothing is"`
+		MaxParentalRating *int     `json:"max_parental_rating,omitempty" jsonschema:"the server's rating score above which items are hidden, absent when nothing is hidden by rating. 0 is a limit, not none: Jellyfin scores G, TV-G and TV-Y 0, so an account held to those reads 0"`
 		LastLogin         string   `json:"last_login,omitempty"`
 		LastActivity      string   `json:"last_activity,omitempty"`
 		// how the account wants playback, which decides whether a file whose
@@ -142,6 +142,7 @@ func registerUserDetailTools(r *registry) {
 		TopGenres       []valueCount `json:"top_genres"       jsonschema:"across the films and series watched, a series once"`
 		TopSeries       []seriesRow  `json:"top_series"       jsonschema:"most episodes watched, top 10"`
 		MostPlayed      []playsRow   `json:"most_played"      jsonschema:"highest play counts, top 10: a play through and a mark as watched each count one, on both servers"`
+		Note            string       `json:"note,omitempty"   jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing from the numbers, or counted though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "user_stats",
@@ -172,7 +173,8 @@ func registerUserDetailTools(r *registry) {
 		// Jellyfin marks the one copy watched, and the others come first in
 		// the sweep as often as not
 		played, favourited, inProgress := titles{}, titles{}, titles{}
-		if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+		var reads []embyfin.ReadResult
+		swept, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 			for i := range items {
 				it := &items[i]
 				if it.UserData == nil {
@@ -208,9 +210,11 @@ func registerUserDetailTools(r *registry) {
 				}
 			}
 			return true
-		}); err != nil {
+		})
+		if err != nil {
 			return nil, statsOut{}, err
 		}
+		reads = append(reads, swept)
 		out.HoursWatched = math.Round(float64(ticks)/ticksPerMinute/60*10) / 10
 
 		// the series watched, for their names, genres and whether any
@@ -220,7 +224,7 @@ func registerUserDetailTools(r *registry) {
 		// a batch at a time: see idsPerRequest
 		ids := slices.Sorted(maps.Keys(episodes))
 		for batch := range slices.Chunk(ids, idsPerRequest) {
-			if err := client.SearchAll(ctx, embyfin.SearchOptions{IDs: strings.Join(batch, ","), IncludeItemTypes: "Series", UserID: u.ID, EnableUserData: true, Fields: "Path,Genres"}, func(items []embyfin.Item) bool {
+			shows, serr := client.ReadAll(ctx, embyfin.SearchOptions{IDs: strings.Join(batch, ","), IncludeItemTypes: "Series", UserID: u.ID, EnableUserData: true, Fields: "Path,Genres"}, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 				for i := range items {
 					s := &items[i]
 					finished := s.UserData != nil && s.UserData.UnplayedItemCount == 0
@@ -233,9 +237,11 @@ func registerUserDetailTools(r *registry) {
 					series = append(series, seriesRow{Name: s.Name, Watched: episodes[s.ID], Finished: finished})
 				}
 				return true
-			}); err != nil {
-				return nil, statsOut{}, err
+			})
+			if serr != nil {
+				return nil, statsOut{}, serr
 			}
+			reads = append(reads, shows)
 		}
 
 		out.TopGenres = sortedCounts(genres)
@@ -253,6 +259,7 @@ func registerUserDetailTools(r *registry) {
 			return strings.Compare(a.Name, b.Name)
 		})
 		out.MostPlayed = plays[:min(len(plays), 10)]
+		out.Note = changedNote(reads...)
 
 		return nil, out, nil
 	})

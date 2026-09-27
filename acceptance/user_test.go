@@ -374,6 +374,7 @@ func createUser(t *testing.T, name string) string {
 }
 
 func TestUserGet(t *testing.T) {
+	noLeftoverLibraries(t)
 	root := call(t, "user_get", nil)
 	if str(root["name"]) != "root" || str(root["id"]) != os.Getenv("EMBYFIN_TEST_ADMIN_ID") || !boolOf(root["admin"]) || !boolOf(root["all_libraries"]) || !boolOf(root["has_password"]) || boolOf(root["disabled"]) {
 		t.Errorf("user_get (the default) = %v", root)

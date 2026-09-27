@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // rewrite is a transport that sends every request to a local server in place
@@ -43,6 +44,8 @@ func newTMDB(t *testing.T, handle http.HandlerFunc) (facts *Facts, calls *int32)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// tried again as NewFacts does, without the waits
+	facts.api.Client.HTTPClient = &http.Client{Timeout: 5 * time.Second, Transport: retrying{next: rewrite{target}, pauses: make([]time.Duration, len(retryPauses)), attempt: 5 * time.Second}}
 
 	return facts, calls
 }
@@ -336,19 +339,20 @@ func TestFind(t *testing.T) {
 	}
 }
 
-// A failure TMDB answers once (a 502 on a bad minute) is reported and not
-// remembered: the next ask goes to TMDB again and gets the film, which is
-// then remembered like any other.
+// A failure TMDB keeps answering (a 502 through every retry, a bad few
+// seconds) is reported and not remembered: the next ask goes to TMDB again
+// and gets the film, which is then remembered like any other.
 func TestMovieDoesNotRememberAFailure(t *testing.T) {
 	t.Parallel()
 
 	var asked atomic.Int32
+	tries := len(retryPauses) + 1
 	c, calls := newTMDB(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/3/movie/1" {
 			http.NotFound(w, r)
 			return
 		}
-		if asked.Add(1) == 1 {
+		if int(asked.Add(1)) <= tries {
 			http.Error(w, "down", http.StatusBadGateway)
 			return
 		}
@@ -362,13 +366,86 @@ func TestMovieDoesNotRememberAFailure(t *testing.T) {
 	if err != nil || m.ID != 1 || m.Title != "Zzyzx" || m.Year() != 2001 || m.Runtime != 90 {
 		t.Fatalf("the second ask = %+v, %v, want the film", m, err)
 	}
-	if n := atomic.LoadInt32(calls); n != 2 {
-		t.Errorf("TMDB was asked %d times, want 2 (the failure and the answer)", n)
+	if n := int(atomic.LoadInt32(calls)); n != tries+1 {
+		t.Errorf("TMDB was asked %d times, want %d (every try of the failure, and the answer)", n, tries+1)
 	}
 	if minutes, err := c.MovieRuntime(t.Context(), "1"); err != nil || minutes != 90 {
 		t.Errorf("runtime after the answer = %d, %v", minutes, err)
 	}
-	if n := atomic.LoadInt32(calls); n != 2 {
+	if n := int(atomic.LoadInt32(calls)); n != tries+1 {
 		t.Errorf("the answer was not remembered: %d calls", n)
+	}
+}
+
+// An answer is kept for an hour and no longer: TMDB lists an episode once it
+// is announced, and a session that ran all day was answered from its first
+// read of a series all day. A clock moved past the hour asks again.
+func TestAnswersAreKeptForAnHour(t *testing.T) {
+	t.Parallel()
+
+	c, calls := newTMDB(t, tvHandler(t, "63639", map[int]int{1: 2}))
+	now := time.Date(2026, 9, 25, 12, 0, 0, 0, time.UTC)
+	c.now = func() time.Time { return now }
+
+	ask := func() {
+		t.Helper()
+		if _, err := c.SeriesEpisodes(t.Context(), "63639"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.SeriesID(t.Context(), "tvdb_id", "371980"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ask()
+	// the series, its one season, and the find
+	if n := atomic.LoadInt32(calls); n != 3 {
+		t.Fatalf("the first ask cost %d requests, want 3", n)
+	}
+	now = now.Add(factsTTL - time.Minute)
+	ask()
+	if n := atomic.LoadInt32(calls); n != 3 {
+		t.Errorf("an answer under an hour old was read again: %d requests", n)
+	}
+	now = now.Add(2 * time.Minute)
+	ask()
+	if n := atomic.LoadInt32(calls); n != 6 {
+		t.Errorf("an answer over an hour old was trusted: %d requests, want 6", n)
+	}
+}
+
+// The specials are season 0, read only when asked for and only when TMDB
+// lists a season 0; the run never holds them.
+func TestSeriesSpecials(t *testing.T) {
+	t.Parallel()
+
+	c, calls := newTMDB(t, tvHandler(t, "95396", map[int]int{0: 2, 1: 1}))
+	specials, err := c.SeriesSpecials(t.Context(), "95396")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(specials) != 2 {
+		t.Fatalf("specials = %v, want the two", specials)
+	}
+	for i, e := range specials {
+		if want := (Episode{Season: 0, Episode: i + 1, Name: fmt.Sprintf("S0E%d", i+1), AirDate: fmt.Sprintf("2022-01-%02d", i+1)}); e != want {
+			t.Errorf("special %d = %v, want %v", i+1, e, want)
+		}
+	}
+	run, err := c.SeriesEpisodes(t.Context(), "95396")
+	if err != nil || len(run) != 1 || run[0].Season != 1 {
+		t.Errorf("run = %v, %v, want season 1 alone", run, err)
+	}
+	// the series, season 1, then season 0; the run after is remembered
+	if n := atomic.LoadInt32(calls); n != 3 {
+		t.Errorf("TMDB was asked %d times, want 3", n)
+	}
+
+	// no season 0 listed: nothing, and no read of it
+	c, calls = newTMDB(t, tvHandler(t, "95396", map[int]int{1: 1}))
+	if specials, err := c.SeriesSpecials(t.Context(), "95396"); err != nil || len(specials) != 0 {
+		t.Errorf("a series without specials = %v, %v", specials, err)
+	}
+	if n := atomic.LoadInt32(calls); n != 2 {
+		t.Errorf("TMDB was asked %d times for a series with no season 0, want 2", n)
 	}
 }

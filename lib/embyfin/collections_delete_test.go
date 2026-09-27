@@ -172,3 +172,29 @@ func recentCollectionDelete(t *testing.T, slow bool) (seen CollectionDelete, del
 
 	return seen, deletes, searches
 }
+
+// A delete the server refuses, and a read of whether the collection is still
+// there that fails too: whether it went is not known, and the error says so
+// rather than reporting the refusal alone. A delete that landed and a watch
+// that failed after it says the collection was deleted.
+func TestDeleteCollectionSaysWhatItCouldNotRead(t *testing.T) {
+	t.Parallel()
+
+	c, _ := newFake(t, Emby, map[string]route{
+		"DELETE /Items/c1": answer(http.StatusInternalServerError, "the item is locked"),
+		"GET /Items":       answer(http.StatusInternalServerError, "the database is locked"),
+	})
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
+	if _, err := c.DeleteCollection(t.Context(), "c1"); err == nil || !strings.Contains(err.Error(), "reading whether the collection is still there failed, so it may or may not be gone") {
+		t.Errorf("a refused delete, unread = %v", err)
+	}
+
+	c, _ = newFake(t, Emby, map[string]route{
+		"DELETE /Items/c1": noContent,
+		"GET /Items":       answer(http.StatusInternalServerError, "the database is locked"),
+	})
+	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
+	if _, err := c.DeleteCollection(t.Context(), "c1"); err == nil || !strings.Contains(err.Error(), "the collection was deleted, but reading whether it came back failed") {
+		t.Errorf("a delete watched with failing reads = %v", err)
+	}
+}

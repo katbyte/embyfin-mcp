@@ -3,8 +3,10 @@ package embyfin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -24,11 +26,16 @@ type MediaStream struct {
 	Channels     int    `json:"Channels,omitempty"`
 	DisplayTitle string `json:"DisplayTitle,omitempty"`
 	IsExternal   bool   `json:"IsExternal,omitempty"`
+	// IsForced marks a subtitle track that shows only the lines in another
+	// language than the audio's (signs, a foreign-language scene): it is not
+	// subtitles a viewer can follow the whole film by. Both servers read it
+	// off the file's flag and off ".forced" in an external file's name.
+	IsForced bool `json:"IsForced,omitempty"`
 
-	// FrameRate is the video's frames per second, which is the one fact
-	// about a file a release cannot inflate: a scripted drama at 59.94 or 60
-	// was interpolated from a 23.976 master by something, because no
-	// broadcast or disc master of one ships at 60p.
+	// FrameRate is the video's frames per second. A film or a scripted drama
+	// at 59.94 or 60 was most likely interpolated from a 23.976 master; sport,
+	// much broadcast TV and some documentaries are shot at 50 or 60, so it is
+	// a lead, not proof.
 	FrameRate float32 `json:"AverageFrameRate,omitempty"`
 	// ColourTransfer and ColourPrimaries say whether the file claims HDR
 	// (smpte2084, arib-std-b67 / bt2020). Claimed on a source that cannot
@@ -38,11 +45,19 @@ type MediaStream struct {
 	ColourPrimaries string `json:"ColorPrimaries,omitempty"`
 	// VideoRange and VideoRangeType are the servers' own reading: "SDR",
 	// "HDR" (Emby 4.10 writes "HDR 10" for a file tagged with HDR10's
-	// colours), and on Jellyfin the narrower "HDR10", "HLG", "DOVI",
-	// "DOVIWithHDR10". Emby answers only the first. Both are empty when the
-	// server has not probed the file, which is not the same as SDR.
+	// colours), and on Jellyfin the narrower "HDR10", "HDR10Plus", "HLG",
+	// "DOVI", "DOVIWithHDR10" and the rest of its Dolby Vision kinds. Emby
+	// answers only the first. Both are empty when the server has not probed
+	// the file, which is not the same as SDR.
 	VideoRange     string `json:"VideoRange,omitempty"`
 	VideoRangeType string `json:"VideoRangeType,omitempty"`
+	// ExtendedVideoType and ExtendedVideoSubType are Emby's narrower reading
+	// (Jellyfin has neither): "None", "Hdr10", "Hdr10Plus", "HyperLogGamma"
+	// or "DolbyVision", and for Dolby Vision its profile and the base layer a
+	// player without it falls back to ("DoviProfile81" is profile 8.1, an
+	// HDR10 base).
+	ExtendedVideoType    string `json:"ExtendedVideoType,omitempty"`
+	ExtendedVideoSubType string `json:"ExtendedVideoSubType,omitempty"`
 	// AspectRatio is the shape the picture is meant to be shown at, as the
 	// server read it from the file ("16:9", "4:3"), which the stored frame
 	// does not always say: a DVD rip is 720x480 or 720x576 whether it is
@@ -132,14 +147,19 @@ type UserData struct {
 }
 
 type Item struct {
-	ID             string `json:"Id"`
-	Name           string `json:"Name"`
-	OriginalTitle  string `json:"OriginalTitle,omitempty"`
-	SortName       string `json:"SortName,omitempty"` // only answered when asked for (Fields=SortName)
-	Type           string `json:"Type"`               // Movie, Series, Episode...
-	ProductionYear int    `json:"ProductionYear,omitempty"`
-	PremiereDate   string `json:"PremiereDate,omitempty"`
-	DateCreated    string `json:"DateCreated,omitempty"`
+	ID            string `json:"Id"`
+	Name          string `json:"Name"`
+	OriginalTitle string `json:"OriginalTitle,omitempty"`
+	SortName      string `json:"SortName,omitempty"` // only answered when asked for (Fields=SortName)
+	// PresentationKey is the key Emby shows items by: items it stores apart
+	// that share it are one item's versions in a user's view. Emby answers
+	// it only when asked (Fields=PresentationUniqueKey); "" otherwise, and
+	// on Jellyfin, which stores its versions as one item instead.
+	PresentationKey string `json:"PresentationUniqueKey,omitempty"`
+	Type            string `json:"Type"` // Movie, Series, Episode...
+	ProductionYear  int    `json:"ProductionYear,omitempty"`
+	PremiereDate    string `json:"PremiereDate,omitempty"`
+	DateCreated     string `json:"DateCreated,omitempty"`
 	// DateModified is when the FILE last changed, which is the only thing
 	// that moves when a download overwrites a path in place: the item keeps
 	// its id and its DateCreated, so every "what was added" view is blind to
@@ -167,16 +187,22 @@ type Item struct {
 	// when that is more than one and asked for (Fields=MediaSourceCount):
 	// the cheap way to know an item has files beyond its own path. Emby
 	// has no such field, and holds each version as an item of its own.
-	MediaSourceCount  int       `json:"MediaSourceCount,omitempty"`
-	People            []Person  `json:"People,omitempty"`
-	UserData          *UserData `json:"UserData,omitempty"`
-	SeriesName        string    `json:"SeriesName,omitempty"`
-	SeriesID          string    `json:"SeriesId,omitempty"`
-	ParentIndexNumber int       `json:"ParentIndexNumber,omitempty"` // season number for episodes
-	IndexNumber       int       `json:"IndexNumber,omitempty"`       // episode number
-	IndexNumberEnd    int       `json:"IndexNumberEnd,omitempty"`    // last episode number of a file holding several (S01E01E02)
-	PlaylistItemID    string    `json:"PlaylistItemId,omitempty"`    // entry id within a playlist
-	IsMissing         bool      `json:"IsMissing,omitempty"`         // virtual episode the library lacks
+	MediaSourceCount int       `json:"MediaSourceCount,omitempty"`
+	People           []Person  `json:"People,omitempty"`
+	UserData         *UserData `json:"UserData,omitempty"`
+	SeriesName       string    `json:"SeriesName,omitempty"`
+	SeriesID         string    `json:"SeriesId,omitempty"`
+	// ParentIndexNumber is an episode's season number and IndexNumber its
+	// episode number (a season's own number, on a season). Either is nil
+	// when the server holds none, which is not 0: season 0 is the specials.
+	// Jellyfin holds a file named without SxxEyy with neither, even in a
+	// "Season 01" folder, and Emby one at the show's root; Emby holds a
+	// season's extra as season 0 with no episode number.
+	ParentIndexNumber *int   `json:"ParentIndexNumber,omitempty"`
+	IndexNumber       *int   `json:"IndexNumber,omitempty"`
+	IndexNumberEnd    int    `json:"IndexNumberEnd,omitempty"` // last episode number of a file holding several (S01E01E02)
+	PlaylistItemID    string `json:"PlaylistItemId,omitempty"` // entry id within a playlist
+	IsMissing         bool   `json:"IsMissing,omitempty"`      // virtual episode the library lacks
 	// IsFolder is whether the server holds the item as a folder of others (a
 	// series, a season, an album, a collection), which is what a playlist
 	// add expands into the items beneath it
@@ -185,6 +211,28 @@ type Item struct {
 	// tells that a refresh it did not wait on has landed. Only answered when
 	// asked for (Fields=Etag).
 	Etag string `json:"Etag,omitempty"`
+	// Settings is what Fields=Settings answers, nil when it was not asked
+	// for or answered nothing
+	Settings *ItemSettings `json:"-"`
+}
+
+// ItemSettings is an item's sort name as set and its locked fields.
+// Jellyfin's ForcedSortName is the sort name as set, empty when none was,
+// where its SortName is its own reading of it (lowercased, articles and
+// dashes dropped); Emby's is its SortName, set or not, and a sort name set by
+// an edit is among its LockedFields.
+type ItemSettings struct {
+	ForcedSortName string
+	LockedFields   []string
+}
+
+// settingsOf is an item's settings, nil when there are none to say.
+func settingsOf(forced string, locked []string) *ItemSettings {
+	if forced == "" && len(locked) == 0 {
+		return nil
+	}
+
+	return &ItemSettings{ForcedSortName: forced, LockedFields: locked}
 }
 
 // HasFile reports whether the library holds a file for the item, which is
@@ -242,7 +290,10 @@ type SearchOptions struct {
 	IncludeItemTypes string // e.g. "Movie" or "Series,Episode"; empty = all
 	ExcludeItemTypes string // e.g. "Folder,BoxSet"
 	ParentID         string // restrict to one library (a VirtualFolder ItemID)
-	PersonIDs        string // restrict to items featuring these people
+	// Direct lists only what ParentID holds itself, not what is under that
+	// in turn (a collection's series, not its seasons and episodes)
+	Direct    bool
+	PersonIDs string // restrict to items featuring these people
 	// Genres, Tags, Studios and OfficialRatings restrict by name; an item
 	// matches when it carries any of the names given. Names are lists rather
 	// than comma-separated because a genre can hold a comma.
@@ -265,10 +316,11 @@ type SearchOptions struct {
 	SortBy            string // e.g. DateCreated, DateModified, DatePlayed, SortName
 	SortOrder         string // Ascending or Descending
 	// SavedSince restricts to items whose metadata the server last saved at
-	// or after this time (MinDateLastSaved). It is the closest thing both
-	// servers offer to "what changed": a file written over an existing path
-	// is re-read and saved again, but so is an item someone edited, so it is
-	// a net rather than a measurement.
+	// or after this time (MinDateLastSaved): a date, or a time with or
+	// without its zone (isDate); Search refuses anything else. It is the
+	// closest thing both servers offer to "what changed": a file written
+	// over an existing path is re-read and saved again, but so is an item
+	// someone edited, so it is a net rather than a measurement.
 	SavedSince string
 	// Path finds the item holding exactly this file. Emby answers it;
 	// Jellyfin's item query has no such parameter, so a caller needing it on
@@ -279,11 +331,18 @@ type SearchOptions struct {
 	Fields         string // override FieldsDefault
 	Limit          int
 	StartIndex     int
+	// PageSize is how many items ReadAll asks for a request,
+	// past the overlap each re-reads; 0 is readPage.
+	PageSize int
 }
 
 // Search returns matching library items plus the total match count
 // (which may exceed len(items) when Limit pages the results).
 func (c *Client) Search(ctx context.Context, opts SearchOptions) ([]Item, int, error) {
+	if opts.SavedSince != "" && !isDate(opts.SavedSince) {
+		// both servers refuse it, Emby with a bare 500 and Jellyfin a 400
+		return nil, 0, fmt.Errorf("saved since %q is not a date: give one such as 2026-01-02 or 2026-01-02T15:04:05Z", opts.SavedSince)
+	}
 	fields := opts.Fields
 	if fields == "" {
 		fields = FieldsDefault
@@ -293,6 +352,19 @@ func (c *Client) Search(ctx context.Context, opts SearchOptions) ([]Item, int, e
 	}
 
 	return c.searchJF(ctx, opts, fields)
+}
+
+// isDate says whether s is a date both servers read as a saved-since: a day
+// alone, or a time of it with or without its zone, to any fraction of a
+// second (seen on Emby 4.10 and Jellyfin 12.1).
+func isDate(s string) bool {
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", time.DateOnly} {
+		if _, err := time.Parse(layout, s); err == nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 // embyPlayFields are the fields that make Emby's lists carry a user's play
@@ -305,7 +377,7 @@ func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields stri
 		fields += "," + embyPlayFields
 	}
 	o := emby.GetItemsOperationOptions{
-		Recursive:        new(true),
+		Recursive:        new(!opts.Direct),
 		Fields:           fields,
 		SearchTerm:       opts.SearchTerm,
 		IncludeItemTypes: opts.IncludeItemTypes,
@@ -392,7 +464,7 @@ func (c *Client) searchJF(ctx context.Context, opts SearchOptions, fields string
 		return nil, 0, fmt.Errorf("years: %w", err)
 	}
 	o := jf.GetItemsOperationOptions{
-		Recursive: new(true),
+		Recursive: new(!opts.Direct),
 		// a film that belongs to a collection is otherwise folded into it on
 		// Jellyfin when no user context says how to display it, and vanishes
 		// from the library's own listing (Emby ignores the parameter)
@@ -432,32 +504,12 @@ func (c *Client) searchJF(ctx context.Context, opts SearchOptions, fields string
 	return itemsFromJF(res.Model.Items), res.Model.TotalRecordCount, nil
 }
 
-// SearchAll pages through every matching item. cb is called per page; return
-// false to stop early.
-func (c *Client) SearchAll(ctx context.Context, opts SearchOptions, cb func(items []Item) bool) error {
-	const page = 1000
-	opts.Limit = page
+// NoItemError is a lookup of an id the item query lists no item for, told
+// apart from a lookup that failed: a caller may still find the id as a
+// version folded into another item, which no item query lists.
+type NoItemError struct{ ID string }
 
-	for start := 0; ; start += page {
-		opts.StartIndex = start
-
-		items, total, err := c.Search(ctx, opts)
-		if err != nil {
-			return err
-		}
-		if len(items) == 0 {
-			return nil
-		}
-
-		if !cb(items) {
-			return nil
-		}
-
-		if start+page >= total {
-			return nil
-		}
-	}
-}
+func (e *NoItemError) Error() string { return "no item with id " + e.ID }
 
 // ItemByID fetches a single item with full detail fields.
 func (c *Client) ItemByID(ctx context.Context, id string) (*Item, error) {
@@ -470,41 +522,44 @@ func (c *Client) ItemByID(ctx context.Context, id string) (*Item, error) {
 	}
 
 	if len(items) == 0 || items[0].ID != id {
-		return nil, fmt.Errorf("no item with id %s", id)
+		return nil, &NoItemError{ID: id}
 	}
 
 	return &items[0], nil
 }
 
-// providerIDTypes are the item types a provider id is looked up among: the
+// ProviderIDTypes are the item types a provider id is looked up among: the
 // films and series a library holds. A provider numbers other things apart
 // (TMDB's collection 10 is not its film 10), and a box set, season or episode
 // carrying the same number is not the film or the series, so both servers
-// are asked for these alone.
-const providerIDTypes = "Movie,Series"
+// are asked for these alone. TMDB and TheTVDB number films and series apart
+// too - TMDB's film 1396 is not its series 1396 - so a caller looking one up
+// by those names which it means.
+const ProviderIDTypes = "Movie,Series"
 
-// ItemsByProviderID looks up the films and series carrying a metadata
-// provider id, e.g. ("tmdb", "89998"). Emby supports this server-side;
-// Jellyfin lacks the query parameter, so we fall back to scanning by type and
-// filtering client-side.
-func (c *Client) ItemsByProviderID(ctx context.Context, provider, id string) ([]Item, error) {
+// ItemsByProviderID looks up the items of the given types (Movie, Series, or
+// both, comma-separated) carrying a metadata provider id, e.g. ("tmdb",
+// "89998", "Movie"). Emby supports this server-side; Jellyfin lacks the query
+// parameter, so we fall back to scanning by type and filtering client-side,
+// and changed says when the library changed under that read (see ReadAll).
+func (c *Client) ItemsByProviderID(ctx context.Context, provider, id, types string) ([]Item, string, error) {
 	if c.isEmby() {
 		res, err := c.emby.GetItems(ctx, emby.GetItemsOperationOptions{
 			Recursive:           new(true),
 			Fields:              FieldsDefault,
-			IncludeItemTypes:    providerIDTypes,
+			IncludeItemTypes:    types,
 			AnyProviderIdEquals: provider + "." + id,
 		})
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
-		return itemsFromEmby(orEmpty(res.Model).Items), nil
+		return itemsFromEmby(orEmpty(res.Model).Items), "", nil
 	}
 
-	// Jellyfin fallback: page through movies and series and match locally.
+	// Jellyfin fallback: page through the films or series and match locally.
 	var matches []Item
-	if err := c.SearchAll(ctx, SearchOptions{IncludeItemTypes: providerIDTypes}, func(items []Item) bool {
+	result, err := c.ReadAll(ctx, SearchOptions{IncludeItemTypes: types}, ToAnswer, func(items []Item) bool {
 		for _, it := range items {
 			for k, v := range it.ProviderIDs {
 				if strings.EqualFold(k, provider) && v == id {
@@ -513,11 +568,43 @@ func (c *Client) ItemsByProviderID(ctx context.Context, provider, id string) ([]
 			}
 		}
 		return true
-	}); err != nil {
-		return nil, err
+	})
+	if err != nil {
+		return nil, "", err
 	}
 
-	return matches, nil
+	return matches, result.Changed(), nil
+}
+
+// ItemsByAnyProviderID finds, on Emby, the films and series carrying any of
+// the ids given, each as "provider.id" ("tmdb.348"), with one read for them
+// all: Emby's filter takes several, comma-separated, of any providers (seen
+// on 4.10). Only an item carrying one of them is kept, whatever the server
+// answers. Jellyfin has no such filter: an error.
+func (c *Client) ItemsByAnyProviderID(ctx context.Context, ids []string) ([]Item, error) {
+	if !c.isEmby() {
+		return nil, errors.New("jellyfin cannot find items by several provider ids at once")
+	}
+	res, err := c.emby.GetItems(ctx, emby.GetItemsOperationOptions{
+		Recursive:           new(true),
+		Fields:              FieldsDefault,
+		IncludeItemTypes:    ProviderIDTypes,
+		AnyProviderIdEquals: strings.Join(ids, ","),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []Item
+	for _, it := range itemsFromEmby(orEmpty(res.Model).Items) {
+		for k, v := range it.ProviderIDs {
+			if slices.Contains(ids, strings.ToLower(k)+"."+v) {
+				out = append(out, it)
+				break
+			}
+		}
+	}
+
+	return out, nil
 }
 
 // Similar returns items the server considers similar to the given one.
@@ -555,8 +642,17 @@ func (c *Client) InstantMix(ctx context.Context, id string, limit int) ([]Item, 
 		// items' route and its playlists' own alike (seen on 4.10: it reads a
 		// playlist's genres off children a playlist does not have), so a
 		// playlist's mix is made of its songs' mixes, taken in turn
-		if seed, serr := c.ItemByID(ctx, id); serr != nil || seed.Type != "Playlist" {
-			return items, nil //nolint:nilerr // a seed that cannot be read has no mix, as the route said
+		// a seed no item is has no mix, as the route said; a read that failed
+		// says nothing either way
+		seed, err := c.ItemByID(ctx, id)
+		var none *NoItemError
+		switch {
+		case errors.As(err, &none):
+			return items, nil
+		case err != nil:
+			return nil, err
+		case seed.Type != "Playlist":
+			return items, nil
 		}
 		songs, _, err := c.Search(ctx, SearchOptions{ParentID: id, IncludeItemTypes: "Audio", Fields: FieldsLean, Limit: playlistMixSeeds})
 		if err != nil {
@@ -653,8 +749,11 @@ func (c *Client) RefreshItem(ctx context.Context, id string, replaceAll bool) (b
 		return false, err
 	}
 	_, landed, err := c.awaitSave(ctx, id, before)
+	if err != nil {
+		return false, fmt.Errorf("the refresh was asked for and runs whatever happens next, but reading the item back for it failed: %w", err)
+	}
 
-	return landed, err
+	return landed, nil
 }
 
 // DeleteItem permanently removes an item AND its media file from disk.

@@ -52,12 +52,25 @@ func TestLibraryExportNeverWritesOverAnything(t *testing.T) {
 		t.Errorf("the link itself was replaced: %v %v", st, err)
 	}
 
-	// and a new file is made readable by its owner and group, not the world
+	// a relative path is refused: it lands wherever the process started,
+	// which can be inside a checkout
+	if msg := mustRefuse(t, cs, "library_export", map[string]any{"path": "shows.jsonl", "library": "Shows"}); !strings.Contains(msg, "is relative") {
+		t.Errorf("a relative path said: %s", msg)
+	}
+	if _, err := os.Stat("shows.jsonl"); !os.IsNotExist(err) {
+		t.Errorf("a relative export was written where the tests run: %v", err)
+	}
+
+	// and a new file is made readable by its owner and group, not the world,
+	// and answered by its full path and size
 	fresh := filepath.Join(dir, "new", "shows.jsonl")
-	mustCall(t, cs, "library_export", map[string]any{"path": fresh, "library": "Shows"})
+	out := mustCall(t, cs, "library_export", map[string]any{"path": fresh, "library": "Shows"})
 	st, err := os.Stat(fresh)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if out["path"] != fresh || int64(number(t, out["bytes"], "bytes")) != st.Size() || out["note"] != nil {
+		t.Errorf("export = %v, want the full path and the file's size", out)
 	}
 	if perm := st.Mode().Perm(); perm&0o007 != 0 || perm&0o600 != 0o600 {
 		t.Errorf("the export was made %v, want 0640", perm)

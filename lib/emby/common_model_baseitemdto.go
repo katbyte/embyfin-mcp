@@ -67,7 +67,7 @@ type BaseItemDto struct {
 	Id                           string                  `json:"Id,omitempty"`
 	ImageOrientation             DrawingImageOrientation `json:"ImageOrientation,omitempty"`
 	ImageTags                    map[string]string       `json:"ImageTags,omitzero"`
-	IndexNumber                  int                     `json:"IndexNumber,omitempty"`
+	IndexNumber                  *int                    `json:"IndexNumber,omitempty"`
 	IndexNumberEnd               int                     `json:"IndexNumberEnd,omitempty"`
 	IsFolder                     *bool                   `json:"IsFolder,omitempty"`
 	IsKids                       *bool                   `json:"IsKids,omitempty"`
@@ -107,7 +107,7 @@ type BaseItemDto struct {
 	ParentBackdropImageTags      []string                `json:"ParentBackdropImageTags,omitzero"`
 	ParentBackdropItemId         string                  `json:"ParentBackdropItemId,omitempty"`
 	ParentId                     string                  `json:"ParentId,omitempty"`
-	ParentIndexNumber            int                     `json:"ParentIndexNumber,omitempty"`
+	ParentIndexNumber            *int                    `json:"ParentIndexNumber,omitempty"`
 	ParentLogoImageTag           string                  `json:"ParentLogoImageTag,omitempty"`
 	ParentLogoItemId             string                  `json:"ParentLogoItemId,omitempty"`
 	ParentThumbImageTag          string                  `json:"ParentThumbImageTag,omitempty"`

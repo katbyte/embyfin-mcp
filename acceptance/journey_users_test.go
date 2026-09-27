@@ -63,7 +63,7 @@ func TestARestrictedUsersPlaylists(t *testing.T) {
 			entry = str(e["entry_id"])
 		}
 	}
-	edit := call(t, "playlist_edit", map[string]any{"playlist": pl, "user": "alice", "move_entry_id": entry, "position": 1, "name": "Zzyzx Alice Renamed"})
+	edit := call(t, "playlist_edit", map[string]any{"playlist": pl, "user": "alice", "move_entry_id": entry, "move_item_id": arrival, "position": 1, "name": "Zzyzx Alice Renamed"})
 	if got := names(t, edit["entries"], "entries"); str(edit["name"]) != "Zzyzx Alice Renamed" || !slices.Equal(got, []string{"Arrival", "Dune", "Dune: Part Two"}) {
 		t.Errorf("playlist_edit as alice = %v, entries %v", edit["name"], got)
 	}
@@ -72,7 +72,7 @@ func TestARestrictedUsersPlaylists(t *testing.T) {
 			entry = str(e["entry_id"])
 		}
 	}
-	if out := call(t, "playlist_remove", map[string]any{"playlist": pl, "user": "alice", "entry_ids": []any{entry}}); num(t, out["removed"], "removed") != 1 {
+	if out := call(t, "playlist_remove", map[string]any{"playlist": pl, "user": "alice", "entry_ids": []any{entry}, "item_ids": []any{dune2}}); num(t, out["removed"], "removed") != 1 {
 		t.Errorf("playlist_remove as alice = %v", out)
 	}
 	for _, user := range []string{"alice", ""} {
@@ -292,5 +292,31 @@ func TestAParentalRatingLimit(t *testing.T) {
 	}
 	if listed, played := aliceWatched(); listed {
 		t.Errorf("item_last_watched reports alice (played %v) on a film above her limit", played)
+	}
+
+	// a collection of Arrival and the hidden film, cleared in her name: Emby
+	// leaves the hidden film watched, and reads it before and after to say
+	// so; Jellyfin clears it, which it will not answer in her name, and the
+	// answer says the mark reaches what her view leaves out (both seen on
+	// the servers: Emby 4.10, Jellyfin 12.1). Neither says the mark reached
+	// only what she sees, nor all that is stored
+	coll := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Alice Limited Films", "item_ids": []any{arrival, film}})["id"])
+	deleteLater(t, "collection_delete", "collection", coll)
+	cleared := call(t, "item_set_state", map[string]any{"id": coll, "user": "alice", "watched": false})
+	note := str(cleared["note"])
+	var changed []string
+	for _, c := range rowsOf(cleared["copies_changed"]) {
+		changed = append(changed, str(c["id"]))
+	}
+	if strings.Contains(note, "reaches all") || strings.Contains(note, "is not marked") || slices.Contains(changed, film) {
+		t.Errorf("clearing a collection for alice, one of its two films hidden from her: note %q, copies_changed %v", note, changed)
+	}
+	if isJellyfin() && !strings.Contains(note, "the server stores 2 items under Zzyzx Alice Limited Films, and alice's view shows 1: Jellyfin's mark in their name can reach items their view leaves out") ||
+		!isJellyfin() && !strings.Contains(note, "the server stores 2 items under Zzyzx Alice Limited Films, and alice's view shows 1 rows: the 1 items it leaves out") {
+		t.Errorf("clearing a collection for alice on %s: note %q", backend, note)
+	}
+	setPolicy(t, os.Getenv("EMBYFIN_TEST_USER_ID"), func(p map[string]any) { p["MaxParentalRating"] = nil })
+	if watched, _ := stateOf(t, film, "alice"); watched == isJellyfin() {
+		t.Errorf("after the collection was cleared for alice on %s, Dune: Part Two, hidden from her, is watched %v", backend, watched)
 	}
 }

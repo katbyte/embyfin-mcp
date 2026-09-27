@@ -452,6 +452,17 @@ func must[T any](v T, err error) T {
 	return v
 }
 
+// number is a season or episode number the SDK holds by pointer, or -1 when
+// the server sent none: no number is -1, so a missing one fails every check
+// of one rather than passing one of 0.
+func number(n *int) int {
+	if n == nil {
+		return -1
+	}
+
+	return *n
+}
+
 // poll calls f every two seconds until it returns true or the deadline
 // passes, and reports whether it did.
 func poll(timeout time.Duration, f func() bool) bool {

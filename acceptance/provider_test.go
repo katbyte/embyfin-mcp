@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"bytes"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -90,8 +91,20 @@ func TestItemIdentifyApply(t *testing.T) {
 		t.Fatalf("Princess Mononoke (tmdb 128) is not among the candidates: %v", cands)
 	}
 
-	applied := call(t, "item_identify_apply", map[string]any{"id": id, "kind": "movie", "candidate": idx, "year": 1997})
-	if !strings.HasPrefix(str(applied["applied"]), "Princess Mononoke (1997)") || applied["note"] != nil {
+	applied := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": id, "kind": "movie", "candidate": idx, "year": 1997}))
+	// the one thing to note is on Emby, whose match deletes the poster beside
+	// the film (keepFiles puts it back), and where a library saves nfos -
+	// Jellyfin's does - that the nfo written over in place is not seen
+	full := str(applied["note"])
+	noted := beyondNfoUnseen(full)
+	if isJellyfin() && noted != "" || !isJellyfin() && (!strings.HasSuffix(noted, "/poster.jpg from beside the media") || !posterNamed(applied["removed_beside_media"])) {
+		t.Errorf("applied = %v, want a note only on Emby, of the poster it deleted", applied)
+	}
+	saves := boolOf(call(t, "library_get", map[string]any{"library": "Movies"})["saves_nfo"])
+	if said := full != noted; said != saves {
+		t.Errorf("the match's note speaks of the nfo written over: %v, want %v (the library saves nfos: %v): %q", said, saves, saves, full)
+	}
+	if !strings.HasPrefix(str(applied["applied"]), "Princess Mononoke (1997)") {
 		t.Errorf("applied = %v", applied)
 	}
 	ids, _ := applied["metadata_provider_ids"].(map[string]any)
@@ -113,8 +126,17 @@ func TestItemIdentifyApply(t *testing.T) {
 		t.Errorf("after apply = %v", got)
 	}
 
-	if msg := callErr(t, "item_identify_apply", map[string]any{"id": id, "kind": "movie", "candidate": 99, "year": 1997}); !strings.Contains(msg, "candidate 99 out of range") {
-		t.Errorf("a bad candidate: %s", msg)
+	// a candidate the search no longer offers, and a kind that is not the
+	// film's: refused, nothing applied
+	if msg := callErr(t, "item_identify_apply", map[string]any{"id": id, "kind": "movie", "candidate": 99, "year": 1997, "candidate_ids": map[string]any{"tmdb": "999999999"}}); !strings.Contains(msg, "no candidate the search offers now carries") || !strings.Contains(msg, "nothing was changed") {
+		t.Errorf("a candidate no longer offered: %s", msg)
+	}
+	if msg := callErr(t, "item_identify_apply", map[string]any{"id": id, "kind": "series", "candidate": 0, "candidate_ids": map[string]any{"tmdb": "128"}}); !strings.Contains(msg, "is a Movie, and kind series identifies a Series") {
+		t.Errorf("a kind that is not the film's: %s", msg)
+	}
+	// and the answer carries what the film was, to put it back by
+	if was, _ := applied["was"].(map[string]any); str(was["name"]) != "Princess Mononoke" {
+		t.Errorf("was = %v", applied["was"])
 	}
 }
 
@@ -137,8 +159,9 @@ func TestItemArtwork(t *testing.T) {
 	// The fixture's poster.jpg, 200x300, is what the set has to replace for
 	// the 2x2 after it to mean anything, and what this test puts back. A
 	// test that re-identifies the film can leave the provider's in its place
-	// (Emby writes a downloaded poster over poster.jpg), so it is laid out
-	// again first: every fixture poster is the one test pattern
+	// (Emby takes poster.jpg off the disk for the provider's image:
+	// TestThePosterBesideAFilm), so it is laid out again first: every
+	// fixture poster is the one test pattern
 	// (scripts/testenv.sh), and the messy copy's is never replaced.
 	poster := filepath.Join(dataDir(), "movies", "Blade Runner (1982)", "poster.jpg")
 	fixturePoster := fixture(t, "messy-movies/Blade Runner (1982)/poster.jpg")
@@ -172,14 +195,26 @@ func TestItemArtwork(t *testing.T) {
 	}
 
 	t.Cleanup(putBack)
+	// the nfo beside the film, which neither server writes again for a new
+	// image unless the library saves artwork beside the media
+	// (TestArtworkSavedBesideTheMedia)
+	keepFiles(t, filepath.Dir(poster))
+	nfo := filepath.Join(filepath.Dir(poster), "movie.nfo")
+	nfoBefore, err := os.ReadFile(nfo) //nolint:gosec // a fixture under the test data dir
+	if err != nil {
+		t.Fatal(err)
+	}
 	set := call(t, "item_artwork_set", map[string]any{"id": id, "url": str(cands[0]["url"]), "type": "Primary"})
+	if nfoAfter, err := os.ReadFile(nfo); err != nil || !bytes.Equal(nfoAfter, nfoBefore) { //nolint:gosec // same
+		t.Errorf("after item_artwork_set the nfo beside the film changed (%v)", err)
+	}
 	if str(set["set"]) != "Primary" {
 		t.Errorf("item_artwork_set = %v", set)
 	}
 	_, statErr := os.Stat(poster)
 	if isJellyfin() {
-		if statErr != nil || set["removed"] != nil {
-			t.Errorf("on Jellyfin the poster file beside the film: %v, and the answer says %v removed; want it kept", statErr, set["removed"])
+		if now, err := os.ReadFile(poster); statErr != nil || err != nil || !bytes.Equal(now, fixturePoster) || set["removed"] != nil || set["replaced"] != nil { //nolint:gosec // same
+			t.Errorf("on Jellyfin the poster file beside the film: %v %v, and the answer = %v; want it kept as it was, and neither removed nor written over", statErr, err, set)
 		}
 	} else if !os.IsNotExist(statErr) || str(set["removed"]) != "/media/movies/Blade Runner (1982)/poster.jpg" || !strings.Contains(str(set["note"]), "deleted") {
 		t.Errorf("on Emby the poster file beside the film: %v, and the answer = %v; want it gone and named", statErr, set)
@@ -238,7 +273,7 @@ func TestSubtitles(t *testing.T) {
 	msg := callErr(t, "item_subtitle_download", map[string]any{"id": id, "subtitle_id": "nope_nope"})
 	want := "HTTP 500"
 	if isJellyfin() {
-		want = "no new subtitle reached Dune within ten seconds"
+		want = "no new subtitle file appeared beside Dune and no new subtitle reached it within ten seconds"
 	}
 	if !strings.Contains(msg, want) {
 		t.Errorf("downloading a subtitle nobody offered: %s", msg)

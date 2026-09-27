@@ -289,7 +289,7 @@ func TestAFilmMatchedToAnothersIDs(t *testing.T) {
 		}
 	} else {
 		// held apart: the staged entry's own file names another film
-		if w := str(call(t, "item_get", map[string]any{"id": staged})["warning"]); !strings.HasPrefix(w, "may be a different film matched to this one's ids") || !strings.Contains(w, named) {
+		if w := str(call(t, "item_get", map[string]any{"id": staged})["warning"]); !strings.HasPrefix(w, "probably a different film matched to this one's ids") || !strings.Contains(w, named) {
 			t.Errorf("item_get of the staged entry warning = %q", w)
 		}
 		if got := call(t, "item_get", map[string]any{"id": real}); got["warning"] != nil || got["versions"] != nil {

@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -119,6 +120,10 @@ func TestAShowSplitByAFolderRename(t *testing.T) {
 			if got := missingKeys(t, out); out["supported"] != true || len(got) == 0 || got[0] != "S01E04" || out["gaps_on_disk"] != nil {
 				t.Errorf("show_missing %s = %v from %v, want the run from S01E04", id, got, out["source"])
 			}
+			// in TMDB's aired order, which the files are numbered by
+			if str(out["order"]) != "TMDB aired order" || out["held_not_in_run"] != nil || out["warning"] != nil {
+				t.Errorf("show_missing %s: order %v, held_not_in_run %v, warning %v", id, out["order"], out["held_not_in_run"], out["warning"])
+			}
 		}
 		// and the sweep reads the two entries as one show: judged apart, each
 		// was missing the episodes the other holds
@@ -171,11 +176,18 @@ func TestAShowSplitByAFolderRename(t *testing.T) {
 	t.Run("each half lists both folders' seasons", func(t *testing.T) {
 		for _, id := range []string{old, renamed} {
 			var numbers []int
+			folders := map[string]string{} // entry -> the season's folder
 			for _, s := range rows(t, call(t, "show_seasons", map[string]any{"series_id": id})["seasons"], "seasons") {
 				numbers = append(numbers, num(t, s["season"], "season"))
+				folders[str(s["series_id"])] = str(s["path"])
 			}
 			if !slices.Equal(numbers, []int{1, 1}) {
 				t.Errorf("show_seasons %s = %v, want season 1 once from each folder", id, numbers)
+			}
+			// which season 1 is whose: without the entry and the folder the
+			// two read as one season listed twice
+			if want := map[string]string{old: "/media/messy-shows/The Wire/Season 01", renamed: "/media/messy-shows/The Wire (2002)/Season 01"}; !maps.Equal(folders, want) {
+				t.Errorf("show_seasons %s by entry = %v, want %v", id, folders, want)
 			}
 		}
 	})

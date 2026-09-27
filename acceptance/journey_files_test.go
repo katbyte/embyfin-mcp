@@ -162,6 +162,11 @@ func TestImportingAMissingEpisode(t *testing.T) {
 	})
 	mediaWrite(t, file, fixtureVideo(t, "messy-shows", show, "Season 01", show+" S01E01.mp4"))
 	mediaWrite(t, nfo, episodeNfo("The Naked Now", 1, 2))
+	// written and not yet scanned: on the disk and in no item, and taken
+	// all the same - a second write there replaces it
+	if mid := plan(); !isBool(mid["exists"], true) || !isBool(mid["in_library"], false) || !isBool(mid["on_disk"], true) {
+		t.Errorf("plan_check between the write and the scan = %v, want the file on disk and in no item", mid)
+	}
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, tng, 1, 2); return there })
 
 	there, id := held(t, tng, 1, 2)
@@ -730,7 +735,7 @@ func TestHowFarADeleteReaches(t *testing.T) {
 // a space and a letter's case away. After a scan the name finds one show
 // holding both episodes, and the audit has nothing to report. Neither show
 // carries an id, so the folder names are the only thing that says they are
-// one: the lookups that go by provider id cannot see the pair at all.
+// one, and show_episodes_exist reads them by the audit's own rule.
 func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
@@ -758,9 +763,12 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	if there, _ := held(t, keepID, 1, 2); there {
 		t.Fatal("the show to keep already holds S01E02")
 	}
-	// the lookups by id see two unrelated shows
-	if out := call(t, "show_episodes_exist", map[string]any{"series_id": keepID, "episodes": []map[string]any{{"season": 1, "episode": 2}}}); out["duplicate_entries"] != nil {
-		t.Errorf("show_episodes_exist names duplicates of a show with no ids: %v", out["duplicate_entries"])
+	// neither carries an id, and show_episodes_exist finds the other by its
+	// folder, beside this one and a space and a letter's case away: the
+	// episode absent here is not proof the library lacks it
+	if out := call(t, "show_episodes_exist", map[string]any{"series_id": keepID, "episodes": []map[string]any{{"season": 1, "episode": 2}}}); !slices.Equal(strs(t, out["duplicate_entries"], "duplicate_entries"), []string{dropID}) ||
+		!strings.Contains(str(out["warning"]), "id "+dropID+" at "+str(drop["path"])) {
+		t.Errorf("show_episodes_exist on the show held twice = %v, warning %q: want the other folder's entry named", out["duplicate_entries"], out["warning"])
 	}
 	// and the name is a tie: show_resolve scores both alike, and a tool
 	// taking the show by name refuses to pick one, naming both

@@ -57,6 +57,7 @@ func TestAddToCollection(t *testing.T) {
 			return members("a")(r, s)
 		},
 		"POST /Collections/c9/Items": answer(http.StatusNotFound, ""),
+		"GET /Users":                 ok(`[{"Id":"u1","Name":"root","Policy":{"IsAdministrator":true}}]`),
 	})
 	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 	if err := c.AddToCollection(t.Context(), "c1", []string{"a", "b"}); err != nil {
@@ -501,7 +502,7 @@ func TestSeasonsAndEpisodes(t *testing.T) {
 		if err != nil || len(items) != 2 {
 			t.Fatalf("%s Episodes = %+v, %v", backend, items, err)
 		}
-		if e := items[0]; e.ID != "e1" || e.SeriesID != "9" || e.ParentIndexNumber != 1 || e.IndexNumber != 1 || e.IndexNumberEnd != 2 || !e.HasFile() {
+		if e := items[0]; e.ID != "e1" || e.SeriesID != "9" || e.ParentIndexNumber == nil || *e.ParentIndexNumber != 1 || e.IndexNumber == nil || *e.IndexNumber != 1 || e.IndexNumberEnd != 2 || !e.HasFile() {
 			t.Errorf("%s held episode = %+v", backend, e)
 		}
 		if e := items[1]; !e.IsMissing || e.HasFile() {
@@ -514,7 +515,7 @@ func TestSeasonsAndEpisodes(t *testing.T) {
 		"GET /Shows/9/Episodes": ok(episodes),
 	})
 	got, err := c.Seasons(t.Context(), "9", "u1")
-	if err != nil || len(got) != 1 || got[0].ID != "s1" || got[0].IndexNumber != 1 || got[0].UserData == nil || got[0].UserData.UnplayedItemCount != 3 {
+	if err != nil || len(got) != 1 || got[0].ID != "s1" || got[0].IndexNumber == nil || *got[0].IndexNumber != 1 || got[0].UserData == nil || got[0].UserData.UnplayedItemCount != 3 {
 		t.Errorf("Seasons = %+v, %v", got, err)
 	}
 	if q := f.only("GET /Shows/9/Seasons").query; q.Get("UserId") != "u1" || q.Get("Fields") != FieldsDefault {

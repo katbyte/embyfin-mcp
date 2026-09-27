@@ -3,12 +3,41 @@ package tools
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/go-kt/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// serverLog picks the server's own log out of its log files: the newest of
+// Emby's embyserver.txt (the live one) and embyserver-<n>.txt (the rotated
+// ones), or of Jellyfin's log_<date>.log, one a day. The files beside them
+// are the transcodes' and the hardware probes', and the most recently changed
+// file is as often one of those, a playback running now. own is false when
+// none is the server's, and the most recently changed file comes back
+// instead.
+func serverLog(files []embyfin.LogFile) (name string, own bool) {
+	latest := func(keep func(string) bool) string {
+		pick, when := "", ""
+		for _, f := range files {
+			if keep(f.Name) && (pick == "" || f.DateModified > when) {
+				pick, when = f.Name, f.DateModified
+			}
+		}
+
+		return pick
+	}
+	if pick := latest(func(n string) bool {
+		n = strings.ToLower(n)
+		return strings.HasPrefix(n, "embyserver") || strings.HasPrefix(n, "log_")
+	}); pick != "" {
+		return pick, true
+	}
+
+	return latest(func(string) bool { return true }), false
+}
 
 func registerServerTools(r *registry) {
 	client := r.client
@@ -46,9 +75,9 @@ func registerServerTools(r *registry) {
 	})
 
 	type serverStatsOut struct {
-		Movies         int `json:"movies"`
+		Movies         int `json:"movies"                jsonschema:"films as the server counts them: Emby counts each file of a film held in several as a film of its own, Jellyfin a film once however many files it is held in"`
 		Series         int `json:"series"`
-		Episodes       int `json:"episodes"`
+		Episodes       int `json:"episodes"              jsonschema:"episodes as the server counts them: Emby counts each file of an episode held in several, and an extra it took for an episode; Jellyfin an episode once however many files"`
 		Albums         int `json:"albums,omitempty"`
 		Songs          int `json:"songs,omitempty"`
 		Collections    int `json:"collections,omitempty"`
@@ -57,7 +86,7 @@ func registerServerTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "server_stats",
-		Description: "Global library counts (movies, series, episodes, music), user count, and active playback session count.",
+		Description: "Global library counts (movies, series, episodes, music) as the server keeps them, user count, and active playback session count. The two servers count differently: Emby counts every file of a film or episode held in several files, Jellyfin each film or episode once, so the same library reads higher on Emby.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, serverStatsOut, error) {
 		counts, err := client.Counts(ctx)
 		if err != nil {
@@ -203,33 +232,30 @@ func registerServerTools(r *registry) {
 	})
 
 	type logIn struct {
-		Name  string `json:"name,omitempty"  jsonschema:"log file name; empty fetches the most recently modified log"`
+		Name  string `json:"name,omitempty"  jsonschema:"log file name (server_logs lists them); empty fetches the server's own log"`
 		Lines int    `json:"lines,omitempty" jsonschema:"how many lines from the end to return, default 200"`
 	}
 	type logOut struct {
 		Name string `json:"name"`
 		Tail string `json:"tail"`
+		Note string `json:"note,omitempty" jsonschema:"set when no name was given and the server lists no log of its own, so the most recently changed file was read instead"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "server_log",
-		Description: "Fetch the tail of a server log file — by default the most recent/active one.",
+		Description: "Fetch the tail of a server log file: by default the server's own log (Emby's embyserver.txt, Jellyfin's newest log_<date>.log), not the transcode or hardware logs beside it.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in logIn) (*mcp.CallToolResult, logOut, error) {
-		name := in.Name
+		name, note := in.Name, ""
 		if name == "" {
 			files, err := client.LogFiles(ctx)
 			if err != nil {
 				return nil, logOut{}, err
 			}
-
-			latest := ""
-			for _, f := range files {
-				if latest == "" || f.DateModified > latest {
-					latest = f.DateModified
-					name = f.Name
-				}
-			}
-			if name == "" {
+			if len(files) == 0 {
 				return nil, logOut{}, errors.New("server reports no log files")
+			}
+			var own bool
+			if name, own = serverLog(files); !own {
+				note = fmt.Sprintf("the server lists no log of its own (embyserver.txt, log_<date>.log), so this is the most recently changed of its %d log files", len(files))
 			}
 		}
 
@@ -243,7 +269,7 @@ func registerServerTools(r *registry) {
 			return nil, logOut{}, err
 		}
 
-		return nil, logOut{Name: name, Tail: tail}, nil
+		return nil, logOut{Name: name, Tail: tail, Note: note}, nil
 	})
 
 	type taskOut struct {
@@ -283,17 +309,49 @@ func registerServerTools(r *registry) {
 		Task string `json:"task" jsonschema:"task name (case-insensitive) or id, from task_list"`
 	}
 	type taskRunOut struct {
-		Started string `json:"started"`
+		Started      string   `json:"started"`
+		ID           string   `json:"id"`
+		Category     string   `json:"category,omitempty"`
+		Description  string   `json:"description,omitempty"   jsonschema:"what the server says the task does"`
+		WasRunning   bool     `json:"was_running,omitempty"   jsonschema:"the task was already running when it was asked for"`
+		ScansRunning []string `json:"scans_running,omitempty" jsonschema:"the library scans the server showed running just before the task was asked for"`
+		Note         string   `json:"note"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "task_run",
-		Description: "Start a scheduled task by name or id. Changes server state: the task runs immediately.",
+		Name: "task_run",
+		Description: "Start one of the server's scheduled tasks, by name or id (task_list has them). The server runs it in the background, for seconds or for hours, and this answers once the task is started: task_list shows when it ends and how it went. " +
+			"What a task does is the server's own, and nothing a task does can be undone with these tools: the library scan drops every item whose file is gone, reads new files and re-reads changed ones; the others delete cache, log and transcode files, delete old activity log entries or the watch state of items gone for months, write images into the library's folders, download subtitles and lyrics, look up people and upcoming episodes, or download and install updates to the server and its plugins. " +
+			"Without --enable-delete only the library scan (the task keyed RefreshLibrary, called Scan media library) is started, and any other task is refused with what the server says it does; with it, any task is. The answer gives the task's category and description, and says whether it, or a library scan, was already running.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in taskRunIn) (*mcp.CallToolResult, taskRunOut, error) {
-		task, err := client.RunTask(ctx, in.Task)
+		task, err := client.FindTask(ctx, in.Task)
 		if err != nil {
 			return nil, taskRunOut{}, err
 		}
+		if !r.opts.EnableDelete && !task.IsLibraryScan() {
+			what := task.Category
+			if task.Description != "" {
+				what += ": " + task.Description
+			}
+			return nil, taskRunOut{}, fmt.Errorf("refusing to start %q (%s) without --enable-delete: a task other than the library scan can delete or rewrite files, clear watch state or install updates, which no tool undoes. Nothing was started; embyfin-mcp started with --enable-delete runs it", task.Name, what)
+		}
+		// read before the start: afterwards, the task itself is the scan
+		scans, err := client.ScansRunning(ctx)
+		if err != nil {
+			return nil, taskRunOut{}, fmt.Errorf("could not tell whether a library scan was running, so %s was not started: %w", task.Name, err)
+		}
+		if err := client.StartTask(ctx, task); err != nil {
+			return nil, taskRunOut{}, err
+		}
 
-		return nil, taskRunOut{Started: task.Name}, nil
+		out := taskRunOut{
+			Started: task.Name, ID: task.ID, Category: task.Category, Description: task.Description,
+			WasRunning: task.Running(), ScansRunning: scans,
+			Note: "runs in the background; task_list shows when it ends and how it went",
+		}
+		if out.WasRunning {
+			out.Note = "it was already running (" + task.State + ") when asked for: the run under way goes on in the background; task_list shows when it ends and how it went"
+		}
+
+		return nil, out, nil
 	})
 }

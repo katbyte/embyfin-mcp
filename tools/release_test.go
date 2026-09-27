@@ -42,6 +42,42 @@ func TestParseRelease(t *testing.T) {
 		{"Severance.S02E07.1080p.ATVP.WEB-DL.mkv", "Severance", 0, 2, 7, 0},
 		// a plain title, which is what a person types
 		{"Abbott Elementary", "Abbott Elementary", 0, 0, 0, 0},
+		// a title ending in a year and the release year after it: the last
+		// year dates the release, the one before it is the title's
+		{"Blade.Runner.2049.2017.1080p.BluRay.x264-GRP", "Blade Runner 2049", 2017, 0, 0, 0},
+		{"Zzyzx.1984.2020.1080p", "Zzyzx 1984", 2020, 0, 0, 0},
+		// a year after the encode's first word is none of the release's,
+		// and a year after an edition's words is a re-release's: the first
+		// year the title leaves dates the release
+		{"Zzyzx.Race.2000.1080p.x264-2023", "Zzyzx Race", 2000, 0, 0, 0},
+		// (a year later than next year dates nothing, 2049 among them)
+		{"Blade.Runner.2049.2160p.Remux-2023", "Blade Runner 2049", 0, 0, 0, 0},
+		{"Zzyzx.Title.2010.1080p.2160p-2023-remux", "Zzyzx Title", 2010, 0, 0, 0},
+		{"Zzyzx.2015.Extended.2016.Re-Edit", "Zzyzx", 2015, 0, 0, 0},
+		{"Zzyzx.1982.Remastered.2021", "Zzyzx", 1982, 0, 0, 0},
+		{"Blade.Runner.1982.The.Final.Cut.2007", "Blade Runner", 1982, 0, 0, 0},
+		{"Zzyzx.1979.Directors.Cut.2003", "Zzyzx", 1979, 0, 0, 0},
+		// an edition's words that would leave nothing, or an article, are
+		// the title
+		{"The.Final.Cut.2004", "The Final Cut", 2004, 0, 0, 0},
+		{"A.Directors.Cut.2020", "A Directors Cut", 2020, 0, 0, 0},
+		// an edition's words end the title, not the search for its year
+		{"Zzyzx.Theatrical.Cut.1999", "Zzyzx", 1999, 0, 0, 0},
+		{"Zzyzx.Directors.Cut.1999", "Zzyzx", 1999, 0, 0, 0},
+		{"Zzyzx.Unrated.2009", "Zzyzx", 2009, 0, 0, 0},
+		{"Zzyzx.Remastered.1982", "Zzyzx", 1982, 0, 0, 0},
+		{"Zzyzx.Extended.2010", "Zzyzx", 2010, 0, 0, 0},
+		// an encode word joined to another by a hyphen ends the title too
+		{"Zzyzx Movie Remux-2160p", "Zzyzx Movie", 0, 0, 0, 0},
+		{"Zzyzx.Movie.2010.WEBDL-1080p", "Zzyzx Movie", 2010, 0, 0, 0},
+		// an edition's 3D after an encode word stays the title's
+		{"Zzyzx.IMAX.3D.2010.1080p", "Zzyzx 3D", 2010, 0, 0, 0},
+		// titles made with hyphens and pluses are left whole
+		{"Spider-Man.2002.1080p.BluRay.x264", "Spider-Man", 2002, 0, 0, 0},
+		{"X-Men.2000.1080p.WEB-DL", "X-Men", 2000, 0, 0, 0},
+		{"Ant-Man.2015.2160p.WEB-DL.DDP5.1", "Ant-Man", 2015, 0, 0, 0},
+		{"9-1-1.S01E01.1080p.WEB", "9-1-1", 0, 1, 1, 0},
+		{"Paramount+ Zzyzx.S01E01.1080p.WEB", "Paramount+ Zzyzx", 0, 1, 1, 0},
 
 		// and the same shows once FileBot has renamed them, where the answer
 		// is spread across the path: the folder names the show and the year,
@@ -270,6 +306,20 @@ func TestShowResolve(t *testing.T) {
 	if number(t, out["parsed_season"], "parsed_season") != 9 || number(t, out["parsed_episode"], "parsed_episode") != 16 {
 		t.Errorf("parsed S%vE%v, want S09E16", out["parsed_season"], out["parsed_episode"])
 	}
+	// the specials are season 0, and a name numbering one carries a season:
+	// left out as a 0, S00E03 read as a name with no season in it at all
+	out = mustCall(t, cs, "show_resolve", map[string]any{"title": "9-1-1.S00E03.1080p.WEB"})
+	if number(t, out["parsed_season"], "parsed_season") != 0 || number(t, out["parsed_episode"], "parsed_episode") != 3 {
+		t.Errorf("parsed S%vE%v, want S00E03", out["parsed_season"], out["parsed_episode"])
+	}
+	out = mustCall(t, cs, "show_resolve", map[string]any{"title": "9-1-1.S02E00.1080p.WEB"})
+	if number(t, out["parsed_season"], "parsed_season") != 2 || number(t, out["parsed_episode"], "parsed_episode") != 0 {
+		t.Errorf("parsed S%vE%v, want S02E00", out["parsed_season"], out["parsed_episode"])
+	}
+	out = mustCall(t, cs, "show_resolve", map[string]any{"title": "9-1-1"})
+	if _, ok := out["parsed_season"]; ok || out["parsed_episode"] != nil {
+		t.Errorf("a bare title parsed a season %v and an episode %v", out["parsed_season"], out["parsed_episode"])
+	}
 
 	// the near-namesake is offered, below the real one, rather than hidden
 	out = mustCall(t, cs, "show_resolve", map[string]any{"title": "9-1-1.S09E16"})
@@ -317,6 +367,29 @@ func TestShowResolveUsesTheYear(t *testing.T) {
 	out = mustCall(t, cs, "show_resolve", map[string]any{"title": "Battlestar Galactica", "year": 1978})
 	if cands = objects(t, out["candidates"], "candidates"); cands[0]["series_id"] != "old" {
 		t.Errorf("an explicit year was ignored: %v", cands)
+	}
+}
+
+// A year later than next year dates no release: it is the title's own, or
+// a group's number. Read as of 2026, a 2049 or a 2077 is part of the title.
+func TestParseReleaseTakesNoYearFromTheFuture(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name, title string
+		year        int
+		season      int
+		episode     int
+	}{
+		{"Blade.Runner.2049.2160p.Remux-2023", "Blade Runner 2049", 0, 0, 0},
+		{"Zzyzx.2077.S01E01.1080p", "Zzyzx 2077", 0, 1, 1},
+		{"Zzyzx.2027.1080p", "Zzyzx", 2027, 0, 0},
+		{"Zzyzx.2028.1080p", "Zzyzx 2028", 0, 0, 0},
+	} {
+		got := parseSegmentAsOf(tc.name, 2027)
+		if got.Title != tc.title || got.Year != tc.year || got.Season != tc.season || got.Episode != tc.episode {
+			t.Errorf("%s as of 2026 = %+v, want %q %d S%02dE%02d", tc.name, got, tc.title, tc.year, tc.season, tc.episode)
+		}
 	}
 }
 

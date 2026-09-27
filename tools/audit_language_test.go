@@ -50,6 +50,12 @@ func subsIn(lang string) embyfin.MediaStream {
 	return embyfin.MediaStream{Type: "Subtitle", Language: lang}
 }
 
+// forcedIn is a forced subtitle track: the lines spoken in another language
+// than the audio's, and nothing else.
+func forcedIn(lang string) embyfin.MediaStream {
+	return embyfin.MediaStream{Type: "Subtitle", Language: lang, IsForced: true}
+}
+
 func TestCheckLanguage(t *testing.T) {
 	t.Parallel()
 
@@ -82,6 +88,23 @@ func TestCheckLanguage(t *testing.T) {
 		{"untagged subtitles might be english", item(tracks(audioIn("jpn"), subsIn(""))), "eng", findUnwatchable, false, true},
 		{"nothing known is not unwatchable", item(), "eng", findUnwatchable, false, true},
 		{"subtitles in it make even a file with no audio watchable", item(tracks(subsIn("eng"))), "eng", findUnwatchable, false, false},
+
+		// asked what HAS a language, an item whose only track names none may
+		// have it: it is counted as not judged, not left out of both counts
+		{"untagged audio may be the audio asked about", item(tracks(audioIn(""))), "eng", findAudio, false, true},
+		{"untagged subtitles may be the subtitles asked about", item(tracks(audioIn("jpn"), subsIn("und"))), "eng", findSubtitles, false, true},
+		{"no audio track at all is not judged for audio", item(tracks(embyfin.MediaStream{Type: "Video"})), "eng", findAudio, false, true},
+		{"an unprobed file is not judged for subtitles", item(embyfin.MediaSource{}), "eng", findSubtitles, false, true},
+		{"tagged audio in another language has none of it", item(tracks(audioIn("jpn"))), "eng", findAudio, false, false},
+		{"no subtitles at all beside tagged audio has none", item(tracks(audioIn("jpn"))), "eng", findSubtitles, false, false},
+
+		// a forced track carries only the lines in another language than the
+		// audio's: English forced subtitles on a German film are not
+		// English subtitles to follow it by
+		{"forced english subtitles are not english subtitles", item(tracks(audioIn("deu"), forcedIn("eng"))), "eng", findSubtitles, false, false},
+		{"forced english subtitles do not make it watchable", item(tracks(audioIn("deu"), forcedIn("eng"))), "eng", findUnwatchable, true, false},
+		{"full subtitles beside forced ones do", item(tracks(audioIn("deu"), forcedIn("eng"), subsIn("eng"))), "eng", findUnwatchable, false, false},
+		{"an untagged forced track says nothing", item(tracks(audioIn("deu"), forcedIn(""))), "eng", findUnwatchable, true, false},
 	} {
 		detail, match, unknown := checkLanguage(tc.it, tc.lang, tc.find)
 		if match != tc.match || unknown != tc.unknown {
@@ -92,6 +115,10 @@ func TestCheckLanguage(t *testing.T) {
 	// the detail says what is there, so a caller can see why
 	detail, _, _ := checkLanguage(item(tracks(audioIn("jpn"), audioIn(""), subsIn("eng"))), "jpn", findAudio)
 	if detail != "audio: jpn, untagged; subtitles: eng" {
+		t.Errorf("detail = %q", detail)
+	}
+	// and a forced track is named as one
+	if detail, _, _ = checkLanguage(item(tracks(audioIn("deu"), forcedIn("en"))), "eng", findSubtitles); detail != "audio: deu; subtitles: none; forced subtitles only: eng" {
 		t.Errorf("detail = %q", detail)
 	}
 }

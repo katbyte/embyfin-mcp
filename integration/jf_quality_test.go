@@ -200,8 +200,8 @@ func TestJFMediaStreams(t *testing.T) {
 		// the file named for two episodes holds a run, which Jellyfin takes
 		// from its nfo (ending at 2) over its name (ending at 3)
 		const run = "Andor (2022)/Season 01/Andor S01E02E03.mp4"
-		if two := jfFile(t, episodes, run); two.ParentIndexNumber != 1 || two.IndexNumber != 2 || two.IndexNumberEnd != 2 {
-			t.Errorf("Andor S01E02E03 is S%02dE%02d-%02d, want S01E02-02 from its nfo", two.ParentIndexNumber, two.IndexNumber, two.IndexNumberEnd)
+		if two := jfFile(t, episodes, run); number(two.ParentIndexNumber) != 1 || number(two.IndexNumber) != 2 || two.IndexNumberEnd != 2 {
+			t.Errorf("Andor S01E02E03 is S%02dE%02d-%02d, want S01E02-02 from its nfo", number(two.ParentIndexNumber), number(two.IndexNumber), two.IndexNumberEnd)
 		}
 		for path, it := range episodes {
 			if it.IndexNumberEnd != 0 && path != run {

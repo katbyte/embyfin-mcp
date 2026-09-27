@@ -122,6 +122,54 @@ func setSortName(full map[string]any, name string, emby bool) {
 	}
 }
 
+// fieldText reads a text field off a full item map, "" when it has none.
+func fieldText(full map[string]any, key string) string {
+	if s, ok := full[key].(string); ok {
+		return s
+	}
+
+	return ""
+}
+
+// sortNameOf is the name an item sorts by as set: the forced one when there
+// is one (Jellyfin lowercases the sort name it works out), else the sort name.
+func sortNameOf(full map[string]any) string {
+	if forced := fieldText(full, "ForcedSortName"); forced != "" {
+		return forced
+	}
+
+	return fieldText(full, "SortName")
+}
+
+// wasOnce records what a field was before an edit, the first time it is
+// read: an edit sent again reads the item again.
+func wasOnce(was map[string]string, field, value string) {
+	if _, seen := was[field]; !seen {
+		was[field] = value
+	}
+}
+
+// editHeld reads an item back after an edit until four reads in a row, a
+// settle interval apart, show it, and says whether they did: a refresh the
+// server queued before the edit - the one a new collection gets, a scan's -
+// saves the item over it a moment after the edit is answered.
+func (r *registry) editHeld(ctx context.Context, userID, id string, holds func(full map[string]any) bool) (bool, error) {
+	for range 4 {
+		full, err := r.client.FullItem(ctx, userID, id)
+		if err != nil {
+			return false, err
+		}
+		if !holds(full) {
+			return false, nil
+		}
+		if err := r.pause(ctx); err != nil {
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
 // cleanNames trims names and drops the empty ones.
 func cleanNames(names []string) []string {
 	out := make([]string, 0, len(names))
@@ -155,14 +203,24 @@ func registerItemEditTools(r *registry) {
 		RemoveStudios  []string `json:"remove_studios,omitempty"  jsonschema:"studios to take off each item"`
 		OfficialRating string   `json:"official_rating,omitempty" jsonschema:"the parental rating to set, e.g. PG-13"`
 	}
+	type itemWas struct {
+		ID   string         `json:"id"`
+		Name string         `json:"name"`
+		Was  map[string]any `json:"was"  jsonschema:"each field changed, as it was before, to set it back by"`
+	}
 	type editOut struct {
-		Changed []string `json:"changed" jsonschema:"the fields changed, on every item"`
-		Updated int      `json:"updated" jsonschema:"items changed"`
-		Items   []string `json:"items"   jsonschema:"the titles changed, in the order given"`
+		Changed     []string  `json:"changed"                jsonschema:"the fields changed, on every item"`
+		Updated     int       `json:"updated"                jsonschema:"items changed"`
+		Items       []itemWas `json:"items"                  jsonschema:"each item changed, in the order given, with what the fields were"`
+		NfoExpected []string  `json:"nfo_expected,omitempty" jsonschema:"the films, series, seasons and episodes changed in a library that saves nfos, whose nfo beside the media the server writes the edit into, over the one there, a moment after: expected from the library's setting, not read back. Other kinds (a song, a collection) get no nfo"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "item_edit",
-		Description: "Change an item's metadata, or make the same change on many items in one call: title, sort title, overview and year on one item; genres, tags, studios and the parental rating on one or forty. genres, tags and studios replace the list on every item; add_* and remove_* edit each item's own list, keeping the rest. Fields left out are untouched. metadata_rename renames a value wherever it is used. Changes server state.",
+		Name: "item_edit",
+		Description: "Change an item's metadata, or make the same change on many items in one call: title, sort title, overview and year on one item; genres, tags, studios and the parental rating on any number - every id given is changed. genres, tags and studios replace the list on every item; add_* and remove_* edit each item's own list, keeping the rest. Fields left out are untouched. metadata_rename renames a value wherever it is used. " +
+			"What an edit does beyond the field: in a library that saves nfos, the server writes a film's, series', season's or episode's nfo beside its media with the edit, over the nfo there. On Emby a sort title set here is locked, so Emby no longer works it out from the title, and no tool unlocks it. official_rating hides the item from every account limited to ratings below it, and no tool can clear a rating once set. " +
+			"An edit survives a normal refresh, and is undone by a refresh with replace_all, by item_identify_apply, and on Emby by a scan that finds the file written over, which reads the nfo beside it again (unless the library saves nfos, which hold the edit). " +
+			"The item is read, changed and posted back whole: edits from this server wait for each other, but a save by the server itself between the read and the post (a scan, a refresh, the web app) can be posted over. " +
+			"The answer gives each item's fields as they were, to set them back by, and the items whose nfo the server is expected to write; an edit that fails part way names the items already changed, and running the same call again finishes it.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
 		if len(in.IDs) == 0 {
 			return nil, editOut{}, errNoItems
@@ -207,40 +265,78 @@ func registerItemEditTools(r *registry) {
 		if err != nil {
 			return nil, editOut{}, err
 		}
-		out := editOut{Changed: changed, Items: make([]string, 0, len(in.IDs))}
+		// which libraries write an edit to an nfo, read once
+		folders, err := client.VirtualFolders(ctx)
+		if err != nil {
+			return nil, editOut{}, fmt.Errorf("could not read the libraries, to say which items' nfo an edit writes, so nothing was changed: %w", err)
+		}
+		out := editOut{Changed: changed, Items: make([]itemWas, 0, len(in.IDs))}
 		for _, id := range in.IDs {
+			var was map[string]any
 			full, err := client.EditItem(ctx, admin.ID, id, func(full map[string]any) (bool, error) {
+				was = map[string]any{}
 				if single["name"] {
-					full["Name"] = in.Name
+					was["name"], full["Name"] = full["Name"], in.Name
 				}
 				if single["sort_name"] {
+					was["sort_name"] = sortNameOf(full)
 					setSortName(full, in.SortName, client.Backend() == embyfin.Emby)
 				}
 				if single["overview"] {
-					full["Overview"] = in.Overview
+					was["overview"], full["Overview"] = full["Overview"], in.Overview
 				}
 				if single["year"] {
-					full["ProductionYear"] = in.Year
+					was["year"], full["ProductionYear"] = full["ProductionYear"], in.Year
 				}
 				for _, e := range edits {
 					if !e.empty() {
-						setVocabulary(full, e.field, e.apply(vocabularyOf(full, e.field)))
+						current := vocabularyOf(full, e.field)
+						was[e.field] = current
+						setVocabulary(full, e.field, e.apply(current))
 					}
 				}
 				if rating != "" {
-					full["OfficialRating"] = rating
+					was["official_rating"], full["OfficialRating"] = full["OfficialRating"], rating
 				}
 				return true, nil
 			})
 			if err != nil {
-				return nil, out, fmt.Errorf("%s: %w (%d items were updated before it)", id, err, out.Updated)
+				done := make([]memberRow, 0, len(out.Items))
+				for _, w := range out.Items {
+					done = append(done, memberRow{ID: w.ID, Name: w.Name})
+				}
+				return nil, editOut{}, partlyDone(id, err, done, len(in.IDs))
 			}
 			out.Updated++
-			out.Items = append(out.Items, itemName(full))
+			out.Items = append(out.Items, itemWas{ID: id, Name: itemName(full), Was: was})
+			if lib := embyfin.FolderOf(folders, fieldText(full, "Path")); lib != nil && lib.SavesNfo && nfoKinds[fieldText(full, "Type")] {
+				out.NfoExpected = append(out.NfoExpected, id)
+			}
 		}
 
 		return nil, out, nil
 	})
+}
+
+// nfoKinds are the items a library that saves nfos writes one for when an
+// edit saves them: a song's edit wrote none on Jellyfin (seen on 12.1), and
+// a collection is kept in the server's own folder, not beside any media.
+var nfoKinds = map[string]bool{typeMovie: true, "Series": true, "Season": true, typeEpisode: true}
+
+// partlyDone is the error for a change made item by item that failed part
+// way: the ones already changed, by id and name, so the caller knows the
+// state the items are in (the answer that would have listed them is lost with
+// the error), and that the same call again finishes it.
+func partlyDone(failedID string, err error, done []memberRow, asked int) error {
+	if len(done) == 0 {
+		return fmt.Errorf("%s: %w; nothing was changed", failedID, err)
+	}
+	names := make([]string, 0, len(done))
+	for _, d := range done {
+		names = append(names, d.Name+" ("+d.ID+")")
+	}
+
+	return fmt.Errorf("%s: %w. %d of the %d items were already changed: %s. The rest were not: run the same call again to finish, which leaves the ones done as they are", failedID, err, len(done), asked, strings.Join(names, ", "))
 }
 
 // itemName is a full item map's name.

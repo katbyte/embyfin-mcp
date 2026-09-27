@@ -199,8 +199,8 @@ func TestEmbyMediaStreams(t *testing.T) {
 		// the file named for two episodes holds a run, read from its name
 		// (its nfo, which ends the run at 2, Emby does not read for that)
 		const run = "Andor (2022)/Season 01/Andor S01E02E03.mp4"
-		if two := embyFile(t, episodes, run); two.ParentIndexNumber != 1 || two.IndexNumber != 2 || two.IndexNumberEnd != 3 {
-			t.Errorf("Andor S01E02E03 is S%02dE%02d-%02d, want S01E02-03", two.ParentIndexNumber, two.IndexNumber, two.IndexNumberEnd)
+		if two := embyFile(t, episodes, run); number(two.ParentIndexNumber) != 1 || number(two.IndexNumber) != 2 || two.IndexNumberEnd != 3 {
+			t.Errorf("Andor S01E02E03 is S%02dE%02d-%02d, want S01E02-03", number(two.ParentIndexNumber), number(two.IndexNumber), two.IndexNumberEnd)
 		}
 		for path, it := range episodes {
 			if it.IndexNumberEnd != 0 && path != run {
@@ -224,9 +224,10 @@ func TestEmbyMediaStreams(t *testing.T) {
 			t.Errorf("Deep Space Nine S03E01 runs %d ticks, want the twelve hours its duration claims", broken.RunTimeTicks)
 		}
 		// and the featurette in a season's Extras folder, which Emby takes for
-		// an episode of the show with no number
-		if extra := embyFile(t, episodes, "Severance/Season 01/Extras/Featurette.mp4"); extra.SeriesName != severance || extra.IndexNumber != 0 {
-			t.Errorf("the season's featurette = %s of %s, number %d; want an episode of %s with none", extra.Name, extra.SeriesName, extra.IndexNumber, severance)
+		// an episode of the show with no number, in season 0 though it sits
+		// in season one's folder
+		if extra := embyFile(t, episodes, "Severance/Season 01/Extras/Featurette.mp4"); extra.SeriesName != severance || extra.IndexNumber != nil || number(extra.ParentIndexNumber) != 0 {
+			t.Errorf("the season's featurette = %s of %s, S%dE%d; want an episode of %s in season 0 with no number", extra.Name, extra.SeriesName, number(extra.ParentIndexNumber), number(extra.IndexNumber), severance)
 		}
 	})
 }

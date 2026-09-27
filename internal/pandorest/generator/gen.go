@@ -103,10 +103,14 @@ func (g *gen) goType(t definitions.TypeRef, pointer bool) string {
 }
 
 // fieldType is how a model holds a field: a struct model by pointer, a
-// boolean as *bool, the rest by value.
+// boolean as *bool, a number whose null is kept (KeepsNull) by pointer, the
+// rest by value.
 func (g *gen) fieldType(f *definitions.Field) string {
 	if f.Type.Type == definitions.Boolean {
 		return "*bool"
+	}
+	if f.KeepsNull {
+		return "*" + g.goType(f.Type, true)
 	}
 
 	return g.goType(f.Type, true)

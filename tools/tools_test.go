@@ -66,8 +66,8 @@ func TestRegisterAllKinds(t *testing.T) {
 	}
 	for _, tool := range listed.Tools {
 		destructive := tool.Annotations != nil && tool.Annotations.DestructiveHint != nil && *tool.Annotations.DestructiveHint
-		if destructive != slices.Contains(deletes, tool.Name) {
-			t.Errorf("%s is marked destructive: %v", tool.Name, destructive)
+		if slices.Contains(deletes, tool.Name) && !destructive {
+			t.Errorf("%s deletes, and is not marked destructive", tool.Name)
 		}
 	}
 	for _, name := range ro {
@@ -87,7 +87,7 @@ func TestRegisterAllKinds(t *testing.T) {
 	}
 }
 
-// The surface is 87 tools, 60 of them reads and 5 deletes, and the essential
+// The surface is 88 tools, 61 of them reads and 5 deletes, and the essential
 // preset is enough to find things, read them and keep watch state in sync. A
 // tool added, merged, removed or moved between kinds changes these on
 // purpose, and this is where that is said.
@@ -102,8 +102,8 @@ func TestSurfaceSize(t *testing.T) {
 	for _, ti := range list {
 		kinds[ti.Kind]++
 	}
-	if len(list) != 87 || kinds["read"] != 60 || kinds["write"] != 22 || kinds["delete"] != 5 {
-		t.Errorf("surface = %d tools: %v, want 87 with 60 read, 22 write, 5 delete", len(list), kinds)
+	if len(list) != 88 || kinds["read"] != 61 || kinds["write"] != 22 || kinds["delete"] != 5 {
+		t.Errorf("surface = %d tools: %v, want 88 with 61 read, 22 write, 5 delete", len(list), kinds)
 	}
 	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids", "user_in_progress", "show_episodes"} {
 		if slices.ContainsFunc(list, func(ti ToolInfo) bool { return ti.Name == gone }) {
@@ -117,6 +117,76 @@ func TestSurfaceSize(t *testing.T) {
 	}
 	if len(EssentialTools) != 5 {
 		t.Errorf("essential = %v, want five tools", EssentialTools)
+	}
+}
+
+// Every tool tells a client what it changes, without the client reading the
+// text: a read tool that the server is only read by says it changes nothing
+// (unless it writes a file on this machine, which it does not deny), every
+// write tool says whether it can take away what was there and whether a
+// repeat changes more, from its own entry rather than its kind, and every
+// delete is destructive. The ones a review found marked additive while they
+// can remove or overwrite are named.
+func TestEveryWriteToolIsHinted(t *testing.T) {
+	t.Parallel()
+
+	listed, err := session(t, newFakeServer(t), Options{EnableDelete: true}).ListTools(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kinds := map[string]string{}
+	described, err := Describe(Options{Toolsets: []string{"all"}, EnableDelete: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ti := range described {
+		kinds[ti.Name] = ti.Kind
+	}
+	seen := map[string]bool{}
+	for _, tool := range listed.Tools {
+		a := tool.Annotations
+		if a == nil || a.DestructiveHint == nil {
+			t.Errorf("%s has no annotations", tool.Name)
+			continue
+		}
+		switch kinds[tool.Name] {
+		case "read":
+			if a.ReadOnlyHint == hostWriters[tool.Name] || *a.DestructiveHint {
+				t.Errorf("%s: read-only %v, destructive %v", tool.Name, a.ReadOnlyHint, *a.DestructiveHint)
+			}
+		case "write":
+			seen[tool.Name] = true
+			h, ok := changeHints[tool.Name]
+			if !ok {
+				t.Errorf("%s is a write tool with no hints of its own", tool.Name)
+				continue
+			}
+			if a.ReadOnlyHint || *a.DestructiveHint != h.destructive || a.IdempotentHint != h.idempotent {
+				t.Errorf("%s: read-only %v, destructive %v, idempotent %v; want %+v", tool.Name, a.ReadOnlyHint, *a.DestructiveHint, a.IdempotentHint, h)
+			}
+		case "delete":
+			if a.ReadOnlyHint || !*a.DestructiveHint {
+				t.Errorf("%s deletes: read-only %v, destructive %v", tool.Name, a.ReadOnlyHint, *a.DestructiveHint)
+			}
+		default:
+			t.Errorf("%s has no kind", tool.Name)
+		}
+	}
+	for name := range changeHints {
+		if !seen[name] {
+			t.Errorf("changeHints names %s, which is no write tool", name)
+		}
+	}
+	for _, name := range []string{"library_edit", "task_run", "item_artwork_set", "metadata_rename", "item_set_state", "item_identify_apply", "item_refresh", "library_scan"} {
+		if !changeHints[name].destructive {
+			t.Errorf("%s can remove or overwrite what was there, and is marked additive", name)
+		}
+	}
+	// library_export writes a file here: not read-only, and additive
+	for name := range hostWriters {
+		if kinds[name] != "read" {
+			t.Errorf("%s is a %s tool; it changes nothing on the server", name, kinds[name])
+		}
 	}
 }
 
@@ -459,9 +529,9 @@ func TestGroupByProviderID(t *testing.T) {
 
 	// an episode's id is shared far more loosely: the same imdb id on two
 	// episodes of different numbers is not a duplicate
-	e1 := embyfin.Item{ID: "e1", Type: "Episode", ParentIndexNumber: 1, IndexNumber: 1, ProviderIDs: map[string]string{"Imdb": "tt1"}}
-	e2 := embyfin.Item{ID: "e2", Type: "Episode", ParentIndexNumber: 1, IndexNumber: 2, ProviderIDs: map[string]string{"Imdb": "tt1"}}
-	e1again := embyfin.Item{ID: "e3", Type: "Episode", ParentIndexNumber: 1, IndexNumber: 1, ProviderIDs: map[string]string{"Imdb": "tt1"}}
+	e1 := embyfin.Item{ID: "e1", Type: "Episode", ParentIndexNumber: new(1), IndexNumber: new(1), ProviderIDs: map[string]string{"Imdb": "tt1"}}
+	e2 := embyfin.Item{ID: "e2", Type: "Episode", ParentIndexNumber: new(1), IndexNumber: new(2), ProviderIDs: map[string]string{"Imdb": "tt1"}}
+	e1again := embyfin.Item{ID: "e3", Type: "Episode", ParentIndexNumber: new(1), IndexNumber: new(1), ProviderIDs: map[string]string{"Imdb": "tt1"}}
 	if groups := groupByProviderID([]embyfin.Item{e1, e2, e1again}); len(groups) != 1 || len(groups[0]) != 2 || groups[0][1].ID != "e3" {
 		t.Errorf("episode groups = %v", groups)
 	}
@@ -502,7 +572,7 @@ func TestAuditChecks(t *testing.T) {
 		{"/m/Alien Collection (1979)/Alien 3 (1992)/Alien 3 (1992).mkv", 1992, false}, // the collection folder's year is not the film's
 		{"/m/Alien Collection (1979)/Alien 3 (1992)/Alien 3 (1992).mkv", 1979, true},
 	} {
-		if _, bad := checkYearMismatch(item(tc.path, tc.year, nil)); bad != tc.bad {
+		if _, bad := checkYearMismatch(item(tc.path, tc.year, nil), 0); bad != tc.bad {
 			t.Errorf("year mismatch %q/%d = %v, want %v", tc.path, tc.year, bad, tc.bad)
 		}
 	}

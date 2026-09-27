@@ -22,12 +22,23 @@ func itemsFromJF(dtos []jf.BaseItemDto) []Item {
 	return items
 }
 
+// lockedFromJF is an item's locked fields, by name.
+func lockedFromJF(fields []jf.MetadataField) []string {
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		out = append(out, string(f))
+	}
+
+	return out
+}
+
 func itemFromJF(d *jf.BaseItemDto) Item {
 	it := Item{
 		ID:                d.Id,
 		Name:              d.Name,
 		OriginalTitle:     d.OriginalTitle,
 		SortName:          d.SortName,
+		Settings:          settingsOf(d.ForcedSortName, lockedFromJF(d.LockedFields)),
 		Type:              string(d.Type),
 		ProductionYear:    d.ProductionYear,
 		PremiereDate:      d.PremiereDate,
@@ -87,6 +98,7 @@ func mediaStreamFromJF(d *jf.MediaStream) MediaStream {
 	return MediaStream{
 		Type: string(d.Type), Codec: d.Codec, Language: d.Language, Width: d.Width, Height: d.Height,
 		BitRate: int64(d.BitRate), Channels: d.Channels, DisplayTitle: d.DisplayTitle, IsExternal: pointer.From(d.IsExternal),
+		IsForced: pointer.From(d.IsForced),
 		// the servers give both; AverageFrameRate is the one over the whole
 		// file, RealFrameRate the container's nominal one, and either is
 		// enough to tell 23.976 from 60
@@ -146,7 +158,8 @@ func userFromJF(d *jf.UserDto) User {
 			IsAdministrator: pointer.From(p.IsAdministrator), IsDisabled: pointer.From(p.IsDisabled), IsHidden: pointer.From(p.IsHidden),
 			EnableAllFolders: pointer.From(p.EnableAllFolders), EnabledFolders: p.EnabledFolders,
 			EnableContentDeletion: pointer.From(p.EnableContentDeletion), EnableRemoteAccess: pointer.From(p.EnableRemoteAccess),
-			MaxParentalRating: p.MaxParentalRating,
+			BlockedTags: p.BlockedTags, AllowedTags: p.AllowedTags, BlockUnratedItems: unrated(p.BlockUnratedItems), BlockedFolders: p.BlockedMediaFolders,
+			EnableAllChannels: pointer.From(p.EnableAllChannels), MaxParentalRating: p.MaxParentalRating,
 		}
 	}
 	if c := d.Configuration; c != nil {
@@ -175,7 +188,7 @@ func sessionFromJF(d *jf.SessionInfoDto) Session {
 }
 
 func taskFromJF(d *jf.TaskInfo) Task {
-	t := Task{ID: d.Id, Name: d.Name, Category: d.Category, State: string(d.State)}
+	t := Task{ID: d.Id, Key: d.Key, Name: d.Name, Category: d.Category, Description: d.Description, State: string(d.State)}
 	if r := d.LastExecutionResult; r != nil {
 		t.LastExecutionResult = &TaskResult{Status: string(r.Status), StartTimeUtc: r.StartTimeUtc, EndTimeUtc: r.EndTimeUtc, ErrorMessage: r.ErrorMessage}
 	}

@@ -90,7 +90,7 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	out = call(t, "audit_file_path", series)
 	if found := rows(t, out["findings"], "findings"); len(found) != 1 || str(found[0]["id"]) != andor ||
 		!slices.Equal(strs(t, found[0]["problems"], "problems"), []string{
-			`title: the path is named "Andor", the server holds "Severance", and the path's title is none of the titles it goes by: the wrong match, or another film`,
+			`title: the path is named "Andor", the server holds "Severance", and the path's title is none of the titles it goes by: the wrong match, or another series`,
 			"year: path says 2022, metadata says 2020",
 		}) {
 		t.Errorf("Andor held as Severance of 2020 = %v", found)
@@ -235,7 +235,7 @@ func TestAuditFilePathAgainstTMDB(t *testing.T) {
 	}
 	// named for another show's episode: TMDB has no episode of that title
 	if f := got["Severance S01E02 - Kassa.mp4"]; str(f["title_in_file"]) != "Kassa" || str(f["title_on_server"]) != "Half Loop" ||
-		str(f["tmdb_episode"]) != "" || str(f["diagnosis"]) != "no TMDB episode of this series has the file's title: the file is from another series, or named by hand" {
+		str(f["tmdb_episode"]) != "" || str(f["diagnosis"]) != "no TMDB episode title of this series matches the file's title as written: the file may be another series', named by hand, or titled otherwise than TMDB titles it" {
 		t.Errorf("the file named for another show's episode = %v", f)
 	}
 	// the two files now claim a title, so two fewer claim none
@@ -362,35 +362,57 @@ func TestAuditDuplicatesJoinOnlyOneTitle(t *testing.T) {
 	})
 }
 
-// One title twice in a season is a lead when the runtimes disagree: the
-// messy Severance's third episode renamed for its second, 5 seconds against
-// 1. Case does not make it another title, and a title in another season is
-// not the same episode.
-func TestAuditDuplicateEpisodesLeadAndCase(t *testing.T) {
+// One title twice in a season, as the files say it: the messy Severance's
+// first episode renamed for its second, both files a second long and the
+// season's third five, is a lead whatever the case of the title - their
+// runtimes the same to the second, but the third runs within a few seconds
+// of them, as a show cut to one length does, and their files differ. Its
+// third renamed for the second instead, five seconds against one, is far
+// apart: said, not dropped. And a title in another season is not the same
+// episode.
+func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 	sev := findItem(t, "Messy Shows", "Series", "Severance")
-	e03 := episodeID(t, sev, 1, 3)
+	e01, e03 := episodeID(t, sev, 1, 1), episodeID(t, sev, 1, 3)
 	messy := map[string]any{"library": "Messy Shows"}
 	if n := num(t, call(t, "audit_duplicate_episodes", messy)["total_findings"], "total_findings"); n != 0 {
 		t.Fatalf("the messy shows already repeat a title: %d", n)
 	}
 	before := auditRow(t, "Messy Shows", "audit_duplicate_episodes")
-
-	for _, name := range []string{"Half Loop", "HALF LOOP"} {
-		rename(t, e03, name)
+	only := func(what string) map[string]any {
+		t.Helper()
 		out := call(t, "audit_duplicate_episodes", messy)
 		groups := rows(t, out["groups"], "groups")
 		if len(groups) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
-			t.Fatalf("with S01E03 named %q = %v", name, groups)
+			t.Fatalf("with %s = %v", what, groups)
 		}
-		g := groups[0]
-		eps := rows(t, g["episodes"], "episodes")
-		if str(g["series"]) != "Severance" || num(t, g["season"], "season") != 1 || str(g["confidence"]) != "lead" || decimal(t, g["runtime_gap"], "runtime_gap") != 0.8 ||
-			len(eps) != 2 || num(t, eps[0]["episode"], "episode") != 2 || num(t, eps[0]["runtime_s"], "runtime_s") != 1 || num(t, eps[1]["episode"], "episode") != 3 || num(t, eps[1]["runtime_s"], "runtime_s") != 5 {
-			t.Errorf("with S01E03 named %q the group = %v", name, g)
+		return groups[0]
+	}
+	numbers := func(g map[string]any) []int {
+		var out []int
+		for _, e := range rows(t, g["episodes"], "episodes") {
+			out = append(out, num(t, e["episode"], "episode"))
+		}
+		return out
+	}
+
+	for _, name := range []string{"Half Loop", "HALF LOOP"} {
+		rename(t, e01, name)
+		g := only("S01E01 named " + name)
+		if str(g["series"]) != "Severance" || num(t, g["season"], "season") != 1 || str(g["confidence"]) != "lead" ||
+			!slices.Equal(strs(t, g["evidence"], "evidence"), []string{"E01 and E02: the same runtime to the second, but E03 of the season runs within a few seconds of it too, so no sign alone"}) || !slices.Equal(numbers(g), []int{1, 2}) {
+			t.Errorf("with S01E01 named %q the group = %v", name, g)
 		}
 		if n := auditRow(t, "Messy Shows", "audit_duplicate_episodes"); n != before+1 {
 			t.Errorf("audit_all's row = %d, want %d", n, before+1)
 		}
+	}
+	call(t, "item_edit", map[string]any{"ids": []any{e01}, "name": "Good News About Hell"})
+
+	// five times the length: a copy cut short, one file holding two, or two
+	// episodes - far apart, and listed
+	rename(t, e03, "Half Loop")
+	if g := only("S01E03 named Half Loop"); str(g["confidence"]) != "far_apart" || !slices.Equal(numbers(g), []int{2, 3}) || decimal(t, g["runtime_gap"], "runtime_gap") != 0.8 {
+		t.Errorf("a title on episodes of one and five seconds = %v", g)
 	}
 
 	// Deep Space Nine's third season opener given its first season's title:
@@ -479,9 +501,9 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})
 	want := []string{
 		"Star Trek Deep Space Nine S03E01.mkv: 720 min: not a runtime, the file's duration metadata is broken",
-		"hack Liminality S01E03.mp4: 0 min, season median 3 min (100% off)",
-		"hack Liminality S02E03.mp4: 0 min, season median 3 min (100% off)",
-		"hack Liminality S01E04E05.mp4: 3 min for 2 episodes, season median 3 min each, 6 expected (50% off)",
+		"hack Liminality S01E03.mp4: 0 min, far shorter than the rest of its season, which run 3 min: an incomplete or wrong file",
+		"hack Liminality S02E03.mp4: 0 min, far shorter than the rest of its season, which run 3 min: an incomplete or wrong file",
+		"hack Liminality S01E04E05.mp4: 3 min for 2 episodes, where its season runs 3 min each, 6 expected (50% off)",
 	}
 	if got := byFile(out); !slices.Equal(got, want) || num(t, out["total_findings"], "total_findings") != 4 {
 		t.Errorf("runtimes off = %v, want %v", got, want)
@@ -527,13 +549,16 @@ func TestAuditRuntimeStaged(t *testing.T) {
 
 		return
 	}
+	// the note may say how Emby's versions were placed, with the key's
+	// sample agreeing, and nothing else: not the library changing, nor the
+	// key disagreeing with a read
 	rescanUntil(t, "both files written over", func() bool {
 		return num(t, call(t, "audit_quality", quality)["total_replaced"], "total_replaced") == 2
 	})
 	out = call(t, "audit_quality", quality)
 	replaced := rows(t, out["replaced"], "replaced")
-	if len(replaced) != 1 || !strings.HasSuffix(str(replaced[0]["path"]), "Season 02/hack Liminality S02E01.mp4") || !strings.Contains(str(replaced[0]["detail"]), "after the server first saw it") || out["note"] != nil {
-		t.Errorf("limit 1 replaced = %v, want the first of the two by path", replaced)
+	if len(replaced) != 1 || !strings.HasSuffix(str(replaced[0]["path"]), "Season 02/hack Liminality S02E01.mp4") || !strings.Contains(str(replaced[0]["detail"]), "after the server first saw it") || (str(out["note"]) != "" && !strings.HasPrefix(str(out["note"]), "on Emby, of the")) {
+		t.Errorf("limit 1 replaced = %v, note %q, want the first of the two by path and no note but how versions were placed", replaced, out["note"])
 	}
 }
 
@@ -733,7 +758,7 @@ func TestAuditMissingProviderLinksOnly(t *testing.T) {
 	if idx < 0 {
 		t.Fatalf("no Princess Mononoke among the candidates: %v", cands)
 	}
-	call(t, "item_identify_apply", map[string]any{"id": mononoke, "kind": "movie", "candidate": idx})
+	call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx}))
 	if !eventually(func() bool {
 		return !slices.Contains(findings(t, call(t, "audit_missing_metadata_provider", messy)), "Princess Mononoke")
 	}) {

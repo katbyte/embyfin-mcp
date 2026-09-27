@@ -25,7 +25,7 @@ func summariseLibrary(f *embyfin.VirtualFolder) librarySummary {
 }
 
 // saveNfoSchema describes save_nfo for library_create and library_edit.
-const saveNfoSchema = "write each edit to an item back to an nfo beside its media file (the library's Nfo metadata saver): Emby names it after the media file, Jellyfin movie.nfo or tvshow.nfo"
+const saveNfoSchema = "write each edit of an item's metadata to an nfo beside its media file, over any nfo of that name already there (the library's Nfo metadata saver): Emby names it after the media file, Jellyfin movie.nfo or tvshow.nfo. Off, an edit lives only in the server's database, and on Emby a scan that finds a file written over reads the nfo beside it over the edit"
 
 // containerTypes are the item types that hold other items rather than being
 // media: left out of a library's item count.
@@ -131,6 +131,24 @@ func findLibrary(ctx context.Context, client *embyfin.Client, nameOrID string) (
 	return nil, fmt.Errorf("%d libraries are named %q apart from case: %s; pass the exact name or an id", len(folded), nameOrID, strings.Join(candidates, ", "))
 }
 
+// accessLost is the names of the accounts among given, by id, that do not see
+// a library now: the ones a Jellyfin rename, which gives the library a new
+// id, took it from.
+func accessLost(ctx context.Context, client *embyfin.Client, given []string, folder *embyfin.VirtualFolder) ([]string, error) {
+	users, err := client.Users(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var lost []string
+	for i := range users {
+		if slices.Contains(given, users[i].ID) && !users[i].CanSee(folder) {
+			lost = append(lost, users[i].Name)
+		}
+	}
+
+	return lost, nil
+}
+
 func registerLibraryTools(r *registry) {
 	client := r.client
 	type libraryListOut struct {
@@ -162,13 +180,13 @@ func registerLibraryTools(r *registry) {
 		CollectionType string         `json:"collection_type,omitempty"`
 		Locations      []string       `json:"locations,omitempty"`
 		SavesNfo       bool           `json:"saves_nfo"                 jsonschema:"an edit to an item is written back to an nfo beside its media file"`
-		ItemCount      int            `json:"item_count"                jsonschema:"total items in the library, recursive, not counting folders and collections"`
-		TypeCounts     map[string]int `json:"type_counts,omitempty"     jsonschema:"item counts by primary type: Movie, Series and Episode, or MusicArtist, MusicAlbum and Audio in a music library"`
+		ItemCount      int            `json:"item_count"                jsonschema:"every item the server keeps under the library but its folders, collections and playlists: in a show library its series, seasons and episodes together, and Emby keeps more besides (type_counts has the kinds one by one)"`
+		TypeCounts     map[string]int `json:"type_counts,omitempty"     jsonschema:"item counts by primary type: Movie, Series and Episode, or MusicArtist, MusicAlbum and Audio in a music library. As the server stores them: Emby counts each file of a film or episode held in several as one of its own, Jellyfin one with the rest as versions"`
 		Note           string         `json:"note,omitempty"            jsonschema:"set when the server lists the library without an id, so it has no items to count until a scan gives it one"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "library_get",
-		Description: "Get information about one library: type, filesystem locations, and item counts.",
+		Description: "Get information about one library: type, filesystem locations, and item counts as the server stores them (Emby counts every file of a film held in several, Jellyfin the film once).",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in libraryGetIn) (*mcp.CallToolResult, libraryGetOut, error) {
 		folder, err := findLibrary(ctx, client, in.Library)
 		if err != nil {
@@ -220,11 +238,13 @@ func registerLibraryTools(r *registry) {
 		Limit   int    `json:"limit,omitempty"   jsonschema:"maximum results, default 25, max 1000"`
 	}
 	type recentOut struct {
-		Items []itemSummary `json:"items" jsonschema:"newest additions first"`
+		Items []itemSummary `json:"items"          jsonschema:"newest additions first"`
+		More  bool          `json:"more"           jsonschema:"true when more items were added inside the period than the limit let through: this is only the newest of them"`
+		Note  string        `json:"note,omitempty" jsonschema:"what more means for this answer"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "library_recent",
-		Description: "Recently added items, newest first, default last 60 days.",
+		Description: "Recently added items, newest first, default last 60 days, up to limit: more says when the period held more than that.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in recentIn) (*mcp.CallToolResult, recentOut, error) {
 		types := in.Types
 		if types == "" {
@@ -237,11 +257,12 @@ func registerLibraryTools(r *registry) {
 		// one answer a client can hold, as the bulk reads cap theirs
 		limit = min(limit, episodePageMax)
 
+		// one more than the limit, to know whether the limit cut the period
 		opts := embyfin.SearchOptions{
 			IncludeItemTypes: types,
-			SortBy:           "DateCreated",
+			SortBy:           "DateCreated,SortName",
 			SortOrder:        sortDescending,
-			Limit:            limit,
+			Limit:            limit + 1,
 		}
 
 		folder, err := resolveLibrary(ctx, client, in.Library)
@@ -258,11 +279,18 @@ func registerLibraryTools(r *registry) {
 		}
 
 		cutoff := daysCutoff(in.Days)
-		out := recentOut{}
+		out := recentOut{Items: []itemSummary{}}
 		for i := range items {
-			if afterCutoff(items[i].DateCreated, cutoff) {
-				out.Items = append(out.Items, summarise(&items[i]))
+			if !afterCutoff(items[i].DateCreated, cutoff) {
+				continue
 			}
+			if len(out.Items) == limit {
+				out.More = true
+				out.Note = fmt.Sprintf("more than %d items were added in the period: these are the newest %d, so raise limit (up to %d) or narrow the days or types to see the rest", limit, limit, episodePageMax)
+
+				break
+			}
+			out.Items = append(out.Items, summarise(&items[i]))
 		}
 
 		return nil, out, nil
@@ -273,7 +301,8 @@ func registerLibraryTools(r *registry) {
 		Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types; default Movie,Series"`
 	}
 	type genresOut struct {
-		Genres []string `json:"genres" jsonschema:"by name"`
+		Genres []string `json:"genres"         jsonschema:"by name"`
+		Note   string   `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: a genre only an item added then carries may be missing, and one only an item removed then carried may be listed. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "library_genres",
@@ -288,7 +317,7 @@ func registerLibraryTools(r *registry) {
 		}
 		seen := map[string]bool{}
 		out := genresOut{Genres: []string{}}
-		if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+		result, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 			for i := range items {
 				for _, g := range items[i].Genres {
 					if !seen[g] {
@@ -298,9 +327,11 @@ func registerLibraryTools(r *registry) {
 				}
 			}
 			return true
-		}); err != nil {
+		})
+		if err != nil {
 			return nil, genresOut{}, err
 		}
+		out.Note = result.Changed()
 		slices.Sort(out.Genres)
 
 		return nil, out, nil
@@ -310,23 +341,31 @@ func registerLibraryTools(r *registry) {
 		Library string `json:"library,omitempty" jsonschema:"scan only this library, by name or id; default every library"`
 	}
 	type scanOut struct {
-		Started bool   `json:"started"`
-		Library string `json:"library,omitempty" jsonschema:"the library scanned, when one was named"`
-		Note    string `json:"note,omitempty"    jsonschema:"set when every library was scanned in place of the one named"`
+		Started        bool     `json:"started"`
+		Library        string   `json:"library,omitempty"         jsonschema:"the library scanned, when one was named"`
+		Note           string   `json:"note"                      jsonschema:"where the scan runs and how to see it end, and when every library was scanned in place of the one named"`
+		AlreadyRunning []string `json:"already_running,omitempty" jsonschema:"the scans the server showed running when this one was asked for"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "library_scan",
-		Description: "Scan the libraries' folders so new, changed and removed files are picked up: every library, or one. Every library runs as the server's scan task (task_list shows when it has finished); one library is a refresh of its folder, which is not a task and fills in metadata only where it is missing. A Jellyfin library not yet scanned has no folder to refresh, so naming one scans every library, which is what gives it its id. Changes server state.",
+		Name: "library_scan",
+		Description: "Scan the libraries' folders so new, changed and removed files are picked up: every library, or one. It answers once the scan is asked for; the scan runs in the background. " +
+			"What a scan changes, and nothing here undoes: an item whose file is gone is dropped, with its metadata, edits, images and places in playlists and collections; a new file becomes an item; a file written over is read again whole, and on Emby the nfo beside it is read again over any edit made since. An item deleted while a scan runs can be listed again until the next one (seen on Jellyfin). On Emby a scan saves every playlist and collection back as it found them, renumbering playlist entries, so a change made to one while it runs can be lost. " +
+			"Every library runs as the server's scan task, which task_list shows ending; asked for while one runs, Jellyfin cancels it and starts again. One library is a refresh of its folder, which is not a task and fills in metadata only where it is missing. A Jellyfin library not yet scanned has no folder to refresh, so naming one scans every library, which is what gives it its id. already_running says which scans were running when this one was asked for.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in scanIn) (*mcp.CallToolResult, scanOut, error) {
 		folder, err := findLibrary(ctx, client, in.Library)
 		if err != nil {
 			return nil, scanOut{}, err
 		}
+		running, err := client.ScansRunning(ctx)
+		if err != nil {
+			return nil, scanOut{}, fmt.Errorf("could not tell whether a scan was running, so none was started: %w", err)
+		}
+		const everyNote = "runs in the background as the server's scan task; task_list shows when it ends"
 		if folder == nil {
 			if err := client.RefreshLibrary(ctx); err != nil {
 				return nil, scanOut{}, err
 			}
-			return nil, scanOut{Started: true}, nil
+			return nil, scanOut{Started: true, Note: everyNote, AlreadyRunning: running}, nil
 		}
 		// a library with no id has no folder of its own to refresh yet; the
 		// scan of every library is what gives it one
@@ -334,13 +373,13 @@ func registerLibraryTools(r *registry) {
 			if err := client.RefreshLibrary(ctx); err != nil {
 				return nil, scanOut{}, err
 			}
-			return nil, scanOut{Started: true, Library: folder.Name, Note: folder.Name + " is listed without an id, so every library is being scanned: that gives it one"}, nil
+			return nil, scanOut{Started: true, Library: folder.Name, AlreadyRunning: running, Note: folder.Name + " is listed without an id, so every library is being scanned, which gives it one: " + everyNote}, nil
 		}
 		if err := client.ScanLibrary(ctx, folder); err != nil {
 			return nil, scanOut{}, err
 		}
 
-		return nil, scanOut{Started: true, Library: folder.Name}, nil
+		return nil, scanOut{Started: true, Library: folder.Name, AlreadyRunning: running, Note: "runs in the background as a refresh of the library's folder, which is no task: task_list does not show it"}, nil
 	})
 
 	registerLibraryBrowseTools(r)
@@ -350,15 +389,21 @@ func registerLibraryTools(r *registry) {
 		Type      string   `json:"type"                jsonschema:"movies, tvshows, music, musicvideos, homevideos, books or mixed"`
 		Paths     []string `json:"paths"               jsonschema:"folders on the server's own filesystem"`
 		Providers bool     `json:"providers,omitempty" jsonschema:"leave the server's internet metadata and image fetchers on; off, the library is built from the files and their nfo sidecars only"`
-		Scan      bool     `json:"scan,omitempty"      jsonschema:"scan the new library straight away"`
-		SaveNfo   *bool    `json:"save_nfo,omitempty"  jsonschema:"true or false; left out, Emby saves no nfo and Jellyfin saves them"`
+		Scan      bool     `json:"scan,omitempty"      jsonschema:"scan the new library straight away: on Jellyfin a scan of every library"`
+		SaveNfo   *bool    `json:"save_nfo,omitempty"  jsonschema:"true or false; left out, the server's own default: Emby saves no nfo, Jellyfin saves them"`
+	}
+	type createOut struct {
+		librarySummary
+		Note string `json:"note,omitempty" jsonschema:"what the new library shares with the others, and what the answer could not read back"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "library_create",
-		Description: "Create a library over folders on the server; it has its id at once. scan=true (or library_scan afterwards) reads what the folders hold. save_nfo: " + saveNfoSchema + ". Changes server state.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, librarySummary, error) {
+		Name: "library_create",
+		Description: "Create a library over folders on the server; it has its id at once. save_nfo: " + saveNfoSchema + ". Left out, save_nfo is the server's own default: Emby saves no nfo, and Jellyfin saves one for every item edited, beside the media, over any already there; saves_nfo in the answer says which. " +
+			"providers left off builds the library from its files and their nfo sidecars alone. scan=true reads what the folders hold straight away (or run library_scan after): on Jellyfin that is a scan of every library, which drops items whose files are gone anywhere on the server and cancels a scan under way. " +
+			"A folder another library already reads, or one inside or around it, is read twice: its items are listed once in each library, and on Emby, which keeps watch state by provider id, the copies share it; note names any such folder. library_delete removes the library again, and the items it made with it.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
 		if in.Name == "" || len(in.Paths) == 0 {
-			return nil, librarySummary{}, errors.New("name and at least one path are required")
+			return nil, createOut{}, errors.New("name and at least one path are required")
 		}
 		// a name another library has, apart from case, is refused before
 		// anything is made: Jellyfin makes "SCRATCH" beside "Scratch" as
@@ -366,55 +411,88 @@ func registerLibraryTools(r *registry) {
 		// with the other library
 		existing, err := client.VirtualFolders(ctx)
 		if err != nil {
-			return nil, librarySummary{}, err
+			return nil, createOut{}, err
 		}
 		for i := range existing {
 			if strings.EqualFold(existing[i].Name, in.Name) {
-				return nil, librarySummary{}, fmt.Errorf("a library named %q already exists: choose a name no library has, apart from case too", existing[i].Name)
+				return nil, createOut{}, fmt.Errorf("a library named %q already exists: choose a name no library has, apart from case too", existing[i].Name)
+			}
+		}
+		// a folder another library reads is read twice, and said so
+		var shared []string
+		for _, p := range in.Paths {
+			for i := range existing {
+				for _, loc := range existing[i].Locations {
+					if within(p, loc) || within(loc, p) {
+						shared = append(shared, fmt.Sprintf("%s (the %s library reads %s)", p, existing[i].Name, loc))
+					}
+				}
 			}
 		}
 		if err := client.CreateLibrary(ctx, embyfin.LibrarySpec{
 			Name: in.Name, CollectionType: in.Type, Paths: in.Paths, Providers: in.Providers, Refresh: in.Scan, SaveNfo: in.SaveNfo,
 		}); err != nil {
-			return nil, librarySummary{}, err
+			return nil, createOut{}, err
+		}
+		out := createOut{}
+		if len(shared) > 0 {
+			out.Note = "another library already reads " + listed(shared, 20) + ": every item under it is listed in both"
 		}
 
 		// read back by the exact name asked for: the library made, and no
 		// other
 		folders, err := client.VirtualFolders(ctx)
 		if err != nil {
-			return nil, librarySummary{}, err
+			return nil, createOut{}, fmt.Errorf("the library %s was created, but reading it back failed: %w", in.Name, err)
 		}
 		for i := range folders {
 			if folders[i].Name == in.Name {
-				return nil, summariseLibrary(&folders[i]), nil
+				out.librarySummary = summariseLibrary(&folders[i])
+				return nil, out, nil
 			}
 		}
 
-		return nil, librarySummary{}, fmt.Errorf("the server answered the creation of %q, but lists no library of that name", in.Name)
+		return nil, createOut{}, fmt.Errorf("the server answered the creation of %q, but lists no library of that name", in.Name)
 	})
 
 	type editIn struct {
 		Library     string   `json:"library"                jsonschema:"library name (case-insensitive) or library id"`
 		Name        string   `json:"name,omitempty"         jsonschema:"rename the library"`
 		AddPaths    []string `json:"add_paths,omitempty"    jsonschema:"folders on the server's own filesystem to add"`
-		RemovePaths []string `json:"remove_paths,omitempty" jsonschema:"folders to take out of the library (the files stay on disk)"`
+		RemovePaths []string `json:"remove_paths,omitempty" jsonschema:"folders to take out of the library, dropping every item under them (the files stay on disk); needs --enable-delete"`
 		SaveNfo     *bool    `json:"save_nfo,omitempty"     jsonschema:"true to start writing nfos, false to stop"`
+	}
+	type removedFolder struct {
+		Path    string         `json:"path"`
+		Items   int            `json:"items"           jsonschema:"items the library held under it, which the server drops"`
+		ByType  map[string]int `json:"by_type"`
+		InLists int            `json:"in_lists"        jsonschema:"of those, how many a playlist or collection held"`
+		Lists   []listRef      `json:"lists,omitempty" jsonschema:"the playlists and collections they leave"`
 	}
 	type editOut struct {
 		librarySummary
-		Changed []string `json:"changed"        jsonschema:"what was done, in order"`
-		Note    string   `json:"note,omitempty" jsonschema:"what the answer could not read back"`
+		Changed    []string        `json:"changed"                   jsonschema:"what was done, in order"`
+		Removed    []removedFolder `json:"removed_folders,omitempty" jsonschema:"each folder taken out, and what the library held under it before"`
+		WasID      string          `json:"was_id,omitempty"          jsonschema:"the library's id before a rename that gave it another"`
+		AccessLost []string        `json:"access_lost,omitempty"     jsonschema:"the accounts given this library alone, by its old id, that no longer see it"`
+		Note       string          `json:"note,omitempty"            jsonschema:"what the answer could not read back, and what may still happen"`
 	}
 	add(r, writeTool, &mcp.Tool{
-		Name:        "library_edit",
-		Description: "Rename a library (to a name no other library has, apart from case too), add and remove the folders it is built from, or switch save_nfo: " + saveNfoSchema + ". On Emby nothing is scanned: run library_scan on the library afterwards to pick up what a new folder holds or drop what a removed one held. On Jellyfin a folder change or a rename starts a scan of every library, because a scan of one library does not see a changed folder, and a renamed library is listed without its id or options until that scan gives it a new id: the answer waits for it. Changes server state.",
+		Name: "library_edit",
+		Description: "Rename a library (to a name no other library has, apart from case too), add and take out the folders it is built from, or switch save_nfo: " + saveNfoSchema + ". " +
+			"A folder taken out (remove_paths) drops every item the library holds under it - on Emby the moment the folder leaves, on Jellyfin with the scan of every library the change starts - and with them " + goneWithItems + ". The files stay on disk. It needs --enable-delete, and the answer says for each folder how many items it held and how many a playlist or collection held. " +
+			"A folder added is read at the library's next scan on Emby (library_scan), and by the scan of every library the change starts on Jellyfin. " +
+			"A rename keeps the library's id on Emby. On Jellyfin it gives the library a new id, with the scan of every library it starts (the answer waits for it), and an account given this library by its old id rather than every library no longer sees it until an administrator gives it the library again, which no tool here does: access_lost names them. " +
+			"On Jellyfin every folder change and rename starts a scan of every library, because a scan of one library does not see a changed folder: that scan drops items whose files are gone anywhere on the server and cancels a scan under way.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
 		if in.Library == "" {
 			return nil, editOut{}, errors.New("library is required")
 		}
 		if in.Name == "" && len(in.AddPaths) == 0 && len(in.RemovePaths) == 0 && in.SaveNfo == nil {
 			return nil, editOut{}, errors.New("nothing to change: pass name, add_paths, remove_paths or save_nfo")
+		}
+		if len(in.RemovePaths) > 0 && !r.opts.EnableDelete {
+			return nil, editOut{}, fmt.Errorf("refusing to take %s out of %s without --enable-delete: a folder taken out drops every item under it, with %s. Nothing was changed; embyfin-mcp started with --enable-delete takes it out", strings.Join(in.RemovePaths, ", "), in.Library, goneWithItems)
 		}
 		// the folders and the rename go by name on Jellyfin, so a library not
 		// yet scanned can still be edited; only nfo saving needs its id
@@ -464,6 +542,37 @@ func registerLibraryTools(r *registry) {
 		}
 
 		out := editOut{Changed: []string{}}
+		// what each folder taken out holds, counted before it goes: once it
+		// has, the items are gone and nothing can count them
+		if len(in.RemovePaths) > 0 {
+			lists, lerr := readMemberships(ctx, client)
+			if lerr != nil {
+				return nil, editOut{}, fmt.Errorf("could not read the playlists and collections, so nothing was changed: %w", lerr)
+			}
+			under, ierr := libraryItemsUnder(ctx, client, folder, in.RemovePaths)
+			if ierr != nil {
+				return nil, editOut{}, fmt.Errorf("could not count what %s holds under %s, so nothing was changed: %w", folder.Name, strings.Join(in.RemovePaths, ", "), ierr)
+			}
+			for _, p := range in.RemovePaths {
+				items := under[p]
+				ids := idsOf(items)
+				out.Removed = append(out.Removed, removedFolder{Path: p, Items: len(items), ByType: countByType(items), InLists: lists.inAny(ids), Lists: lists.holding(ids)})
+			}
+		}
+		// the accounts given this library by its id, which a rename that
+		// gives it a new one takes it from
+		var given []string
+		if in.Name != "" && in.Name != folder.Name {
+			users, uerr := client.Users(ctx)
+			if uerr != nil {
+				return nil, editOut{}, fmt.Errorf("could not read the accounts that see %s, so nothing was changed: %w", folder.Name, uerr)
+			}
+			for i := range users {
+				if !users[i].Policy.EnableAllFolders && users[i].CanSee(folder) {
+					given = append(given, users[i].ID)
+				}
+			}
+		}
 		// a step the server refuses after others have landed says what they
 		// were, so the caller knows what state the library is in
 		failed := func(step string, err error) error {
@@ -510,6 +619,7 @@ func registerLibraryTools(r *registry) {
 			return nil, editOut{}, failed("reading the library back", err)
 		}
 		out.librarySummary = summariseLibrary(updated)
+		var notes []string
 		if updated.ItemID == "" && folder.ItemID != "" {
 			// a renamed Jellyfin library the scan has not reached yet is
 			// listed with none of its options: the rename kept them, and
@@ -518,26 +628,53 @@ func registerLibraryTools(r *registry) {
 			if in.SaveNfo != nil {
 				out.SavesNfo = *in.SaveNfo
 			}
-			out.Note = "the server lists the renamed library without an id until its library scan reaches it; saves_nfo is as it was set, which a rename keeps"
+			notes = append(notes, "the server lists the renamed library without an id until its library scan reaches it; saves_nfo is as it was set, which a rename keeps")
 		}
+		if updated.ItemID != "" && folder.ItemID != "" && updated.ItemID != folder.ItemID {
+			out.WasID = folder.ItemID
+		}
+		if len(given) > 0 && updated.ItemID == "" {
+			notes = append(notes, fmt.Sprintf("%d account(s) were given this library by its id, which on Jellyfin a rename replaces: whether they still see it cannot be told until the library is listed with its new id", len(given)))
+		} else if len(given) > 0 {
+			lost, err := accessLost(ctx, client, given, updated)
+			if err != nil {
+				notes = append(notes, fmt.Sprintf("%d account(s) were given this library by its id, and reading whether they still see it failed: %v", len(given), err))
+			}
+			out.AccessLost = lost
+		}
+		if len(in.RemovePaths) > 0 {
+			when := "at once"
+			if client.Backend() == embyfin.Jellyfin {
+				when = "with the scan of every library the change started"
+			}
+			notes = append(notes, "the server drops the items under the folders taken out "+when+", with "+goneWithItems)
+		}
+		out.Note = strings.Join(notes, ". ")
 
 		return nil, out, nil
 	})
 
 	type deleteLibraryIn struct {
-		Library string `json:"library" jsonschema:"library name (case-insensitive) or library id"`
-		Confirm bool   `json:"confirm" jsonschema:"must be true; the library and the server's metadata for it are removed (the media files stay on disk)"`
+		Library string `json:"library"           jsonschema:"library name (case-insensitive) or library id"`
+		Confirm bool   `json:"confirm,omitempty" jsonschema:"must be true to delete; without it the call is refused with what the library holds. The library and everything the server keeps for its items go (the media files stay on disk)"`
 	}
 	type deleteLibraryOut struct {
-		Deleted string `json:"deleted"`
+		Deleted    string         `json:"deleted"`
+		ID         string         `json:"id,omitempty"`
+		Locations  []string       `json:"locations,omitempty"`
+		Items      int            `json:"items"                 jsonschema:"items the library held, not counting folders and collections"`
+		ByType     map[string]int `json:"by_type"`
+		InLists    int            `json:"in_lists"              jsonschema:"of those, how many a playlist or collection held"`
+		Lists      []listRef      `json:"lists,omitempty"       jsonschema:"the playlists and collections they leave"`
+		AccessLost []string       `json:"access_lost,omitempty" jsonschema:"the accounts given this library by its id, rather than every library, which no longer have it"`
+		Note       string         `json:"note"`
 	}
 	add(r, deleteTool, &mcp.Tool{
-		Name:        "library_delete",
-		Description: "Remove a library from the server. The media files stay on disk, but the server's metadata, images and watch state for its items are gone, and they leave the playlists and collections that held them (Jellyfin drops them with the library scan this starts). Requires confirm=true.",
+		Name: "library_delete",
+		Description: "Remove a library from the server. The media files stay on disk; what the server keeps for the library's items goes with it: " + goneWithItems + ". " +
+			"On Emby the items go with the library; on Jellyfin with the scan of every library the removal starts, which also drops items whose files are gone anywhere on the server and cancels a scan under way. An account given this library by its id, rather than every library, no longer has it. " +
+			"Without confirm=true it refuses, saying how many items the library holds by type and how many of them a playlist or collection holds; with it, the answer says the same of what went.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteLibraryIn) (*mcp.CallToolResult, deleteLibraryOut, error) {
-		if !in.Confirm {
-			return nil, deleteLibraryOut{}, errors.New("refusing to delete without confirm=true")
-		}
 		// Jellyfin removes a library by name, so one not yet scanned can go too
 		folder, err := findLibrary(ctx, client, in.Library)
 		if err != nil {
@@ -546,10 +683,105 @@ func registerLibraryTools(r *registry) {
 		if folder == nil {
 			return nil, deleteLibraryOut{}, errors.New("library is required")
 		}
+
+		// what goes with it, read before: afterwards nothing can count it
+		out := deleteLibraryOut{Deleted: folder.Name, ID: folder.ItemID, Locations: folder.Locations, ByType: map[string]int{}}
+		counted := folder.ItemID != ""
+		if counted {
+			var items []embyfin.Item
+			// what goes with it decides the delete: a read that cannot be
+			// sure of it fails, and nothing is deleted
+			read, rerr := client.ReadAll(ctx, embyfin.SearchOptions{ParentID: folder.ItemID, ExcludeItemTypes: containerTypes, Fields: "Path"}, embyfin.ToAct, func(page []embyfin.Item) bool {
+				items = append(items, page...)
+				return true
+			})
+			if rerr != nil {
+				return nil, deleteLibraryOut{}, fmt.Errorf("could not read what the %s library holds, so nothing was deleted: %w", folder.Name, rerr)
+			}
+			if changed := read.Changed(); changed != "" {
+				return nil, deleteLibraryOut{}, fmt.Errorf("can't be sure what the %s library holds, so nothing was deleted (%s): ask again", folder.Name, changed)
+			}
+			lists, lerr := readMemberships(ctx, client)
+			if lerr != nil {
+				return nil, deleteLibraryOut{}, fmt.Errorf("could not read the playlists and collections, so nothing was deleted: %w", lerr)
+			}
+			ids := idsOf(items)
+			out.Items, out.ByType, out.InLists, out.Lists = len(items), countByType(items), lists.inAny(ids), lists.holding(ids)
+		}
+		users, err := client.Users(ctx)
+		if err != nil {
+			return nil, deleteLibraryOut{}, fmt.Errorf("could not read the accounts that see the %s library, so nothing was deleted: %w", folder.Name, err)
+		}
+		for i := range users {
+			if !users[i].Policy.EnableAllFolders && users[i].CanSee(folder) {
+				out.AccessLost = append(out.AccessLost, users[i].Name)
+			}
+		}
+		holds := "it is listed without an id, so what it holds cannot be counted"
+		if counted {
+			holds = fmt.Sprintf("it holds %d items (%s), %d of them in a playlist or collection", out.Items, typeCounts(out.ByType), out.InLists)
+			if len(out.Lists) > 0 {
+				holds += ": " + listsSaid(out.Lists)
+			}
+		}
+		if !in.Confirm {
+			lose := ""
+			if len(out.AccessLost) > 0 {
+				lose = ". Accounts given it by its id lose it: " + strings.Join(out.AccessLost, ", ")
+			}
+			return nil, deleteLibraryOut{}, fmt.Errorf("refusing to delete the %s library without confirm=true: nothing was changed. %s; with the library go %s%s", folder.Name, holds, goneWithItems, lose)
+		}
 		if err := client.DeleteLibrary(ctx, folder); err != nil {
-			return nil, deleteLibraryOut{}, err
+			return nil, deleteLibraryOut{}, libraryAfterFailedDelete(ctx, client, folder, err)
+		}
+		out.Note = "the library is gone, and its items with it"
+		if client.Backend() == embyfin.Jellyfin {
+			out.Note = "the library is gone; its items go with the scan of every library this started, which task_list shows ending"
 		}
 
-		return nil, deleteLibraryOut{Deleted: folder.Name}, nil
+		return nil, out, nil
 	})
+}
+
+// libraryAfterFailedDelete is the error for a library delete the server
+// answered with an error, saying whether the library is still listed, read
+// back: Jellyfin removes the library and then scans, and a scan that fails
+// leaves it gone; Emby answered a database error with a bare 500 (seen on
+// 4.11), and the library may be gone or not.
+func libraryAfterFailedDelete(ctx context.Context, client *embyfin.Client, folder *embyfin.VirtualFolder, err error) error {
+	folders, rerr := client.VirtualFolders(ctx)
+	if rerr != nil {
+		return fmt.Errorf("the delete of the %s library failed: %w; and reading the libraries back failed, so whether it is gone is not known: %w", folder.Name, err, rerr)
+	}
+	still := slices.ContainsFunc(folders, func(f embyfin.VirtualFolder) bool {
+		return f.Name == folder.Name || folder.ItemID != "" && f.ItemID == folder.ItemID
+	})
+	if still {
+		return fmt.Errorf("the delete of the %s library failed, and it is still listed, read back: %w. What the server took of its items before it failed is not known: library_get counts what is left", folder.Name, err)
+	}
+
+	return fmt.Errorf("the %s library is gone, read back, but the delete answered an error: %w", folder.Name, err)
+}
+
+// typeCounts says item counts by type, largest first: "Movie 12, Series 3".
+func typeCounts(counts map[string]int) string {
+	types := make([]string, 0, len(counts))
+	for t := range counts {
+		types = append(types, t)
+	}
+	slices.SortFunc(types, func(a, b string) int {
+		if counts[a] != counts[b] {
+			return counts[b] - counts[a]
+		}
+		return strings.Compare(a, b)
+	})
+	parts := make([]string, 0, len(types))
+	for _, t := range types {
+		parts = append(parts, fmt.Sprintf("%s %d", t, counts[t]))
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+
+	return strings.Join(parts, ", ")
 }

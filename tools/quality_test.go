@@ -351,14 +351,19 @@ func TestQualityCompareFlagsInterpolatedFrameRates(t *testing.T) {
 	// and 50/60 is not suspicious in itself, only against a slower master:
 	// sport and video-shot studio work really are 50p
 	for _, fps := range []float64{23.976, 24, 25, 29.97, 30} {
-		if interpolated(fps) {
-			t.Errorf("%v fps read as interpolated", fps)
+		if highFrameRate(fps) {
+			t.Errorf("%v fps read as a high frame rate", fps)
 		}
 	}
 	for _, fps := range []float64{50, 59.94, 60, 120} {
-		if !interpolated(fps) {
-			t.Errorf("%v fps did not read as interpolated", fps)
+		if !highFrameRate(fps) {
+			t.Errorf("%v fps did not read as a high frame rate", fps)
 		}
+	}
+	// and the caveat is a lead, not a verdict: a copy of a match or of 720p60
+	// broadcast TV is at its source's own rate
+	if !strings.Contains(caveats, "may be the source's own rate") || strings.Contains(caveats, "Treat it as worse") {
+		t.Errorf("the caveat calls a 60fps copy worse whatever its source: %v", out["caveats"])
 	}
 }
 

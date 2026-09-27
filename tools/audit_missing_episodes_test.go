@@ -2,6 +2,7 @@ package tools
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,12 +33,16 @@ func TestAuditMissingEpisodesAsksTheProvider(t *testing.T) {
 		t.Errorf("without the provider = %v", plain)
 	}
 
+	// one of the two shows' runs could not be read, so the answer is not
+	// that every show not listed is complete: it used to say runs_known
+	// true, and nothing else, as soon as any one show's run was read
 	out := mustCall(t, cs, "audit_missing_episodes", map[string]any{"library": "Shows", "provider": true})
-	if !boolean(t, out["runs_known"], "runs_known") || out["note"] != nil || out["next_offset"] != nil {
+	if boolean(t, out["runs_known"], "runs_known") || number(t, out["total_unknown"], "total_unknown") != 1 || number(t, out["series"], "series") != 2 ||
+		!strings.Contains(text(out["note"]), "the run of 1 of the 2 shows asked about could not be read") || out["next_offset"] != nil || text(out["order"]) != "TMDB aired order" {
 		t.Errorf("with the provider = %v", out)
 	}
 	rows := objects(t, out["findings"], "findings")
-	if len(rows) != 1 || text(rows[0]["name"]) != s.name || !strings.Contains(text(rows[0]["detail"]), "listed by TMDB without a file: S01E03, S01E04") {
+	if len(rows) != 1 || text(rows[0]["name"]) != s.name || !strings.Contains(text(rows[0]["detail"]), "listed by TMDB without a file: S01E03, S01E04") || !boolean(t, rows[0]["run_known"], "run_known") {
 		t.Errorf("findings = %v", rows)
 	}
 	unknown := objects(t, out["unknown"], "unknown")
@@ -47,11 +52,11 @@ func TestAuditMissingEpisodesAsksTheProvider(t *testing.T) {
 
 	// one series a call: Severance first by name, then the other
 	first := mustCall(t, cs, "audit_missing_episodes", map[string]any{"library": "Shows", "provider": true, "max_lookups": 1})
-	if number(t, first["next_offset"], "next_offset") != 1 || number(t, first["total_findings"], "total_findings") != 1 || first["total_unknown"] != nil {
+	if number(t, first["next_offset"], "next_offset") != 1 || number(t, first["total_findings"], "total_findings") != 1 || number(t, first["total_unknown"], "total_unknown") != 0 || !boolean(t, first["runs_known"], "runs_known") {
 		t.Errorf("first page = %v", first)
 	}
 	rest := mustCall(t, cs, "audit_missing_episodes", map[string]any{"library": "Shows", "provider": true, "offset": 1})
-	if rest["next_offset"] != nil || number(t, rest["total_findings"], "total_findings") != 0 || number(t, rest["total_unknown"], "total_unknown") != 1 {
+	if rest["next_offset"] != nil || number(t, rest["total_findings"], "total_findings") != 0 || number(t, rest["total_unknown"], "total_unknown") != 1 || boolean(t, rest["runs_known"], "runs_known") {
 		t.Errorf("the rest = %v", rest)
 	}
 
@@ -199,5 +204,121 @@ func TestAuditMissingEpisodesJudgesASplitShowAsOne(t *testing.T) {
 	}
 	if number(t, out["total_findings"], "total_findings") != 2 {
 		t.Errorf("total_findings = %v, want the split show once and Zzyzx Apart", out["total_findings"])
+	}
+}
+
+// runs_known said true as soon as any one show had a record of its run, so a
+// library where one show in a hundred had one read as a library whose shows
+// not listed were complete. It is true only when every show's run was read,
+// and each finding says whether its own show's was.
+func TestAuditMissingEpisodesSaysWhichRunsItKnows(t *testing.T) {
+	t.Parallel()
+
+	recorded := &fakeSeries{id: "r1", name: "Zzyzx Recorded", episodes: []ep{
+		{season: 1, number: 1, name: "one", path: "/m/r1/s01e01.mkv"},
+		{season: 1, number: 2, name: "two", missing: true, premiere: "2020-01-08T00:00:00.0000000Z"},
+	}}
+	gapped := &fakeSeries{id: "g1", name: "Zzyzx Gapped", episodes: []ep{
+		{season: 1, number: 1, name: "one", path: "/m/g1/s01e01.mkv"},
+		{season: 1, number: 3, name: "three", path: "/m/g1/s01e03.mkv"},
+	}}
+	out := mustCall(t, session(t, tvServer(t, recorded, gapped), Options{}), "audit_missing_episodes", map[string]any{})
+	if boolean(t, out["runs_known"], "runs_known") || number(t, out["total_unknown"], "total_unknown") != 1 || number(t, out["series"], "series") != 2 ||
+		!strings.Contains(text(out["note"]), "a record of the run of 1 of the 2 shows") {
+		t.Errorf("one show of two with a record = %v", out)
+	}
+	known := map[string]bool{}
+	for _, f := range objects(t, out["findings"], "findings") {
+		known[text(f["id"])] = boolean(t, f["run_known"], "run_known")
+	}
+	if len(known) != 2 || !known["r1"] || known["g1"] {
+		t.Errorf("run_known by show = %v, want r1's known and g1's not", known)
+	}
+}
+
+// TMDB's run is its aired order, and a show whose files are numbered another
+// way - TVDB's order, which Sonarr names files by - was compared with it
+// number by number and answered with confidence. The files holding a number
+// the run has no episode for is the sign, and the answer says so.
+func TestAuditMissingEpisodesFlagsFilesNumberedAnotherWay(t *testing.T) {
+	t.Parallel()
+
+	s := severance()
+	s.ids = map[string]string{"Tmdb": guideTMDBID}
+	s.episodes = []ep{
+		{season: 0, number: 7, name: "special", path: "/m/s00e07.mkv"},
+		{season: 1, number: 1, name: "one", path: "/m/s01e01.mkv"},
+		{season: 1, number: 4, name: "four", path: "/m/s01e04.mkv"},
+		{season: 3, number: 1, name: "three one", path: "/m/s03e01.mkv"},
+	}
+	run := map[int][]string{1: {"one", "two", "three"}, 2: {"two one"}}
+	cs := session(t, tvServer(t, s), Options{TMDBKey: "k", ProviderTransport: guideServer(t, run, aired2022)})
+	out := mustCall(t, cs, "audit_missing_episodes", map[string]any{"provider": true})
+
+	other := objects(t, out["numbered_otherwise"], "numbered_otherwise")
+	if len(other) != 1 || text(other[0]["id"]) != "sev" || text(other[0]["not_in_run"]) != "S01E04, S03E01" || number(t, out["total_numbered_otherwise"], "total_numbered_otherwise") != 1 {
+		t.Errorf("numbered_otherwise = %v, want Severance's S01E04 and S03E01 (and not its special)", other)
+	}
+	rows := objects(t, out["findings"], "findings")
+	if len(rows) != 1 || !strings.Contains(text(rows[0]["warning"]), "the files hold S01E04, S03E01, which TMDB's aired order has no episode for") {
+		t.Errorf("findings = %v, want the listed-missing warned on", rows)
+	}
+	if text(out["order"]) != "TMDB aired order" {
+		t.Errorf("order = %v", out["order"])
+	}
+}
+
+// A show whose files each hold two segments, titled "A & B" and named by the
+// first number alone, read as missing every second episode. The gaps are
+// still what the files show, and the answer says what the titles suggest.
+func TestMissingEpisodesSayWhatATitleJoinedWithAmpersandSuggests(t *testing.T) {
+	t.Parallel()
+
+	s := &fakeSeries{id: "z", name: "Zzyzx Show", episodes: []ep{
+		{season: 1, number: 1, name: "Alpha & Beta", path: "/m/z/s01e01.mkv"},
+		{season: 1, number: 3, name: "Gamma & Delta", path: "/m/z/s01e03.mkv"},
+		{season: 1, number: 5, name: "Epsilon", path: "/m/z/s01e05.mkv"},
+		{season: 1, number: 7, name: "Eta", path: "/m/z/s01e07.mkv"},
+	}}
+	cs := session(t, tvServer(t, s), Options{})
+	want := `a file whose title joins two titles with '&' just before a missing number probably holds both episodes, named by its first number alone: S01E02 after S01E01 "Alpha & Beta", S01E04 after S01E03 "Gamma & Delta"`
+
+	rows := objects(t, mustCall(t, cs, "audit_missing_episodes", map[string]any{})["findings"], "findings")
+	if len(rows) != 1 || text(rows[0]["detail"]) != "missing between the episodes on disk: S01E02, S01E04, S01E06" || text(rows[0]["warning"]) != want {
+		t.Errorf("findings = %v, want every gap and the two after a joined title said", rows)
+	}
+	out := mustCall(t, cs, "show_missing", map[string]any{"series_id": "z"})
+	if !slices.Equal(codes(t, out["gaps_on_disk"], "gaps_on_disk"), []string{"S01E02", "S01E04", "S01E06"}) || text(out["warning"]) != want {
+		t.Errorf("show_missing gaps %v, warning %q", out["gaps_on_disk"], out["warning"])
+	}
+}
+
+// An anime entry kept apart - its own AniDB id - carrying its parent's TVDB
+// id is not the parent: joined by the shared id, its episodes were counted as
+// the parent's, and the parent's gaps hidden.
+func TestAuditMissingEpisodesKeepsAnimeWithOtherAniDBIDsApart(t *testing.T) {
+	t.Parallel()
+
+	parent := &fakeSeries{id: "p1", name: "Zzyzx Anime", ids: map[string]string{"Tvdb": "5", "AniDB": "1"}, episodes: []ep{
+		{season: 1, number: 1, name: "one", path: "/m/p1/s01e01.mkv"},
+		{season: 1, number: 3, name: "three", path: "/m/p1/s01e03.mkv"},
+	}}
+	ova := &fakeSeries{id: "o1", name: "Zzyzx Anime OVA", ids: map[string]string{"Tvdb": "5", "AniDB": "2"}, episodes: []ep{
+		{season: 1, number: 2, name: "ova", path: "/m/o1/s01e02.mkv"},
+	}}
+	out := mustCall(t, session(t, tvServer(t, parent, ova), Options{}), "audit_missing_episodes", map[string]any{})
+	rows := objects(t, out["findings"], "findings")
+	if len(rows) != 1 || text(rows[0]["id"]) != "p1" || text(rows[0]["detail"]) != "missing between the episodes on disk: S01E02" || rows[0]["warning"] != nil {
+		t.Errorf("findings = %v, want the parent's own gap, not filled by the OVA's file", rows)
+	}
+	if number(t, out["series"], "series") != 2 {
+		t.Errorf("series = %v, want the two apart", out["series"])
+	}
+
+	// the same two with one AniDB id between them are still one show
+	ova.ids = map[string]string{"Tvdb": "5"}
+	out = mustCall(t, session(t, tvServer(t, parent, ova), Options{}), "audit_missing_episodes", map[string]any{})
+	if number(t, out["total_findings"], "total_findings") != 0 || number(t, out["series"], "series") != 1 {
+		t.Errorf("sharing a TVDB id and one AniDB id = %v, want one show with nothing missing", out)
 	}
 }

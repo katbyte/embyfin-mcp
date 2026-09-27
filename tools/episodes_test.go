@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -237,10 +238,22 @@ func TestShowEpisodesExistCarriesQualityOnHits(t *testing.T) {
 	}
 
 	// the media sources are pulled only for the call that wanted them: they
-	// are the expensive half of an episode read
-	asked := f.requests("/Shows/sev/Episodes")
+	// are the expensive half of an episode read. Each call also reads the
+	// whole series' paths, for files with no numbers that may be the
+	// episodes it found absent, and never their media sources
+	var asked []request
+	for _, r := range f.requests("/Shows/sev/Episodes") {
+		if !strings.Contains(r.Query, "Season=") {
+			if strings.Contains(r.Query, "MediaSources") {
+				t.Errorf("the look for unnumbered files read the media sources: %s", r.Query)
+			}
+
+			continue
+		}
+		asked = append(asked, r)
+	}
 	if len(asked) != 2 {
-		t.Fatalf("episode reads = %d, want one per call", len(asked))
+		t.Fatalf("season reads = %d, want one per call", len(asked))
 	}
 	if !strings.Contains(asked[0].Query, "MediaSources") {
 		t.Errorf("quality=true did not ask for the media sources: %s", asked[0].Query)
@@ -353,11 +366,25 @@ func TestShowEpisodesExist(t *testing.T) {
 		t.Errorf("an unknown episode = %v", rows[1])
 	}
 
-	// the seasons asked about are the seasons read, not the whole series
+	// the seasons asked about are the seasons read, not the whole series:
+	// that is read once, for its paths alone, only because something was
+	// absent and a file the server holds no numbers for may be it
+	whole := 0
 	for _, r := range f.requests("/Shows/sev/Episodes") {
-		if !strings.Contains(r.Query, "Season=") {
-			t.Errorf("the whole series was pulled to answer two seasons: %s", r.Query)
+		if strings.Contains(r.Query, "Season=") {
+			continue
 		}
+		whole++
+		q, err := url.ParseQuery(r.Query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fields := param(q, "Fields"); fields != "Path" {
+			t.Errorf("the whole series was pulled with %s, to answer two seasons: %s", fields, r.Query)
+		}
+	}
+	if whole != 1 {
+		t.Errorf("the whole series was read %d times, want once for its unnumbered files", whole)
 	}
 
 	// and it can be asked by name

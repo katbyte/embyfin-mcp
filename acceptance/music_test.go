@@ -298,8 +298,16 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 	}
 
 	out := call(t, "metadata_rename", map[string]any{"field": "genre", "from": "Electronica", "to": "Electronic", "library": "Music"})
-	if num(t, out["updated"], "updated") != len(sirens) || str(out["field"]) != "genres" {
-		t.Errorf("metadata_rename = %v, want the %d items that carried it", out, len(sirens))
+	if num(t, out["updated"], "updated") != len(sirens) || str(out["field"]) != "genres" || out["still_listed"] != nil {
+		t.Errorf("metadata_rename = %v, want the %d items that carried it, none still shown with it", out, len(sirens))
+	}
+	// right after the answer, every item read on its own - the album too,
+	// whose genres Emby gives it from its tracks - has the new genre alone
+	for _, id := range sirens {
+		got := call(t, "item_get", map[string]any{"id": id})
+		if genres := strs(t, got["genres"], "genres"); slices.Contains(genres, "Electronica") {
+			t.Errorf("right after the rename %s %s (%s) shows the genres %v", got["type"], got["name"], id, genres)
+		}
 	}
 	if got := carriers("Electronica"); len(got) != 0 {
 		t.Errorf("after the rename Electronica is still on %v", got)

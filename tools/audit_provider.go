@@ -85,6 +85,7 @@ type providerAuditOut struct {
 	ByCheck    map[string]int    `json:"by_check"              jsonschema:"findings by the check that failed; a film failing both counts under both"`
 	Findings   []providerFinding `json:"findings"              jsonschema:"capped at limit"`
 	NextOffset int               `json:"next_offset,omitempty" jsonschema:"pass back as offset to go on; absent when the sweep finished"`
+	Note       string            `json:"note,omitempty"        jsonschema:"set when the library was seen to change while this call read its films: films added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 }
 
 // providerChecks are the checks, in the order a row lists what it found.
@@ -92,7 +93,7 @@ var providerChecks = []string{"ids", "runtime"}
 
 func registerProviderCheckAudit(r *registry) {
 	client := r.client
-	provider := tmdbFacts(r.opts)
+	provider := tmdbFacts(r.opts, r.opts.ProviderTransport)
 
 	desc := "Check films against their metadata provider, one request a film: the ids the film holds agree with each other and exist there (a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, an IMDb id that is a series or an episode rather than a film), and the file's runtime is the provider's (a truncated download, a wrong file, a wrong match). " +
 		"The item reads as matched on the server either way. Paged, every film once in the same order on every call: pass next_offset back as offset to go on; ids checks a handful of films without a sweep. TMDB is the only provider yet, and films the only kind."
@@ -158,6 +159,11 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 		if in.Library != "" {
 			return providerAuditOut{}, errors.New("give library or ids, not both: a film is already in one library")
 		}
+		// read first: an id the server cannot use as a filter is not a
+		// narrower sweep, it is the whole library or nothing (see checkIDs)
+		if err := checkIDs(ctx, client, ids, []string{typeMovie}, "films"); err != nil {
+			return providerAuditOut{}, err
+		}
 		opts.IDs = strings.Join(ids, ",")
 	} else {
 		folder, err := resolveLibrary(ctx, client, in.Library)
@@ -175,18 +181,19 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 	// them was asked about twice and the other never; neither server sorts
 	// by anything that tells every film apart
 	var films []embyfin.Item
-	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+	read, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 		films = append(films, items...)
 
 		return true
-	}); err != nil {
+	})
+	if err != nil {
 		return providerAuditOut{}, err
 	}
 	slices.SortFunc(films, func(a, b embyfin.Item) int {
 		return cmp.Or(strings.Compare(strings.ToLower(cmp.Or(a.SortName, a.Name)), strings.ToLower(cmp.Or(b.SortName, b.Name))), strings.Compare(a.ID, b.ID))
 	})
 
-	out := providerAuditOut{Findings: []providerFinding{}, ByCheck: map[string]int{}}
+	out := providerAuditOut{Findings: []providerFinding{}, ByCheck: map[string]int{}, Note: read.Changed()}
 	lookups := 0
 	start := min(max(in.Offset, 0), len(films))
 	items := films[start:]

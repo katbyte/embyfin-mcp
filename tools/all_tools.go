@@ -92,7 +92,7 @@ var Toolsets = map[string][]string{
 	"curation": {
 		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
 		"audit_file_path", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_anime_ids", "audit_provider", "quality_compare", "plan_check",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_whitespace", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_anime_ids", "audit_provider", "quality_compare", "plan_check",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes_exist", "show_missing", "show_resolve",
@@ -188,23 +188,100 @@ func (r *registry) pause(ctx context.Context) error {
 	}
 }
 
+// hints are what a tool that changes something tells a client about the
+// change, beyond its kind, in the MCP annotations' terms: destructive when it
+// can change or take away what was there - a value written over, a file
+// deleted or rewritten, a watch history cleared, a scan that drops items -
+// rather than only add; idempotent when calling it again with the same
+// arguments changes nothing more.
+type hints struct{ destructive, idempotent bool }
+
+// changeHints are every write tool's hints, each decided on its own rather
+// than taken from the kind: marked all alike, library_edit (a folder removed
+// drops its items), task_run (a task can delete files), item_artwork_set
+// (Emby deletes the poster file it replaces) and item_set_state (unwatched
+// clears play counts for good) read as additive to a client. A write tool
+// missing from here is marked destructive, and fails
+// TestEveryWriteToolIsHinted.
+var changeHints = map[string]hints{
+	// a task can delete files, rewrite lists or install an update; a scan
+	// drops the items whose files are gone
+	"task_run":     {destructive: true},
+	"library_scan": {destructive: true},
+	// Jellyfin saves nfos by default, over any beside the media
+	"library_create": {destructive: true},
+	// a folder taken out drops its items; a rename gives a Jellyfin library
+	// a new id
+	"library_edit": {destructive: true},
+	// replaces metadata and images, and re-reads an nfo over edits
+	"item_refresh": {destructive: true},
+	// unwatched clears play counts and dates; a second watched mark on a
+	// watched item adds no play (seen on both servers)
+	"item_set_state": {destructive: true, idempotent: true},
+	// values written over, the same values again the second time
+	"item_edit":       {destructive: true, idempotent: true},
+	"metadata_rename": {destructive: true, idempotent: true},
+	// replaces every field and image, hand edits included
+	"item_identify_apply": {destructive: true},
+	// Emby deletes the poster file it replaces
+	"item_artwork_set": {destructive: true},
+	// a download of the same language and format writes over the file
+	"item_subtitle_download": {destructive: true},
+	// what the device was playing stops, and its progress is recorded
+	"session_play":    {destructive: true},
+	"session_command": {destructive: true},
+	"session_message": {},
+	// the first playlist made on an Emby server starts a library scan, which
+	// drops the items whose files are gone
+	"playlist_create": {destructive: true},
+	// the first collection made on a server starts a scan of every library
+	// (seen on Emby 4.11 and Jellyfin 12.1)
+	"collection_create": {destructive: true},
+	// items added to a list
+	"playlist_add":   {},
+	"collection_add": {idempotent: true},
+	// entries taken out, a name written over, a Jellyfin move that takes
+	// entries out and puts them back
+	"playlist_remove":   {destructive: true},
+	"playlist_edit":     {destructive: true},
+	"collection_remove": {destructive: true, idempotent: true},
+	"collection_edit":   {destructive: true, idempotent: true},
+}
+
+// hostWriters are the read tools that write a file on the machine
+// embyfin-mcp runs on. The server is only read, so they stay read tools and a
+// read-only session keeps them, but they do not claim to change nothing: each
+// only ever writes a new file, which is additive.
+var hostWriters = map[string]bool{
+	"library_export": true,
+}
+
 // add queues a typed tool for registration. It sets the MCP annotations from
-// kind so clients can tell read-only from destructive tools without parsing
-// descriptions, and normalises the output so that empty collections
-// serialise as [] rather than null: an AI client reading "people": null
-// cannot tell "none" from "not fetched", and Go leaves un-appended slices nil.
+// kind and the tool's hints so clients can tell read-only from destructive
+// tools without parsing descriptions, and normalises the output so that empty
+// collections serialise as [] rather than null: an AI client reading
+// "people": null cannot tell "none" from "not fetched", and Go leaves
+// un-appended slices nil.
 func add[In, Out any](r *registry, kind toolKind, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
 	f := false
 	switch kind {
 	case readTool:
-		t.Annotations = &mcp.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: &f, OpenWorldHint: &f}
+		t.Annotations = &mcp.ToolAnnotations{ReadOnlyHint: !hostWriters[t.Name], DestructiveHint: &f, OpenWorldHint: &f}
 	case writeTool:
-		t.Annotations = &mcp.ToolAnnotations{DestructiveHint: &f, OpenWorldHint: &f}
+		hint, known := changeHints[t.Name]
+		if !known {
+			// the answer that warns, until the tool is given its own
+			hint = hints{destructive: true}
+		}
+		t.Annotations = &mcp.ToolAnnotations{DestructiveHint: new(hint.destructive), IdempotentHint: hint.idempotent, OpenWorldHint: &f}
 	case deleteTool:
 		t.Annotations = &mcp.ToolAnnotations{DestructiveHint: new(true), OpenWorldHint: &f}
 	}
 
 	wrapped := func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
+		// the account a list is read whole in is chosen again for each call:
+		// one narrowed since the last would read short without a word
+		r.client.ForgetFullViewer()
 		res, out, err := recovered(ctx, r, t.Name, h, req, in)
 		if err == nil {
 			emptyNilSlices(reflect.ValueOf(&out).Elem())
@@ -324,6 +401,7 @@ func queueTools(r *registry) {
 	registerPlanTools(r)
 	registerOrphanTools(r)
 	registerSpellingTools(r)
+	registerWhitespaceAudit(r)
 	registerMediaAudits(r)
 	registerItemTools(r)
 	registerItemEditTools(r)

@@ -166,11 +166,20 @@ func TestServerLogs(t *testing.T) {
 		t.Errorf("the newest log's size = %v, want bytes", newest["size"])
 	}
 
-	// the default is the most recently written log, and the tail is the
-	// lines asked for
+	// the default is the server's own log, not whichever file changed last
+	// (a transcode's, while something plays): Emby's embyserver.txt, and
+	// Jellyfin's newest log_<date>.log - on a fresh server the newest file
+	// either way. The tail is the lines asked for
 	tail := call(t, "server_log", map[string]any{"lines": 5})
-	if str(tail["name"]) != str(newest["name"]) {
-		t.Errorf("server_log read %v, want the newest log %v", tail["name"], newest["name"])
+	own := "embyserver.txt"
+	if isJellyfin() {
+		own = str(newest["name"])
+		if !strings.HasPrefix(own, "log_") {
+			t.Errorf("Jellyfin's newest log is %s, want its own log_<date>.log", own)
+		}
+	}
+	if str(tail["name"]) != own || tail["note"] != nil {
+		t.Errorf("server_log read %v (note %v), want the server's own log %s", tail["name"], tail["note"], own)
 	}
 	if n := len(strings.Split(str(tail["tail"]), "\n")); n != 5 {
 		t.Errorf("tail has %d lines, want 5", n)

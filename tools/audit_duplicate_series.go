@@ -64,6 +64,7 @@ type folderOut struct {
 	Scanned int           `json:"items_scanned"`
 	Found   int           `json:"total_findings"`
 	Groups  []folderGroup `json:"groups"         jsonschema:"capped at limit; total_findings is the real count"`
+	Note    string        `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 }
 
 type folderRow struct {
@@ -105,7 +106,7 @@ func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folder
 
 	byKey := map[string][]folderRow{}
 	out := folderOut{Groups: []folderGroup{}}
-	if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+	swept, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
 			out.Scanned++
@@ -133,9 +134,11 @@ func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folder
 		}
 
 		return true
-	}); err != nil {
+	})
+	if err != nil {
 		return folderOut{}, err
 	}
+	out.Note = swept.Changed()
 
 	var groups []folderGroup
 	for key, rows := range byKey {

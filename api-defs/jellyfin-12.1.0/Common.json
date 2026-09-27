@@ -715,7 +715,8 @@
           "Type": {
             "Type": "Integer"
           },
-          "Nullable": true
+          "Nullable": true,
+          "KeepsNull": true
         },
         {
           "Name": "IndexNumberEnd",
@@ -1077,7 +1078,8 @@
           "Type": {
             "Type": "Integer"
           },
-          "Nullable": true
+          "Nullable": true,
+          "KeepsNull": true
         },
         {
           "Name": "ParentLogoImageTag",
@@ -8170,7 +8172,8 @@
           "Type": {
             "Type": "Integer"
           },
-          "Nullable": true
+          "Nullable": true,
+          "KeepsNull": true
         },
         {
           "Name": "MaxParentalSubRating",

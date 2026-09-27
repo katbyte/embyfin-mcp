@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -47,9 +47,10 @@ func adminView(t *testing.T, f *fakeServer) {
 // only in a user's view: a sweep of /Items holds each file as an item of its
 // own, and a list in a user's view hides one of them without listing the
 // other's versions. Only the single item read in a user's view names both
-// (seen live on Emby 4.10). So on Emby the versions audit reads what Emby
-// shows people, and the duplicates audit leaves two entries Emby shows as one
-// item's versions out of its groups.
+// (seen live on Emby 4.10), and the one left out is placed with the one
+// listed by the key Emby merges them by, that read checking it. So on Emby the versions audit reads what Emby shows people, and
+// the duplicates audit leaves two entries Emby shows as one item's versions
+// out of its groups.
 func TestEmbyVersionsAsEmbyShowsThem(t *testing.T) {
 	t.Parallel()
 
@@ -58,7 +59,7 @@ func TestEmbyVersionsAsEmbyShowsThem(t *testing.T) {
 	}
 	entry := func(id, label string) map[string]any {
 		return map[string]any{
-			"Id": id, "Name": "Zzyzx", "Type": "Movie", "ProductionYear": 2001, "ProviderIds": map[string]any{"Tmdb": "78"},
+			"Id": id, "Name": "Zzyzx", "Type": "Movie", "ProductionYear": 2001, "ProviderIds": map[string]any{"Tmdb": "78"}, "PresentationUniqueKey": "p-tmdb-Movie-78-lib9",
 			"Path": "/zz/films/Zzyzx (2001)/Zzyzx (2001) - " + label + ".mkv", "MediaSources": []map[string]any{source(label)},
 		}
 	}
@@ -77,8 +78,11 @@ func TestEmbyVersionsAsEmbyShowsThem(t *testing.T) {
 	f.mux.HandleFunc("GET /Users/u1/Items", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, page(entry("29", "1080p"), other))
 	})
-	// the hidden one read on its own names every version
+	// the hidden one read on its own names every version: the key places
+	// it, and this read checks the placing
+	var singles atomic.Int32
 	f.mux.HandleFunc("GET /Users/u1/Items/30", func(w http.ResponseWriter, _ *http.Request) {
+		singles.Add(1)
 		it := entry("30", "2160p")
 		it["MediaSources"] = []map[string]any{source("2160p"), source("1080p")}
 		writeJSON(t, w, it)
@@ -90,8 +94,11 @@ func TestEmbyVersionsAsEmbyShowsThem(t *testing.T) {
 		t.Fatal(msg)
 	}
 	found := objects(t, out["findings"], "findings")
-	if len(found) != 1 || found[0]["id"] != "29" || !strings.HasPrefix(text(found[0]["detail"]), "2 versions: Zzyzx (2001) - 2160p.mkv, Zzyzx (2001) - 1080p.mkv") {
+	if len(found) != 1 || found[0]["id"] != "29" || text(found[0]["detail"]) != "2 versions: Zzyzx (2001) - 1080p.mkv, Zzyzx (2001) - 2160p.mkv" {
 		t.Errorf("audit_multiple_versions = %v, want the one item Emby shows with both versions", found)
+	}
+	if n := singles.Load(); n != 1 {
+		t.Errorf("the version read on its own %d times, want once, to check its placing", n)
 	}
 	if n := number(t, out["items_scanned"], "items_scanned"); n != 2 {
 		t.Errorf("items_scanned = %d, want the 2 items Emby shows", n)

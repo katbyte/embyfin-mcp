@@ -51,12 +51,15 @@ func TestOneNameForAFilmAndAShow(t *testing.T) {
 	}
 
 	// each by its own ids
-	for _, tc := range []struct{ provider, id, want string }{
-		{"tmdb", "51876", film}, {"imdb", "tt1219289", film},
-		{"tmdb", "62687", series}, {"imdb", "tt4422836", series}, {"tvdb", "295743", series},
+	for _, tc := range []struct{ provider, id, typ, want string }{
+		{"tmdb", "51876", "movie", film},
+		{"imdb", "tt1219289", "", film},
+		{"tmdb", "62687", "series", series},
+		{"imdb", "tt4422836", "", series},
+		{"tvdb", "295743", "series", series},
 	} {
 		var ids []string
-		for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": tc.provider, "id": tc.id})["items"], "items") {
+		for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": tc.provider, "id": tc.id, "type": tc.typ})["items"], "items") {
 			ids = append(ids, str(it["id"]))
 		}
 		if !slices.Equal(ids, []string{tc.want}) {

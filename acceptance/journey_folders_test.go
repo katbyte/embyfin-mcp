@@ -173,9 +173,7 @@ func TestSwappingALibrarysFolder(t *testing.T) {
 		}
 	})
 	t.Cleanup(func() {
-		if err := retried("library_delete", map[string]any{"library": library, "confirm": true}); err != nil {
-			t.Errorf("removing the library: %v", err)
-		}
+		removeLibrary(t, library)
 		if err := waitForExpectedScan(); err != nil {
 			t.Error(err)
 		}

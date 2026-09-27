@@ -93,7 +93,7 @@ func TestVersionWarning(t *testing.T) {
 		source("/m/Interstellar (2014)/Interstellar (2014).mp4", 169*60),
 		source("/m/The Thirteenth Floor (1999)/The Thirteenth Floor (1999).mp4", 100*60),
 	}}
-	w := versionWarning(&merged)
+	w := versionWarning(t.Context(), nil, &merged)
 	for _, want := range []string{"probably not one film", `"The Thirteenth Floor (1999).mp4" is named for "The Thirteenth Floor" (1999), not Interstellar (2014)`, "run 169 min and 100 min", "item_identify"} {
 		if !strings.Contains(w, want) {
 			t.Errorf("warning = %q, want %q in it", w, want)
@@ -104,20 +104,25 @@ func TestVersionWarning(t *testing.T) {
 		source("/m/Blade Runner (1982)/Blade Runner (1982) - 1080p.mp4", 117*60),
 		source("/m/Blade Runner (1982)/Blade Runner (1982) - 2160p.mp4", 117*60),
 	}}
-	if w := versionWarning(&versions); w != "" {
+	if w := versionWarning(t.Context(), nil, &versions); w != "" {
 		t.Errorf("two versions of one film = %q", w)
 	}
 	cut := embyfin.Item{Type: typeMovie, Name: "Alien", ProductionYear: 1979, MediaSources: []embyfin.MediaSource{
 		source("/m/Alien (1979)/Alien (1979).mp4", 117*60),
 		source("/m/Alien (1979) Directors Cut/Alien (1979) Directors Cut.mp4", 136*60),
 	}}
-	if w := versionWarning(&cut); w != "" {
+	if w := versionWarning(t.Context(), nil, &cut); w != "" {
 		t.Errorf("a director's cut beside the film = %q", w)
 	}
 
-	// one file, as Jellyfin holds a film matched to another's ids
-	if w := versionWarning(new(embyfin.Item{Type: typeMovie, Name: "Interstellar", ProductionYear: 2014, Path: "/m/The Thirteenth Floor (1999)/The Thirteenth Floor (1999).mp4"})); !strings.HasPrefix(w, "may be a different film matched to this one's ids") {
+	// one file, as Jellyfin holds a film matched to another's ids: probably
+	// another film when its year is fifteen off, and may be one when only
+	// its title is none the film goes by
+	if w := versionWarning(t.Context(), nil, new(embyfin.Item{Type: typeMovie, Name: "Interstellar", ProductionYear: 2014, Path: "/m/The Thirteenth Floor (1999)/The Thirteenth Floor (1999).mp4"})); !strings.HasPrefix(w, "probably a different film matched to this one's ids") {
 		t.Errorf("one file named for another film = %q", w)
+	}
+	if w := versionWarning(t.Context(), nil, new(embyfin.Item{Type: typeMovie, Name: "Interstellar", ProductionYear: 2014, Path: "/m/Memento (2014)/Memento (2014).mp4"})); !strings.HasPrefix(w, "may be a different film matched to this one's ids") {
+		t.Errorf("one file named for another title, in the film's year = %q", w)
 	}
 }
 
@@ -130,7 +135,7 @@ func TestDuplicateWarning(t *testing.T) {
 		{Type: typeMovie, Name: "Interstellar", ProductionYear: 2014, Path: "/m/Interstellar (2014)/Interstellar (2014).mp4", RunTimeTicks: 169 * 60 * ticksPerSecond},
 		{Type: typeMovie, Name: "Interstellar", ProductionYear: 2014, Path: "/m/The Thirteenth Floor (1999)/The Thirteenth Floor (1999).mp4", RunTimeTicks: 100 * 60 * ticksPerSecond},
 	}
-	w := duplicateWarning(group)
+	w := duplicateWarning(t.Context(), nil, group)
 	for _, want := range []string{"probably not copies of one film", "The Thirteenth Floor", "the entries run 169 min and 100 min"} {
 		if !strings.Contains(w, want) {
 			t.Errorf("warning = %q, want %q in it", w, want)
@@ -140,7 +145,7 @@ func TestDuplicateWarning(t *testing.T) {
 		{Type: typeMovie, Name: "Alien", ProductionYear: 1979, Path: "/m/Alien (1979)/Alien (1979).mp4"},
 		{Type: typeMovie, Name: "Alien", ProductionYear: 1979, Path: "/m/Alien (1979) Directors Cut/Alien (1979) Directors Cut.mp4"},
 	}
-	if w := duplicateWarning(copies); w != "" {
+	if w := duplicateWarning(t.Context(), nil, copies); w != "" {
 		t.Errorf("two copies of one film = %q", w)
 	}
 }
@@ -284,10 +289,10 @@ func titlesTMDB(t *testing.T) http.RoundTripper {
 func TestAuditFilePathTitles(t *testing.T) {
 	t.Parallel()
 
-	film := func(id, name string, year int, tmdb, path string, minutes int) map[string]any {
+	film := func(id, name string, year int, tmdbID, path string, minutes int) map[string]any {
 		it := map[string]any{"Id": id, "Name": name, "Type": "Movie", "ProductionYear": year, "Path": path, "RunTimeTicks": int64(minutes) * 60 * ticksPerSecond}
-		if tmdb != "" {
-			it["ProviderIds"] = map[string]any{"Tmdb": tmdb}
+		if tmdbID != "" {
+			it["ProviderIds"] = map[string]any{"Tmdb": tmdbID}
 		}
 		return it
 	}
@@ -326,8 +331,14 @@ func TestAuditFilePathTitles(t *testing.T) {
 	for _, r := range objects(t, out["findings"], "findings") {
 		rows[text(r["id"])] = r
 	}
-	if len(rows) != 7 || rows["3"] == nil || rows["4"] == nil || rows["6"] == nil || rows["7"] == nil || rows["9"] == nil || rows["10"] == nil || rows["11"] == nil {
-		t.Fatalf("findings = %v, want Interstellar, Memento, Dune, the lookalike Cube, the misdated Mononoke and the two renamed", slices.Collect(maps.Keys(rows)))
+	if len(rows) != 8 || rows["3"] == nil || rows["4"] == nil || rows["5"] == nil || rows["6"] == nil || rows["7"] == nil || rows["9"] == nil || rows["10"] == nil || rows["11"] == nil {
+		t.Fatalf("findings = %v, want Interstellar, Memento, the Spanish Arrival, Dune, the lookalike Cube, the misdated Mononoke and the two renamed", slices.Collect(maps.Keys(rows)))
+	}
+	// TMDB's search answering with the item's own film, but under no title
+	// like the path's, settles nothing: its search matches loosely
+	if r := rows["5"]; text(r["item_tmdb"]) != "329865" || r["path_tmdb"] != nil ||
+		!strings.Contains(text(r["diagnosis"]), `TMDB's search by the path's title and year, "La llegada" (2016), answers with this very film, TMDB 329865 Arrival (2016), but under no title like the path's`) {
+		t.Errorf("a folder TMDB's search answers with the film for, under another title = %v", r)
 	}
 	if r := rows["11"]; text(r["item_tmdb"]) != "128" || !strings.Contains(text(r["diagnosis"]), `the path's title is one TMDB lists for the item's TMDB 128, and the name the server holds, "Zzyzx Wrong", is none TMDB gives it`) {
 		t.Errorf("a film renamed, in a folder named by a title TMDB lists for it = %v", r)
@@ -354,8 +365,8 @@ func TestAuditFilePathTitles(t *testing.T) {
 	if r := rows["7"]; len(texts(r["problems"])) != 1 || !strings.HasPrefix(texts(r["problems"])[0], "lookalike: \"\u0421ube\" is spelled with the Cyrillic \u0421 (U+0421) in place of the Latin C") || !strings.Contains(texts(r["problems"])[0], `item_edit name "Cube"`) {
 		t.Errorf("a lookalike name = %v", r)
 	}
-	if n := number(t, out["total_findings"], "total_findings"); n != 7 {
-		t.Errorf("total_findings = %d, want 7", n)
+	if n := number(t, out["total_findings"], "total_findings"); n != 8 {
+		t.Errorf("total_findings = %d, want 8", n)
 	}
 
 	// without a token, a title TMDB knows the film by is a finding like any

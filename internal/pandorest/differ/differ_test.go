@@ -175,6 +175,7 @@ func TestDiffBreaking(t *testing.T) {
 	get.Options[0].Required = true        // Limit
 	get.Options[1].Field = "FieldList"    // Fields
 	newer.Groups[0].Models[0].Fields[2].Name = "URL"
+	newer.Groups[0].Models[0].Fields[0].KeepsNull = true
 	newer.Groups[0].Models[1].Union = []string{"Item", "Other"}
 
 	r := Diff(wired(), newer)
@@ -193,6 +194,7 @@ func TestDiffBreaking(t *testing.T) {
 		"    ~ option query fields: field Fields -> FieldList [breaking]",
 		"~ model Item",
 		"    ~ field Url: Go name Url -> URL [breaking]",
+		"    ~ field Id: keeps null false -> true [breaking]",
 		"~ model Union",
 		"    ~ union [Item] -> [Item Other] [breaking]",
 	} {

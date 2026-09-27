@@ -586,3 +586,56 @@ func TestOptionUndefinedRef(t *testing.T) {
 		t.Errorf("undefined $ref list option = %+v, want List[String]", o)
 	}
 }
+
+// The fields the service config names in KeepNull are kept apart from their
+// zero, and nothing else is; a name that is no nullable number fails the
+// import, so a stale entry is noticed rather than keeping nothing.
+func TestKeepNull(t *testing.T) {
+	t.Parallel()
+
+	importKeeping := func(t *testing.T, keep ...string) (*definitions.Service, error) {
+		t.Helper()
+
+		spec, err := openapi.Parse([]byte(miniSpec))
+		if err != nil {
+			t.Fatal(err)
+		}
+		spec.Components.Schemas["Item"].Properties["Season"] = &openapi.Schema{Type: openapi.TypeInteger, Nullable: true}
+		cfg := miniConfig
+		cfg.KeepNull = keep
+
+		return FromSpec(cfg, spec, nil, func(msg string) { t.Log(msg) })
+	}
+
+	svc, err := importKeeping(t, "Item.Season")
+	if err != nil {
+		t.Fatal(err)
+	}
+	kept := 0
+	for _, m := range svc.Models() {
+		for _, f := range m.Fields {
+			want := m.SchemaName == "Item" && f.JSONName == "Season"
+			if f.KeepsNull != want {
+				t.Errorf("%s.%s keeps null %t, want %t", m.Name, f.JSONName, f.KeepsNull, want)
+			}
+			if f.KeepsNull {
+				kept++
+			}
+		}
+	}
+	if kept != 1 {
+		t.Errorf("%d fields keep null, want Item.Season alone", kept)
+	}
+
+	for keep, want := range map[string]string{
+		"Item.Ghost":  "KeepNull names Item.Ghost, a field the document does not have",
+		"Ghost.Id":    "KeepNull names Ghost.Id, a field the document does not have",
+		"ItemSeason":  "KeepNull names ItemSeason, a field the document does not have",
+		"Item.Id":     "KeepNull names Item.Id, which is String, not a number",
+		"Item.Rating": "KeepNull names Item.Rating, which the document no longer declares nullable",
+	} {
+		if _, err := importKeeping(t, keep); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("KeepNull %s: err = %v, want containing %q", keep, err, want)
+		}
+	}
+}

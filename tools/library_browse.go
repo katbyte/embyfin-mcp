@@ -120,29 +120,39 @@ const sweepPage = 10000
 // sweepSort is the order a sweep reads in: when items were added, then name.
 // The default, name alone, costs Emby several times as much deep into a large
 // library - half an hour against a minute on one of a few hundred thousand -
-// and in this order an item added mid-sweep lands at the end rather than
-// shifting a page not yet read.
+// and the name settles most ties between items added at one moment. An item
+// added mid-sweep can still sort anywhere (both servers date it by its file),
+// which the read allows for (embyfin.ReadAll).
 const sweepSort = "DateCreated,SortName"
 
-// sweepAll reads every item matching opts, a page at a time, and says how
-// many it read. It is for the audits that sweep a whole server rather than a
-// library: SearchAll's smaller pages and default order cost a large library
-// dearly.
-func sweepAll(ctx context.Context, client *embyfin.Client, opts embyfin.SearchOptions, cb func(items []embyfin.Item)) (int, error) {
-	opts.SortBy, opts.SortOrder, opts.Limit = sweepSort, "Ascending", sweepPage
-	scanned := 0
-	for start := 0; ; start += sweepPage {
-		opts.StartIndex = start
-		items, total, err := client.Search(ctx, opts)
-		if err != nil {
-			return scanned, err
-		}
-		scanned += len(items)
+// sweepAll reads every item matching opts, each once, a large page at a
+// time, and says what the read saw: how many it read, and whether the
+// library changed under it. It is for the audits that sweep a whole server
+// rather than a library: smaller pages cost a large library dearly. It reads
+// the way embyfin.ReadAll does, for purpose, finding its place again when the
+// library changes under it.
+func sweepAll(ctx context.Context, client *embyfin.Client, opts embyfin.SearchOptions, purpose embyfin.ReadPurpose, cb func(items []embyfin.Item)) (embyfin.ReadResult, error) {
+	opts.SortBy, opts.SortOrder, opts.PageSize = sweepSort, "Ascending", sweepPage
+
+	return client.ReadAll(ctx, opts, purpose, func(items []embyfin.Item) bool {
 		cb(items)
-		if len(items) < sweepPage || start+len(items) >= total {
-			return scanned, nil
+
+		return true
+	})
+}
+
+// changedNote is the note for an answer built from several full reads: what
+// each read that saw the library change under it said, each once; "" when
+// none saw a change.
+func changedNote(reads ...embyfin.ReadResult) string {
+	var notes []string
+	for _, r := range reads {
+		if n := r.Changed(); n != "" && !slices.Contains(notes, n) {
+			notes = append(notes, n)
 		}
 	}
+
+	return strings.Join(notes, "; ")
 }
 
 // userInLibrary resolves a user and checks they may see the library (nil is
@@ -186,31 +196,53 @@ var itemSorts = map[string]string{
 	"random":    "Random",
 }
 
-// searchSortMax is the most matches a search with a sort reads to sort them
-// itself: a title search names a handful, and one that matches more than
-// this is too broad to be worth sorting.
+// searchSortMax is the most matches a title search reads to count, page and
+// sort them itself: a title search names a handful, and one that matches more
+// than this is too broad to count, or to sort.
 const searchSortMax = 2000
 
-// sortedMatches reads every item a search matches and sorts them by one of
-// library_items' sorts, with the same keys settling a tie as the servers'
-// (itemSorts).
-func sortedMatches(ctx context.Context, client *embyfin.Client, opts embyfin.SearchOptions, sort string, desc bool) ([]embyfin.Item, error) {
+// searchMatches reads every item a title search matches, in the server's
+// order of how well each matches, and sorts them by one of library_items'
+// sorts when one is given, with the same keys settling a tie as the servers'
+// (itemSorts). Neither server counts a search, nor pages one past three
+// times its limit (Jellyfin), so library_items counts and pages the matches
+// itself. more says a search without a sort has no count: it matched more
+// than searchSortMax, and the first that many are answered, or its read
+// stopped short, the library changing too much to follow, and the best
+// matches it reached are answered. One with a sort is refused either way,
+// having nothing whole to sort. The note is what the read saw of the library
+// changing, or of the search being too broad.
+func searchMatches(ctx context.Context, client *embyfin.Client, opts embyfin.SearchOptions, sort string, desc bool) (items []embyfin.Item, more bool, note string, err error) {
 	all := opts
-	all.SortBy, all.SortOrder = "", ""
+	all.SortBy, all.SortOrder, all.StartIndex, all.Limit = "", "", 0, 0
 	all.Fields = embyfin.FieldsDefault + ",SortName,CommunityRating"
-	var items []embyfin.Item
-	if err := client.SearchAll(ctx, all, func(page []embyfin.Item) bool {
+	read, err := client.ReadAll(ctx, all, embyfin.ToAnswer, func(page []embyfin.Item) bool {
 		items = append(items, page...)
 		return len(items) <= searchSortMax
-	}); err != nil {
-		return nil, err
+	})
+	if _, stopped := errors.AsType[*embyfin.CutError](err); stopped && sort == "" {
+		// the best matches it reached are matches, and are answered; how
+		// many there are, and what lies past them, is not known
+		return items[:min(len(items), searchSortMax)], true, err.Error(), nil
 	}
+	if err != nil {
+		return nil, false, "", err
+	}
+	note = read.Changed()
 	if len(items) > searchSortMax {
-		return nil, fmt.Errorf("%q matches more than %d items, too many to sort (neither server sorts a search, so it is sorted here): narrow the search, or leave out the sort", opts.SearchTerm, searchSortMax)
+		if sort != "" {
+			return nil, false, "", fmt.Errorf("%q matches more than %d items, too many to sort (neither server sorts a search, so it is sorted here): narrow the search, or leave out the sort", opts.SearchTerm, searchSortMax)
+		}
+		note = joinWarnings(fmt.Sprintf("more than %d items match %q, too many to count: these are among the %d that match best, and no page past them can be given; narrow the search", searchSortMax, opts.SearchTerm, searchSortMax), note)
+
+		return items[:searchSortMax], true, note, nil
 	}
-	if sort == "random" {
+	switch sort {
+	case "":
+		return items, false, note, nil
+	case "random":
 		rand.Shuffle(len(items), func(i, j int) { items[i], items[j] = items[j], items[i] }) //nolint:gosec // an order to browse in, not a secret
-		return items, nil
+		return items, false, note, nil
 	}
 
 	name := func(it *embyfin.Item) string { return strings.ToLower(cmp.Or(it.SortName, it.Name)) }
@@ -246,7 +278,7 @@ func sortedMatches(ctx context.Context, client *embyfin.Client, opts embyfin.Sea
 		return c
 	})
 
-	return items, nil
+	return items, false, note, nil
 }
 
 func registerLibraryBrowseTools(r *registry) {
@@ -264,20 +296,22 @@ func registerLibraryBrowseTools(r *registry) {
 		Years           []int    `json:"years,omitempty"            jsonschema:"items from any of these production years"`
 		Watched         string   `json:"watched,omitempty"          jsonschema:"watched, unwatched, in_progress or favourite, in user's view"`
 		User            string   `json:"user,omitempty"             jsonschema:"whose watch state watched and sort=played read, by name or id; defaults to the first administrator"`
-		SavedSince      string   `json:"saved_since,omitempty"      jsonschema:"only items the server last SAVED at or after this time (RFC3339): the closest either server offers to 'what changed'. A file written over an existing path is re-read and saved, but so is an item somebody edited, and neither server can sort by it"`
+		SavedSince      string   `json:"saved_since,omitempty"      jsonschema:"only items the server last SAVED at or after this time: a date such as 2026-01-02, or a time such as 2026-01-02T15:04:05Z: the closest either server offers to 'what changed'. A file written over an existing path is re-read and saved, but so is an item somebody edited, and neither server can sort by it"`
 		Sort            string   `json:"sort,omitempty"             jsonschema:"name (default; relevance when there is a query), added, premiered, year, runtime, rating, played (needs a user) or random"`
 		Desc            bool     `json:"desc,omitempty"             jsonschema:"sort descending"`
 		Limit           int      `json:"limit,omitempty"            jsonschema:"page size, default 25, max 1000"`
 		Offset          int      `json:"offset,omitempty"           jsonschema:"skip this many items, to page"`
 	}
 	type itemsOut struct {
-		Total  int           `json:"total"  jsonschema:"matches across every page"`
+		Total  *int          `json:"total"          jsonschema:"matches across every page, as the server stores them: on Emby each file of a film held in several is an item of its own, on Jellyfin one item with the rest in its versions. Read in a user's view (user, watched or sort played given), Emby shows a film held in several files once, counts it once, and lists that item's own file alone. A title search is counted here, neither server counting one; null when more than 2000 items match it, too many to count, or when its read stopped short, the library changing too much to follow"`
 		Offset int           `json:"offset"`
 		Items  []itemSummary `json:"items"`
+		Note   string        `json:"note,omitempty" jsonschema:"a title search reads every match, to count, page and sort them: set when more than 2000 match, and when the library was seen to change while it was read, so matches added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 	add(r, readTool, &mcp.Tool{
-		Name:        "library_items",
-		Description: "Find and browse library items: a title search, a structured filter, or both, sorted and paged: 'alien', 'every unwatched horror film, newest first', 'what is rated TV-MA', 'what came from A24', 'what has Sigourney Weaver in it'. Filters combine (an item must pass each one given); within one, any value matches. Returns trimmed summaries with metadata provider ids, runtime and stream quality facts.",
+		Name: "library_items",
+		Description: "Find and browse library items: a title search, a structured filter, or both, sorted and paged: 'alien', 'every unwatched horror film, newest first', 'what is rated TV-MA', 'what came from A24', 'what has Sigourney Weaver in it'. Filters combine (an item must pass each one given); within one, any value matches. Returns trimmed summaries with metadata provider ids, runtime and stream quality facts of the file at each item's path, and every file in versions when an item is held in several. " +
+			"On Emby a read in a user's view (user, watched, or sort played) shows people's view: a film held in several files is one item listing its own file alone, so leave those out to see every file.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in itemsIn) (*mcp.CallToolResult, itemsOut, error) {
 		// capped as library_episodes is: every summary carries its files'
 		// facts, so an uncapped limit was one call reading the whole library
@@ -366,15 +400,22 @@ func registerLibraryBrowseTools(r *registry) {
 		// both servers answer a search in their own order of how well each
 		// item matches, and ignore a sort asked for with it (seen on Emby
 		// 4.10 and Jellyfin 12.1: "Dune", newest first, came back oldest
-		// first), so the matches are read whole and sorted here
-		if opts.SearchTerm != "" && sortBy != "" {
-			matches, merr := sortedMatches(ctx, client, opts, sort, in.Desc)
+		// first); neither counts one, Emby answering 0 and Jellyfin at most
+		// three times the limit, and Jellyfin lists nothing past that. So a
+		// search's matches are read whole, and counted, paged and sorted here
+		if opts.SearchTerm != "" {
+			matches, more, note, merr := searchMatches(ctx, client, opts, sort, in.Desc)
 			if merr != nil {
 				return nil, itemsOut{}, merr
 			}
 			page := matches[min(offset, len(matches)):min(offset+limit, len(matches))]
+			out := itemsOut{Offset: offset, Items: summariseAll(page), Note: note}
+			if !more {
+				total := len(matches)
+				out.Total = &total
+			}
 
-			return nil, itemsOut{Total: len(matches), Offset: offset, Items: summariseAll(page)}, nil
+			return nil, out, nil
 		}
 
 		items, total, err := client.Search(ctx, opts)
@@ -382,9 +423,8 @@ func registerLibraryBrowseTools(r *registry) {
 			return nil, itemsOut{}, err
 		}
 
-		return nil, itemsOut{Total: total, Offset: offset, Items: summariseAll(items)}, nil
+		return nil, itemsOut{Total: &total, Offset: offset, Items: summariseAll(items)}, nil
 	})
-
 	type filtersIn struct {
 		Library string `json:"library,omitempty" jsonschema:"library name or id; default every library"`
 		Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types to read; defaults to Movie,Series"`
@@ -400,6 +440,7 @@ func registerLibraryBrowseTools(r *registry) {
 		Studios         []valueCount `json:"studios"`
 		OfficialRatings []valueCount `json:"official_ratings"`
 		Years           []yearCount  `json:"years"            jsonschema:"oldest first"`
+		Note            string       `json:"note,omitempty"   jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing from the counts, or counted though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "library_filters",
@@ -413,7 +454,7 @@ func registerLibraryBrowseTools(r *registry) {
 		counts := map[string]map[string]int{fieldGenres: {}, fieldTags: {}, fieldStudios: {}, "ratings": {}}
 		years := map[int]int{}
 		out := filtersOut{}
-		if err := client.SearchAll(ctx, opts, func(items []embyfin.Item) bool {
+		result, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 			for i := range items {
 				it := &items[i]
 				out.Scanned++
@@ -430,9 +471,11 @@ func registerLibraryBrowseTools(r *registry) {
 				}
 			}
 			return true
-		}); err != nil {
+		})
+		if err != nil {
 			return nil, filtersOut{}, err
 		}
+		out.Note = result.Changed()
 
 		out.Genres, out.Tags, out.Studios = sortedCounts(counts[fieldGenres]), sortedCounts(counts[fieldTags]), sortedCounts(counts[fieldStudios])
 		out.OfficialRatings = sortedCounts(counts["ratings"])

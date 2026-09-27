@@ -48,8 +48,15 @@ type missingOut struct {
 	Source     string        `json:"source"                        jsonschema:"where the answer came from: server (the server's own records), tmdb (the run read from the metadata provider by the series' id), or none (nothing could be asked)"`
 	Missing    *[]missingRow `json:"missing"                       jsonschema:"episodes the series has no file for, in order. Null when supported is false"`
 	Reason     string        `json:"reason,omitempty"              jsonschema:"why the run could not be established, and what would make it knowable"`
+	Order      string        `json:"order,omitempty"               jsonschema:"tmdb: how the run numbers its episodes: TMDB's aired order. The files are compared with it number by number, so a show whose files are numbered another way (TVDB's order, the one Sonarr names files by, or a DVD's) can read as missing episodes it holds under other numbers"`
+	NotInRun   []missingRow  `json:"held_not_in_run,omitempty"     jsonschema:"tmdb: episodes the series holds files for that TMDB's aired order has no episode for - a sign the files are numbered in another order, or that TMDB does not list them yet. When there are any, missing may name episodes held under other numbers: warning says so"`
+	Warning    string        `json:"warning,omitempty"`
 	Gaps       []missingRow  `json:"gaps_on_disk,omitempty"        jsonschema:"a weaker fact, given whether or not the run is known: the episode numbers skipped between the ones on disk. Never the whole answer, because nothing after the last episode held shows up as a gap"`
 	GapSeasons []int         `json:"season_gaps_on_disk,omitempty" jsonschema:"whole seasons skipped between the ones on disk"`
+	// a file with no numbers is no episode's to tick off, and may be the
+	// very one listed missing
+	Unnumbered      []string `json:"unnumbered_files,omitempty" jsonschema:"the first 10 files the series holds that the server has no season or episode number for (Jellyfin holds a file named without SxxEyy that way, even in a Season 01 folder): any of them may be an episode listed in missing or gaps_on_disk, so check them before fetching one"`
+	UnnumberedCount int      `json:"unnumbered_count,omitempty" jsonschema:"how many such files the series holds in all"`
 }
 
 // seriesGuide reads a series' whole run from a metadata provider. Only TMDB
@@ -182,6 +189,7 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 	out := missingOut{Series: series.Name, Source: sourceNone}
 	onDisk := map[int][]int{}
 	held := map[[2]int]bool{}
+	titles := map[[2]int]string{}
 	var records []*embyfin.Item
 	for i := range episodes {
 		e := &episodes[i]
@@ -189,11 +197,19 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 			records = append(records, e)
 			continue
 		}
-		last := max(e.IndexNumberEnd, e.IndexNumber)
-		for n := e.IndexNumber; n <= last; n++ {
-			held[[2]int{e.ParentIndexNumber, n}] = true
+		if !numbered(e) {
+			out.UnnumberedCount++
+			if len(out.Unnumbered) < unnumberedShown {
+				out.Unnumbered = append(out.Unnumbered, e.Path)
+			}
+
+			continue
+		}
+		titles[[2]int{*e.ParentIndexNumber, *e.IndexNumber}] = e.Name
+		for _, n := range episodeSpan(e) {
+			held[[2]int{*e.ParentIndexNumber, n}] = true
 			if n > 0 {
-				onDisk[e.ParentIndexNumber] = append(onDisk[e.ParentIndexNumber], n)
+				onDisk[*e.ParentIndexNumber] = append(onDisk[*e.ParentIndexNumber], n)
 			}
 		}
 	}
@@ -208,6 +224,7 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 		}
 		out.Gaps = append(out.Gaps, missingRow{Season: h.Season, Episode: h.Episode})
 	}
+	out.Warning = joinedTitles(gapsOnDisk(onDisk), titles)
 
 	// a server that keeps records of the run answers from them, by the same
 	// rules the provider's run is read by: an episode another file already
@@ -218,13 +235,14 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 		now := time.Now()
 		known := []missingRow{}
 		for _, e := range records {
-			if held[[2]int{e.ParentIndexNumber, e.IndexNumber}] {
+			// a record with no numbers names no episode to be missing
+			if !numbered(e) || held[[2]int{*e.ParentIndexNumber, *e.IndexNumber}] {
 				continue
 			}
 			if !unaired && !recordAired(e, now) {
 				continue
 			}
-			known = append(known, missingRow{Season: e.ParentIndexNumber, Episode: e.IndexNumber, Name: e.Name, AirDate: e.PremiereDate})
+			known = append(known, missingRow{Season: *e.ParentIndexNumber, Episode: *e.IndexNumber, Name: e.Name, AirDate: e.PremiereDate})
 		}
 		out.Supported, out.Source = true, sourceServer
 		out.Missing = new(sortMissing(known))
@@ -296,8 +314,15 @@ func missingFromGuide(ctx context.Context, guide seriesGuide, series *embyfin.It
 		}
 		missing = append(missing, missingRow{Season: e.Season, Episode: e.Episode, Name: e.Name, AirDate: e.AirDate})
 	}
-	out.Supported, out.Source = true, sourceTMDB
+	out.Supported, out.Source, out.Order = true, sourceTMDB, tmdbAiredOrder
 	out.Missing = new(sortMissing(missing))
+	// numbers the files hold and the run does not are the sign that the two
+	// number the show differently, which a comparison number by number
+	// cannot see past
+	if off := notInRun(run, held); len(off) > 0 {
+		out.NotInRun = off
+		out.Warning = joinNotes(fmt.Sprintf("the files hold %s, which TMDB's aired order has no episode for: they may be numbered in another order (TVDB's, a DVD's), so what is listed missing may be held under other numbers - compare the titles (library_episodes) before acting on it", firstFew(codesOf(off))), out.Warning)
+	}
 
 	return out
 }
@@ -306,22 +331,24 @@ func missingFromGuide(ctx context.Context, guide seriesGuide, series *embyfin.It
 // a season's own number, or an episode's season. 0 is the specials, so it has
 // to be said rather than left out, and a film or a series has no season at all
 // - which is what nil says, rather than a 0 that would read as the specials.
+// Nil too for a season or an episode the server holds no number for.
 func seasonOf(it *embyfin.Item) *int {
 	switch it.Type {
 	case "Season":
-		return new(it.IndexNumber)
+		return it.IndexNumber
 	case typeEpisode:
-		return new(it.ParentIndexNumber)
+		return it.ParentIndexNumber
 	}
 
 	return nil
 }
 
 // episodeOf is an item's own number, except on a season, whose number is its
-// season's and is given as that instead of as an episode.
-func episodeOf(it *embyfin.Item) int {
+// season's and is given as that instead of as an episode. Nil when there is
+// none, which is not episode 0.
+func episodeOf(it *embyfin.Item) *int {
 	if it.Type == "Season" {
-		return 0
+		return nil
 	}
 
 	return it.IndexNumber
@@ -556,7 +583,7 @@ func registerShowTools(r *registry) {
 	client := r.client
 
 	var guide seriesGuide
-	if facts := tmdbFacts(r.opts); facts != nil {
+	if facts := tmdbFacts(r.opts, r.opts.ProviderTransport); facts != nil {
 		guide = facts
 	}
 
@@ -568,7 +595,12 @@ func registerShowTools(r *registry) {
 		Name string `json:"name"`
 		// always given: 0 is the specials, and an omitted 0 left the one
 		// season a caller most needs to tell apart with no number at all
-		Season int `json:"season" jsonschema:"the season's number, 0 for the specials"`
+		Season *int `json:"season" jsonschema:"the season's number, 0 for the specials; null for a season the server holds no number for (Jellyfin's Season Unknown, holding a show's files named without SxxEyy), which is not the specials"`
+		// a show held under two entries sharing its ids is answered with
+		// both entries' seasons, so one number can come twice, and without
+		// these the two read as the same season listed twice
+		SeriesID string `json:"series_id,omitempty" jsonschema:"the library entry the season belongs to: a show held under two entries sharing its ids (a folder renamed and the old one left behind) lists both entries' seasons, so a number can come once from each"`
+		Path     string `json:"path,omitempty"      jsonschema:"the season's folder, when it has one of its own"`
 	}
 	type seasonsOut struct {
 		Series  string      `json:"series"`
@@ -576,7 +608,7 @@ func registerShowTools(r *registry) {
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "show_seasons",
-		Description: "List a series' seasons, each with its number (0 for the specials). A season's episodes come from library_episodes, with series and season.",
+		Description: "List a series' seasons, each with its number (0 for the specials, null for one the server holds no number for), the entry it belongs to and its folder: a show held under two entries sharing its ids (a folder renamed, the old one left behind) is answered with both entries' seasons, so a number can come once from each. A season's episodes come from library_episodes, with series and season.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in seasonsIn) (*mcp.CallToolResult, seasonsOut, error) {
 		series, err := seriesByID(ctx, client, in.SeriesID)
 		if err != nil {
@@ -590,7 +622,7 @@ func registerShowTools(r *registry) {
 
 		out := seasonsOut{Series: series.Name}
 		for _, s := range seasons {
-			out.Seasons = append(out.Seasons, seasonRow{ID: s.ID, Name: s.Name, Season: s.IndexNumber})
+			out.Seasons = append(out.Seasons, seasonRow{ID: s.ID, Name: s.Name, Season: s.IndexNumber, SeriesID: s.SeriesID, Path: s.Path})
 		}
 
 		return nil, out, nil
@@ -603,6 +635,7 @@ func registerShowTools(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "show_missing",
 		Description: "Episodes a series has no file for. The run comes from the server's own records when it keeps them (stock Jellyfin needs the TheTVDB plugin and Emby 4.10 no longer imports them), else from TMDB read by the series' metadata provider id when EMBYFIN_TMDB_TOKEN is set - checked first against its other ids, so a series carrying a film's ids is unknown, with why, rather than answered with another show's run. " +
+			"TMDB's run is its aired order, compared with the files number by number: files numbered another way (TVDB's order, as Sonarr names them) are the ones held_not_in_run lists, and warning says the missing list may then name episodes held under other numbers; it also says when a gap comes just after a file titled 'A & B', which probably holds both. " +
 			"Read 'supported' before 'missing': when it is false the run could not be established at all and 'missing' is null, which is unknown rather than complete. 'gaps_on_disk' is given either way and is weaker: it can only see episodes skipped between the files, never ones after the last episode held.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in missingIn) (*mcp.CallToolResult, missingOut, error) {
 		out, err := showMissing(ctx, client, guide, in.SeriesID, in.Unaired)

@@ -47,6 +47,13 @@ type Service struct {
 	TagSuffix string
 	// Auth names the lib/client authorizer the generated New uses.
 	Auth string
+	// KeepNull names the model fields, as Schema.property, whose null is
+	// not their zero, which the SDK holds as pointers where it holds every
+	// other number by value: season 0 is the specials and a parental limit
+	// of 0 is the strictest, so a season or a limit the server leaves out
+	// must not read as either. Each must be a number the document declares
+	// nullable, or the import fails naming it.
+	KeepNull []string
 
 	// Version, Spec and Definitions are set by Resolve: the document's
 	// version, the vendored OpenAPI document, and where the importer writes
@@ -69,13 +76,15 @@ var Services = []Service{
 		Naming:    PathNaming,
 		TagSuffix: "Service",
 		Auth:      "Emby",
+		KeepNull:  mediaServerKeepNull,
 	},
 	{
-		Name:    "jellyfin",
-		Package: "jf",
-		Output:  "lib/jf",
-		Naming:  OperationIDNaming,
-		Auth:    "Jellyfin",
+		Name:     "jellyfin",
+		Package:  "jf",
+		Output:   "lib/jf",
+		Naming:   OperationIDNaming,
+		Auth:     "Jellyfin",
+		KeepNull: mediaServerKeepNull,
 	},
 	{
 		Name:    "tmdb",
@@ -85,6 +94,14 @@ var Services = []Service{
 		Auth:    "TMDB",
 	},
 }
+
+// mediaServerKeepNull are the fields both servers leave out for "none" where
+// 0 means something: an episode filed with no season or no number of its own
+// (Jellyfin reads a file named without SxxEyy that way even in a "Season 01"
+// folder, and Emby one at the show's root) is not a special, nor episode 0,
+// and an account with no parental limit is not one held to the ratings
+// scored 0 (Jellyfin scores G and TV-G 0).
+var mediaServerKeepNull = []string{"BaseItemDto.ParentIndexNumber", "BaseItemDto.IndexNumber", "UserPolicy.MaxParentalRating"}
 
 // Select returns the named services, or all of them for an empty list.
 func Select(names string) ([]Service, error) {

@@ -17,20 +17,34 @@ import (
 // a film takes another film's id, a film whose nfo names who it is, and a
 // series re-matched with the server's own fetchers on.
 
-// stateOf is a user's watched mark and favourite on an item.
+// stateOf is a user's watched mark and favourite on an item. On Jellyfin the
+// watched mark is read through the user's list: item_last_watched answers
+// there from memory, which can be stale after a change (one of twelve films
+// shown watched when all were). On Emby it is the item's own row in
+// item_last_watched: Emby's list in a user's view shows a film's copies as
+// one row, carrying one copy's state.
 func stateOf(t *testing.T, id, user string) (watched, favourite bool) {
 	t.Helper()
 
+	listed := func(state string) bool {
+		for _, it := range rows(t, call(t, "library_items", map[string]any{"user": user, "watched": state, "types": "Movie,Series,Episode", "limit": 100})["items"], "items") {
+			if str(it["id"]) == id {
+				return true
+			}
+		}
+
+		return false
+	}
+	if isJellyfin() {
+		return listed("watched"), listed("favourite")
+	}
 	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": id})["users"], "users") {
 		if str(u["user"]) == user {
 			watched = boolOf(u["played"])
 		}
 	}
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"user": user, "watched": "favourite", "types": "Movie,Series,Episode", "limit": 100})["items"], "items") {
-		favourite = favourite || str(it["id"]) == id
-	}
 
-	return watched, favourite
+	return watched, listed("favourite")
 }
 
 // candidateFor finds the first item_identify candidate carrying one of the
@@ -51,6 +65,30 @@ func candidateFor(t *testing.T, args map[string]any, ids ...string) int {
 	t.Fatalf("no candidate carries any of %v: %v", ids, cands)
 
 	return -1
+}
+
+// withCandidateIDs adds to item_identify_apply's arguments the ids of the
+// candidate they name by index, read from item_identify asked the same
+// question: the apply takes them, and applies the candidate carrying them
+// and no other.
+func withCandidateIDs(t *testing.T, args map[string]any) map[string]any {
+	t.Helper()
+
+	search := map[string]any{"id": args["id"], "kind": args["kind"]}
+	for _, k := range []string{"name", "year"} {
+		if v, ok := args[k]; ok {
+			search[k] = v
+		}
+	}
+	cands := rows(t, call(t, "item_identify", search)["candidates"], "candidates")
+	idx, ok := args["candidate"].(int)
+	if !ok || idx < 0 || idx >= len(cands) {
+		t.Fatalf("candidate %v is not among the %d item_identify offers", args["candidate"], len(cands))
+	}
+	out := maps.Clone(args)
+	out["candidate_ids"] = cands[idx]["metadata_provider_ids"]
+
+	return out
 }
 
 // A film re-identified carries the watch state its new id carries, on Emby:
@@ -88,7 +126,7 @@ func TestReidentifyingMovesWatchState(t *testing.T) {
 	}
 
 	idx := candidateFor(t, map[string]any{"id": messy, "kind": "movie", "year": 2021}, "438631")
-	out := call(t, "item_identify_apply", map[string]any{"id": messy, "kind": "movie", "candidate": idx, "year": 2021})
+	out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": messy, "kind": "movie", "candidate": idx, "year": 2021}))
 	if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" {
 		t.Fatalf("item_identify_apply = %v", out)
 	}
@@ -163,14 +201,15 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 	lynch := candidateFor(t, map[string]any{"id": dune, "kind": "movie", "year": 1984}, "841")
 	matchLynch := func() {
 		t.Helper()
-		out := call(t, "item_identify_apply", map[string]any{"id": dune, "kind": "movie", "candidate": lynch, "year": 1984})
+		out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": lynch, "year": 1984}))
 		if got, _ := out["metadata_provider_ids"].(map[string]any); str(got["tmdb"]) != "841" || num(t, out["year"], "year") != 1984 {
 			t.Errorf("applying Lynch's film = %v", out)
 		}
 		// Emby's answer warns of the nfo the next refresh reads, and of the
 		// watch state that follows the ids; Jellyfin's, whose match holds
-		// and whose watch state stays, says nothing
-		note := str(out["note"])
+		// and whose watch state stays, says nothing more than that its
+		// library saves nfos
+		note := beyondNfoUnseen(str(out["note"]))
 		if isJellyfin() && note != "" {
 			t.Errorf("applying Lynch's film on Jellyfin: note %q", note)
 		}
@@ -211,7 +250,7 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 
 	// undone by the tools: the 2021 film's match
 	back := candidateFor(t, map[string]any{"id": dune, "kind": "movie", "year": 2021}, "438631")
-	call(t, "item_identify_apply", map[string]any{"id": dune, "kind": "movie", "candidate": back, "year": 2021})
+	call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": back, "year": 2021}))
 	// the film as it was: its name, year, file and ids (the apply adds the
 	// provider's other links beside them on Emby, and the tvdb id it finds)
 	now := call(t, "item_get", map[string]any{"id": dune})
@@ -294,14 +333,15 @@ func TestReidentifyingASeries(t *testing.T) {
 	updateItem(t, id, map[string]any{"ProviderIds": wrong})
 
 	idx := candidateFor(t, map[string]any{"id": id, "kind": "series", "name": "The Expanse"}, "63639")
-	out := call(t, "item_identify_apply", map[string]any{"id": id, "kind": "series", "candidate": idx, "name": "The Expanse", "replace_all_images": true})
+	out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": id, "kind": "series", "candidate": idx, "name": "The Expanse", "replace_all_images": true}))
 	if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "63639" {
 		t.Fatalf("item_identify_apply = %v", out)
 	}
 	// from Breaking Bad's ids to The Expanse's: Emby's answer warns of the
 	// show's nfo, read again at a refresh, and of the watch state that
-	// follows the ids; Jellyfin's says nothing
-	if note := str(out["note"]); isJellyfin() != (note == "") || !isJellyfin() && !strings.Contains(note, "(tvshow.nfo)") {
+	// follows the ids; Jellyfin's says nothing more than that its library
+	// saves nfos
+	if note := beyondNfoUnseen(str(out["note"])); isJellyfin() != (note == "") || !isJellyfin() && !strings.Contains(note, "(tvshow.nfo)") {
 		t.Errorf("item_identify_apply's note = %q", note)
 	}
 

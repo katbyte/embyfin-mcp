@@ -47,7 +47,7 @@ type UserPolicy struct {
 	IsHiddenRemotely                 *bool            `json:"IsHiddenRemotely,omitempty"`
 	IsTagBlockingModeInclusive       *bool            `json:"IsTagBlockingModeInclusive,omitempty"`
 	LockedOutDate                    int64            `json:"LockedOutDate,omitempty"`
-	MaxParentalRating                int              `json:"MaxParentalRating,omitempty"`
+	MaxParentalRating                *int             `json:"MaxParentalRating,omitempty"`
 	RemoteClientBitrateLimit         int              `json:"RemoteClientBitrateLimit,omitempty"`
 	RestrictedFeatures               []string         `json:"RestrictedFeatures,omitzero"`
 	SimultaneousStreamLimit          int              `json:"SimultaneousStreamLimit,omitempty"`

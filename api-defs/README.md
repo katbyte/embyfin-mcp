@@ -96,6 +96,7 @@ document and fails the import once it is not.
   - The rating operations declare a `Content-Type` header parameter, which
     OpenAPI says to ignore; the importer ignores it in every document.
   - A change's `value` is declared as whatever the example's change held, and TMDB answers whatever the changed field holds, so it is left untyped; a watch provider's `display_priorities` declares a field for each country the example listed, and is read as a map of any country.
+  - A collection's parts are declared with a series' `name` and `original_name`; a collection holds films, and TMDB answers each part's `title` and `original_title`, which the parts take.
 
 Array query parameters follow the document: Jellyfin's are sent one key per
 value (its comma binder accepts both, and the parameters without it only read

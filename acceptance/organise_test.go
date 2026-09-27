@@ -151,6 +151,14 @@ func collectionSize(t *testing.T, collection string, want int) int {
 }
 
 func TestPlaylists(t *testing.T) {
+	// the names of a playlist's entries in an answer, in order
+	entryNames := func(v any) []string {
+		var got []string
+		for _, e := range rows(t, v, "entries") {
+			got = append(got, str(e["name"]))
+		}
+		return got
+	}
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	dune2 := findItem(t, "Movies", "Movie", "Dune: Part Two")
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
@@ -189,9 +197,12 @@ func TestPlaylists(t *testing.T) {
 		t.Fatalf("playlist = %v", names)
 	}
 
-	rm := call(t, "playlist_remove", map[string]any{"playlist": "Villeneuve", "entry_ids": []any{entryIDs[1]}})
+	rm := call(t, "playlist_remove", map[string]any{"playlist": "Villeneuve", "entry_ids": []any{entryIDs[1]}, "item_ids": []any{dune2}})
 	if num(t, rm["removed"], "removed") != 1 || str(rm["from"]) != "Villeneuve" {
 		t.Errorf("playlist_remove = %v", rm)
+	}
+	if got := entryNames(rm["entries"]); !slices.Equal(got, []string{"Dune", "Arrival"}) {
+		t.Errorf("playlist_remove answered the playlist as %v after, want Dune and Arrival", got)
 	}
 	names = names[:0]
 	for _, e := range playlistEntries(t, str(out["id"]), 2) {
@@ -200,9 +211,15 @@ func TestPlaylists(t *testing.T) {
 	if !slices.Equal(names, []string{"Dune", "Arrival"}) {
 		t.Errorf("after remove = %v", names)
 	}
-	// both servers ignore an entry they do not hold, so the tool checks
-	if msg := callErr(t, "playlist_remove", map[string]any{"playlist": "Villeneuve", "entry_ids": []any{entryIDs[1]}}); !strings.Contains(msg, "no entry "+entryIDs[1]) {
+	// the same removal again: Emby 4.10 and Jellyfin hold no such entry and
+	// would answer its removal doing nothing; Emby 4.11 has numbered the
+	// entries again, so the id names Arrival's entry, which it would remove.
+	// Each entry is named with its item, and this one is refused
+	if msg := callErr(t, "playlist_remove", map[string]any{"playlist": "Villeneuve", "entry_ids": []any{entryIDs[1]}, "item_ids": []any{dune2}}); !strings.Contains(msg, "the playlist does not hold item "+dune2+", so nothing was changed") {
 		t.Errorf("removing an entry already removed: %s", msg)
+	}
+	if got := entryNames(call(t, "playlist_get", map[string]any{"playlist": str(out["id"])})["entries"]); !slices.Equal(got, []string{"Dune", "Arrival"}) {
+		t.Errorf("after the refused removal the playlist = %v, want Dune and Arrival still", got)
 	}
 
 	if msg := callErr(t, "playlist_get", map[string]any{"playlist": "Nope"}); !strings.Contains(msg, "Nope") || !strings.Contains(msg, "Villeneuve") {
@@ -216,7 +233,7 @@ func TestPlaylists(t *testing.T) {
 			arrivalEntry = str(e["entry_id"])
 		}
 	}
-	edit := call(t, "playlist_edit", map[string]any{"playlist": "Villeneuve", "move_entry_id": arrivalEntry, "position": 1, "name": "Denis"})
+	edit := call(t, "playlist_edit", map[string]any{"playlist": "Villeneuve", "move_entry_id": arrivalEntry, "move_item_id": arrival, "position": 1, "name": "Denis"})
 	names = names[:0]
 	for _, e := range rows(t, edit["entries"], "entries") {
 		names = append(names, str(e["name"]))
@@ -306,11 +323,15 @@ func TestPlaylistEdges(t *testing.T) {
 		t.Fatalf("the playlist = %v, want three entries", entries)
 	}
 	first := str(entries[0]["entry_id"])
+	alien, aliens := str(ids[0]), str(ids[1])
 
 	for want, args := range map[string]map[string]any{
-		"nothing to change": {"playlist": id},
-		"position 4 is outside the playlist's 3 entries":      {"playlist": id, "move_entry_id": first, "position": 4},
-		"the playlist has no entry zzyzx (its entry ids are ": {"playlist": id, "move_entry_id": "zzyzx", "position": 1},
+		"nothing to change":                                   {"playlist": id},
+		"move_item_id is required":                            {"playlist": id, "move_entry_id": first, "position": 1},
+		"position 4 is outside the playlist's 3 entries":      {"playlist": id, "move_entry_id": first, "move_item_id": alien, "position": 4},
+		"the playlist has no entry zzyzx (its entry ids are ": {"playlist": id, "move_entry_id": "zzyzx", "move_item_id": alien, "position": 1},
+		// an entry named with an item it does not hold
+		"entry " + first + " holds Alien (" + alien + ") now, not item " + aliens + "; Aliens (" + aliens + ") is entry " + str(entries[1]["entry_id"]) + " now, so nothing was changed": {"playlist": id, "move_entry_id": first, "move_item_id": aliens, "position": 3},
 	} {
 		if msg := callErr(t, "playlist_edit", args); !strings.Contains(msg, want) {
 			t.Errorf("playlist_edit %v: %s, want %q", args, msg, want)
@@ -321,7 +342,13 @@ func TestPlaylistEdges(t *testing.T) {
 	}
 
 	// the first two in one removal
-	rm := call(t, "playlist_remove", map[string]any{"playlist": id, "entry_ids": []any{first, str(entries[1]["entry_id"])}})
+	if msg := callErr(t, "playlist_remove", map[string]any{"playlist": id, "entry_ids": []any{first, str(entries[1]["entry_id"])}, "item_ids": []any{aliens, alien}}); !strings.Contains(msg, "entry "+first+" holds Alien ("+alien+") now, not item "+aliens) {
+		t.Errorf("removing entries named with each other's items: %s", msg)
+	}
+	if got := names(t, call(t, "playlist_get", map[string]any{"playlist": id})["entries"], "entries"); !slices.Equal(got, []string{"Alien", "Aliens", "Arrival"}) {
+		t.Errorf("after the refused removal the playlist = %v", got)
+	}
+	rm := call(t, "playlist_remove", map[string]any{"playlist": id, "entry_ids": []any{first, str(entries[1]["entry_id"])}, "item_ids": []any{alien, aliens}})
 	if num(t, rm["removed"], "removed") != 2 || str(rm["from"]) != "Zzyzx Edges" {
 		t.Errorf("playlist_remove of two = %v", rm)
 	}

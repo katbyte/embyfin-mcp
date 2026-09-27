@@ -52,6 +52,7 @@ func FromSpec(cfg config.Service, spec *openapi.Spec, applied []string, log func
 	}
 
 	im.importSchemas()
+	im.keepNull()
 	groups := im.importOperations()
 	for _, g := range groups {
 		for i := range g.Operations {
@@ -99,6 +100,43 @@ type importer struct {
 	// typeNames maps every Go type name declared so far to where it came from
 	typeNames map[string]string
 	failures  []string
+}
+
+// keepNull marks the fields the service config names in KeepNull, which the
+// generator holds as pointers. A field the document no longer has, or no
+// longer declares a nullable number, fails the import: the config then names
+// something the SDK cannot keep, and the entry must go or change.
+func (im *importer) keepNull() {
+	for _, name := range im.cfg.KeepNull {
+		schema, prop, ok := strings.Cut(name, ".")
+		var field *definitions.Field
+		for _, m := range im.models {
+			if ok && m.SchemaName == schema {
+				field = fieldNamed(m.Fields, prop)
+			}
+		}
+		switch {
+		case field == nil:
+			im.fail(fmt.Sprintf("the config's KeepNull names %s, a field the document does not have: change or remove the entry", name))
+		case !field.Type.Numeric():
+			im.fail(fmt.Sprintf("the config's KeepNull names %s, which is %s, not a number: change or remove the entry", name, field.Type))
+		case !field.Nullable:
+			im.fail(fmt.Sprintf("the config's KeepNull names %s, which the document no longer declares nullable: remove the entry", name))
+		default:
+			field.KeepsNull = true
+		}
+	}
+}
+
+// fieldNamed is the field of a model with a JSON name, or nil.
+func fieldNamed(fields []definitions.Field, jsonName string) *definitions.Field {
+	for i := range fields {
+		if fields[i].JSONName == jsonName {
+			return &fields[i]
+		}
+	}
+
+	return nil
 }
 
 func (im *importer) warn(msg string) { im.log(im.cfg.Name + ": warning: " + msg) }

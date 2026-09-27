@@ -337,7 +337,7 @@ func TestAnAIUpscaleBesideItsSource(t *testing.T) {
 	caveats := strings.Join(strs(t, out["caveats"], "caveats"), " | ")
 	for _, want := range []string{
 		"one copy runs at 60 fps and the other at 24",
-		"so the 60 fps copy was interpolated from a slower master",
+		"the 60 fps copy was most likely interpolated from it",
 		"the copies claim different HDR formats (hdr10 against sdr)",
 	} {
 		if !strings.Contains(caveats, want) {

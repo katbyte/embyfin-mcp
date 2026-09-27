@@ -192,7 +192,7 @@ func TestADVDKeptWhole(t *testing.T) {
 	if str(got["path"]) != "/media/messy-movies/"+messyKeptDVD || num(t, got["year"], "year") != 2009 || str(ids["tmdb"]) != "17431" || str(ids["imdb"]) != "tt1182345" {
 		t.Errorf("item_get Moon = %v at %v, %v: want one film at its folder with the nfo's ids", got["name"], got["path"], ids)
 	}
-	if found := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "17431"})["items"], "items"); len(found) != 1 || str(found[0]["id"]) != moon {
+	if found := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "17431", "type": "movie"})["items"], "items"); len(found) != 1 || str(found[0]["id"]) != moon {
 		t.Errorf("tmdb 17431 finds %v, want Moon alone", found)
 	}
 

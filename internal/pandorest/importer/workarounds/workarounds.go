@@ -66,6 +66,7 @@ var All = []Workaround{
 	tmdbListIDs{},
 	tmdbChangeValues{},
 	tmdbDisplayPriorities{},
+	tmdbCollectionParts{},
 }
 
 // Apply runs every workaround for a service, logging each, and returns the

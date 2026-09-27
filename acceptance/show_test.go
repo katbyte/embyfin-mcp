@@ -550,9 +550,7 @@ func TestStagedShows(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		if _, err := invoke("library_delete", map[string]any{"library": stagedShows, "confirm": true}); err != nil {
-			t.Errorf("removing %s: %v", stagedShows, err)
-		}
+		removeLibrary(t, stagedShows)
 		if err := waitForExpectedScan(); err != nil {
 			t.Error(err)
 		}

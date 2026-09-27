@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -67,9 +68,9 @@ func sameTree(t *testing.T, root string, before, after map[string][]byte) {
 	}
 }
 
-// wouldRemove reads what item_delete's refusal says it would take: the
-// folder it would take whole and the names under it, or, when it keeps the
-// folder, the files. The names are sorted.
+// wouldRemove reads what item_delete's refusal says it would take, which it
+// says last: the folder it would take whole and the names under it, counted,
+// or, when it keeps the folder, the files. The names are sorted.
 func wouldRemove(t *testing.T, msg string) (folder string, names []string) {
 	t.Helper()
 
@@ -77,8 +78,12 @@ func wouldRemove(t *testing.T, msg string) (folder string, names []string) {
 	switch {
 	case strings.Contains(msg, whole):
 		rest := msg[strings.Index(msg, whole)+len(whole):]
-		folder, rest, _ = strings.Cut(rest, " with everything in it (")
+		folder, rest, _ = strings.Cut(rest, " with everything in it, ")
+		count, rest, _ := strings.Cut(rest, " files and folders (")
 		names = strings.Split(strings.TrimSuffix(rest, ")"), ", ")
+		if n, err := strconv.Atoi(count); err != nil || n != len(names) {
+			t.Errorf("the refusal counts %q files and folders, and names %d", count, len(names))
+		}
 	case strings.Contains(msg, files):
 		rest, _, _ := strings.Cut(msg[strings.Index(msg, files)+len(files):], ". Of those, ")
 		names = strings.Split(rest, ", ")
@@ -381,9 +386,7 @@ func TestDeletingAFilmLooseInALibrarysFolder(t *testing.T) {
 	mediaWrite(t, filepath.Join(root, name+".nfo"), movieNfo("Blade", 1998, "36647", "tt0120611"))
 	mediaWrite(t, filepath.Join(root, name+".eng.srt"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
 	t.Cleanup(func() {
-		if _, err := invoke("library_delete", map[string]any{"library": library, "confirm": true}); err != nil {
-			t.Errorf("removing the library: %v", err)
-		}
+		removeLibrary(t, library)
 		if err := waitForExpectedScan(); err != nil {
 			t.Error(err)
 		}

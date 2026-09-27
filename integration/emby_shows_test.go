@@ -40,7 +40,7 @@ func TestEmbyShows(t *testing.T) {
 		t.Fatalf("%s has %d seasons, want 2", severance, len(seasons.Items))
 	}
 	for _, s := range seasons.Items {
-		if s.Id == "" || s.Type != "Season" || s.IndexNumber == 0 || s.SeriesId != sev.Id || s.SeriesName != severance {
+		if s.Id == "" || s.Type != "Season" || number(s.IndexNumber) <= 0 || s.SeriesId != sev.Id || s.SeriesName != severance {
 			t.Errorf("season = %+v", s)
 		}
 	}
@@ -50,12 +50,12 @@ func TestEmbyShows(t *testing.T) {
 		t.Fatalf("%s has %d episodes, want 4", severance, episodes.TotalRecordCount)
 	}
 	for _, e := range episodes.Items {
-		if e.Id == "" || e.Type != "Episode" || e.IndexNumber == 0 || e.ParentIndexNumber == 0 || e.SeasonId == "" || e.SeriesId != sev.Id || e.Overview == "" || e.Path == "" {
+		if e.Id == "" || e.Type != "Episode" || number(e.IndexNumber) <= 0 || number(e.ParentIndexNumber) <= 0 || e.SeasonId == "" || e.SeriesId != sev.Id || e.Overview == "" || e.Path == "" {
 			t.Errorf("episode = %+v", e)
 		}
 	}
-	if e := episodes.Items[0]; e.Name != "Good News About Hell" || e.ParentIndexNumber != 1 || e.IndexNumber != 1 {
-		t.Errorf("first episode = %s S%02dE%02d", e.Name, e.ParentIndexNumber, e.IndexNumber)
+	if e := episodes.Items[0]; e.Name != "Good News About Hell" || number(e.ParentIndexNumber) != 1 || number(e.IndexNumber) != 1 {
+		t.Errorf("first episode = %s S%02dE%02d", e.Name, number(e.ParentIndexNumber), number(e.IndexNumber))
 	}
 
 	one := must(embyc.GetShowsByIdEpisodes(ctx, sev.Id, emby.GetShowsByIdEpisodesOperationOptions{UserId: adminID, Season: new(2)})).Model
@@ -98,7 +98,7 @@ func TestEmbyShows(t *testing.T) {
 		if len(next.Items) != 1 {
 			t.Fatalf("legacy next up = %+v, want the second episode of %s", next.Items, severance)
 		}
-		if e := next.Items[0]; e.Name != "Half Loop" || e.IndexNumber != 2 || e.SeriesName != severance {
+		if e := next.Items[0]; e.Name != "Half Loop" || number(e.IndexNumber) != 2 || e.SeriesName != severance {
 			t.Errorf("next up = %+v", e)
 		}
 	})

@@ -537,3 +537,40 @@ func (tmdbListIDs) Apply(spec *openapi.Spec) error {
 
 	return nil
 }
+
+type tmdbCollectionParts struct{}
+
+func (tmdbCollectionParts) Name() string    { return "tmdb-collection-parts" }
+func (tmdbCollectionParts) Service() string { return tmdb }
+func (tmdbCollectionParts) Bug() string {
+	return "GET /3/collection/{collection_id} declares each of a collection's parts with a series' name and original_name; a collection holds films - every part answers media_type movie - and TMDB answers each film's title and original_title, so every part decoded untitled"
+}
+
+// Apply gives a collection's parts a film's title fields in place of a
+// series': a collection is TMDB's for films alone (a series belongs to none),
+// so the film's shape is the part's whole shape, not one side of a union.
+func (tmdbCollectionParts) Apply(spec *openapi.Spec) error {
+	const path = "/3/collection/{collection_id}"
+	op, err := operation(spec, http.MethodGet, path)
+	if err != nil {
+		return err
+	}
+	media, err := jsonResponse(op, "GET "+path)
+	if err != nil {
+		return err
+	}
+	if media.Schema == nil || media.Schema.Properties["parts"] == nil || media.Schema.Properties["parts"].Items == nil {
+		return errors.New("GET " + path + " no longer answers a list of parts")
+	}
+	part := media.Schema.Properties["parts"].Items
+	for _, rename := range []struct{ from, to string }{{"name", "title"}, {"original_name", "original_title"}} {
+		field := part.Properties[rename.from]
+		if field == nil || part.Properties[rename.to] != nil {
+			return fmt.Errorf("GET %s declares a part's %s now, not its %s", path, rename.to, rename.from)
+		}
+		part.Properties[rename.to] = field
+		delete(part.Properties, rename.from)
+	}
+
+	return nil
+}
