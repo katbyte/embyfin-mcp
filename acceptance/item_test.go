@@ -61,10 +61,11 @@ func TestItemGet(t *testing.T) {
 	if c := str(out["container"]); c != "mp4" && c != "mov,mp4,m4a,3gp,3g2,mj2" {
 		t.Errorf("container = %q", c)
 	}
-	// seconds, like every duration a tool answers with: in minutes this file
-	// read as 0, which said nothing about the unit at all
-	if n := numOr0(out["runtime_s"]); n < 1 || n > 2 {
-		t.Errorf("a one-second file has runtime_s %v", out["runtime_s"])
+	// seconds, like every duration a tool answers with: the file runs TMDB's
+	// 155 minutes for the film, which in minutes would say nothing of the
+	// unit
+	if n := numOr0(out["runtime_s"]); n != 155*60 {
+		t.Errorf("a file of 155 minutes has runtime_s %v, want %d", out["runtime_s"], 155*60)
 	}
 	// the nfo's director, as the director
 	if !slices.ContainsFunc(rows(t, out["people"], "people"), func(p map[string]any) bool {

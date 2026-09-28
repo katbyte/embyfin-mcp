@@ -212,9 +212,9 @@ func TestAnEpisodeInTwoVersions(t *testing.T) {
 	}
 }
 
-// A copy of another film matched to Interstellar's ids: a three-minute file
-// in a folder named for The Thirteenth Floor, whose nfo carries Interstellar's
-// title, year and ids. Emby shows it as a version of the messy Interstellar,
+// A copy of another film matched to Interstellar's ids: The Thirteenth
+// Floor's own file, its 100 minutes, in a folder named for it, whose nfo
+// carries Interstellar's title, year and ids. Emby shows it as a version of the messy Interstellar,
 // sharing their ids; Jellyfin holds it apart, as a second entry. Either way a
 // caller comparing the two to keep the better would delete a film, so every
 // tool that shows them together says they are probably two films.
@@ -229,7 +229,7 @@ func TestAFilmMatchedToAnothersIDs(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	stageFile(t, filepath.Join(dir, "The Thirteenth Floor (1999).mp4"), fixtureVideo(t, "anime-src", "special.mp4"))
+	stageFile(t, filepath.Join(dir, "The Thirteenth Floor (1999).mp4"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).mp4"))
 	stageFile(t, filepath.Join(dir, "movie.nfo"), []byte(`<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>Interstellar</title>
@@ -274,7 +274,7 @@ func TestAFilmMatchedToAnothersIDs(t *testing.T) {
 		// shown as one film in two versions, whichever of the two is read
 		for _, id := range []string{real, staged} {
 			got := call(t, "item_get", map[string]any{"id": id})
-			if w := str(got["warning"]); !strings.HasPrefix(w, "probably not one film") || !strings.Contains(w, named) || !strings.Contains(w, " 1s") || !strings.Contains(w, " 3 min") {
+			if w := str(got["warning"]); !strings.HasPrefix(w, "probably not one film") || !strings.Contains(w, named) || !strings.Contains(w, " 169 min") || !strings.Contains(w, " 100 min") {
 				t.Errorf("item_get %s warning = %q", id, w)
 			}
 			if n := len(rows(t, got["versions"], "versions")); n != 2 {
@@ -311,7 +311,7 @@ func TestAFilmMatchedToAnothersIDs(t *testing.T) {
 	// compared, they are two films: a caveat, never the verdict
 	compared := call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": real}, "b": map[string]any{"item_id": staged}})
 	caveats := strings.Join(strs(t, compared["caveats"], "caveats"), " | ")
-	if !strings.Contains(caveats, "these may not be the same film") || !strings.Contains(caveats, named) || !strings.Contains(caveats, "they run 1s and 3 min: a different cut, or a different film") {
+	if !strings.Contains(caveats, "these may not be the same film") || !strings.Contains(caveats, named) || !strings.Contains(caveats, "they run 169 min and 100 min: a different cut, or a different film") {
 		t.Errorf("quality_compare caveats = %q", caveats)
 	}
 
@@ -329,7 +329,7 @@ func TestAFilmMatchedToAnothersIDs(t *testing.T) {
 	}
 	if str(row[0]["path_tmdb"]) != "1090 The Thirteenth Floor (1999)" || str(row[0]["item_tmdb"]) != "157336" ||
 		!strings.Contains(str(row[0]["diagnosis"]), "the path names TMDB's film 1090, The Thirteenth Floor (1999); the item carries TMDB 157336") ||
-		!strings.Contains(str(row[0]["diagnosis"]), "the file runs 3 min") {
+		!strings.Contains(str(row[0]["diagnosis"]), "the file runs 100 min, and TMDB's 1090 runs 100 and its 157336 169: the file's runtime is the path's film's") {
 		t.Errorf("the TMDB diagnosis = %v", row[0])
 	}
 }

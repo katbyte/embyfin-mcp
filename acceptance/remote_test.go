@@ -374,8 +374,9 @@ func TestSessionWhilePlaying(t *testing.T) {
 	idle := num(t, call(t, "server_stats", nil)["active_sessions"], "active_sessions")
 
 	p := startPlaying(t, token, dune)
-	// half a second into the one-second file, paused there
-	p.report("/Sessions/Playing/Progress", 5_000_000, true)
+	// half way into the film's 167 minutes, paused there
+	half, end := int64(5010)*10_000_000, int64(167*60)*10_000_000
+	p.report("/Sessions/Playing/Progress", half, true)
 	var row map[string]any
 	if !eventually(func() bool {
 		row = sessionOn(t, device)
@@ -383,19 +384,19 @@ func TestSessionWhilePlaying(t *testing.T) {
 	}) {
 		t.Fatalf("the player never showed as paused: %v", row)
 	}
-	if str(row["now_playing"]) != "Dune: Part Two" || str(row["position"]) != "1s / 1s" {
-		t.Errorf("the playing session = %v, want Dune: Part Two, paused at 1s / 1s", row)
+	if str(row["now_playing"]) != "Dune: Part Two" || str(row["position"]) != "1h23m30s / 2h47m0s" {
+		t.Errorf("the playing session = %v, want Dune: Part Two, paused at 1h23m30s / 2h47m0s", row)
 	}
 	if n := num(t, call(t, "server_stats", nil)["active_sessions"], "active_sessions"); n != idle+1 {
 		t.Errorf("active_sessions while playing = %d, want %d", n, idle+1)
 	}
 
-	// playing again, then stopped
-	p.report("/Sessions/Playing/Progress", 5_000_000, false)
+	// playing again, then stopped at the end
+	p.report("/Sessions/Playing/Progress", half, false)
 	if !eventually(func() bool { row = sessionOn(t, device); return row != nil && !boolOf(row["paused"]) }) {
 		t.Errorf("the player never showed as playing again: %v", row)
 	}
-	p.report("/Sessions/Playing/Stopped", 5_000_000, false)
+	p.report("/Sessions/Playing/Stopped", end, false)
 	if !eventually(func() bool {
 		row = sessionOn(t, device)
 		return row != nil && row["now_playing"] == nil

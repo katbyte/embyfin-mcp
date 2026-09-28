@@ -422,9 +422,9 @@ func TestSessionPlayingAnEpisode(t *testing.T) {
 			pilot = str(e["id"])
 		}
 	}
-	// a one-second file stopped part way is marked watched (both servers
-	// mark a file shorter than their shortest resume point played), which
-	// the audits of what nobody has watched would read after this
+	// a play begun and stopped can leave the pilot marked or counted as
+	// played for alice, which the audits of what nobody has watched would
+	// read after this
 	t.Cleanup(func() {
 		if _, err := invoke("item_set_state", map[string]any{"id": pilot, "user": "alice", "watched": false}); err != nil {
 			t.Errorf("putting the pilot back to unwatched for alice: %v", err)

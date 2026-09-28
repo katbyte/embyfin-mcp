@@ -387,8 +387,8 @@ make record-check   # check the cassettes still match, without rewriting them
 vanished fields, changed types - and ignores values, so it goes red when a provider changes its
 contract rather than when a poster changes.
 
-Fixtures are generated, never committed: `scripts/testenv.sh` writes one-second videos with
-`ffmpeg` under `~/.cache/embyfin-mcp` (`EMBYFIN_TEST_DATA` to move them - not `$TMPDIR`, which
+Fixtures are generated, never committed: `scripts/testenv.sh` writes videos with
+`ffmpeg` - every film and episode runs TMDB's length for it, a still frame joined end to end so it costs a few megabytes - under `~/.cache/embyfin-mcp` (`EMBYFIN_TEST_DATA` to move them - not `$TMPDIR`, which
 Docker Desktop does not share), each with a Kodi-style `.nfo` carrying the real film's ids,
 completes the server's setup wizard, mints an API key and a second user, and prints the
 environment. The suites create the libraries through `library_create` and fill them with
@@ -397,7 +397,7 @@ clean and fetch their metadata from the providers (through the proxy), so the au
 something to leave alone and identify has something to find; the two `Messy` libraries keep
 the providers off and are seeded with every defect the audits exist to find - a film with no
 ids, one with no plot and no poster, a folder whose year disagrees with its metadata, one
-film twice, one film in two versions, a runtime that cannot be right - and each audit has a
+film twice, one film in two versions, a file cut short, a runtime that cannot be right - and each audit has a
 test against them. A fifth library holds music - four artists, five albums, twenty one-second
 tracks tagged with the real MusicBrainz ids, art beside and inside them - so the mixes have
 something to work with and the audits can be pointed at albums; it too keeps the providers

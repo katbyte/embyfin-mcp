@@ -602,8 +602,7 @@ func TestAuditQuality(t *testing.T) {
 	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("at 360 lines with codecs off = %v", out["findings"])
 	}
-	// a bitrate floor nothing a one-second test pattern reaches, said in
-	// kilobits a second
+	// a bitrate floor no fixture reaches, said in kilobits a second
 	out = call(t, "audit_quality", map[string]any{"library": "Movies", "min_bitrate": 1000000000})
 	if n := num(t, out["total_findings"], "total_findings"); n != len(movies) {
 		t.Errorf("a bitrate floor flagged %d films, want all %d", n, len(movies))

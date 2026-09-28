@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Bring up a throwaway Emby or Jellyfin in Docker, lay out a known catalogue of
-# tiny videos for it, complete its setup wizard, mint an API key, and print the
+# videos for it, complete its setup wizard, mint an API key, and print the
 # environment the live test suites need.
 #
 #   eval "$(EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh up)"   # start, export EMBYFIN_*
@@ -96,10 +96,11 @@ api() {
 # fixture tables (acceptance/harness_test.go, integration/harness_test.go)
 # must agree.
 #
-# folder|title|year|tmdb|imdb|runtime minutes|genre|director|plot
+# folder|title|year|tmdb|imdb|runtime minutes|genre|director|plot - the
+# runtime is TMDB's for the film, which the nfo carries and the file runs
 MOVIES='Alien (1979)|Alien|1979|348|tt0078748|117|Horror|Ridley Scott|After a space merchant vessel receives an unknown transmission as a distress call, one of the crew is attacked by a mysterious life form.
 Aliens (1986)|Aliens|1986|679|tt0090605|137|Action|James Cameron|Ripley returns to the planet where her crew encountered the hostile Alien organism, this time with a unit of colonial marines.
-Blade Runner (1982)|Blade Runner|1982|78|tt0083658|117|Science Fiction|Ridley Scott|In the smog-choked dystopian Los Angeles of 2019, blade runner Rick Deckard is called out of retirement to terminate a quartet of replicants.
+Blade Runner (1982)|Blade Runner|1982|78|tt0083658|118|Science Fiction|Ridley Scott|In the smog-choked dystopian Los Angeles of 2019, blade runner Rick Deckard is called out of retirement to terminate a quartet of replicants.
 Dune (2021)|Dune|2021|438631|tt1160419|155|Science Fiction|Denis Villeneuve|Paul Atreides leads nomadic tribes in a revolt against the evil Harkonnens.
 Dune Part Two (2024)|Dune: Part Two|2024|693134|tt15239678|167|Science Fiction|Denis Villeneuve|Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.
 Princess Mononoke (1997)|Princess Mononoke|1997|128|tt0119698|134|Animation|Hayao Miyazaki|Ashitaka, a prince cursed by a demon boar god, travels west in search of a cure and finds himself caught in a war between the gods of the forest and a mining town that is destroying it.
@@ -113,7 +114,8 @@ Breaking Bad|Breaking Bad|2008|1396|81189|tt0903747|Drama|A chemistry teacher di
 The Expanse|The Expanse|2015|63639|280619|tt3230854|Science Fiction|A police detective in the asteroid belt, the first officer of an interplanetary ice freighter and an earth-bound UN executive slowly discover a vast conspiracy.
 Limitless|Limitless|2015|62687|295743|tt4422836|Drama|Brian Finch'\''s life takes an extraordinary turn when he uses NZT-48, a neuroenhancing drug whose mystery and chaos lead him to working for the FBI and a senator who is not what he seems.'
 
-# show folder|season|episode|title - the episode files on disk. Severance
+# show folder|season|episode|minutes|title - the episode files on disk, each
+# running TMDB's minutes for its episode (and a few seconds, see runs). Severance
 # season one has nine episodes and we hold two, so with the provider on the
 # server lists the rest as missing; Breaking Bad holds three of seven. The
 # Expanse holds the first of TMDB's specials, in Season 00.
@@ -129,17 +131,17 @@ Limitless|Limitless|2015|62687|295743|tt4422836|Drama|Brian Finch'\''s life take
 # Limitless is the series of 2015 beside the film of 2011 in the clean
 # movies: one name for a film and a show, which a lookup by name must keep
 # apart.
-EPISODES='Severance|1|1|Good News About Hell
-Severance|1|2|Half Loop
-Severance|2|1|Hello, Ms. Cobel
-Severance|2|2|Goodbye, Mrs. Selvig
-Breaking Bad|1|1|Pilot
-Breaking Bad|1|2|Cat'\''s in the Bag...
-Breaking Bad|1|3|Cat'\''s in the Bag...
-The Expanse|0|1|Inside The Expanse: Episode 1
-The Expanse|1|1|Dulcinea
-The Expanse|1|2|The Big Empty|Dulcinea
-Limitless|1|1|Pilot'
+EPISODES='Severance|1|1|59|Good News About Hell
+Severance|1|2|57|Half Loop
+Severance|2|1|54|Hello, Ms. Cobel
+Severance|2|2|49|Goodbye, Mrs. Selvig
+Breaking Bad|1|1|59|Pilot
+Breaking Bad|1|2|49|Cat'\''s in the Bag...
+Breaking Bad|1|3|49|Cat'\''s in the Bag...
+The Expanse|0|1|5|Inside The Expanse: Episode 1
+The Expanse|1|1|48|Dulcinea
+The Expanse|1|2|46|The Big Empty|Dulcinea
+Limitless|1|1|44|Pilot'
 
 # The music library. Four artists with their real MusicBrainz ids and a
 # subset of each album's real tracklist, so the tags the scanner reads are
@@ -204,7 +206,8 @@ SirensCeol|Afterworld|3|Afterworld
 SirensCeol|Afterworld|4|A Grand Illusion'
 
 # The messy libraries: the defects the audits exist to find, laid out the way
-# a real collection accumulates them. Their files are 360p rips (the clean
+# a real collection accumulates them. Like the clean ones, every film and
+# episode runs TMDB's length for it, but where the length is the defect. Their files are 360p rips (the clean
 # libraries' are 720p), so audit_quality has a worklist there and nothing to
 # say about the clean ones. Their libraries are created with the
 # metadata fetchers off, so what the nfo files say is what the server knows,
@@ -215,7 +218,9 @@ SirensCeol|Afterworld|4|A Grand Illusion'
 #                                  video, the legacy codec audit_quality looks for; and two audio
 #                                  tracks, Japanese then English, so an English one second in line
 #                                  is still English audio
-#   Arrival (2016)                 nfo with ids but no plot, and no poster
+#   Arrival (2016)                 nfo with ids but no plot, and no poster; and its file stops 40
+#                                  minutes into TMDB's 116, a copy cut short, which no length a film
+#                                  cannot have gives away: only TMDB's for it does
 #   Dune (2021)                    folder says 2021, nfo says 1984 (David Lynch's film, the other
 #                                  Dune): year mismatch
 #   Alien (1979) + Directors Cut   two folders, one tmdb id: duplicates (and a third copy sits in the clean library)
@@ -227,8 +232,7 @@ SirensCeol|Afterworld|4|A Grand Illusion'
 #                                  leaves the film alone
 #   Interstellar (2014)            a trailer beside the film (-trailer), and Trailers and Extras
 #                                  folders: what goes with a film and is not another copy of it, which
-#                                  neither server lists as a film or a version. Its nfo says 169
-#                                  minutes, which neither server keeps over the file's second
+#                                  neither server lists as a film or a version
 #   Coyote vs. Acme (2026)         a DVD's VTS_01_1.VOB left loose in a film's folder: a flattened disc,
 #                                  and no nfo, so unmatched with no overview or poster
 #   Cube (1997)                    a Blu-ray kept whole (BDMV/STREAM): both servers hold it as one film
@@ -296,12 +300,33 @@ field() {
 }
 
 # video PATH [SECONDS] [SIZE] [CODEC] [LANGUAGE] [SECOND LANGUAGE] [RATE] - a
-# short file of that length, 720p h264 at five frames a second unless the
-# rest say otherwise, so the scanner has a real container to probe and a
-# runtime to report. At five frames a second a 720p second is tens of
-# kilobytes and a 2160p one under a megabyte.
+# file of that length, 720p h264 at five frames a second unless the rest say
+# otherwise, so the scanner has a real container to probe and a runtime to
+# report. Five minutes or more is the length a film or an episode runs,
+# made by joining (see long_video); anything shorter is a file made for one
+# test - a cut, a special, an episode of a few minutes - and is a moving test
+# pattern, encoded whole.
 video() {
   mkdir -p "$(dirname "$1")"
+  local secs=${2:-1} size=${3:-1280x720} codec=${4:-libx264} rate=${7:-5}
+  if [ "$secs" -ge 300 ]; then
+    # the video's bitrate grows with its frame, a kilobit a second for every
+    # 60 lines, so a bigger frame makes a bigger file, as it does off a real
+    # disc, and two copies of one length at two sizes never come out the
+    # same to the byte
+    local kbps=$(( ${size#*x} / 60 ))
+    [ "$kbps" -ge 2 ] || kbps=2
+    local enc
+    case "$codec" in
+      libx264) enc="-c:v libx264 -g 100000 -b:v ${kbps}k -minrate ${kbps}k -maxrate ${kbps}k -bufsize $((kbps * 2))k -x264-params nal-hrd=cbr -pix_fmt yuv420p" ;;
+      mpeg4) enc="-c:v mpeg4 -g 100000 -b:v ${kbps}k -pix_fmt yuv420p" ;;
+      *) echo "video: no long form for codec ${codec}" >&2; return 1 ;;
+    esac
+    # enc is split on spaces on purpose: none of its words holds one
+    # shellcheck disable=SC2086
+    long_video "$1" "$secs" "${codec}-${size}-${rate}" "$size" "$rate" "${5:-}" "${6:-}" $enc
+    return
+  fi
   # -nostdin matters: without it ffmpeg reads the while-read loop's stdin
   # looking for interactive keys and swallows a character of the next line,
   # which silently truncates the titles that follow.
@@ -312,34 +337,103 @@ video() {
   # second track in that language after the first. Conditional expansion
   # rather than an array: macOS's bash 3.2 under set -u refuses an empty one.
   ffmpeg -nostdin -loglevel error -y \
-    -f lavfi -i "testsrc2=s=${3:-1280x720}:r=${7:-5}" -f lavfi -i "anullsrc=r=22050:cl=mono" \
+    -f lavfi -i "testsrc2=s=${size}:r=${rate}" -f lavfi -i "anullsrc=r=22050:cl=mono" \
     ${6:+-f lavfi -i anullsrc=r=22050:cl=mono -map 0:v -map 1:a -map 2:a} \
-    -t "${2:-1}" -c:v "${4:-libx264}" -pix_fmt yuv420p -c:a aac \
+    -t "$secs" -c:v "$codec" -pix_fmt yuv420p -c:a aac \
     ${5:+-metadata:s:a:0} ${5:+"language=$5"} ${6:+-metadata:s:a:1} ${6:+"language=$6"} -shortest "$1"
 }
 
-# upscale PATH - a second of what an AI upscaler sells as 4K HDR: 2160p at 60
+# The long files - the films and episodes, which run the length TMDB gives
+# for them - are one still grey frame, repeated. A minute of it is encoded
+# once for each kind of picture and kept under SEGMENTS, outside the data
+# directory so every server start reuses it; a file is then that minute
+# joined end to end as many times as it runs, plus the seconds left over,
+# with one long silent track cut to the same length. Joining copies the
+# encoded frames rather than making them again, so a two-hour film takes
+# under a second and a few megabytes, and its length is exact: the picture
+# is whole frames, and the sound is cut at the picture's end.
+SEGMENTS="${EMBYFIN_TEST_SEGMENTS:-${HOME}/.cache/embyfin-mcp/testenv/segments}"
+
+# still FILE SECONDS SIZE RATE ENCODER... - SECONDS of the grey frame at
+# SIZE and RATE frames a second, picture only, encoded with ENCODER and kept
+# as FILE, made once. The acceptance and integration suites can make
+# fixtures side by side, so it is written under a name of its own and moved
+# into place whole.
+still() {
+  local file=$1 secs=$2 size=$3 rate=$4
+  shift 4
+  [ -s "$file" ] && return 0
+  mkdir -p "$(dirname "$file")"
+  ffmpeg -nostdin -loglevel error -y -f lavfi -i "color=c=gray:s=${size}:r=${rate}" -t "$secs" -an "$@" "${file}.$$.mp4"
+  mv -f "${file}.$$.mp4" "$file"
+}
+
+# silence - the long silent track every long file takes its sound from:
+# mono aac at 22050 Hz like the short files' own, four hours of it, made once
+silence() {
+  SILENCE="${SEGMENTS}/silence-22050-mono-4h.m4a"
+  [ -s "$SILENCE" ] && return 0
+  mkdir -p "$SEGMENTS"
+  ffmpeg -nostdin -loglevel error -y -f lavfi -i "anullsrc=r=22050:cl=mono" -t 14400 -c:a aac "${SILENCE}.$$.m4a"
+  mv -f "${SILENCE}.$$.m4a" "$SILENCE"
+}
+
+# long_video PATH SECONDS KIND SIZE RATE LANGUAGE SECOND_LANGUAGE ENCODER... -
+# SECONDS of the grey frame, from KIND's minute (SIZE, RATE, ENCODER) joined
+# with itself, and its sound: one track, tagged LANGUAGE when given, and a
+# second tagged SECOND_LANGUAGE when that is given.
+long_video() {
+  local path=$1 secs=$2 kind=$3 size=$4 rate=$5 lang=$6 lang2=$7
+  shift 7
+  local minute="${SEGMENTS}/${kind}-60.mp4" rest=$((secs % 60)) list="${SEGMENTS}/join.$$.txt"
+  still "$minute" 60 "$size" "$rate" "$@"
+  [ "$rest" -eq 0 ] || still "${SEGMENTS}/${kind}-${rest}.mp4" "$rest" "$size" "$rate" "$@"
+  silence
+  {
+    for _ in $(seq $((secs / 60))); do echo "file '${minute}'"; done
+    [ "$rest" -eq 0 ] || echo "file '${SEGMENTS}/${kind}-${rest}.mp4'"
+  } >"$list"
+  mkdir -p "$(dirname "$path")"
+  ffmpeg -nostdin -loglevel error -y -f concat -safe 0 -i "$list" -i "$SILENCE" \
+    ${lang2:+-i "$SILENCE"} -map 0:v -map 1:a ${lang2:+-map 2:a} -c copy -t "$secs" \
+    ${lang:+-metadata:s:a:0} ${lang:+"language=$lang"} ${lang2:+-metadata:s:a:1} ${lang2:+"language=$lang2"} "$path"
+  rm -f "$list"
+}
+
+# runs MINUTES EPISODE SHOW - how many seconds an episode's file runs:
+# TMDB's minutes for it, and a few seconds more, as a real episode never ends
+# on the minute. Under half a minute, so the file still rounds to TMDB's
+# minutes; seven more for each episode number, so two episodes of a season
+# TMDB gives the same minutes to are seconds apart, not the same to the
+# second, which the duplicate audit would take for one file held twice; and
+# shifted by the show's name, so two shows' episodes of the same minutes do
+# not come out the same size to the byte either. One episode held twice is
+# the same length in both copies.
+runs() {
+  local shift
+  shift=$(printf '%s' "$3" | cksum | cut -d' ' -f1)
+  echo $(($1 * 60 + (shift % 29 + $2 * 7) % 30))
+}
+
+# upscale PATH SECONDS - what an AI upscaler sells as 4K HDR: 2160p at 60
 # frames a second, HEVC 10-bit, with HDR10's colour tags (PQ transfer, BT.2020
 # primaries). Nothing about the picture is HDR; the tags are the claim, and 60
 # frames is the interpolation no film master has. setparams puts the tags on
-# the frames, which is where the encoder takes them from.
+# the frames, which is where the encoder takes them from. A minute of it
+# takes a couple of minutes to encode, once, which is why it is the one 4K
+# fixture.
 upscale() {
-  mkdir -p "$(dirname "$1")"
-  ffmpeg -nostdin -loglevel error -y \
-    -f lavfi -i "testsrc2=s=3840x2160:r=60" -f lavfi -i "anullsrc=r=22050:cl=mono" -t 1 \
+  long_video "$1" "$2" hevc-hdr10-3840x2160-60 3840x2160 60 "" "" \
     -vf "setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc" \
-    -c:v libx265 -preset ultrafast -crf 40 -x265-params log-level=error -pix_fmt yuv420p10le -tag:v hvc1 \
-    -c:a aac -shortest "$1"
+    -c:v libx265 -preset ultrafast -crf 40 -x265-params log-level=error -pix_fmt yuv420p10le -tag:v hvc1
 }
 
-# anamorphic PATH - a second of a DVD rip as it comes off the disc: 720x480,
-# its pixels stretched to 16:9 by the ratio the stream states (32:27), which
-# is the only thing telling it from a 3:2 or a 4:3 picture of the same size.
+# anamorphic PATH SECONDS - a DVD rip as it comes off the disc: 720x480, its
+# pixels stretched to 16:9 by the ratio the stream states (32:27), which is
+# the only thing telling it from a 3:2 or a 4:3 picture of the same size.
 anamorphic() {
-  mkdir -p "$(dirname "$1")"
-  ffmpeg -nostdin -loglevel error -y \
-    -f lavfi -i "testsrc2=s=720x480:r=5" -f lavfi -i "anullsrc=r=22050:cl=mono" -t 1 \
-    -vf setsar=32/27 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "$1"
+  long_video "$1" "$2" h264-720x480-5-sar32x27 720x480 5 "" "" -vf setsar=32/27 \
+    -c:v libx264 -g 100000 -b:v 8k -minrate 8k -maxrate 8k -bufsize 16k -x264-params nal-hrd=cbr -pix_fmt yuv420p
 }
 
 # claims_hours PATH - a second of video in an mkv whose duration says twelve
@@ -351,20 +445,6 @@ claims_hours() {
     -f lavfi -t 1 -i "testsrc2=s=640x360:r=5" -f lavfi -t 1 -i "anullsrc=r=22050:cl=mono" \
     -vf "setpts='if(eq(N,4),43200/TB,PTS)'" -fps_mode passthrough \
     -c:v libx264 -pix_fmt yuv420p -c:a aac "$1"
-}
-
-# full_length PATH MINUTES - a film that runs its real length at next to no
-# cost: a still 720p frame once a second, which the encoder repeats for a few
-# bytes, and silent audio, so a runtime check has a film that matches the
-# provider's and every other fact reads as the clean fixtures' do. The video
-# is padded to a steady 2 kbps, so a bitrate floor of a kilobit a second
-# still has nothing to say about it.
-full_length() {
-  mkdir -p "$(dirname "$1")"
-  ffmpeg -nostdin -loglevel error -y \
-    -f lavfi -i "color=c=gray:s=1280x720:r=1" -f lavfi -i "anullsrc=r=8000:cl=mono" -t "$(($2 * 60))" \
-    -c:v libx264 -g 100000 -b:v 2k -minrate 2k -maxrate 2k -bufsize 4k -x264-params nal-hrd=cbr \
-    -pix_fmt yuv420p -c:a aac -b:a 8k -shortest "$1"
 }
 
 # ifo PATH MAGIC - a DVD's navigation file, as far as a scanner reads one:
@@ -528,16 +608,12 @@ fixtures() {
   while IFS='|' read -r folder title year tmdb imdb runtime genre director plot; do
     [ -n "$folder" ] || continue
     dir="${DATA}/media/movies/${folder}"
-    video "${dir}/${folder}.mp4"
+    video "${dir}/${folder}.mp4" $((runtime * 60))
     movie_nfo "$dir" "$title" "$year" "$tmdb" "$imdb" "$runtime" "$genre" "$director" "$plot"
     poster "${dir}/poster.jpg"
   done <<<"$MOVIES"
   # one film carries an English subtitle, for audit_language to find
   subtitle "${DATA}/media/movies/The Thirteenth Floor (1999)/The Thirteenth Floor (1999).eng.srt"
-  # and one runs its real length, so audit_provider's runtime check has a
-  # film it must leave alone among the rest, whose files run a second, and a
-  # play can stop part way through it
-  full_length "${DATA}/media/movies/Limitless (2011)/Limitless (2011).mp4" 106
 
   # the clean shows: "<show>/Season NN/<show> SNNENN.mp4" with an nfo beside each
   while IFS='|' read -r folder title year tmdb tvdb imdb genre plot; do
@@ -546,9 +622,9 @@ fixtures() {
     show_nfo "$dir" "$title" "$year" "$tmdb" "$tvdb" "$imdb" "$genre" "$plot"
     poster "${dir}/poster.jpg"
   done <<<"$SHOWS"
-  while IFS='|' read -r show season ep title filetitle; do
+  while IFS='|' read -r show season ep minutes title filetitle; do
     [ -n "$show" ] || continue
-    episode "$(printf '%s/media/shows/%s/Season %02d/%s S%02dE%02d' "$DATA" "$show" "$season" "$show" "$season" "$ep")" "$season" "$ep" "$title" 1 1280x720 "$filetitle"
+    episode "$(printf '%s/media/shows/%s/Season %02d/%s S%02dE%02d' "$DATA" "$show" "$season" "$show" "$season" "$ep")" "$season" "$ep" "$title" "$(runs "$minutes" "$ep" "$show")" 1280x720 "$filetitle"
   done <<<"$EPISODES"
 
   # two Blu-ray streams, outside every library: the disc audit's live test
@@ -573,27 +649,32 @@ fixtures() {
 
   # the messy movies
   m="${DATA}/media/messy-movies"
-  video "${m}/Princess Mononoke (1997)/Princess Mononoke (1997).mp4" 1 640x360 mpeg4 jpn eng
-  video "${m}/Arrival (2016)/Arrival (2016).mp4" 1 640x360
+  # the messy films run TMDB's minutes for the film each one is
+  video "${m}/Princess Mononoke (1997)/Princess Mononoke (1997).mp4" $((134 * 60)) 640x360 mpeg4 jpn eng
+  # but Arrival, cut short at 40 minutes
+  video "${m}/Arrival (2016)/Arrival (2016).mp4" $((40 * 60)) 640x360
   movie_nfo "${m}/Arrival (2016)" "Arrival" 2016 329865 tt2543164 116 Drama "Denis Villeneuve" ""
-  video "${m}/Dune (2021)/Dune (2021).mp4" 1 640x360
+  # the file is the film its nfo names, Lynch's, at TMDB's 136 minutes:
+  # the folder's year is what is wrong
+  video "${m}/Dune (2021)/Dune (2021).mp4" $((136 * 60)) 640x360
   movie_nfo "${m}/Dune (2021)" "Dune" 1984 841 tt0087182 137 "Science Fiction" "David Lynch" "In the year 10191, the heir of House Atreides is drawn into a war for the desert planet Arrakis, the only source of the spice that makes travel between the stars possible."
   poster "${m}/Dune (2021)/poster.jpg"
   for f in "Alien (1979)" "Alien (1979) Directors Cut"; do
-    video "${m}/${f}/${f}.mp4" 1 640x360
+    video "${m}/${f}/${f}.mp4" $((117 * 60)) 640x360
     movie_nfo "${m}/${f}" "Alien" 1979 348 tt0078748 117 Horror "Ridley Scott" "After a space merchant vessel receives an unknown transmission as a distress call, one of the crew is attacked by a mysterious life form."
     poster "${m}/${f}/poster.jpg"
   done
-  video "${m}/Blade Runner (1982)/Blade Runner (1982) - 1080p.mp4" 1 1920x1080 libx264 "" "" 24
-  upscale "${m}/Blade Runner (1982)/Blade Runner (1982) - 2160p.mp4"
-  movie_nfo "${m}/Blade Runner (1982)" "Blade Runner" 1982 78 tt0083658 117 "Science Fiction" "Ridley Scott" "In the smog-choked dystopian Los Angeles of 2019, blade runner Rick Deckard is called out of retirement to terminate a quartet of replicants."
+  video "${m}/Blade Runner (1982)/Blade Runner (1982) - 1080p.mp4" $((118 * 60)) 1920x1080 libx264 "" "" 24
+  upscale "${m}/Blade Runner (1982)/Blade Runner (1982) - 2160p.mp4" $((118 * 60))
+  movie_nfo "${m}/Blade Runner (1982)" "Blade Runner" 1982 78 tt0083658 118 "Science Fiction" "Ridley Scott" "In the smog-choked dystopian Los Angeles of 2019, blade runner Rick Deckard is called out of retirement to terminate a quartet of replicants."
   poster "${m}/Blade Runner (1982)/poster.jpg"
-  video "${m}/Interstellar (2014)/Interstellar (2014).mp4" 1 640x360
+  video "${m}/Interstellar (2014)/Interstellar (2014).mp4" $((169 * 60)) 640x360
   movie_nfo "${m}/Interstellar (2014)" "Interstellar" 2014 157336 tt0816692 169 "Science Fiction" "Christopher Nolan" "The adventures of a group of explorers who make use of a newly discovered wormhole to surpass the limitations on human space travel."
   poster "${m}/Interstellar (2014)/poster.jpg"
   # what goes with a film and is not a copy of it, the three ways both
   # servers name it: a trailer named for the film, and folders of trailers
-  # and extras. 360p, so an audit that took one for a film would say so
+  # and extras. 360p, so an audit that took one for a film would say so;
+  # and a second long, which no audit judges them by
   video "${m}/Interstellar (2014)/Interstellar (2014)-trailer.mp4" 1 640x360
   video "${m}/Interstellar (2014)/Trailers/Trailer.mp4" 1 640x360
   video "${m}/Interstellar (2014)/Extras/Featurette.mp4" 1 640x360
@@ -623,34 +704,36 @@ fixtures() {
   # of Star Wars, which TMDB does not list). Each carries a plot and a poster,
   # so the id is all that is wrong with it - bar the restoration's genre,
   # spelled as no other film spells it
-  video "${m}/Memento (2000)/Memento (2000).mp4" 1 640x360
+  video "${m}/Memento (2000)/Memento (2000).mp4" $((113 * 60)) 640x360
   movie_nfo "${m}/Memento (2000)" "Memento" 2000 "" tt0903747 "" Mystery "" "Leonard Shelby is tracking down the man who raped and murdered his wife. The difficulty of locating his wife's killer, however, is compounded by the fact that he suffers from a rare, untreatable form of short-term memory loss."
   poster "${m}/Memento (2000)/poster.jpg"
   sw="${m}/Star Wars Episode IV - A New Hope Despecialized Edition (1977)"
-  video "${sw}/Star Wars Episode IV - A New Hope Despecialized Edition (1977).mp4" 1 640x360 libx264 ger
+  # the restoration runs the 1977 cut's length, TMDB's 121 minutes for Star Wars
+  video "${sw}/Star Wars Episode IV - A New Hope Despecialized Edition (1977).mp4" $((121 * 60)) 640x360 libx264 ger
   movie_nfo "$sw" "Star Wars: Episode IV - A New Hope (Despecialized Edition)" 1977 99999999 "" "" "Science-Fiction" "" "Princess Leia is captured and held hostage by the evil Imperial forces in their effort to take over the galactic Empire."
   poster "${sw}/poster.jpg"
 
   # the messy shows
   s="${DATA}/media/messy-shows"
   show_nfo "${s}/Severance" "Severance" 2022 95396 371980 tt11280740 Drama "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives."
-  episode "${s}/Severance/Season 01/Severance S01E01" 1 1 "Good News About Hell" 1 640x360
+  episode "${s}/Severance/Season 01/Severance S01E01" 1 1 "Good News About Hell" "$(runs 59 1 "Severance")" 640x360
   episode "${s}/Severance/Season 01/Severance S01E02" 1 2 "Half Loop" 1 640x360
   # the second episode is a DVD rip, anamorphic: its file swapped for one
   # whose 720x480 the stream says is shown at 16:9
-  anamorphic "${s}/Severance/Season 01/Severance S01E02.mp4"
+  anamorphic "${s}/Severance/Season 01/Severance S01E02.mp4" "$(runs 57 2 "Severance")"
+  # and the third is cut short: five seconds of TMDB's 60 minutes
   episode "${s}/Severance/Season 01/Severance S01E03" 1 3 "In Perpetuity" 5 640x360
   # a season's extras, in the folder Jellyfin keeps them in as the season's
   # own; Emby 4.10 reads the file as an episode of the show with no number,
   # which the audits that judge episodes must leave alone
   video "${s}/Severance/Season 01/Extras/Featurette.mp4" 1 640x360
-  episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E01" 1 1 "Encounter at Farpoint" 1 640x360
-  episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E03" 1 3 "Code of Honor" 1 640x360
+  episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E01" 1 1 "Encounter at Farpoint" "$(runs 91 1 "Star Trek: The Next Generation")" 640x360
+  episode "${s}/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E03" 1 3 "Code of Honor" "$(runs 46 3 "Star Trek: The Next Generation")" 640x360
   # a show held with a whole season missing between two it has, and no ids,
   # so the gap on disk is all anyone can say of it
   d="${s}/Star Trek Deep Space Nine (1993)"
   show_nfo "$d" "Star Trek: Deep Space Nine" 1993 "" "" "" "Science Fiction" "At Deep Space Nine, a space station located next to a wormhole in the vicinity of the liberated planet of Bajor, Commander Sisko and crew welcome alien visitors, root out evildoers and solve all types of unexpected problems that come their way."
-  episode "${d}/Season 01/Star Trek Deep Space Nine S01E01" 1 1 "Emissary" 1 640x360
+  episode "${d}/Season 01/Star Trek Deep Space Nine S01E01" 1 1 "Emissary" "$(runs 90 1 "Star Trek: Deep Space Nine")" 640x360
   episode "${d}/Season 03/Star Trek Deep Space Nine S03E01" 3 1 "The Search (1)" 1 640x360
   # and its season 3 file is a broken remux: an mkv whose duration claims
   # twelve hours for a second of video, alone in its season so nothing but
@@ -658,18 +741,20 @@ fixtures() {
   rm "${d}/Season 03/Star Trek Deep Space Nine S03E01.mp4"
   claims_hours "${d}/Season 03/Star Trek Deep Space Nine S03E01.mkv"
   # a show whose file names and nfos disagree, the ways a bulk import leaves
-  # them: each episode's nfo is what the server holds, the name what was placed
+  # them: each episode's nfo is what the server holds, the name what was placed.
+  # The nfo is right about what each file holds, and the file runs TMDB's
+  # minutes for that episode; the two-episode file runs both
   p="${s}/Andor (2022)"
   show_nfo "$p" "Andor" 2022 "" "" "" "Science Fiction" "In an era filled with danger, deception and intrigue, Cassian Andor will discover the difference he can make in the struggle against the tyrannical Galactic Empire."
-  episode "${p}/Season 01/Andor S01E01" 1 1 "Kassa" 1 640x360
-  episode "${p}/Season 01/Andor S01E02E03" 1 2 "That Would Be Me" 1 640x360 "" 2
-  episode "${p}/Season 01/Andor S01E04" 1 5 "The Axe Forgets" 1 640x360
-  episode "${p}/Season 01/Breaking Bad S01E06" 1 6 "The Eye" 1 640x360
-  episode "${p}/Season 01/07 - Announcement" 1 7 "Announcement" 1 640x360
-  episode "${p}/Season 01/Andor S02E08" 1 8 "Narkina 5" 1 640x360
+  episode "${p}/Season 01/Andor S01E01" 1 1 "Kassa" "$(runs 42 1 "Andor")" 640x360
+  episode "${p}/Season 01/Andor S01E02E03" 1 2 "That Would Be Me" "$(runs $((38 + 43)) 2 "Andor")" 640x360 "" 2
+  episode "${p}/Season 01/Andor S01E04" 1 5 "The Axe Forgets" "$(runs 46 5 "Andor")" 640x360
+  episode "${p}/Season 01/Breaking Bad S01E06" 1 6 "The Eye" "$(runs 54 6 "Andor")" 640x360
+  episode "${p}/Season 01/07 - Announcement" 1 7 "Announcement" "$(runs 53 7 "Andor")" 640x360
+  episode "${p}/Season 01/Andor S02E08" 1 8 "Narkina 5" "$(runs 57 8 "Andor")" 640x360
   # one show in two folders a space and a letter's case apart, no nfo in either
-  video "${s}/A Knight of the Seven Kingdoms (2026)/Season 01/A Knight of the Seven Kingdoms S01E01.mp4" 1 640x360
-  video "${s}/A Knight of the Seven  kingdoms (2026)/Season 01/A Knight of the Seven Kingdoms S01E02.mp4" 1 640x360
+  video "${s}/A Knight of the Seven Kingdoms (2026)/Season 01/A Knight of the Seven Kingdoms S01E01.mp4" "$(runs 42 1 "A Knight of the Seven Kingdoms")" 640x360
+  video "${s}/A Knight of the Seven  kingdoms (2026)/Season 01/A Knight of the Seven Kingdoms S01E02.mp4" "$(runs 33 2 "A Knight of the Seven Kingdoms")" 640x360
   # an OVA held on its own, known by its AniDB id alone (testdata/anime-list.xml
   # has TVDB and TMDB fold it into .hack//SIGN's specials). Its names lose the
   # title's slashes, which no file system holds, and its leading dot, which
@@ -705,24 +790,24 @@ fixtures() {
   for f in "The Wire" "The Wire (2002)"; do
     show_nfo "${s}/${f}" "The Wire" 2002 1438 79126 tt0306414 Drama "$wire"
   done
-  episode "${s}/The Wire/Season 01/The Wire S01E01" 1 1 "The Target" 1 640x360
-  episode "${s}/The Wire/Season 01/The Wire S01E02" 1 2 "The Detail" 1 640x360
-  episode "${s}/The Wire (2002)/Season 01/The Wire S01E02" 1 2 "The Detail" 1 1280x720
-  episode "${s}/The Wire (2002)/Season 01/The Wire S01E03" 1 3 "The Buys" 1 640x360
+  episode "${s}/The Wire/Season 01/The Wire S01E01" 1 1 "The Target" "$(runs 63 1 "The Wire")" 640x360
+  episode "${s}/The Wire/Season 01/The Wire S01E02" 1 2 "The Detail" "$(runs 58 2 "The Wire")" 640x360
+  episode "${s}/The Wire (2002)/Season 01/The Wire S01E02" 1 2 "The Detail" "$(runs 58 2 "The Wire")" 1280x720
+  episode "${s}/The Wire (2002)/Season 01/The Wire S01E03" 1 3 "The Buys" "$(runs 56 3 "The Wire")" 640x360
   # the 2025 series held with the ids of the 1989 film its story retells:
   # TMDB's movie 11625 and its IMDb id. As a series' TMDB number 11625 is
   # another show altogether, and the IMDb id is no series at all
   x="${s}/Asterix & Obelix - The Big Fight (2025)"
   show_nfo "$x" "Asterix & Obelix: The Big Fight" 2025 11625 "" tt0096842 Animation "When their druid forgets how to prepare the magic potion, Asterix and Obelix must defend the village as Caesar plots to use a Gallic law against them."
-  episode "${x}/Season 01/Asterix & Obelix - The Big Fight S01E01" 1 1 "Episode I" 1 640x360
-  episode "${x}/Season 01/Asterix & Obelix - The Big Fight S01E02" 1 2 "Episode II" 1 640x360
+  episode "${x}/Season 01/Asterix & Obelix - The Big Fight S01E01" 1 1 "Episode I" "$(runs 31 1 "Asterix & Obelix: The Big Fight")" 640x360
+  episode "${x}/Season 01/Asterix & Obelix - The Big Fight S01E02" 1 2 "Episode II" "$(runs 30 2 "Asterix & Obelix: The Big Fight")" 640x360
   # a show held from its third season on: the first two are missing, which
   # nothing on disk can say
   r="${s}/Red Dwarf"
   show_nfo "$r" "Red Dwarf" 1988 326 71326 tt0094535 Comedy "The adventures of the last human alive and his friends, stranded three million years into deep space on the mining ship Red Dwarf."
-  episode "${r}/Season 03/Red Dwarf S03E01" 3 1 "Backwards" 1 640x360
-  episode "${r}/Season 03/Red Dwarf S03E02" 3 2 "Marooned" 1 640x360
-  episode "${r}/Season 03/Red Dwarf S03E03" 3 3 "Polymorph" 1 640x360
+  episode "${r}/Season 03/Red Dwarf S03E01" 3 1 "Backwards" "$(runs 27 1 "Red Dwarf")" 640x360
+  episode "${r}/Season 03/Red Dwarf S03E02" 3 2 "Marooned" "$(runs 29 2 "Red Dwarf")" 640x360
+  episode "${r}/Season 03/Red Dwarf S03E03" 3 3 "Polymorph" "$(runs 27 3 "Red Dwarf")" 640x360
 
   # the music: "<artist>/<album> (year)/NN - <title>.mp3", the shape a ripper
   # leaves behind, and "Disc N/" inside the album for one of several discs.
@@ -766,6 +851,18 @@ fixtures() {
   # one track gets an .lrc beside it: Jellyfin reads lyrics from a sidecar
   # with no plugin, and nothing else in the fixtures has any
   lyrics "${DATA}/media/music/SirensCeol/Afterworld (2016)/02 - The Future We Built.lrc"
+
+  # no two files the size of video come out the same to the byte by chance:
+  # the duplicate audits read that as one file held twice. The two messy
+  # Alien folders are the one file held twice on purpose
+  local size
+  for size in $(find "${DATA}/media" -type f -name '*.mp4' -size +1048576c -exec wc -c {} + | awk '!($2 == "total" && NF == 2) {print $1}' | sort | uniq -d); do
+    if find "${DATA}/media" -type f -name '*.mp4' -size "${size}c" | grep -qv '/messy-movies/Alien (1979)'; then
+      echo "fixtures: files of one size to the byte, which the duplicate audits take for one file held twice:" >&2
+      find "${DATA}/media" -type f -name '*.mp4' -size "${size}c" >&2
+      exit 1
+    fi
+  done
 
   mkdir -p "${DATA}/config" "${DATA}/cache"
   # Emby runs as uid 2 and Jellyfin as root; both have to read the media and

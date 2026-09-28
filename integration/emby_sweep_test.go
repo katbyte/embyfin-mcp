@@ -354,7 +354,7 @@ var embySweepCases = map[string]sweepCase{
 	"GetChannels":                                 {Empty: "no channel plugin is installed"},
 	"GetAudioBooksNextUp":                         {Empty: "there is no audiobook library"},
 	"GetBackupRestoreBackupInfo":                  {Empty: "no backup has been made"},
-	"GetItemsByIdThumbnailSet":                    {Empty: "no thumbnail images are extracted from the one-second fixtures"},
+	"GetItemsByIdThumbnailSet":                    {Empty: "no thumbnail images are extracted from the fixtures"},
 	"GetBrandingConfiguration":                    {Empty: embyNoBranding},
 	"GetBrandingCss":                              {Empty: embyNoBranding},
 	"GetBrandingCssCss":                           {Empty: embyNoBranding},

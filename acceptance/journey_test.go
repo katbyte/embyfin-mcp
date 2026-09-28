@@ -786,10 +786,11 @@ func TestPlaybackIsRecorded(t *testing.T) {
 		t.Errorf("session_list does not show alice playing Dune: %v", call(t, "session_list", nil)["sessions"])
 	}
 
-	// stopped half way through the one-second file, which is past the point
-	// both servers count as finished for something that short
-	report("/Sessions/Playing/Progress", 5_000_000)
-	report("/Sessions/Playing/Stopped", 5_000_000)
+	// stopped a minute before the end of the film's 155 minutes, which is
+	// past the point both servers count as finished (90% by default)
+	end := int64(155*60-60) * 10_000_000
+	report("/Sessions/Playing/Progress", end)
+	report("/Sessions/Playing/Stopped", end)
 
 	var played map[string]any
 	for range 20 {
@@ -2124,12 +2125,13 @@ func TestCopiesCountOnce(t *testing.T) {
 	}
 }
 
-// playThrough reports a play of an item from its start to past its end, the
-// way a client does, as the player the token signs in.
+// playThrough reports a play of an item from its start to its end, the way
+// a client does, as the player the token signs in: stopped at the runtime
+// the server holds for it.
 func playThrough(t *testing.T, token, id string) {
 	t.Helper()
 
-	playTo(t, token, id, 5_000_000)
+	playTo(t, token, id, int64(num(t, call(t, "item_get", map[string]any{"id": id})["runtime_s"], "runtime_s"))*10_000_000)
 }
 
 // playTo plays an item as alice's player and stops it at a position, in

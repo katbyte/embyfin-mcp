@@ -254,15 +254,17 @@ func TestLibraryItemsSorts(t *testing.T) {
 		t.Errorf("by rating, highest first = %v", ratings)
 	}
 
-	// runtime: the messy shows' episodes, which run three minutes, five
-	// seconds and one - after Deep Space Nine's broken file, whose duration
-	// claims twelve hours
+	// runtime: the messy shows' episodes, longest first - Deep Space Nine's
+	// broken file, whose duration claims twelve hours, then the longest
+	// episodes TMDB lists: The Next Generation's pilot, Deep Space Nine's,
+	// and Andor's file holding two episodes (with the seconds testenv.sh adds
+	// by episode)
 	out = call(t, "library_items", map[string]any{"library": "Messy Shows", "types": "Episode", "sort": "runtime", "desc": true, "limit": 50})
 	var runtimes []int
 	for _, it := range rows(t, out["items"], "items") {
 		runtimes = append(runtimes, num(t, it["runtime_s"], "runtime_s"))
 	}
-	if len(runtimes) != messyEpisodes() || !slices.Equal(runtimes[:4], []int{43200, 180, 180, 5}) || !slices.IsSortedFunc(runtimes, func(a, b int) int { return b - a }) {
+	if len(runtimes) != messyEpisodes() || !slices.Equal(runtimes[:4], []int{43200, 91*60 + 25, 90*60 + 17, 81*60 + 17}) || !slices.IsSortedFunc(runtimes, func(a, b int) int { return b - a }) {
 		t.Errorf("episodes by runtime, longest first = %v", runtimes)
 	}
 

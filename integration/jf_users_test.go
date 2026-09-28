@@ -143,7 +143,7 @@ func TestJFPlayedAndResume(t *testing.T) {
 	if ud.PlaybackPositionTicks != 600_000_000 || !pointer.From(ud.IsFavorite) {
 		t.Errorf("UpdateItemUserData = %+v, want the position and the favourite kept", ud)
 	}
-	// a position past a one-second file's end is kept, and puts it in progress
+	// a position a minute in is kept, and puts it in progress
 	if res := resume(); len(res.Items) != 1 || res.Items[0].Id != id {
 		t.Errorf("GetResumeItems after setting a position = %+v", res.Items)
 	}

@@ -431,10 +431,11 @@ func TestItemGetAndTheFilePathAuditAgree(t *testing.T) {
 }
 
 // Entries sharing an id whose runtimes say they are no copies: the clean
-// Limitless runs its real 106 minutes, and a second-long copy staged in the
-// messy films with its ids is no cut of it - one of the ids is wrong. And the
-// messy Memento, holding Breaking Bad's IMDb id, is a film sharing one id
-// with a series.
+// Limitless runs TMDB's 106 minutes, and a copy staged in the messy films
+// with its ids, the messy Arrival's 40 minutes, is no cut of it - a file cut
+// short, or one of the ids is wrong. So is the messy Arrival itself beside
+// the clean one's 116. And the messy Memento, holding Breaking Bad's IMDb id,
+// is a film sharing one id with a series.
 func TestAuditDuplicatesByRuntimeAndKind(t *testing.T) {
 	folder := "messy-movies/Limitless (2011)"
 	stage(t, plus(1, 0, 0), map[string][]byte{
@@ -455,14 +456,27 @@ func TestAuditDuplicatesByRuntimeAndKind(t *testing.T) {
 		}
 		warnings[strings.Join(sorted(names), " + ")] = warning
 	}
-	if w, ok := warnings["Movie Limitless + Movie Limitless"]; !ok || w != "probably not copies of one film: the entries run 1s and 106 min, more than twice as long, which no two cuts of one film are: one file is cut short or a sample, or one of the ids is wrong - compare the files before keeping either" {
+	shorter := func(runs string) string {
+		return "probably not copies of one film: the entries run " + runs + ", more than twice as long, which no two cuts of one film are: one file is cut short or a sample, or one of the ids is wrong - compare the files before keeping either"
+	}
+	if w, ok := warnings["Movie Limitless + Movie Limitless"]; !ok || w != shorter("40 min and 106 min") {
 		t.Errorf("the two Limitless = %q (grouped %v)", w, ok)
+	}
+	if w, ok := warnings["Movie Arrival + Movie Arrival"]; !ok || w != shorter("40 min and 116 min") {
+		t.Errorf("the two Arrivals = %q (grouped %v)", w, ok)
 	}
 	if w := warnings["Movie Memento + Series Breaking Bad"]; w != "probably not copies: a film and a series share one IMDb id, which names one title, so one of the ids is wrong: identify the wrong one (item_identify) rather than keep either" {
 		t.Errorf("Memento and Breaking Bad = %q", w)
 	}
-	// and copies that are copies carry none
-	if w, ok := warnings["Movie Arrival + Movie Arrival"]; !ok || w != "" {
-		t.Errorf("the two Arrivals = %q (grouped %v)", w, ok)
+	// and copies that are copies carry none: Alien, clean and in the messy
+	// films' two folders, each file running TMDB's 117 minutes - three
+	// entries on Jellyfin, and two on Emby, which shows the messy pair,
+	// one film's ids in one library, as one film in two versions
+	aliens := "Movie Alien + Movie Alien + Movie Alien"
+	if !isJellyfin() {
+		aliens = "Movie Alien + Movie Alien"
+	}
+	if w, ok := warnings[aliens]; !ok || w != "" {
+		t.Errorf("the Aliens (%s) = %q (grouped %v), of %v", aliens, w, ok, warnings)
 	}
 }

@@ -217,10 +217,11 @@ func TestPlanCheckCatchesMistakes(t *testing.T) {
 	}
 }
 
-// One episode's content under two episode numbers: the fixtures carry the
-// same Breaking Bad title on two episodes, at the same length. A second pair
-// is staged in the messy Severance - Half Loop again as S01E05 - so a limit
-// has more than one group to cap.
+// One title on two episode numbers: the fixtures carry Breaking Bad's
+// second title on its third episode too, both TMDB's 49 minutes and seconds
+// apart, as two episodes run. A second pair is staged in the messy Severance
+// - Half Loop's own file again as S01E05 - so a limit has more than one
+// group to cap, and that one the files tie together.
 func TestAuditDuplicateEpisodes(t *testing.T) {
 	if dataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
@@ -234,10 +235,9 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 	if title(str(group["series"])) != "Breaking Bad" || !strings.Contains(str(group["title"]), "Cat") {
 		t.Errorf("group = %v", group)
 	}
-	// both files are a second long, as is the season's other episode, and
-	// too small for their size to say anything: the files cannot tell them
-	// from two episodes, so it is a lead, and the evidence says why
-	if str(group["confidence"]) != "lead" || !slices.Equal(strs(t, group["evidence"], "evidence"), []string{"E02 and E03: the same runtime to the second, but E01 of the season runs within a few seconds of it too, so no sign alone"}) {
+	// within 15% of each other and not the same to the second or the byte:
+	// nothing in the files ties them, so it is a lead, with no evidence
+	if str(group["confidence"]) != "lead" || group["evidence"] != nil {
 		t.Errorf("confidence = %v, evidence %v (runtime_gap %v)", group["confidence"], group["evidence"], group["runtime_gap"])
 	}
 	eps := rows(t, group["episodes"], "episodes")
@@ -274,6 +274,17 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 	}
 	if capped := call(t, "audit_duplicate_episodes", map[string]any{"limit": 1}); len(rows(t, capped["groups"], "groups")) != 1 || num(t, capped["total_findings"], "total_findings") != 2 {
 		t.Errorf("limit 1 = %v, want one group listed and both counted", capped)
+	}
+	// the staged pair is one file twice: the same runtime to the second,
+	// where the season's other episodes run lengths of their own, so near
+	// certain
+	for _, g := range rows(t, whole["groups"], "groups") {
+		if title(str(g["series"])) != "Severance" {
+			continue
+		}
+		if str(g["confidence"]) != "near_certain" || !slices.Contains(strs(t, g["evidence"], "evidence"), "E02 and E05: the same runtime to the second") {
+			t.Errorf("the staged Severance pair = %v, evidence %v, want near_certain by its runtime", g["confidence"], g["evidence"])
+		}
 	}
 }
 

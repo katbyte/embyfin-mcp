@@ -101,8 +101,10 @@ func TestEmbyMediaStreams(t *testing.T) {
 
 	t.Run("CleanFilm", func(t *testing.T) {
 		it := embyFile(t, clean, "Alien (1979)/Alien (1979).mp4")
-		if src := it.MediaSources[0]; src.Container != "mp4" || src.Size == 0 || src.Bitrate == 0 || it.RunTimeTicks != 10_000_000 {
-			t.Errorf("the source is %s, %d bytes at %d b/s, running %d ticks; want an mp4 of one second", src.Container, src.Size, src.Bitrate, it.RunTimeTicks)
+		if src := it.MediaSources[0]; src.Container != "mp4" || src.Size == 0 || src.Bitrate == 0 || it.RunTimeTicks/10_000_000 != 117*60 {
+			// to the second: the sound's last packet runs a few milliseconds
+			// past the picture, as in any file
+			t.Errorf("the source is %s, %d bytes at %d b/s, running %d ticks; want an mp4 of TMDB's 117 minutes", src.Container, src.Size, src.Bitrate, it.RunTimeTicks)
 		}
 		embyVideo(t, alien, it, "h264", 1280, 720, 5, "16:9")
 		embyAudio(t, alien, it, "aac", "und")

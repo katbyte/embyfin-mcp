@@ -140,7 +140,7 @@ func TestEmbyPlayedAndResume(t *testing.T) {
 	if ud := must(embyc.GetUsersByUserIdItemsById(ctx, adminID, id)).Model.UserData; ud == nil || ud.PlaybackPositionTicks != 1_200_000_000 || pointer.From(ud.Played) || !pointer.From(ud.IsFavorite) {
 		t.Errorf("after posting only a position the user data reads %+v, want the position, not played, still a favourite", ud)
 	}
-	// a position past a one-second file's end is kept, and puts it in progress
+	// a position two minutes in is kept, and puts it in progress
 	if res := resume(); len(res.Items) != 1 || res.Items[0].Id != id || res.Items[0].UserData == nil || res.Items[0].UserData.PlaybackPositionTicks != 1_200_000_000 {
 		t.Errorf("resume items after setting a position = %+v", res.Items)
 	}

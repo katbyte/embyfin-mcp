@@ -185,7 +185,7 @@ func TestAuditAnimeIDs(t *testing.T) {
 		}
 	}
 	season0 := filepath.Join(root, staged[0], "Season 00")
-	short := fixture(t, "messy-shows/Severance/Season 01/Severance S01E01.mp4")
+	short := fixture(t, "messy-shows/hack Liminality (2002)/Season 01/hack Liminality S01E03.mp4") // a second long
 	// lays specials out, or takes them away, and scans until the library
 	// holds that many episodes
 	lay := func(files map[string][]byte, remove ...string) {

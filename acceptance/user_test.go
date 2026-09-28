@@ -515,9 +515,9 @@ func TestProgress(t *testing.T) {
 	if !eventually(func() bool { row = inProgress(); return row != nil }) {
 		t.Fatal("Arrival is not in progress for alice")
 	}
-	// the file runs a second, so the position is past its end: the percent is
-	// capped
-	if num(t, row["position_s"], "position_s") != 2550 || num(t, row["percent"], "percent") != 100 || str(row["name"]) != "Arrival" || str(row["type"]) != "Movie" {
+	// 2550 seconds of the film's 116 minutes is 36.6% of it, which the
+	// server's percentage gives whole
+	if num(t, row["position_s"], "position_s") != 2550 || num(t, row["percent"], "percent") != 36 || str(row["name"]) != "Arrival" || str(row["type"]) != "Movie" {
 		t.Errorf("in progress row = %v", row)
 	}
 	// the resume point reads back in the same unit through item_last_watched

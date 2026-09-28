@@ -240,9 +240,10 @@ func episodeKeys(t *testing.T, out map[string]any) []string {
 }
 
 // A season read with fields narrowed to runtime_s answers each file's own
-// runtime and nothing else: the messy Severance's third episode runs five
-// seconds to its season's one, and .hack//Liminality's last a second to its
-// season's three minutes. No file is set against its season's other files:
+// runtime and nothing else: the messy Severance's first two run TMDB's 59
+// and 57 minutes (and the seconds testenv.sh adds by episode) and its third
+// five seconds, and .hack//Liminality's last a second to its season's three
+// minutes. No file is set against its season's other files:
 // runtime_multiple is gone, and asking for it is refused.
 func TestLibraryEpisodesRuntimes(t *testing.T) {
 	sev := findItem(t, "Messy Shows", "Series", "Severance")
@@ -256,7 +257,7 @@ func TestLibraryEpisodesRuntimes(t *testing.T) {
 		series   string
 		runtimes []int
 	}{
-		{sev, []int{1, 1, 5}},
+		{sev, []int{59 * 60, 57*60 + 7, 5}},
 		{hack, []int{180, 180, 1}},
 	} {
 		out := call(t, "library_episodes", map[string]any{"series_id": c.series, "season": 1, "fields": []string{"runtime_s"}})

@@ -85,11 +85,11 @@ func TestAuditsLeaveTheCleanLibrariesAlone(t *testing.T) {
 			}
 		}
 	}
-	// the fixtures run seconds, not the length of any film or episode: the
-	// runtime audit names every one of them, and only them
+	// every film and episode runs TMDB's length for it, a length a film or
+	// an episode can have: the runtime audit names none of them
 	for _, lib := range []string{"Movies", "Shows"} {
-		if got, want := findingIDs(t, call(t, "audit_runtime", map[string]any{"library": lib, "limit": 1000})), brokenRuntimes(t, lib); !slices.Equal(got, want) || len(want) == 0 {
-			t.Errorf("audit_runtime on %s named %v, want %v", lib, got, want)
+		if got, want := findingIDs(t, call(t, "audit_runtime", map[string]any{"library": lib, "limit": 1000})), brokenRuntimes(t, lib); len(got) != 0 || len(want) != 0 {
+			t.Errorf("audit_runtime on %s named %v, and the server's runtimes say %v: want none", lib, got, want)
 		}
 	}
 	// and the two the show library carries are the ones named
@@ -876,23 +876,24 @@ func findingIDs(t *testing.T, out map[string]any) []string {
 	return sorted(ids)
 }
 
-// Movie runtimes come from TMDB, through the provider proxy: Interstellar's
-// nfo says 169 minutes and the file runs a second, but the audit asks TMDB,
-// not the nfo, so every one-second film in the messy library is off.
+// Movie runtimes come from TMDB, through the provider proxy. The messy
+// films run TMDB's lengths but Arrival, cut short at 40 minutes of TMDB's
+// 116: a copy no length a film cannot have gives away, which only a
+// provider's fact for the film can.
 func TestAuditProviderRuntime(t *testing.T) {
 	needsTMDBCassette(t)
 	out := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime"})
 	got := findings(t, out)
-	// every file is a second long, and the films passed over are passed
-	// over for what they hold: Princess Mononoke and the loose and Blu-ray
-	// discs no id at all, Memento an IMDb id and no TMDB one to read a
-	// runtime by, and the Despecialized Edition a TMDB id TMDB has no film
-	// for. The DVD kept whole runs as long as the server read it: a second on
-	// Jellyfin, which reads the disc, and not at all on Emby, which does not,
-	// so there it has no runtime to hold to TMDB's
-	want := []string{"Alien", "Alien", "Arrival", "Blade Runner", "Dune", "Interstellar", "Moon"}
-	if !versionsMerged() {
-		want = []string{"Alien", "Alien", "Arrival", "Blade Runner", "Blade Runner", "Dune", "Interstellar"}
+	// the films passed over are passed over for what they hold: Princess
+	// Mononoke and the loose and Blu-ray discs no id at all, Memento an IMDb
+	// id and no TMDB one to read a runtime by, and the Despecialized Edition
+	// a TMDB id TMDB has no film for. The DVD kept whole runs as long as the
+	// server read it: a second on Jellyfin, which reads the disc's one-second
+	// title, and not at all on Emby, which does not, so there it has no
+	// runtime to hold to TMDB's
+	want := []string{"Arrival"}
+	if isJellyfin() {
+		want = []string{"Arrival", "Moon"}
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("runtime off = %v, want %v", got, want)
@@ -901,29 +902,43 @@ func TestAuditProviderRuntime(t *testing.T) {
 		t.Errorf("scanned %d, want %d", got, messyMovies())
 	}
 	for _, f := range rows(t, out["findings"], "findings") {
-		if ps, _ := f["problems"].([]any); len(ps) != 1 || !strings.Contains(str(ps[0]), "runtime: file") || !strings.Contains(str(ps[0]), "TMDB says") {
-			t.Errorf("problems = %v", f["problems"])
+		if title(str(f["name"])) == "Arrival" && !slices.Equal(strs(t, f["problems"], "problems"), []string{"runtime: file 40 min, TMDB says 116 min (65% off)"}) {
+			t.Errorf("Arrival's problems = %v", f["problems"])
 		}
 	}
 
-	// paging: two lookups per call, then continue from next_offset
-	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime", "max_lookups": 2})
-	if len(rows(t, out["findings"], "findings")) != 2 {
-		t.Errorf("max_lookups 2 = %v", out["findings"])
+	// paging: one lookup per call, continued from next_offset, finds what
+	// the whole sweep found
+	var paged []string
+	for offset, calls := any(nil), 0; ; calls++ {
+		if calls > messyMovies() {
+			t.Fatalf("still paging after %d calls", calls)
+		}
+		args := map[string]any{"library": "Messy Movies", "checks": "runtime", "max_lookups": 1}
+		if offset != nil {
+			args["offset"] = offset
+		}
+		page := call(t, "audit_provider", args)
+		paged = append(paged, findings(t, page)...)
+		next, ok := page["next_offset"]
+		if !ok {
+			break
+		}
+		offset = next
 	}
-	next, ok := out["next_offset"]
-	if !ok {
-		t.Fatal("no next_offset after a partial sweep")
+	if slices.Sort(paged); !slices.Equal(paged, want) {
+		t.Errorf("one lookup a call found %v, want %v", paged, want)
 	}
-	rest := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime", "offset": next})
-	if n, want := num(t, rest["total_findings"], "total_findings"), len(want)-2; n != want {
-		t.Errorf("the rest = %d findings, want %d", n, want)
+	// tolerance: Arrival is 65% off, which a tolerance of 65 lets by and one
+	// of 64 does not
+	tolerant := func(pct int) []string {
+		return findings(t, call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime", "tolerance_percent": pct}))
 	}
-	// tolerance: a one-second file is always more than 99% off, so a
-	// tolerance of 100 finds nothing
-	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime", "tolerance_percent": 100})
-	if n := num(t, out["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("tolerance 100 found %d", n)
+	if got := tolerant(65); slices.Contains(got, "Arrival") {
+		t.Errorf("tolerance 65 found %v, want Arrival let by", got)
+	}
+	if got := tolerant(64); !slices.Contains(got, "Arrival") {
+		t.Errorf("tolerance 64 found %v, want Arrival", got)
 	}
 	// only TMDB yet, said plainly
 	if msg := callErr(t, "audit_provider", map[string]any{"provider": "tvdb"}); !strings.Contains(msg, "provider must be tmdb") {
@@ -931,10 +946,9 @@ func TestAuditProviderRuntime(t *testing.T) {
 	}
 }
 
-// Limitless runs its real length, 106 minutes of a still frame a second,
-// which costs next to nothing: among the clean films, whose files run a
-// second, it is the one the runtime check must leave alone, TMDB's runtime
-// for it being the same 106 minutes.
+// Every clean film runs TMDB's length for it, a still frame joined end to
+// end so a two-hour film costs a few megabytes: Limitless's 106 minutes read
+// back to the second, and the runtime check leaves every film alone.
 func TestAFilmRunningItsRealLength(t *testing.T) {
 	needsTMDBCassette(t)
 	limitless := findItem(t, "Movies", "Movie", "Limitless")
@@ -942,15 +956,8 @@ func TestAFilmRunningItsRealLength(t *testing.T) {
 		t.Errorf("Limitless = %vs at %vp, want its 106 minutes at 720p", got["runtime_s"], got["height"])
 	}
 	out := call(t, "audit_provider", map[string]any{"library": "Movies", "checks": "runtime"})
-	var want []string
-	for _, m := range movies {
-		if m.Title != "Limitless" {
-			want = append(want, m.Title)
-		}
-	}
-	slices.Sort(want)
-	if got := findings(t, out); !slices.Equal(got, want) || num(t, out["items_scanned"], "items_scanned") != len(movies) {
-		t.Errorf("runtime off in Movies = %v of %v, want every film but Limitless: %v", got, out["items_scanned"], want)
+	if got := findings(t, out); len(got) != 0 || num(t, out["items_scanned"], "items_scanned") != len(movies) || num(t, out["runtime_not_judged"], "runtime_not_judged") != 0 {
+		t.Errorf("runtime off in Movies = %v of %v (not judged %v), want every film judged and none off", got, out["items_scanned"], out["runtime_not_judged"])
 	}
 }
 

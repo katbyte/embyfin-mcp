@@ -364,11 +364,10 @@ func TestAuditDuplicatesJoinOnlyOneTitle(t *testing.T) {
 }
 
 // One title twice in a season, as the files say it: the messy Severance's
-// first episode renamed for its second, both files a second long and the
-// season's third five, is a lead whatever the case of the title - their
-// runtimes the same to the second, but the third runs within a few seconds
-// of them, as a show cut to one length does, and their files differ. Its
-// third renamed for the second instead, five seconds against one, is far
+// first episode renamed for its second, TMDB's 59 and 57 minutes, is a lead
+// whatever the case of the title - within 15% of each other, as a season's
+// episodes run, and nothing in the files to say they are one. Its third
+// renamed for the second instead, cut to five seconds of 57 minutes, is far
 // apart: said, not dropped. And a title in another season is not the same
 // episode.
 func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
@@ -400,7 +399,7 @@ func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 		rename(t, e01, name)
 		g := only("S01E01 named " + name)
 		if str(g["series"]) != "Severance" || num(t, g["season"], "season") != 1 || str(g["confidence"]) != "lead" ||
-			!slices.Equal(strs(t, g["evidence"], "evidence"), []string{"E01 and E02: the same runtime to the second, but E03 of the season runs within a few seconds of it too, so no sign alone"}) || !slices.Equal(numbers(g), []int{1, 2}) {
+			g["evidence"] != nil || !slices.Equal(numbers(g), []int{1, 2}) {
 			t.Errorf("with S01E01 named %q the group = %v", name, g)
 		}
 		if n := auditRow(t, "Messy Shows", "audit_duplicate_episodes"); n != before+1 {
@@ -409,11 +408,11 @@ func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 	}
 	call(t, "item_edit", map[string]any{"ids": []any{e01}, "name": "Good News About Hell"})
 
-	// five times the length: a copy cut short, one file holding two, or two
-	// episodes - far apart, and listed
+	// a copy cut short, one file holding two, or two episodes - far apart,
+	// and listed
 	rename(t, e03, "Half Loop")
-	if g := only("S01E03 named Half Loop"); str(g["confidence"]) != "far_apart" || !slices.Equal(numbers(g), []int{2, 3}) || decimal(t, g["runtime_gap"], "runtime_gap") != 0.8 {
-		t.Errorf("a title on episodes of one and five seconds = %v", g)
+	if g := only("S01E03 named Half Loop"); str(g["confidence"]) != "far_apart" || !slices.Equal(numbers(g), []int{2, 3}) || decimal(t, g["runtime_gap"], "runtime_gap") != 1 {
+		t.Errorf("a title on episodes of 57 minutes and five seconds = %v", g)
 	}
 
 	// Deep Space Nine's third season opener given its first season's title:
