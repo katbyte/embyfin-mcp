@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- `audit_runtime` reports only runtimes no film or episode can have: under 2 minutes, or 12 hours or more; it no longer compares a file with its season, and `tolerance_percent` is gone
+- `runtime_multiple` and `season_median_runtime_s` are gone from `library_episodes` and `show_episodes_exist`
+- `audit_provider` checks episodes too by default (`types` is Movie, Episode or both)
+
+### Added
+
+- `audit_provider` checks each episode's runtime against TMDB's for that episode, names the TMDB episode it compared with, and counts what it could not judge in `runtime_not_judged`
+- `audit_anime_ids` says in `note` when an older copy of the anime list answered because it could not be read again
+
+### Fixed
+
+- a date from TMDB or the server that can't be read is an error naming the item, not a missing date or a guess
+- a failed server read while finding a show by name, or while checking a folder, is reported instead of dropped
+- a number in the anime list that can't be read is an error naming the entry, not an episode dropped
+
 ## 0.3.0 (2026-09-27)
 
 ### Breaking

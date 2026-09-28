@@ -387,6 +387,32 @@ func removeLibraries() {
 	}
 }
 
+// undoLater runs a call that puts back what a test changed once the test
+// ends, and reports one that fails rather than dropping it: the change would
+// be left for the tests after.
+func undoLater(t *testing.T, what string, undo func() error) {
+	t.Helper()
+	t.Cleanup(func() {
+		if err := undo(); err != nil {
+			t.Errorf("cleaning up after the test, %s: %v", what, err)
+		}
+	})
+}
+
+// removeLater removes what a test made once the test ends, as undoLater
+// does; what is already gone (a 404: a server can drop an emptied
+// collection itself) needs no removing.
+func removeLater(t *testing.T, what string, remove func() error) {
+	t.Helper()
+	undoLater(t, what, func() error {
+		if err := remove(); err != nil && !client.IsNotFound(err) {
+			return err
+		}
+
+		return nil
+	})
+}
+
 // embyLibraryID resolves a library name to its ItemId, "" when absent. Emby
 // 4.10 identifies a library by Id and answers 500, "Unrecognized Guid
 // format", to a Name.

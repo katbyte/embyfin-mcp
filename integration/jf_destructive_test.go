@@ -22,7 +22,9 @@ func TestJFDeleteItem(t *testing.T) {
 
 	dir := scratchDir(t)
 	t.Cleanup(func() {
-		_, _ = jfc.RemoveVirtualFolder(context.WithoutCancel(ctx), jf.RemoveVirtualFolderOperationOptions{Name: sdkScratch.Name, RefreshLibrary: new(false)})
+		if _, err := jfc.RemoveVirtualFolder(context.WithoutCancel(ctx), jf.RemoveVirtualFolderOperationOptions{Name: sdkScratch.Name, RefreshLibrary: new(false)}); err != nil && !client.IsNotFound(err) {
+			t.Errorf("removing %s: %v", sdkScratch.Name, err)
+		}
 		_ = os.RemoveAll(dir)
 	})
 	scratchID := jfLibrary(t, sdkScratch)
@@ -60,7 +62,9 @@ func TestJFDeleteItems(t *testing.T) {
 
 	dir := layOut(t, "sdk-bulk", bulkTitles...)
 	t.Cleanup(func() {
-		_, _ = jfc.RemoveVirtualFolder(context.WithoutCancel(ctx), jf.RemoveVirtualFolderOperationOptions{Name: sdkBulk.Name, RefreshLibrary: new(false)})
+		if _, err := jfc.RemoveVirtualFolder(context.WithoutCancel(ctx), jf.RemoveVirtualFolderOperationOptions{Name: sdkBulk.Name, RefreshLibrary: new(false)}); err != nil && !client.IsNotFound(err) {
+			t.Errorf("removing %s: %v", sdkBulk.Name, err)
+		}
 		_ = os.RemoveAll(dir)
 	})
 	bulkID := jfLibrary(t, sdkBulk)

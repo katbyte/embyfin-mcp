@@ -406,7 +406,7 @@ func TestSessionWhilePlaying(t *testing.T) {
 		t.Errorf("active_sessions after the play stopped = %d, want %d", n, idle)
 	}
 	// the stop marked it watched for alice, which is not this test's to keep
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": dune, "user": "alice", "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": dune, "user": "alice", "watched": false})
 
 	// the device that played remembers who it played for
 	var seen bool

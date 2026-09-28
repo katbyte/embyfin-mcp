@@ -234,7 +234,7 @@ func TestAParentalRatingLimit(t *testing.T) {
 
 	// watched while nothing stopped her; cleaned up after the limit is lifted
 	call(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": true})
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": film, "user": "alice", "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
 	watched := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["movies_watched"], "movies_watched")
 	aliceWatched := func() (listed, played bool) {
 		for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": film})["users"], "users") {

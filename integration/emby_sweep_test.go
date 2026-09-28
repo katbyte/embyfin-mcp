@@ -86,7 +86,7 @@ func TestEmbyReadSweep(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _, _ = embyc.DeleteItemsById(context.WithoutCancel(ctx), playlist) })
+	removeLater(t, "deleting the playlist", func() error { _, err := embyc.DeleteItemsById(context.WithoutCancel(ctx), playlist); return err })
 
 	// and a collection
 	var collection string
@@ -99,7 +99,7 @@ func TestEmbyReadSweep(t *testing.T) {
 	}); err != nil || collection == "" {
 		t.Fatalf("PostCollections = %q, %v", collection, err)
 	}
-	t.Cleanup(func() { _, _ = embyc.DeleteItemsById(context.WithoutCancel(ctx), collection) })
+	removeLater(t, "deleting the collection", func() error { _, err := embyc.DeleteItemsById(context.WithoutCancel(ctx), collection); return err })
 	sections := must(embyc.GetUsersByUserIdHomeSections(ctx, adminID)).Model
 	if len(sections) == 0 {
 		t.Fatal("GetUsersByUserIdHomeSections listed nothing")

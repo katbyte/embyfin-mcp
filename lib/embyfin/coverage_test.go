@@ -780,3 +780,21 @@ func TestCreateLibraryJellyfinRefresh(t *testing.T) {
 		t.Errorf("a refused create asked for %d scans", n)
 	}
 }
+
+// A folder listing that fails, where asking whether the folder is there
+// fails too, says both: the second failure used to be dropped, leaving the
+// first to stand for a folder that may or may not be there.
+func TestListFolderSaysBothFailures(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range []Backend{Emby, Jellyfin} {
+		c, _ := newFake(t, backend, map[string]route{
+			"GET /Environment/DirectoryContents": func(*http.Request, string) (int, string) { return http.StatusInternalServerError, "listing broke" },
+			"POST /Environment/ValidatePath":     func(*http.Request, string) (int, string) { return http.StatusInternalServerError, "asking broke" },
+		})
+		_, found, err := c.ListFolder(t.Context(), "/zzyzx")
+		if err == nil || found || !strings.Contains(err.Error(), "listing broke") || !strings.Contains(err.Error(), "asking broke") {
+			t.Errorf("%s: ListFolder = found %v, %v; want both failures", backend, found, err)
+		}
+	}
+}

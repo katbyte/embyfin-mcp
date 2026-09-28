@@ -219,7 +219,7 @@ func TestEmbyItem(t *testing.T) {
 	if _, err := embyc.PostItemsByItemId(ctx, id, *full); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _, _ = embyc.PostItemsByItemId(context.WithoutCancel(ctx), id, original) })
+	undoLater(t, "putting the item back", func() error { _, err := embyc.PostItemsByItemId(context.WithoutCancel(ctx), id, original); return err })
 	got := must(embyc.GetUsersByUserIdItemsById(ctx, adminID, id)).Model
 	if got.Overview != "SDK overview" || !slices.Equal(got.Genres, []string{"SDK Genre", "Action"}) {
 		t.Errorf("after the update: overview %q, genres %v", got.Overview, got.Genres)

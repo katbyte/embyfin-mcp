@@ -281,7 +281,11 @@ func registerLibraryTools(r *registry) {
 		cutoff := daysCutoff(in.Days)
 		out := recentOut{Items: []itemSummary{}}
 		for i := range items {
-			if !afterCutoff(items[i].DateCreated, cutoff) {
+			after, err := afterCutoff(&items[i], cutoff)
+			if err != nil {
+				return nil, recentOut{}, err
+			}
+			if !after {
 				continue
 			}
 			if len(out.Items) == limit {

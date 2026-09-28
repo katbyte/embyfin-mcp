@@ -49,8 +49,8 @@ func TestAuditProviderIDs(t *testing.T) {
 	if byCheck := object(t, out["by_check"], "by_check"); num(t, byCheck["ids"], "ids") != 2 || byCheck["runtime"] != nil {
 		t.Errorf("by_check = %v", byCheck)
 	}
-	// films are the only kind checked yet, said plainly
-	if msg := callErr(t, "audit_provider", map[string]any{"library": "Messy Shows", "types": "Series"}); !strings.Contains(msg, "types must be Movie") {
+	// films and episodes are the kinds checked, said plainly
+	if msg := callErr(t, "audit_provider", map[string]any{"library": "Messy Shows", "types": "Series"}); !strings.Contains(msg, "types must be among Movie, Episode") {
 		t.Errorf("types=Series: %s", msg)
 	}
 
@@ -125,10 +125,10 @@ func TestAuditProviderIDs(t *testing.T) {
 	if len(rows(t, capped["findings"], "findings")) != 1 || num(t, capped["total_findings"], "total_findings") != total || !reflect.DeepEqual(capped["by_check"], out["by_check"]) {
 		t.Errorf("limit 1 = %v", capped)
 	}
-	// every library: the clean films' ids hold, and their one-second files
-	// are as far off TMDB's runtimes as the messy ones - but Limitless's,
-	// which runs its real 106 minutes
-	whole := call(t, "audit_provider", nil)
+	// every library's films: the clean films' ids hold, and their one-second
+	// files are as far off TMDB's runtimes as the messy ones - but
+	// Limitless's, which runs its real 106 minutes
+	whole := call(t, "audit_provider", map[string]any{"types": "Movie"})
 	clean := len(movies) - 1
 	if byCheck := object(t, whole["by_check"], "by_check"); num(t, byCheck["ids"], "ids") != 3 || num(t, byCheck["runtime"], "runtime") != clean+runtimeOff+1 ||
 		num(t, whole["items_scanned"], "items_scanned") != len(movies)+messyMovies()+1 {
@@ -163,4 +163,34 @@ func TestAuditProviderIDs(t *testing.T) {
 			t.Errorf("a film holding its own TMDB id alone = %v, want %v", got, lasting)
 		}
 	})
+}
+
+// An episode is judged against TMDB's own length for it, read once for its
+// series from TMDB's seasons: Breaking Bad's three episodes in Shows run a
+// second each, against TMDB's 59, 49 and 49 minutes. The server holds the
+// third under the second's title; the finding names TMDB's third beside it,
+// so an episode numbered another way than TMDB's reads as that.
+func TestAuditProviderEpisodes(t *testing.T) {
+	bb := findItem(t, "Shows", "Series", "Breaking Bad")
+	var ids []any
+	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": bb})["episodes"], "episodes") {
+		ids = append(ids, str(e["id"]))
+	}
+	out := call(t, "audit_provider", map[string]any{"ids": ids, "checks": "runtime"})
+	got := map[string]string{}
+	for _, f := range rows(t, out["findings"], "findings") {
+		got[str(f["name"])] = str(f["holds"]) + ": " + strings.Join(strs(t, f["problems"], "problems"), " | ")
+	}
+	want := map[string]string{
+		"Breaking Bad S01E01 Pilot":               `tmdb tv 1396: runtime: file 0 min, TMDB says 59 min for S01E01 "Pilot" (100% off)`,
+		"Breaking Bad S01E02 Cat's in the Bag...": `tmdb tv 1396: runtime: file 0 min, TMDB says 49 min for S01E02 "Cat's in the Bag..." (100% off)`,
+		"Breaking Bad S01E03 Cat's in the Bag...": `tmdb tv 1396: runtime: file 0 min, TMDB says 49 min for S01E03 "...And the Bag's in the River" (100% off)`,
+	}
+	if !reflect.DeepEqual(got, want) || num(t, out["items_scanned"], "items_scanned") != 3 || num(t, out["runtime_not_judged"], "runtime_not_judged") != 0 {
+		t.Errorf("Breaking Bad's episodes = %v (scanned %v, not judged %v), want %v", got, out["items_scanned"], out["runtime_not_judged"], want)
+	}
+	// ids alone judge no episode
+	if msg := callErr(t, "audit_provider", map[string]any{"ids": ids, "types": "Episode", "checks": "ids"}); !strings.Contains(msg, "episodes are checked by runtime only") {
+		t.Errorf("episodes by ids alone = %s", msg)
+	}
 }

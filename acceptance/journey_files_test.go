@@ -244,7 +244,7 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 	// alice has watched it and it sits in a playlist, which an upgrade in
 	// place keeps: the item is the same one
 	call(t, "item_set_state", map[string]any{"id": rip, "user": "alice", "watched": true})
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": rip, "user": "alice", "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": rip, "user": "alice", "watched": false})
 	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Upgrade", "item_ids": []any{rip}, "media_type": "Video"})["id"])
 	deleteLater(t, "playlist_delete", "playlist", pl)
 	alicePlayed := func() bool {
@@ -799,7 +799,9 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	}
 	call(t, "item_set_state", map[string]any{"id": watched, "user": "alice", "watched": true})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": watched, "user": "alice", "watched": false})
+		// the delete below takes this episode, and its state with it (the
+		// restored episode's is cleared further down)
+		undoIfThere(t, watched, "item_set_state", map[string]any{"id": watched, "user": "alice", "watched": false})
 	})
 
 	dest := "/media/messy-shows/" + name + " (2026)/Season 01/" + name + " S01E02.mp4"
@@ -844,7 +846,12 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 			if str(s["path"]) != str(drop["path"]) {
 				continue
 			}
-			eps, _ := invoke("library_episodes", map[string]any{"series_id": str(s["id"])})
+			eps, err := invoke("library_episodes", map[string]any{"series_id": str(s["id"])})
+			if err != nil {
+				t.Errorf("reading the restored %v's episodes, to clear alice's watched state: %v", s["name"], err)
+
+				continue
+			}
 			for _, e := range rowsOf(eps["episodes"]) {
 				if _, err := invoke("item_set_state", map[string]any{"id": str(e["id"]), "user": "alice", "watched": false}); err != nil {
 					t.Errorf("clearing alice's watched state on the restored %v: %v", e["path"], err)

@@ -123,6 +123,18 @@ func TestParse(t *testing.T) {
 	if _, err := Parse(strings.NewReader("<anime-list><anime")); err == nil {
 		t.Error("a broken list read without complaint")
 	}
+	// a number the list writes that is not one is an error naming the
+	// entry: read as 0 it would drop an episode, or place an entry, unsaid
+	for _, bad := range []string{
+		`<anime-list><anime anidbid="1" tvdbid="2" episodeoffset="x"><name>A</name></anime></anime-list>`,
+		`<anime-list><anime anidbid="1" tvdbid="2" tmdboffset="1.5"><name>A</name></anime></anime-list>`,
+		`<anime-list><anime anidbid="1" tvdbid="2"><name>A</name><mapping-list><mapping anidbseason="1" tvdbseason="0">;1-x;</mapping></mapping-list></anime></anime-list>`,
+		`<anime-list><anime anidbid="1" tvdbid="2"><name>A</name><mapping-list><mapping anidbseason="1" tvdbseason="0" start="1" end="two"></mapping></mapping-list></anime></anime-list>`,
+	} {
+		if _, err := Parse(strings.NewReader(bad)); err == nil || !strings.Contains(err.Error(), "AniDB 1") {
+			t.Errorf("%s read as %v, want an error naming AniDB 1", bad, err)
+		}
+	}
 }
 
 func TestLoaderReadsAFile(t *testing.T) {
@@ -164,6 +176,7 @@ func TestLoaderKeepsTheListForADay(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	now := time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
+	read := now
 	l := NewLoader(srv.URL, nil)
 	l.now = func() time.Time { return now }
 	ctx := context.Background()
@@ -177,10 +190,12 @@ func TestLoaderKeepsTheListForADay(t *testing.T) {
 		t.Errorf("fetched %d times in an hour, want once", n)
 	}
 
-	// a day on, it is fetched again; the source failing leaves the old copy
+	// a day on, it is fetched again; the source failing leaves the old copy,
+	// which says it is one, from when, and why
 	now = now.Add(25 * time.Hour)
 	failing.Store(true)
-	if list, err := l.Load(ctx); err != nil || list.Len() != 6 {
+	var stale *StaleError
+	if list, err := l.Load(ctx); !errors.As(err, &stale) || list == nil || list.Len() != 6 || !stale.ReadAt.Equal(read) || !strings.Contains(err.Error(), "502") {
 		t.Errorf("with the source down: %v", err)
 	}
 	if n := fetches.Load(); n != 2 {
@@ -236,34 +251,37 @@ func TestLoaderBacksOffAfterAFailedRead(t *testing.T) {
 	l := NewLoader(srv.URL, nil)
 	l.now = clk.now
 	ctx := context.Background()
-	load := func(wantFetches int32) {
+	// the old list answers while the source is down, saying it is an old one
+	load := func(wantFetches int32, wantStale bool) {
 		t.Helper()
-		if list, err := l.Load(ctx); err != nil || list.Len() != 6 {
-			t.Fatalf("load: %v", err)
+		list, err := l.Load(ctx)
+		var stale *StaleError
+		if list == nil || list.Len() != 6 || (err != nil && !errors.As(err, &stale)) || (stale != nil) != wantStale {
+			t.Fatalf("load: %v, want an old copy said: %v", err, wantStale)
 		}
 		if n := fetches.Load(); n != wantFetches {
 			t.Errorf("fetched %d times, want %d", n, wantFetches)
 		}
 	}
 
-	load(1)
+	load(1, false)
 	// a day on, the source is down: one try, then the old list meanwhile
 	clk.add(25 * time.Hour)
 	failing.Store(true)
-	load(2)
-	load(2)
+	load(2, true)
+	load(2, true)
 	clk.add(30 * time.Minute)
-	load(2)
+	load(2, true)
 	// the retry comes due, fails again, and waits again
 	clk.add(31 * time.Minute)
-	load(3)
-	load(3)
+	load(3, true)
+	load(3, true)
 	// the source back, the next retry reads the new list, which then lasts a day
 	failing.Store(false)
 	clk.add(61 * time.Minute)
-	load(4)
+	load(4, false)
 	clk.add(23 * time.Hour)
-	load(4)
+	load(4, false)
 }
 
 // While a list already held is read again, calls meanwhile answer it rather

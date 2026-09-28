@@ -31,7 +31,7 @@ func TestEmbyPlaylists(t *testing.T) {
 		t.Fatal("PostPlaylists returned no id")
 	}
 	id := created.Id
-	t.Cleanup(func() { _, _ = embyc.DeleteItemsById(context.WithoutCancel(ctx), id) })
+	removeLater(t, "deleting "+id, func() error { _, err := embyc.DeleteItemsById(context.WithoutCancel(ctx), id); return err })
 
 	// the first playlist on a server creates its playlists folder, which
 	// queues a library scan; the scan validates every playlist and saves each
@@ -149,7 +149,7 @@ func TestEmbyCollections(t *testing.T) {
 		t.Fatal("PostCollections returned no id")
 	}
 	id := created.Id
-	t.Cleanup(func() { _, _ = embyc.DeleteItemsById(context.WithoutCancel(ctx), id) })
+	removeLater(t, "deleting "+id, func() error { _, err := embyc.DeleteItemsById(context.WithoutCancel(ctx), id); return err })
 
 	members := func() []string {
 		res := must(embyc.GetItems(ctx, emby.GetItemsOperationOptions{ParentId: id, SortBy: "SortName"})).Model

@@ -255,9 +255,8 @@ func TestUnwatchedNamesAViewWithABlock(t *testing.T) {
 
 // A season mostly of files a second long beside a few whole episodes: the
 // median of them all was the short files', and the whole episodes were the
-// ones reported. Split between two lengths like this, the season is one
-// finding naming both and which episodes run each, and neither set is judged
-// by the other.
+// ones reported. Nothing is judged against its season now: each file a
+// second long is named for what it is, and the whole episodes are not.
 func TestAuditRuntimeSeasonMostlyShort(t *testing.T) {
 	src := "messy-shows/hack Liminality (2002)/Season 01/"
 	long, short := fixture(t, src+"hack Liminality S01E01.mp4"), fixture(t, src+"hack Liminality S01E03.mp4")
@@ -268,15 +267,19 @@ func TestAuditRuntimeSeasonMostlyShort(t *testing.T) {
 	}
 	stage(t, plus(0, 0, len(files)), files, g)
 
-	var got []map[string]any
-	for _, f := range rows(t, call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})["findings"], "findings") {
-		if strings.Contains(str(f["path"]), "/hack Liminality (2002)/Season 03") {
-			got = append(got, f)
+	var got []string
+	for _, f := range rows(t, call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})["findings"], "findings") {
+		if strings.Contains(str(f["path"]), "/hack Liminality (2002)/Season 03/") {
+			got = append(got, filepath.Base(str(f["path"]))+": "+str(f["detail"]))
 		}
 	}
-	want := "the season is split between two lengths: 4 files run about 0 min (E02, E03, E05, E06) and 3 about 3 min (E01, E04, E07). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files"
-	if len(got) != 1 || str(got[0]["name"]) != ".hack//Liminality season 3" || str(got[0]["detail"]) != want || !strings.HasSuffix(str(got[0]["path"]), "/hack Liminality (2002)/Season 03") {
-		t.Errorf("season three's findings = %v, want the season split, naming both sets", got)
+	slices.Sort(got)
+	var want []string
+	for _, n := range []int{2, 3, 5, 6} {
+		want = append(want, fmt.Sprintf("hack Liminality S03E%02d.mp4: 1 s: too short to be the episode, an incomplete, sample or broken file", n))
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("season three's findings = %v, want the four files a second long and none of the whole episodes", got)
 	}
 }
 

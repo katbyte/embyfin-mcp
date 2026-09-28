@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -55,7 +56,7 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	// a year either side of the folder's is a release over New Year, and two
 	// is not
 	years := map[string]any{"library": "Messy Movies", "checks": "year"}
-	t.Cleanup(func() { _, _ = invoke("item_edit", map[string]any{"ids": []any{interstellar}, "year": 2014}) })
+	putBack(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2014})
 	for year, flagged := range map[int]bool{2013: false, 2015: false, 2016: true, 2012: true} {
 		call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": year})
 		got := findings(t, call(t, "audit_file_path", years))
@@ -84,7 +85,7 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	if n := num(t, call(t, "audit_file_path", series)["total_findings"], "total_findings"); n != 0 {
 		t.Fatalf("the messy series' folders already disagree with them: %d", n)
 	}
-	t.Cleanup(func() { _, _ = invoke("item_edit", map[string]any{"ids": []any{andor}, "year": 2022}) })
+	putBack(t, "item_edit", map[string]any{"ids": []any{andor}, "year": 2022})
 	call(t, "item_edit", map[string]any{"ids": []any{andor}, "year": 2020})
 	rename(t, andor, "Severance")
 	out = call(t, "audit_file_path", series)
@@ -467,68 +468,64 @@ func TestAuditDuplicateSeriesSpellings(t *testing.T) {
 	}
 }
 
-// Runtimes against their season: specials have no season to be held to,
-// a file holding two episodes is held to twice the median, and the worst
-// comes first under a limit - after the one broken duration the fixtures
-// carry, Deep Space Nine's twelve-hour claim, which ranks above any
-// percentage. Putting a whole copy over the one cut short clears it.
+// Only a length no episode can have is a finding: a one-second special, and
+// a one-second episode among three-minute ones, where their three-minute
+// neighbours and a 200-second file holding two episodes are lengths an
+// episode can have (TMDB's length for each is audit_provider's). The broken
+// duration the fixtures carry, Deep Space Nine's twelve-hour claim, comes
+// first under a limit. Putting a whole copy over the one cut short clears it.
 func TestAuditRuntimeStaged(t *testing.T) {
 	src := "messy-shows/hack Liminality (2002)/Season 01/"
 	long, short := fixture(t, src+"hack Liminality S01E01.mp4"), fixture(t, src+"hack Liminality S01E03.mp4")
 	g := "messy-shows/hack Liminality (2002)/"
 	before := auditRow(t, "Messy Shows", "audit_runtime")
 	stage(t, plus(0, 0, 7), map[string][]byte{
-		// three specials, the last cut to a second: nothing to hold them to
 		g + "Season 00/hack Liminality S00E01.mp4": long,
 		g + "Season 00/hack Liminality S00E02.mp4": long,
 		g + "Season 00/hack Liminality S00E03.mp4": short,
-		// two episodes in one file of 200 seconds, where two run six minutes
+		// two episodes in one file of 200 seconds
 		g + "Season 01/hack Liminality S01E04E05.mp4": fixture(t, "anime-src/special.mp4"),
-		// a second season shaped like the first
-		g + "Season 02/hack Liminality S02E01.mp4": long,
-		g + "Season 02/hack Liminality S02E02.mp4": long,
-		g + "Season 02/hack Liminality S02E03.mp4": short,
+		g + "Season 02/hack Liminality S02E01.mp4":    long,
+		g + "Season 02/hack Liminality S02E02.mp4":    long,
+		g + "Season 02/hack Liminality S02E03.mp4":    short,
 	}, g+"Season 00", g+"Season 02")
 
-	byFile := func(out map[string]any) []string {
-		var got []string
+	// what the audit says of the staged files, by file
+	staged := func(out map[string]any) map[string]string {
+		got := map[string]string{}
 		for _, f := range rows(t, out["findings"], "findings") {
-			got = append(got, filepath.Base(str(f["path"]))+": "+str(f["detail"]))
+			if file := filepath.Base(str(f["path"])); strings.Contains(str(f["path"]), "/hack Liminality (2002)/Season 0") && !strings.HasSuffix(file, "S01E03.mp4") {
+				got[file] = str(f["detail"])
+			}
 		}
 
 		return got
 	}
-	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})
-	want := []string{
-		"Star Trek Deep Space Nine S03E01.mkv: 720 min: not a runtime, the file's duration metadata is broken",
-		"hack Liminality S01E03.mp4: 0 min, far shorter than the rest of its season, which run 3 min: an incomplete or wrong file",
-		"hack Liminality S02E03.mp4: 0 min, far shorter than the rest of its season, which run 3 min: an incomplete or wrong file",
-		"hack Liminality S01E04E05.mp4: 3 min for 2 episodes, where its season runs 3 min each, 6 expected (50% off)",
+	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})
+	cut := "1 s: too short to be the episode, an incomplete, sample or broken file"
+	want := map[string]string{"hack Liminality S00E03.mp4": cut, "hack Liminality S02E03.mp4": cut}
+	if got := staged(out); !maps.Equal(got, want) {
+		t.Errorf("the staged files named = %v, want %v", got, want)
 	}
-	if got := byFile(out); !slices.Equal(got, want) || num(t, out["total_findings"], "total_findings") != 4 {
-		t.Errorf("runtimes off = %v, want %v", got, want)
+	if n := num(t, out["total_findings"], "total_findings"); n != before+2 {
+		t.Errorf("total_findings = %d, want the %d before and the two staged a second long", n, before)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_runtime"); n != before+2 {
 		t.Errorf("audit_all's row = %d, want %d", n, before+2)
 	}
-	// the worst first, and a limit keeps it
+	// the broken duration first, and a limit keeps it
 	capped := call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1})
-	if got := byFile(capped); !slices.Equal(got, want[:1]) || num(t, capped["total_findings"], "total_findings") != 4 {
-		t.Errorf("limit 1 = %v of %v, want %v", got, capped["total_findings"], want[:1])
-	}
-	// a tolerance past the run's 50% forgives it, and nothing short of 100
-	// forgives the files a second long; no tolerance forgives a duration
-	// that is no runtime at all
-	if got := byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "tolerance_percent": 60})); !slices.Equal(got, want[:3]) {
-		t.Errorf("tolerance 60 = %v, want %v", got, want[:3])
+	if f := rows(t, capped["findings"], "findings"); len(f) != 1 || filepath.Base(str(f[0]["path"])) != "Star Trek Deep Space Nine S03E01.mkv" || str(f[0]["detail"]) != "12 h 0 min: not a runtime, the file's duration metadata is broken" || num(t, capped["total_findings"], "total_findings") != before+2 {
+		t.Errorf("limit 1 = %v of %v, want the broken duration", f, capped["total_findings"])
 	}
 
 	// the whole episode written over the one cut short
 	mediaWrite(t, filepath.Join(dataDir(), g+"Season 02/hack Liminality S02E03.mp4"), long)
 	rescanUntil(t, "the whole copy read", func() bool {
-		return len(byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows"}))) == 3
+		_, named := staged(call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000}))["hack Liminality S02E03.mp4"]
+		return !named
 	})
-	if got := byFile(call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})); !slices.Equal(got, []string{want[0], want[1], want[3]}) {
+	if got := staged(call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})); !maps.Equal(got, map[string]string{"hack Liminality S00E03.mp4": cut}) {
 		t.Errorf("after the fix = %v", got)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_runtime"); n != before+1 {

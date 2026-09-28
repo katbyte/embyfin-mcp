@@ -189,7 +189,8 @@ func TestOrphans(t *testing.T) {
 	deleteLater(t, "playlist_delete", "playlist", pl)
 	call(t, "item_set_state", map[string]any{"id": matrix, "user": "alice", "favourite": true})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": matrix, "user": "alice", "favourite": false})
+		// the orphans' delete below takes it, and its state with it
+		undoIfThere(t, matrix, "item_set_state", map[string]any{"id": matrix, "user": "alice", "favourite": false})
 	})
 	favourites := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["favourites"], "favourites")
 	holding := func() (collection, playlist []string, favourite bool) {
@@ -368,9 +369,8 @@ func TestOrphansManyAtOnce(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		_ = os.RemoveAll(root)
-		if _, err := invoke("library_get", map[string]any{"library": name}); err == nil {
-			_, _ = invoke("library_delete", map[string]any{"library": name, "confirm": true})
-			_ = waitForExpectedScan()
+		if removeLibraryIfThere(t, name) {
+			settleScan(t, waitForExpectedScan)
 		}
 		if _, err := invoke("item_orphans_delete", map[string]any{"folder": folder, "confirm": true}); err != nil {
 			t.Errorf("clearing %s: %v", folder, err)

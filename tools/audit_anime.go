@@ -3,6 +3,7 @@ package tools
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -184,7 +185,7 @@ func registerAnimeAudit(r *registry) {
 		TotalDisagree int           `json:"total_ids_disagree"`
 		TotalSplit    int           `json:"total_split_out"`
 		TotalSeparate int           `json:"total_kept_separate"`
-		Note          string        `json:"note,omitempty"      jsonschema:"set when the library was seen to change while its series were read: series added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
+		Note          string        `json:"note,omitempty"      jsonschema:"set when the library was seen to change while its series were read: series added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked, and when the anime list could not be read again, so an older copy answered. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 
 	add(r, readTool, &mcp.Tool{
@@ -197,8 +198,11 @@ func registerAnimeAudit(r *registry) {
 		if limit <= 0 {
 			limit = 50
 		}
+		// an older copy of the list answers when it could not be read
+		// again, and the note says so
 		list, err := lists.Load(ctx)
-		if err != nil {
+		var stale *animelist.StaleError
+		if err != nil && !errors.As(err, &stale) {
 			return nil, animeOut{}, err
 		}
 		opts := embyfin.SearchOptions{IncludeItemTypes: "Series", Fields: "Path,ProviderIds,ProductionYear"}
@@ -220,6 +224,9 @@ func registerAnimeAudit(r *registry) {
 		}
 
 		out := animeOut{Source: lists.Source(), Entries: list.Len(), Scanned: len(series), Note: read.Changed()}
+		if stale != nil {
+			out.Note = joinWarnings(out.Note, stale.Error())
+		}
 		heldAs := map[string]string{} // AniDB id to the series holding it as its own
 		for i := range series {
 			if aid := providerID(&series[i], "anidb"); aid != "" {

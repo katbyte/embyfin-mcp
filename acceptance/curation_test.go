@@ -77,7 +77,7 @@ func TestLibraryItems(t *testing.T) {
 	call(t, "item_edit", map[string]any{"ids": []any{alien}, "add_tags": []any{"zzyzx-tagged"}})
 	call(t, "item_edit", map[string]any{"ids": []any{arrival}, "add_tags": []any{"zzyzx-other"}})
 	t.Cleanup(func() {
-		_, _ = invoke("item_edit", map[string]any{"ids": []any{alien, arrival}, "remove_tags": []any{"zzyzx-tagged", "zzyzx-other"}})
+		undo(t, "item_edit", map[string]any{"ids": []any{alien, arrival}, "remove_tags": []any{"zzyzx-tagged", "zzyzx-other"}})
 	})
 	out = call(t, "library_items", map[string]any{"library": "Movies", "tags": []any{"zzyzx-tagged"}})
 	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Alien"}) || num(t, out["total"], "total") != 1 {
@@ -113,7 +113,7 @@ func TestLibraryItems(t *testing.T) {
 	mononoke := findItem(t, "Movies", "Movie", "Princess Mononoke")
 	call(t, "item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": true})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": false})
+		undo(t, "item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": false})
 	})
 	out = call(t, "library_items", map[string]any{"library": "Movies", "watched": "watched", "user": "alice"})
 	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Princess Mononoke"}) {
@@ -206,8 +206,8 @@ func TestLibraryEdit(t *testing.T) {
 	}
 	name := "Edit Me"
 	t.Cleanup(func() {
-		_, _ = invoke("library_delete", map[string]any{"library": name, "confirm": true})
-		_ = waitForScan() // Jellyfin's removal starts a library scan
+		removeLibraryIfThere(t, name)
+		settleScan(t, waitForScan) // Jellyfin's removal starts a library scan
 	})
 
 	// the adds, then the removes, each named
@@ -257,7 +257,7 @@ func TestItemEditMany(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for id, b := range before {
-			_, _ = invoke("item_edit", map[string]any{"ids": []any{id}, "genres": b["genres"], "tags": b["tags"], "studios": b["studios"]})
+			undo(t, "item_edit", map[string]any{"ids": []any{id}, "genres": b["genres"], "tags": b["tags"], "studios": b["studios"]})
 			// item_edit sets a rating and cannot clear one, and the messy
 			// films' nfos give them none
 			updateItem(t, id, map[string]any{"OfficialRating": str(b["official_rating"])})
@@ -329,13 +329,13 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 	despecialized := findItem(t, "Messy Movies", "Movie", "Star Wars: Episode IV - A New Hope (Despecialized Edition)")
 	t.Cleanup(func() {
 		for _, id := range []string{dune, interstellar} {
-			_, _ = invoke("item_edit", map[string]any{
+			undo(t, "item_edit", map[string]any{
 				"ids": []any{id}, "remove_genres": []any{"Science-Fiction"}, "remove_tags": []any{"Sci-Fi", "Sci Fi"}, "remove_studios": []any{"Syncopy", "Syncopy Films"},
 			})
 		}
 		// the merge below takes the Despecialized Edition's spelling too: put
 		// it back
-		_, _ = invoke("item_edit", map[string]any{"ids": []any{despecialized}, "genres": []any{"Science-Fiction"}})
+		undo(t, "item_edit", map[string]any{"ids": []any{despecialized}, "genres": []any{"Science-Fiction"}})
 	})
 
 	// the one the fixtures carry to start with: the Despecialized Edition's
@@ -459,7 +459,7 @@ func TestAuditSpellingKinds(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for _, p := range planted {
-			_, _ = invoke("item_edit", map[string]any{"ids": []any{p.id}, "remove_tags": p.tags})
+			undo(t, "item_edit", map[string]any{"ids": []any{p.id}, "remove_tags": p.tags})
 		}
 	})
 	for _, p := range planted {
@@ -801,7 +801,7 @@ func TestAuditUnwatched(t *testing.T) {
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	call(t, "item_set_state", map[string]any{"id": dune, "user": "alice", "watched": true})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": dune, "user": "alice", "watched": false})
+		undo(t, "item_set_state", map[string]any{"id": dune, "user": "alice", "watched": false})
 	})
 	out = call(t, "audit_unwatched", map[string]any{"library": "Movies"})
 	if got := findings(t, out); len(got) != len(movies)-1 || slices.Contains(got, "Dune") {
@@ -818,7 +818,7 @@ func TestAuditUnwatched(t *testing.T) {
 	eps := call(t, "library_episodes", map[string]any{"series_id": series})
 	first := str(rows(t, eps["episodes"], "episodes")[0]["id"])
 	call(t, "item_set_state", map[string]any{"id": first, "watched": true})
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": first, "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": first, "watched": false})
 	out = call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})
 	if got := findings(t, out); !slices.Equal(got, []string{"Breaking Bad", "Limitless", "The Expanse"}) {
 		t.Errorf("unwatched series = %v, want Breaking Bad, Limitless and The Expanse", got)

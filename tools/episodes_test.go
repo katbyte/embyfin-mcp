@@ -1061,35 +1061,6 @@ func TestEpisodeRowsCarryBothDates(t *testing.T) {
 	}
 }
 
-// The runtime multiple is worked out from the runtime, so asking for the one
-// without the other still answers it. The runtime used to be dropped first,
-// and a caller asking only for the multiple got none at all.
-func TestTheRuntimeMultipleCanBeAskedForAlone(t *testing.T) {
-	t.Parallel()
-
-	s := severance()
-	s.episodes = []ep{
-		{season: 1, number: 1, name: "one", path: "/m/1.mkv", minutes: 50},
-		{season: 1, number: 2, name: "two", path: "/m/2.mkv", minutes: 50},
-		{season: 1, number: 3, name: "three and four", path: "/m/3.mkv", minutes: 100},
-		{season: 1, number: 5, name: "five", path: "/m/5.mkv", minutes: 50},
-	}
-	cs := session(t, tvServer(t, s), Options{})
-
-	out := mustCall(t, cs, "library_episodes", map[string]any{"series_id": "sev", "fields": []string{"runtime_multiple"}})
-	rows := objects(t, out["episodes"], "episodes")
-	if len(rows) != 4 {
-		t.Fatalf("episodes = %v", rows)
-	}
-	if got := decimal(t, rows[2]["runtime_multiple"], "runtime_multiple"); got != 2 {
-		t.Errorf("the double episode's multiple = %v, want 2: %v", got, rows[2])
-	}
-	// and what was not asked for is still left out
-	if rows[2]["runtime_s"] != nil || rows[2]["path"] != nil {
-		t.Errorf("fields not asked for came back: %v", rows[2])
-	}
-}
-
 // library_items reads every item's files with it, so an uncapped limit was a
 // whole library in one answer. It is capped the way library_episodes is.
 func TestLibraryItemsCapsItsPage(t *testing.T) {

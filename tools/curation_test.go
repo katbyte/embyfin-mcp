@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -628,83 +631,94 @@ func TestHDRFormatSaysWhenItDoesNotKnow(t *testing.T) {
 	}
 }
 
-// C15: a file holding two episodes under one number is the shape that hides
-// episodes, and the only thing that gives it away is the runtime: the servers
-// parsed one episode from the name and recorded no span, so a library reads
-// the second episode as missing and a copy of it as a duplicate.
-func TestRuntimeMultipleOnRows(t *testing.T) {
+// An episode's runtime is judged against TMDB's for that episode, read from
+// its series' seasons, and against nothing else. A file holding two episodes
+// under one number - named as one, running as two - is the shape that hides
+// an episode: the servers parse one number from the name, so the second
+// reads as missing, and its length against TMDB's is what gives it away. A
+// file the server records as holding two is judged against the two together,
+// a special against TMDB's specials, and an episode TMDB holds no length
+// for, or whose series holds no TMDB id, is counted as not judged.
+func TestAuditProviderJudgesEpisodesByTMDBsOwnLength(t *testing.T) {
 	t.Parallel()
 
 	s := severance()
 	s.episodes = []ep{
-		{season: 1, number: 1, name: "One", path: "/m/s01e01.mkv", minutes: 22},
-		{season: 1, number: 2, name: "Two", path: "/m/s01e02.mkv", minutes: 22},
-		{season: 1, number: 3, name: "Three", path: "/m/s01e03.mkv", minutes: 22},
+		{season: 0, number: 1, name: "Inside Severance", path: "/m/s0e1.mkv", minutes: 10},
+		{season: 1, number: 1, name: "Good News About Hell", path: "/m/1.mkv", minutes: 22},
+		// a minute off TMDB's is no finding: within two minutes
+		{season: 1, number: 2, name: "Half Loop", path: "/m/2.mkv", minutes: 23},
 		// the double: named as one episode, runs as two
-		{season: 1, number: 4, name: "Four & Five", path: "/m/s01e04.mkv", minutes: 44},
-	}
-	cs := session(t, tvServer(t, s), Options{})
-
-	rows := objects(t, mustCall(t, cs, "library_episodes", map[string]any{"series": "sev"})["episodes"], "episodes")
-	byNumber := map[int]map[string]any{}
-	for _, row := range rows {
-		byNumber[number(t, row["episode"], "episode")] = row
-	}
-	if median := number(t, byNumber[1]["season_median_runtime_s"], "season_median_runtime_s"); median != 22*60 {
-		t.Errorf("season median = %ds, want 1320", median)
-	}
-	if m, ok := byNumber[1]["runtime_multiple"].(float64); !ok || m != 1 {
-		t.Errorf("an ordinary episode is %v of the median, want 1", byNumber[1]["runtime_multiple"])
-	}
-	if m, ok := byNumber[4]["runtime_multiple"].(float64); !ok || m != 2 {
-		t.Errorf("the double is %v of the median, want 2", byNumber[4]["runtime_multiple"])
-	}
-
-	// the same on an exists check, which is where a reconcile asks
-	exists := mustCall(t, cs, "show_episodes_exist", map[string]any{
-		"series_id": "sev", "episodes": []map[string]any{{"season": 1, "episode": 4}}, "quality": true,
-	})
-	if m, ok := objects(t, exists["episodes"], "episodes")[0]["runtime_multiple"].(float64); !ok || m != 2 {
-		t.Errorf("exists hit = %v", exists["episodes"])
-	}
-}
-
-// audit_runtime judged every file against the season median once, so a file
-// the server DOES record as holding two episodes was reported for being twice
-// as long as one, and a broken duration was reported as a percentage.
-func TestRuntimeAuditReadsSpansAndBrokenDurations(t *testing.T) {
-	t.Parallel()
-
-	s := severance()
-	s.episodes = []ep{
-		{season: 1, number: 1, name: "One", path: "/m/1.mkv", minutes: 22},
-		{season: 1, number: 2, name: "Two", path: "/m/2.mkv", minutes: 22},
-		{season: 1, number: 3, name: "Three", path: "/m/3.mkv", minutes: 22},
+		{season: 1, number: 3, name: "In Perpetuity", path: "/m/3.mkv", minutes: 44},
 		// recorded as covering two episodes, and running like it
-		{season: 1, number: 4, number2: 5, name: "Four and Five", path: "/m/45.mkv", minutes: 44},
-		// a duration nobody can use
-		{season: 1, number: 6, name: "Broken", path: "/m/6.mkv", minutes: 100000},
+		{season: 1, number: 4, number2: 5, name: "The You You Are", path: "/m/45.mkv", minutes: 44}, //nolint:dupword // the episode's title
+		// TMDB holds no length for it, and no episode 7 at all
+		{season: 1, number: 6, name: "Hide and Seek", path: "/m/6.mkv", minutes: 22},
+		{season: 1, number: 7, name: "Defiant Jazz", path: "/m/7.mkv", minutes: 22},
 	}
-	cs := session(t, tvServer(t, s), Options{})
+	// a series with no TMDB id is not judged, however short
+	unmatched := &fakeSeries{id: "u", name: "Zzyzx Unmatched", episodes: []ep{{season: 1, number: 1, name: "Pilot", path: "/m/u1.mkv", minutes: 1}}}
 
-	out := mustCall(t, cs, "audit_runtime", map[string]any{})
-	details := map[string]string{}
-	for _, f := range objects(t, out["findings"], "findings") {
-		details[text(f["name"])] = text(f["detail"])
-	}
-	for name := range details {
-		if strings.Contains(name, "Four and Five") {
-			t.Errorf("a file recorded as two episodes was flagged for running as two: %q", details[name])
+	var asked atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked.Add(1)
+		switch r.URL.Path {
+		case "/3/tv/95396":
+			_, _ = w.Write([]byte(`{"id":95396,"seasons":[{"season_number":0},{"season_number":1}]}`))
+		case "/3/tv/95396/season/0":
+			_, _ = w.Write([]byte(`{"season_number":0,"episodes":[{"season_number":0,"episode_number":1,"name":"Inside Severance","runtime":30}]}`))
+		case "/3/tv/95396/season/1":
+			_, _ = w.Write([]byte(`{"season_number":1,"episodes":[` +
+				`{"season_number":1,"episode_number":1,"name":"Good News About Hell","runtime":22},` +
+				`{"season_number":1,"episode_number":2,"name":"Half Loop","runtime":22},` +
+				`{"season_number":1,"episode_number":3,"name":"In Perpetuity","runtime":22},` +
+				`{"season_number":1,"episode_number":4,"name":"The You You Are","runtime":22},` + //nolint:dupword // the episode's title
+				`{"season_number":1,"episode_number":5,"name":"The Grim Barbarity of Optics and Design","runtime":22},` +
+				`{"season_number":1,"episode_number":6,"name":"Hide and Seek"}]}`))
+		default:
+			http.NotFound(w, r)
 		}
+	}))
+	t.Cleanup(srv.Close)
+	target, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
 	}
-	broken := ""
-	for name, detail := range details {
-		if strings.Contains(name, "Broken") {
-			broken = detail
-		}
+	cs := session(t, tvServer(t, s, unmatched), Options{TMDBKey: "k", ProviderTransport: rewrite{target}})
+
+	out := mustCall(t, cs, "audit_provider", map[string]any{"types": "Episode"})
+	findings := objects(t, out["findings"], "findings")
+	got := make([]string, 0, len(findings))
+	for _, row := range findings {
+		got = append(got, text(row["name"])+" ["+text(row["holds"])+"]: "+strings.Join(texts(row["problems"]), " | "))
 	}
-	if !strings.Contains(broken, "duration metadata is broken") {
-		t.Errorf("a 100000 minute episode was reported as %q", broken)
+	want := []string{
+		`Severance S00E01 Inside Severance [tmdb tv 95396]: runtime: file 10 min, TMDB says 30 min for S00E01 "Inside Severance" (66% off)`,
+		`Severance S01E03 In Perpetuity [tmdb tv 95396]: runtime: file 44 min, TMDB says 22 min for S01E03 "In Perpetuity" (100% off)`,
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("findings =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// every episode scanned; E06, E07 and the unmatched show's pilot unjudged
+	if n := number(t, out["items_scanned"], "items_scanned"); n != 8 {
+		t.Errorf("items_scanned = %d, want 8", n)
+	}
+	if n := number(t, out["runtime_not_judged"], "runtime_not_judged"); n != 3 {
+		t.Errorf("runtime_not_judged = %d, want E06 (no length), E07 (no such episode) and the unmatched pilot", n)
+	}
+	// the series' run read once for all its episodes: the series, its season
+	// 1 and its specials
+	if n := asked.Load(); n != 3 {
+		t.Errorf("TMDB was asked %d times, want 3", n)
+	}
+
+	// episodes have only a runtime to judge
+	if msg := mustRefuse(t, cs, "audit_provider", map[string]any{"types": "Episode", "checks": "ids"}); !strings.Contains(msg, "episodes are checked by runtime only") {
+		t.Errorf("episodes with ids alone = %q", msg)
+	}
+	// a capped call counts a series once: one lookup covers every episode
+	if out := mustCall(t, cs, "audit_provider", map[string]any{"types": "Episode", "max_lookups": 1}); out["next_offset"] != nil || number(t, out["items_scanned"], "items_scanned") != 8 {
+		t.Errorf("one lookup = %v, want the series' every episode and the unmatched show's", out)
 	}
 }
 

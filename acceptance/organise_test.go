@@ -19,7 +19,8 @@ func TestCollections(t *testing.T) {
 		t.Fatalf("collection_create = %v", out)
 	}
 	id := str(out["id"])
-	t.Cleanup(func() { _, _ = invoke("collection_delete", map[string]any{"collection": id}) })
+	// the test deletes it itself; this is for one that stops short
+	deleteLaterIfThere(t, "collection_delete", map[string]any{"collection": id}, "no collection named")
 
 	list := call(t, "collection_list", nil)
 	var names []string
@@ -167,7 +168,8 @@ func TestPlaylists(t *testing.T) {
 	if str(out["id"]) == "" || str(out["name"]) != "Villeneuve" {
 		t.Fatalf("playlist_create = %v", out)
 	}
-	t.Cleanup(func() { _, _ = invoke("playlist_delete", map[string]any{"playlist": str(out["id"])}) })
+	// the test deletes it itself; this is for one that stops short
+	deleteLaterIfThere(t, "playlist_delete", map[string]any{"playlist": str(out["id"])}, "no playlist named")
 
 	list := call(t, "playlist_list", nil)
 	var names []string

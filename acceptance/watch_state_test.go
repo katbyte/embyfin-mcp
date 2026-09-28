@@ -28,7 +28,7 @@ func TestInProgressPastTheNextEpisodes(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for _, id := range append([]string{alien, arrival}, pilots...) {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
+			undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
 		}
 	})
 	for _, film := range []string{alien, arrival} {
@@ -90,7 +90,7 @@ func TestInProgressPastTheNextEpisodes(t *testing.T) {
 func TestUnwatchedAfterLosingAccess(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
+		undo(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
 	})
 	unwatched := func() []string {
 		t.Helper()

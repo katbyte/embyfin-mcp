@@ -290,10 +290,10 @@ func TestAuditProviderRuntimePages(t *testing.T) {
 	if got := number(t, out["total_findings"], "total_findings"); got != 0 {
 		t.Errorf("tolerance 100 found %v", got)
 	}
-	// only TMDB and only films, said plainly
+	// only TMDB, and only films and episodes, said plainly
 	for args, want := range map[*map[string]any]string{
 		{"provider": "tvdb"}: "provider must be tmdb",
-		{"types": "Series"}:  "types must be Movie",
+		{"types": "Series"}:  "types must be among Movie, Episode",
 		{"checks": "year"}:   "checks must be among",
 	} {
 		if msg := mustRefuse(t, cs, "audit_provider", *args); !strings.Contains(msg, want) {

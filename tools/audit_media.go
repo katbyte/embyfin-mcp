@@ -458,11 +458,18 @@ func codesOf(rows []missingRow) []string {
 // recordAired says whether an episode the server keeps a record of, with no
 // file, has aired: by the rule the provider's run is read by (aired), so an
 // episode announced for next month, or announced with no date at all, is
-// not reported missing by one source and left out by the other.
-func recordAired(it *embyfin.Item, now time.Time) bool {
+// not reported missing by one source and left out by the other. A date that
+// is not a day and time is an error: read as either, it would say an
+// episode is missing, or leave one out, on a guess.
+func recordAired(it *embyfin.Item, now time.Time) (bool, error) {
 	day, _, _ := strings.Cut(it.PremiereDate, "T")
+	if day != "" {
+		if _, err := time.Parse(time.DateOnly, day); err != nil {
+			return false, fmt.Errorf("the server dates %s (id %s) %q, which can't be read as a day", it.Name, it.ID, it.PremiereDate)
+		}
+	}
 
-	return aired(tmdb.Episode{AirDate: day}, now)
+	return aired(tmdb.Episode{AirDate: day}, now), nil
 }
 
 // tmdbAiredOrder is how a run read from TMDB numbers its episodes.
@@ -507,6 +514,7 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 	// and whether its item query lists them as show_missing's episode read
 	// does has not been seen on a server keeping them
 	var reads []embyfin.ReadResult
+	var dateErr error // a record's date that can't be read, which stops the sweep
 	swept, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
@@ -522,7 +530,13 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 				// a record of an episode still to come is a run the server
 				// knows, not an episode missing from it
 				s.records = true
-				if recordAired(it, now) {
+				on, derr := recordAired(it, now)
+				if derr != nil {
+					dateErr = derr
+
+					return false
+				}
+				if on {
 					s.provider = append(s.provider, episodeCode(it))
 				}
 
@@ -548,6 +562,9 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 	})
 	if err != nil {
 		return missingEpisodesOut{}, err
+	}
+	if dateErr != nil {
+		return missingEpisodesOut{}, dateErr
 	}
 	reads = append(reads, swept)
 
@@ -999,6 +1016,7 @@ func auditUnwatched(ctx context.Context, client *embyfin.Client, in unwatchedIn)
 		added string
 	}
 	var findings, begun []dated
+	var dateErr error // an added date that can't be read, which stops the sweep
 	// every copy as the server stores it, each with its own file: watching
 	// is counted by title, so the copies of a film are all watched or all
 	// not, and what to archive is each file
@@ -1009,8 +1027,16 @@ func auditUnwatched(ctx context.Context, client *embyfin.Client, in unwatchedIn)
 			if watched.has(it) {
 				continue
 			}
-			if in.AddedDays > 0 && afterCutoff(it.DateCreated, daysCutoff(in.AddedDays)) {
-				continue
+			if in.AddedDays > 0 {
+				after, derr := afterCutoff(it, daysCutoff(in.AddedDays))
+				if derr != nil {
+					dateErr = derr
+
+					return false
+				}
+				if after {
+					continue
+				}
 			}
 			// by the day added, then by name, so films added together keep
 			// one order and a limit the same ones; an item with no date
@@ -1029,6 +1055,9 @@ func auditUnwatched(ctx context.Context, client *embyfin.Client, in unwatchedIn)
 	})
 	if err != nil {
 		return unwatchedOut{}, err
+	}
+	if dateErr != nil {
+		return unwatchedOut{}, dateErr
 	}
 	out.Note = changedNote(append(reads, swept)...)
 

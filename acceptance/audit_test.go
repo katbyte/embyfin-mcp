@@ -68,7 +68,6 @@ func TestAuditsLeaveTheCleanLibrariesAlone(t *testing.T) {
 		// TestAuditDuplicateEpisodes reads
 		"audit_duplicate_episodes": {shows: 1, seriesOnly: true},
 		"audit_duplicate_series":   {seriesOnly: true},
-		"audit_runtime":            {seriesOnly: true},
 		"audit_missing_episodes":   {seriesOnly: true},
 		"audit_whitespace":         {},
 	} {
@@ -84,6 +83,13 @@ func TestAuditsLeaveTheCleanLibrariesAlone(t *testing.T) {
 			case (lib == "Shows" || !want.seriesOnly) && scanned == 0:
 				t.Errorf("%s on %s scanned nothing", audit, lib)
 			}
+		}
+	}
+	// the fixtures run seconds, not the length of any film or episode: the
+	// runtime audit names every one of them, and only them
+	for _, lib := range []string{"Movies", "Shows"} {
+		if got, want := findingIDs(t, call(t, "audit_runtime", map[string]any{"library": lib, "limit": 1000})), brokenRuntimes(t, lib); !slices.Equal(got, want) || len(want) == 0 {
+			t.Errorf("audit_runtime on %s named %v, want %v", lib, got, want)
 		}
 	}
 	// and the two the show library carries are the ones named
@@ -777,43 +783,97 @@ func TestAuditMultipleVersions(t *testing.T) {
 	}
 }
 
-// .hack//Liminality's episodes run three minutes but the last, cut to a second.
-// The messy Severance's five-second third episode among one-second ones is
-// not a finding: 0 minutes against a 0 minute median is under the two-minute
-// floor, which is what the floor is for. Deep Space Nine's season 3 file
-// claims twelve hours for a second of video: broken metadata, reported first
-// and for what it is, with no season to hold it to.
-func TestAuditRuntimeEpisodes(t *testing.T) {
-	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows"})
+// audit_runtime names only a length no film or episode can have: under two
+// minutes, or twelve hours or more. The fixtures run seconds, so it names most
+// of them, which is what they are; .hack//Liminality's three-minute episodes
+// are the ones it has to leave alone, and Deep Space Nine's season 3 file,
+// claiming twelve hours for a second of video, comes first as the broken
+// duration it is. The expected findings are worked out from the server's own
+// runtimes (brokenRuntimes), not from a count written down.
+func TestAuditRuntime(t *testing.T) {
+	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})
 	if got := num(t, out["items_scanned"], "items_scanned"); got != messyEpisodeFiles {
 		t.Errorf("scanned %d episodes, want the %d episode files, the featurette Emby takes for one left out", got, messyEpisodeFiles)
 	}
-	found := rows(t, out["findings"], "findings")
-	if len(found) != 2 || num(t, out["total_findings"], "total_findings") != 2 {
-		t.Fatalf("findings = %v, want the broken duration and the one cut short", found)
+	if got, want := findingIDs(t, out), brokenRuntimes(t, "Messy Shows"); !slices.Equal(got, want) || num(t, out["total_findings"], "total_findings") != len(want) {
+		t.Errorf("findings %v (total %v), want %v", got, out["total_findings"], want)
 	}
-	if f := found[0]; str(f["name"]) != "Star Trek: Deep Space Nine S03E01 The Search (1)" || str(f["detail"]) != "720 min: not a runtime, the file's duration metadata is broken" || !strings.HasSuffix(str(f["path"]), "/Season 03/Star Trek Deep Space Nine S03E01.mkv") {
+	found := rows(t, out["findings"], "findings")
+	if len(found) == 0 {
+		t.Fatal("no findings")
+	}
+	if f := found[0]; str(f["name"]) != "Star Trek: Deep Space Nine S03E01 The Search (1)" || str(f["detail"]) != "12 h 0 min: not a runtime, the file's duration metadata is broken" || !strings.HasSuffix(str(f["path"]), "/Season 03/Star Trek Deep Space Nine S03E01.mkv") {
 		t.Errorf("the broken duration = %v", f)
 	}
-	if f := found[1]; str(f["name"]) != ".hack//Liminality S01E03 In the Case of Kyoko Tohno" || str(f["detail"]) != "0 min, far shorter than the rest of its season, which run 3 min: an incomplete or wrong file" || !strings.HasSuffix(str(f["path"]), "/hack Liminality S01E03.mp4") {
-		t.Errorf("finding = %v", f)
+	details := map[string]string{}
+	for _, f := range found {
+		details[str(f["name"])] = str(f["detail"])
+	}
+	if d := details[".hack//Liminality S01E03 In the Case of Kyoko Tohno"]; d != "1 s: too short to be the episode, an incomplete, sample or broken file" {
+		t.Errorf("the one-second episode = %q", d)
+	}
+	for _, name := range []string{".hack//Liminality S01E01 In the Case of Mai Minase", ".hack//Liminality S01E02 In the Case of Yuki Aihara"} {
+		if d, ok := details[name]; ok {
+			t.Errorf("a three-minute episode was named: %s: %s", name, d)
+		}
 	}
 	// the broken file's own row says what the file claims: twelve hours
 	ds9 := findItem(t, "Messy Shows", "Series", "Star Trek: Deep Space Nine")
 	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": ds9, "season": 3})["episodes"], "episodes") {
-		if num(t, e["runtime_s"], "runtime_s") != 43200 || e["runtime_multiple"] != nil {
-			t.Errorf("the broken file's row = %v runtime_s, multiple %v: want 43200 and no multiple to hold it to", e["runtime_s"], e["runtime_multiple"])
+		if num(t, e["runtime_s"], "runtime_s") != 43200 {
+			t.Errorf("the broken file's row = %v runtime_s, want 43200", e["runtime_s"])
 		}
 	}
-	// a tolerance of 100% forgives a file that runs none of its median, and
-	// not a duration that is no runtime at all
-	if got := findings(t, call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "tolerance_percent": 100})); !slices.Equal(got, []string{"Star Trek: Deep Space Nine S03E01 The Search (1)"}) {
-		t.Errorf("tolerance 100 found %v, want the broken duration alone", got)
+	// and the films, judged the same way
+	if got, want := findingIDs(t, call(t, "audit_runtime", map[string]any{"library": "Messy Movies", "limit": 1000})), brokenRuntimes(t, "Messy Movies"); !slices.Equal(got, want) {
+		t.Errorf("Messy Movies: named %v, want %v", got, want)
 	}
-	// and the clean shows, their episodes all a second, have nothing off
-	if n := num(t, call(t, "audit_runtime", map[string]any{"library": "Shows", "limit": 1})["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("Shows has %d runtimes off", n)
+}
+
+// brokenRuntimes is what audit_runtime should name in a library, sorted by
+// id: every film and episode with a file whose runtime the server holds is
+// under two minutes or twelve hours or more, the extras a server takes for
+// episodes left out. It is read from the server's own runtimes, item by item:
+// on Emby every version of a film is an item of its own, judged on its own,
+// where Jellyfin folds a second file into one item, judged once.
+func brokenRuntimes(t *testing.T, library string) []string {
+	t.Helper()
+
+	extras := []string{"extras", "trailers", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "samples", "shorts", "clips", "other", "backdrops"}
+	var ids []string
+	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": library, "types": "Movie,Episode", "limit": 1000})["items"], "items") {
+		files := []map[string]any{it}
+		if versions := rowsOf(it["versions"]); !isJellyfin() && len(versions) > 0 {
+			files = versions
+		}
+		for _, file := range files {
+			path, seconds := str(file["path"]), numOr0(file["runtime_s"])
+			if path == "" || seconds <= 0 || str(it["type"]) == "Episode" && slices.Contains(extras, strings.ToLower(filepath.Base(filepath.Dir(path)))) {
+				continue
+			}
+			if seconds < 2*60 || seconds >= 12*60*60 {
+				id := str(file["id"])
+				if id == "" {
+					id = str(it["id"])
+				}
+				ids = append(ids, id)
+			}
+		}
 	}
+
+	return sorted(ids)
+}
+
+// findingIDs is the ids an audit named, sorted.
+func findingIDs(t *testing.T, out map[string]any) []string {
+	t.Helper()
+
+	var ids []string
+	for _, f := range rows(t, out["findings"], "findings") {
+		ids = append(ids, str(f["id"]))
+	}
+
+	return sorted(ids)
 }
 
 // Movie runtimes come from TMDB, through the provider proxy: Interstellar's
@@ -943,7 +1003,7 @@ func TestAuditAll(t *testing.T) {
 		"audit_duplicate_episodes": 0,
 		"audit_duplicate_series":   0,
 		"audit_disc_folders":       1,
-		"audit_runtime":            0,
+		"audit_runtime":            len(brokenRuntimes(t, "Messy Movies")),
 		// every film but the Blade Runner cuts and the discs kept whole,
 		// which Emby never probes and so does not judge; Jellyfin reads the
 		// DVD, and it is a 480p MPEG-2 one
@@ -1017,13 +1077,15 @@ func TestAuditAll(t *testing.T) {
 	}
 
 	// the clean libraries are clean, but for the show library's file named
-	// for another episode and its title held twice (TestAuditsLeaveTheCleanLibrariesAlone)
+	// for another episode and its title held twice, and the runtimes of the
+	// fixtures, seconds long, which no film or episode runs
+	// (TestAuditsLeaveTheCleanLibrariesAlone)
 	clean := call(t, "audit_all", map[string]any{"library": "Movies"})
-	if n := num(t, clean["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("Movies total_findings = %d: %v", n, clean["audits"])
+	if n, want := num(t, clean["total_findings"], "total_findings"), len(brokenRuntimes(t, "Movies")); n != want {
+		t.Errorf("Movies total_findings = %d, want the %d runtimes: %v", n, want, clean["audits"])
 	}
-	if n := num(t, call(t, "audit_all", map[string]any{"library": "Shows"})["total_findings"], "total_findings"); n != 2 {
-		t.Errorf("Shows total_findings = %d, want The Expanse's path and Breaking Bad's repeated title", n)
+	if n, want := num(t, call(t, "audit_all", map[string]any{"library": "Shows"})["total_findings"], "total_findings"), 2+len(brokenRuntimes(t, "Shows")); n != want {
+		t.Errorf("Shows total_findings = %d, want %d: The Expanse's path, Breaking Bad's repeated title and the runtimes", n, want)
 	}
 	// and each clean row is the audit's own count, which TestAuditAllMatchesEachAudit
 	// checks for the other libraries
@@ -1124,7 +1186,7 @@ func TestAuditAll(t *testing.T) {
 		"audit_duplicate_episodes":        0,
 		"audit_duplicate_series":          1,
 		"audit_disc_folders":              0,
-		"audit_runtime":                   2, // .hack//Liminality's short one, and Deep Space Nine's broken duration
+		"audit_runtime":                   len(brokenRuntimes(t, "Messy Shows")),
 		"audit_quality":                   messyEpisodesJudged() - 1,
 		"audit_missing_episodes":          3, // Andor, Deep Space Nine and The Next Generation
 		"audit_spelling":                  1,

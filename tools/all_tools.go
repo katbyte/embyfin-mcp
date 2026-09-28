@@ -731,13 +731,17 @@ func daysCutoff(days int) time.Time {
 	return time.Now().AddDate(0, 0, -days)
 }
 
-// afterCutoff reports whether an RFC3339-ish server timestamp is at or after
-// the cutoff. Unparseable or empty timestamps count as before it.
-func afterCutoff(stamp string, cutoff time.Time) bool {
-	t, err := time.Parse(time.RFC3339, stamp)
+// afterCutoff reports whether a server timestamp (RFC3339) is at or after
+// the cutoff. An item with none is dated nothing, so before it; one that
+// can't be read is an error, since either answer would be a guess.
+func afterCutoff(it *embyfin.Item, cutoff time.Time) (bool, error) {
+	if it.DateCreated == "" {
+		return false, nil
+	}
+	t, err := time.Parse(time.RFC3339, it.DateCreated)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("the server says %s (id %s) was added %q, which can't be read as a time", it.Name, it.ID, it.DateCreated)
 	}
 
-	return !t.Before(cutoff)
+	return !t.Before(cutoff), nil
 }

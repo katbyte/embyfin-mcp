@@ -79,7 +79,10 @@ func TestEmbyShows(t *testing.T) {
 		if _, err := embyc.PostUsersByUserIdPlayedItemsById(ctx, adminID, first, emby.PostUsersByUserIdPlayedItemsByIdOperationOptions{}); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { _, _ = embyc.DeleteUsersByUserIdPlayedItemsById(context.WithoutCancel(ctx), adminID, first) })
+		undoLater(t, "unmarking "+first+" played", func() error {
+			_, err := embyc.DeleteUsersByUserIdPlayedItemsById(context.WithoutCancel(ctx), adminID, first)
+			return err
+		})
 
 		// Emby 4.10's default next-up mode answers nothing for an episode
 		// marked played through the API; the legacy per-series mode is

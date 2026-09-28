@@ -1056,7 +1056,7 @@ func registerAuditAll(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_all",
 		Description: "Run every audit and report only the counts, so one call says where a library needs work; start here, then call the audit whose count is not zero for its worklist. " +
-			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_provider asks the provider one film at a time and is paged, and audit_anime_ids reads the Anime-Lists file. " +
+			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_provider asks the provider about each film and each series and is paged, and audit_anime_ids reads the Anime-Lists file. " +
 			"In a music library the audits that apply to music (missing covers and spellings) count its albums, and the rest are skipped as having nothing there to read; over every library, or a mixed one, those two count albums beside films and series. audit_whitespace reads music as it reads the rest, and its row leaves out the file names, which are one row an item, and says how many there are. A library of a kind no audit reads (home videos, music videos, books, photos) has every row skipped as not checked, and over every library each such library is named in libraries_not_checked. A row counted over other types than the audit's default names them in types, and one counted over some of the places an audit reads names them in where, to pass to the audit for its worklist. " +
 			"A row marked partial counted only part of what its audit checks - files with no media facts, shows whose run is not known (the missing-episodes row does not ask TMDB, so it sees only gaps between files unless the server keeps records) - and its note says what was left out: a small count there is not a clean result. " +
 			"Every row that ran says how long it took (took_s). An audit that fails does not end the call: its row says failed with the error, the others still count, and failed lists them - total_findings is then short by whatever they would have found, so run a failed one on its own.",
@@ -1136,7 +1136,7 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 	spaces := func() (auditAllRow, error) { return whitespaceAllRow(ctx, client, library) }
 	later := func() {
 		skip("audit_language", "needs a language to ask about")
-		skip("audit_provider", "asks the provider one film at a time and is paged: run it on its own")
+		skip("audit_provider", "asks the provider about each film and each series and is paged: run it on its own")
 		skip("audit_anime_ids", "reads the Anime-Lists file from the web: run it on its own")
 	}
 	if music {
@@ -1189,11 +1189,11 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 		if folder != nil {
 			parent = folder.ItemID
 		}
-		eps, err := auditEpisodeRuntimes(ctx, client, parent, runtimeIn{TolerancePct: defaultRuntimeTolerancePct, Limit: 1})
+		runtimes, err := auditRuntimes(ctx, client, parent, 1)
 
 		return auditAllRow{
-			Findings: eps.Found, Scanned: eps.Scanned, Partial: eps.Unprobed > 0, changed: eps.Note,
-			Note: fmt.Sprintf("episodes against what their season typically runs, and durations too long to be a runtime; %d episode files the server holds no runtime for (never probed) are counted in items_scanned and not judged", eps.Unprobed),
+			Findings: runtimes.Found, Scanned: runtimes.Scanned, Partial: runtimes.Unprobed > 0, changed: runtimes.Note,
+			Note: fmt.Sprintf("films and episodes too short (under %d minutes) or too long (%d hours or more) to be one; files the server holds no runtime for (never probed), counted in items_scanned and not judged: %d", shortestRuntimeS/60, absurdRuntimeS/3600, runtimes.Unprobed),
 		}, err
 	})
 	run("audit_quality", func() (auditAllRow, error) {
@@ -1269,25 +1269,38 @@ func spellingRow(ctx context.Context, client *embyfin.Client, library string, fo
 
 // runtime audit -----------------------------------------------------------
 
+// The runtime audit reports only a length no film or episode can have: one
+// so short it is a broken or cut-off file, or one so long it is broken
+// duration metadata. It judges nothing against the season or the library
+// around it, which runs as its files run and says nothing true about any one
+// of them: a length is judged against TMDB's for that film or episode, in
+// audit_provider, or not at all.
+
 const (
+	// shortestRuntimeS is the length under which a file is no film and no
+	// episode: a download cut off, a sample, a broken file
+	shortestRuntimeS = 2 * 60
+	// absurdRuntimeS is where a runtime stops being long and becomes broken
+	// metadata: an "episode" or a film that runs for half a day or weeks
+	absurdRuntimeS = 12 * 60 * 60
+
 	defaultRuntimeTolerancePct = 20
 	minRuntimeDiffMinutes      = 2
 	defaultTMDBLookups         = 250
 )
 
 type runtimeIn struct {
-	Library      string `json:"library,omitempty"           jsonschema:"restrict to one library by name or id"`
-	TolerancePct int    `json:"tolerance_percent,omitempty" jsonschema:"flag when the file runtime differs from the season's median by more than this percent, default 20"`
-	Limit        int    `json:"limit,omitempty"             jsonschema:"maximum findings to return, default 100"`
+	Library string `json:"library,omitempty" jsonschema:"restrict to one library by name or id"`
+	Limit   int    `json:"limit,omitempty"   jsonschema:"maximum findings to return, default 100"`
 }
 
-// runtimeOut is the runtime audit's worklist, and how many of the episodes it
+// runtimeOut is the runtime audit's worklist, and how many of the files it
 // read it could not judge.
 type runtimeOut struct {
 	auditOut
-	// counted in items_scanned and judged by nothing: left unsaid, a season
-	// of never-probed files read as a season with nothing wrong in it
-	Unprobed int `json:"unprobed" jsonschema:"episode files the server holds no runtime for (never probed, an import cut short or a scan that stopped): counted in items_scanned, but with no runtime to compare they are not judged, so none of them is known to be right"`
+	// counted in items_scanned and judged by nothing: left unsaid, a library
+	// of never-probed files read as one with nothing wrong in it
+	Unprobed int `json:"unprobed" jsonschema:"files the server holds no runtime for (never probed, an import cut short or a scan that stopped): counted in items_scanned, but with no runtime they are not judged, so none of them is known to be right"`
 }
 
 func registerRuntimeAudit(r *registry) {
@@ -1295,13 +1308,10 @@ func registerRuntimeAudit(r *registry) {
 
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_runtime",
-		Description: "Find episodes whose runtime disagrees with their season's: truncated downloads, wrong files, or wrong matches, each compared to what its season typically runs (needs 3+ episodes), with no external data. " +
-			"What a season typically runs is its largest group of like runtimes, not the median of them all, and a file under half of that is named as far shorter than the rest: an incomplete or wrong file. A season split between two lengths - a second group of two files or more holding over a quarter of it (previews beside whole episodes, double episodes) - is one finding naming both lengths and which episodes run each, and neither is judged by the other; a file running neither, or holding several episodes, is judged by the nearer on a row of its own. " +
-			fmt.Sprintf("A duration too long to be any episode's (%d hours or more) is broken metadata and reported wherever it is, whatever the season holds. A show's extras, which Emby 4.10 holds as episodes when they sit in a season's Extras folder, are left out, and so are the server's records of episodes it has no file for. Files the server holds no runtime for are counted in unprobed and judged by nothing. A film's runtime against its provider's is audit_provider.", absurdRuntimeS/3600),
+		Description: fmt.Sprintf("Find films and episodes whose runtime no film or episode can have: under %d minutes, a download cut off, a sample or a broken file; or %d hours or more, broken duration metadata. ", shortestRuntimeS/60, absurdRuntimeS/3600) +
+			"Nothing is judged against its season or its library, whose other files say nothing true about one file's length: a length against TMDB's for that film or episode is audit_provider. " +
+			"A show's extras, which Emby 4.10 holds as episodes when they sit in a season's Extras folder, are left out, and so are the server's records of episodes it has no file for. Files the server holds no runtime for are counted in unprobed and judged by nothing.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in runtimeIn) (*mcp.CallToolResult, runtimeOut, error) {
-		if in.TolerancePct <= 0 {
-			in.TolerancePct = defaultRuntimeTolerancePct
-		}
 		if in.Limit <= 0 {
 			in.Limit = 100
 		}
@@ -1314,61 +1324,10 @@ func registerRuntimeAudit(r *registry) {
 		if folder != nil {
 			parent = folder.ItemID
 		}
-		out, err := auditEpisodeRuntimes(ctx, client, parent, in)
+		out, err := auditRuntimes(ctx, client, parent, in.Limit)
 
 		return nil, out, err
 	})
-}
-
-// runtimeGroup is a run of like runtimes in a season: the median of them,
-// how many files run so, and the shortest and longest of them.
-type runtimeGroup struct {
-	median, files int
-	lo, hi        int
-}
-
-// holds says whether a runtime is one of the group's.
-func (g runtimeGroup) holds(minutes int) bool {
-	return minutes >= g.lo && minutes <= g.hi
-}
-
-// typicalRuntime is what a season's single-episode files run: the median of
-// its largest group of like runtimes, not the median of them all. A season
-// whose files were mostly minute-long previews beside a few whole episodes
-// had a median of a minute, and the whole episodes were reported as "3200%
-// off". Runtimes group when each is within a quarter of the one before.
-//
-// other is set when a second group of two files or more holds more than a
-// quarter of the season too: then the season is split between two lengths,
-// and which of them is right is not for a runtime to say - half the files
-// are previews, or double episodes, or another show's - so neither is judged
-// by the other.
-func typicalRuntime(mins []int) (typical runtimeGroup, other *runtimeGroup) {
-	sorted := slices.Sorted(slices.Values(mins))
-	var groups []runtimeGroup
-	start := 0
-	for i := 1; i <= len(sorted); i++ {
-		if i < len(sorted) && (sorted[i]*4 <= sorted[i-1]*5 || sorted[i]-sorted[i-1] < minRuntimeDiffMinutes) {
-			continue
-		}
-		groups = append(groups, runtimeGroup{median: sorted[start+(i-1-start)/2], files: i - start, lo: sorted[start], hi: sorted[i-1]})
-		start = i
-	}
-	// the largest group; of two the same size, the longer, which a group of
-	// cut files is not
-	best := 0
-	for i := range groups {
-		if groups[i].files >= groups[best].files {
-			best = i
-		}
-	}
-	for i := range groups {
-		if i != best && groups[i].files >= 2 && groups[i].files*4 > len(sorted) {
-			return groups[best], &groups[i]
-		}
-	}
-
-	return groups[best], nil
 }
 
 // runtimeOff reports whether actual differs from expected by more than the
@@ -1386,127 +1345,34 @@ func runtimeOff(actual, expected, tolerancePct int) (int, bool) {
 	return pct, pct > tolerancePct
 }
 
-// absurdRuntimeMinutes is where a runtime stops being a long episode and
-// becomes broken metadata: an "episode" that runs for weeks is a broken
-// duration, and anything computed from it is arithmetic on nonsense.
-const absurdRuntimeMinutes = absurdRuntimeS / 60
-
-// brokenRuntimeRank sorts broken durations above every percentage, because
-// they are the clearest problem in the list rather than the largest number.
-const brokenRuntimeRank = 1 << 30
-
-// runtimeEp is an episode file as the runtime audit judges it.
-type runtimeEp struct {
-	id, name, series, filePath string
-	// code is the episode's numbers, S01E02, and episode its number alone,
-	// E02, with ?? for a number the server does not hold
-	code, episode string
-	minutes, span int
-}
-
-// splitSeason is the finding for a season split between two lengths (see
-// typicalRuntime): both lengths, and which episodes run each, judged by
-// neither. Only files inside a length are listed under it; the rest - a
-// file far from both, a file holding several episodes - are judged by the
-// nearer length on rows of their own (see judgeRuntime).
-func splitSeason(seriesID string, season int, eps []runtimeEp, group, other runtimeGroup) auditFinding {
-	var ofGroup, ofOther []string
-	folder := ""
-	for _, e := range eps {
-		if folder == "" {
-			folder = parentDir(e.filePath)
-		}
-		for folder != "" && !within(e.filePath, folder) {
-			folder = parentDir(folder)
-		}
-		if e.span != 1 {
-			continue
-		}
-		switch code := e.episode; {
-		case group.holds(e.minutes):
-			ofGroup = append(ofGroup, code)
-		case other.holds(e.minutes):
-			ofOther = append(ofOther, code)
-		}
-	}
-	slices.Sort(ofGroup)
-	slices.Sort(ofOther)
-
-	return auditFinding{
-		ID: seriesID, Name: fmt.Sprintf("%s season %d", eps[0].series, season), Path: folder,
-		Detail: fmt.Sprintf("the season is split between two lengths: %d files run about %d min (%s) and %d about %d min (%s). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files",
-			group.files, group.median, firstFew(ofGroup), other.files, other.median, firstFew(ofOther)),
-	}
-}
-
-// nearer is the one of a split season's two lengths an episode file is
-// judged by: the one its runtime an episode is closest to.
-func nearer(e runtimeEp, group, other runtimeGroup) (by, besides runtimeGroup) {
-	each := e.minutes / e.span
-	if max(each-other.median, other.median-each) < max(each-group.median, group.median-each) {
-		return other, group
-	}
-
-	return group, other
-}
-
-// judgeRuntime says whether an episode file runs far from what its season
-// runs, typical minutes an episode, and how: a file holding several episodes
-// is expected to run that many times as long. besides is the other length of
-// a season split between two (see typicalRuntime), 0 when it is not.
-func judgeRuntime(e runtimeEp, typical, besides, tolerancePct int) (detail string, pct int, off bool) {
-	expected := typical * e.span
-	pct, off = runtimeOff(e.minutes, expected, tolerancePct)
-	if !off {
-		return "", 0, false
-	}
-	// under half of what the rest run is no cut of the episode: a download
-	// stopped short, a preview, another file
-	short := e.minutes*2 < expected
-	if besides > 0 {
-		switch {
-		case e.span > 1 && short:
-			return fmt.Sprintf("%d min for %d episodes, far shorter than the nearer of the two lengths its season runs, %d min each (%d expected; the other %d): an incomplete or wrong file", e.minutes, e.span, typical, expected, besides), pct, true
-		case e.span > 1:
-			return fmt.Sprintf("%d min for %d episodes, where the nearer of the two lengths its season runs is %d min each, %d expected (the other %d; %d%% off)", e.minutes, e.span, typical, expected, besides, pct), pct, true
-		case short:
-			return fmt.Sprintf("%d min, far shorter than the nearer of the two lengths its season runs (%d min; the other %d): an incomplete or wrong file", e.minutes, typical, besides), pct, true
-		}
-
-		return fmt.Sprintf("%d min, where the nearer of the two lengths its season runs is %d min (the other %d; %d%% off)", e.minutes, typical, besides, pct), pct, true
-	}
+// runtimeSaid is a length as a finding says it: seconds under two minutes,
+// where a minute rounded off is half the length, minutes under an hour, and
+// hours and minutes past that.
+func runtimeSaid(seconds int) string {
 	switch {
-	case e.span > 1 && short:
-		return fmt.Sprintf("%d min for %d episodes, far shorter than the rest of its season, which run %d min each (%d expected): an incomplete or wrong file", e.minutes, e.span, typical, expected), pct, true
-	case e.span > 1:
-		return fmt.Sprintf("%d min for %d episodes, where its season runs %d min each, %d expected (%d%% off)", e.minutes, e.span, typical, expected, pct), pct, true
-	case short:
-		return fmt.Sprintf("%d min, far shorter than the rest of its season, which run %d min: an incomplete or wrong file", e.minutes, typical), pct, true
+	case seconds < shortestRuntimeS:
+		return strconv.Itoa(seconds) + " s"
+	case seconds < 60*60:
+		return fmt.Sprintf("%d min", seconds/60)
 	}
 
-	return fmt.Sprintf("%d min, where its season runs %d min (%d%% off)", e.minutes, typical, pct), pct, true
+	return fmt.Sprintf("%d h %d min", seconds/3600, seconds%3600/60)
 }
 
-func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent string, in runtimeIn) (runtimeOut, error) {
-	type ep = runtimeEp
-	type seasonKey struct {
-		series string
-		season int
-	}
-
+// auditRuntimes sweeps the films and episodes with a file and reports those
+// whose runtime is too short or too long to be one: the broken long first,
+// then the shortest.
+func auditRuntimes(ctx context.Context, client *embyfin.Client, parent string, limit int) (runtimeOut, error) {
 	type scored struct {
 		finding auditFinding
-		pct     int
+		seconds int
 	}
-	var findings []scored
-	name := func(e ep) string { return fmt.Sprintf("%s %s %s", e.series, e.code, e.name) }
-
-	seasons := map[seasonKey][]ep{}
+	var long, short []scored
 	out := runtimeOut{Findings: []auditFinding{}}
-	swept, sweepErr := client.ReadAll(ctx, embyfin.SearchOptions{
-		IncludeItemTypes: "Episode",
+	swept, err := client.ReadAll(ctx, embyfin.SearchOptions{
+		IncludeItemTypes: "Movie,Episode",
 		ParentID:         parent,
-		Fields:           "Path",
+		Fields:           "Path,ProductionYear",
 	}, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
@@ -1522,96 +1388,39 @@ func auditEpisodeRuntimes(ctx context.Context, client *embyfin.Client, parent st
 
 				continue
 			}
-			e := ep{
-				id: it.ID, name: it.Name, series: it.SeriesName, filePath: it.Path,
-				code: episodeCode(it), episode: "E" + numberText(it.IndexNumber), minutes: it.RuntimeMinutes(),
-				// a file the server recorded as holding several episodes is
-				// expected to run that many times the median, not once
-				span: max(len(episodeSpan(it)), 1),
+			seconds := int(it.RunTimeTicks / ticksPerSecond)
+			f := auditFinding{ID: it.ID, Name: it.Name, Year: it.ProductionYear, Path: it.Path}
+			kind := "film"
+			if it.Type == typeEpisode {
+				f.Name, f.Year, kind = fmt.Sprintf("%s %s %s", it.SeriesName, episodeCode(it), it.Name), 0, "episode"
 			}
-			// a duration this long is broken metadata rather than a long
-			// episode, and needs nothing to compare it to: it is reported
-			// wherever it is, a season of two, a season where every file is
-			// broken, the specials. A percentage off a median would dress it
-			// up as a measurement.
-			if e.minutes >= absurdRuntimeMinutes {
-				findings = append(findings, scored{pct: brokenRuntimeRank, finding: auditFinding{
-					ID: e.id, Name: name(e), Path: e.filePath,
-					Detail: fmt.Sprintf("%d min: not a runtime, the file's duration metadata is broken", e.minutes),
-				}})
+			switch {
+			case seconds >= absurdRuntimeS:
+				f.Detail = runtimeSaid(seconds) + ": not a runtime, the file's duration metadata is broken"
+				long = append(long, scored{f, seconds})
+			case seconds < shortestRuntimeS:
+				f.Detail = fmt.Sprintf("%s: too short to be the %s, an incomplete, sample or broken file", runtimeSaid(seconds), kind)
+				short = append(short, scored{f, seconds})
 			}
-			// specials (season 0) have no typical length, so there is nothing
-			// to compare to, and an episode with no season number has no
-			// season to compare with
-			if it.SeriesID == "" || it.ParentIndexNumber == nil || *it.ParentIndexNumber == 0 {
-				continue
-			}
-			k := seasonKey{it.SeriesID, *it.ParentIndexNumber}
-			seasons[k] = append(seasons[k], e)
 		}
+
 		return true
 	})
-	if sweepErr != nil {
-		return runtimeOut{}, sweepErr
+	if err != nil {
+		return runtimeOut{}, err
 	}
 	out.Note = swept.Changed()
 
-	for key, eps := range seasons {
-		if len(eps) < 3 {
-			continue
-		}
-		// the median comes from the single-episode files: a season where
-		// several files hold two episodes would otherwise take the double
-		// length as normal and report the honest singles as short
-		mins := make([]int, 0, len(eps))
-		for _, e := range eps {
-			if e.span == 1 && e.minutes < absurdRuntimeMinutes {
-				mins = append(mins, e.minutes)
-			}
-		}
-		if len(mins) == 0 {
-			continue
-		}
-		group, other := typicalRuntime(mins)
-		if other != nil {
-			findings = append(findings, scored{pct: brokenRuntimeRank - 1, finding: splitSeason(key.series, key.season, eps, group, *other)})
-		}
-
-		for _, e := range eps {
-			if e.minutes >= absurdRuntimeMinutes {
-				continue // reported as broken already
-			}
-			typical, besides := group.median, 0
-			if other != nil {
-				// a file inside one of a split season's lengths is that
-				// length's, judged by neither; the rest by the nearer
-				if e.span == 1 && (group.holds(e.minutes) || other.holds(e.minutes)) {
-					continue
-				}
-				by, rest := nearer(e, group, *other)
-				typical, besides = by.median, rest.median
-			}
-			detail, pct, off := judgeRuntime(e, typical, besides, in.TolerancePct)
-			if !off {
-				continue
-			}
-			findings = append(findings, scored{pct: pct, finding: auditFinding{
-				ID: e.id, Name: name(e), Path: e.filePath, Detail: detail,
-			}})
-		}
+	// the broken durations first, then the shortest files; the name and id
+	// settle ties, so a limit keeps the same ones on every call
+	byName := func(a, b scored) int {
+		return cmp.Or(strings.Compare(a.finding.Name, b.finding.Name), strings.Compare(a.finding.ID, b.finding.ID))
 	}
-	// worst deviations first so a capped worklist starts with the clearest
-	// problems; the id settles two entries of one name, so a limit keeps the
-	// same ones on every call
-	slices.SortFunc(findings, func(a, b scored) int {
-		return cmp.Or(cmp.Compare(b.pct, a.pct), strings.Compare(a.finding.Name, b.finding.Name), strings.Compare(a.finding.ID, b.finding.ID))
-	})
-
-	out.Found = len(findings)
-	if len(findings) > in.Limit {
-		findings = findings[:in.Limit]
-	}
-	for _, f := range findings {
+	slices.SortFunc(long, func(a, b scored) int { return cmp.Or(cmp.Compare(b.seconds, a.seconds), byName(a, b)) })
+	slices.SortFunc(short, func(a, b scored) int { return cmp.Or(cmp.Compare(a.seconds, b.seconds), byName(a, b)) })
+	all := slices.Concat(long, short)
+	out.Found = len(all)
+	for _, f := range all[:min(len(all), limit)] {
 		out.Findings = append(out.Findings, f.finding)
 	}
 

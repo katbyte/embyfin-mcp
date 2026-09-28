@@ -24,7 +24,7 @@ func TestJFPlaylists(t *testing.T) {
 		t.Fatal("CreatePlaylist returned no id")
 	}
 	id := created.Id
-	t.Cleanup(func() { _, _ = jfc.DeleteItem(context.WithoutCancel(ctx), id) })
+	removeLater(t, "deleting "+id, func() error { _, err := jfc.DeleteItem(context.WithoutCancel(ctx), id); return err })
 
 	// the playlist's own record and its share list want a user behind the
 	// request: with an API key the server answers 400 ("Guid can't be

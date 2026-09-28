@@ -277,7 +277,7 @@ func TestLibraryItemsSorts(t *testing.T) {
 	first, second := findItem(t, "Movies", "Movie", "Princess Mononoke"), findItem(t, "Movies", "Movie", "Dune")
 	t.Cleanup(func() {
 		for _, id := range []string{first, second} {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
+			undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
 		}
 	})
 	call(t, "item_set_state", map[string]any{"id": first, "user": "alice", "watched": true})
@@ -306,7 +306,7 @@ func TestLibraryItemsInProgress(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "position_s": 30})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
+		undo(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
 	})
 
 	out := call(t, "library_items", map[string]any{"library": "Movies", "user": "alice", "watched": "in_progress"})
@@ -589,8 +589,8 @@ func TestLibraryLifecycle(t *testing.T) {
 
 	name := "Lifecycle"
 	t.Cleanup(func() {
-		_, _ = invoke("library_delete", map[string]any{"library": name, "confirm": true})
-		_ = waitForScan() // Jellyfin's removal starts a library scan
+		removeLibraryIfThere(t, name)
+		settleScan(t, waitForScan) // Jellyfin's removal starts a library scan
 	})
 	call(t, "library_create", map[string]any{"name": name, "type": "movies", "paths": []any{"/media/lifecycle-a"}, "scan": true})
 
@@ -674,8 +674,8 @@ func TestLibraryCreateAndDelete(t *testing.T) {
 		t.Errorf("library_create returned no id: %v", out)
 	}
 	t.Cleanup(func() {
-		_, _ = invoke("library_delete", map[string]any{"library": "Scratch", "confirm": true})
-		_ = waitForScan() // Jellyfin's removal starts a library scan
+		removeLibraryIfThere(t, "Scratch")
+		settleScan(t, waitForScan) // Jellyfin's removal starts a library scan
 	})
 
 	list := call(t, "library_list", nil)
@@ -707,7 +707,7 @@ func TestLibraryCreateAndDelete(t *testing.T) {
 	for _, row := range rows(t, call(t, "library_list", nil)["libraries"], "libraries") {
 		if name := str(row["name"]); strings.EqualFold(name, "scratch") && name != "Scratch" || strings.HasPrefix(name, "SCRATCH") {
 			t.Errorf("the refused create made %s", name)
-			_, _ = invoke("library_delete", map[string]any{"library": str(row["id"]), "confirm": true})
+			undo(t, "library_delete", map[string]any{"library": str(row["id"]), "confirm": true})
 		}
 	}
 
@@ -753,8 +753,8 @@ func TestLibraryCreateKinds(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			name := "Zzyzx " + kind
 			t.Cleanup(func() {
-				_, _ = invoke("library_delete", map[string]any{"library": name, "confirm": true})
-				_ = waitForScan()
+				removeLibraryIfThere(t, name)
+				settleScan(t, waitForScan)
 			})
 			out := call(t, "library_create", map[string]any{"name": name, "type": kind, "paths": []any{"/media/kinds-empty"}, "save_nfo": false})
 			if str(out["collection_type"]) != want || boolOf(out["saves_nfo"]) || str(out["id"]) == "" {
@@ -780,7 +780,7 @@ func TestLibraryCreateKinds(t *testing.T) {
 	}
 	if stillListed(t, "library_list", "libraries", missing) {
 		t.Errorf("the refused create made %s", missing)
-		_, _ = invoke("library_delete", map[string]any{"library": missing, "confirm": true})
+		undo(t, "library_delete", map[string]any{"library": missing, "confirm": true})
 	}
 }
 
@@ -795,8 +795,8 @@ func TestLibraryEditRefusals(t *testing.T) {
 	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), "edit-empty")) })
 	const name = "Zzyzx Edits"
 	t.Cleanup(func() {
-		_, _ = invoke("library_delete", map[string]any{"library": name, "confirm": true})
-		_ = waitForScan()
+		removeLibraryIfThere(t, name)
+		settleScan(t, waitForScan)
 	})
 	id := str(call(t, "library_create", map[string]any{"name": name, "type": "movies", "paths": []any{"/media/edit-empty"}, "save_nfo": false})["id"])
 
@@ -853,8 +853,8 @@ func TestLibraryNfoSaving(t *testing.T) {
 	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(dataDir(), "nfo-saving")) })
 	const name = "Nfo Saving"
 	t.Cleanup(func() {
-		_, _ = invoke("library_delete", map[string]any{"library": name, "confirm": true})
-		_ = waitForScan() // Jellyfin's removal starts a library scan
+		removeLibraryIfThere(t, name)
+		settleScan(t, waitForScan) // Jellyfin's removal starts a library scan
 	})
 
 	if out := call(t, "library_create", map[string]any{"name": name, "type": "movies", "paths": []any{"/media/nfo-saving"}, "scan": true, "save_nfo": true}); !boolOf(out["saves_nfo"]) {

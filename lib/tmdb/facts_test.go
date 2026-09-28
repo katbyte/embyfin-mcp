@@ -280,7 +280,7 @@ func TestMovie(t *testing.T) {
 	})
 
 	m, err := c.Movie(t.Context(), "348")
-	if err != nil || m.ID != 348 || m.Title != "Alien" || m.Year() != 1979 || m.IMDbID != "tt0078748" {
+	if err != nil || m.ID != 348 || m.Title != "Alien" || m.Year != 1979 || m.IMDbID != "tt0078748" {
 		t.Fatalf("movie = %+v, %v", m, err)
 	}
 	if minutes, err := c.MovieRuntime(t.Context(), "348"); err != nil || minutes != 117 {
@@ -291,7 +291,7 @@ func TestMovie(t *testing.T) {
 	}
 
 	// an id TMDB does not know is a film with no id, not an error
-	if m, err := c.Movie(t.Context(), "999999"); err != nil || m.ID != 0 || m.Year() != 0 {
+	if m, err := c.Movie(t.Context(), "999999"); err != nil || m.ID != 0 || m.Year != 0 {
 		t.Errorf("unknown film = %+v, %v", m, err)
 	}
 }
@@ -363,7 +363,7 @@ func TestMovieDoesNotRememberAFailure(t *testing.T) {
 		t.Fatalf("the first ask = %v, want the 502 reported", err)
 	}
 	m, err := c.Movie(t.Context(), "1")
-	if err != nil || m.ID != 1 || m.Title != "Zzyzx" || m.Year() != 2001 || m.Runtime != 90 {
+	if err != nil || m.ID != 1 || m.Title != "Zzyzx" || m.Year != 2001 || m.Runtime != 90 {
 		t.Fatalf("the second ask = %+v, %v, want the film", m, err)
 	}
 	if n := int(atomic.LoadInt32(calls)); n != tries+1 {
@@ -447,5 +447,42 @@ func TestSeriesSpecials(t *testing.T) {
 	}
 	if n := atomic.LoadInt32(calls); n != 2 {
 		t.Errorf("TMDB was asked %d times for a series with no season 0, want 2", n)
+	}
+}
+
+// A date TMDB answers any way but as a day is an error naming what carried
+// it: read as no date, or as the year its first digits make, it would date
+// a film or an episode wrongly without a word.
+func TestDatesThatCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	for date, want := range map[string]int{"": 0, "1979-05-25": 1979} {
+		if got, err := DateYear("movie 348", date); err != nil || got != want {
+			t.Errorf("DateYear(%q) = %d, %v, want %d", date, got, err, want)
+		}
+	}
+	for _, date := range []string{"1979", "25/05/1979", "soon", "1979-13-01"} {
+		if _, err := DateYear("movie 348", date); err == nil || !strings.Contains(err.Error(), "movie 348") {
+			t.Errorf("DateYear(%q) = %v, want an error naming the film", date, err)
+		}
+	}
+
+	c, _ := newTMDB(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/3/movie/679":
+			_, _ = w.Write([]byte(`{"id":679,"title":"Aliens","release_date":"July 1986"}`))
+		case "/3/tv/1396":
+			_, _ = w.Write([]byte(`{"id":1396,"name":"Breaking Bad","seasons":[{"season_number":1,"episode_count":1}]}`))
+		case "/3/tv/1396/season/1":
+			_, _ = w.Write([]byte(`{"season_number":1,"episodes":[{"season_number":1,"episode_number":1,"name":"Pilot","air_date":"20-01-2008"}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	if m, err := c.Movie(t.Context(), "679"); err == nil || !strings.Contains(err.Error(), "movie 679") {
+		t.Errorf("a film dated July 1986 = %+v, %v, want an error", m, err)
+	}
+	if run, err := c.SeriesEpisodes(t.Context(), "1396"); err == nil || !strings.Contains(err.Error(), "season 1 episode 1") {
+		t.Errorf("an episode dated 20-01-2008 = %v, %v, want an error", run, err)
 	}
 }

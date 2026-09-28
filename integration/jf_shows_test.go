@@ -81,8 +81,9 @@ func TestJFShows(t *testing.T) {
 		if _, err := jfc.MarkPlayedItem(ctx, first, jf.MarkPlayedItemOperationOptions{UserId: adminID}); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() {
-			_, _ = jfc.MarkUnplayedItem(context.WithoutCancel(ctx), first, jf.MarkUnplayedItemOperationOptions{UserId: adminID})
+		undoLater(t, "unmarking "+first+" played", func() error {
+			_, err := jfc.MarkUnplayedItem(context.WithoutCancel(ctx), first, jf.MarkUnplayedItemOperationOptions{UserId: adminID})
+			return err
 		})
 
 		next := must(jfc.GetNextUp(ctx, jf.GetNextUpOperationOptions{UserId: adminID, SeriesId: sev.Id, Fields: []jf.ItemFields{jf.ItemFieldsOverview}})).Model

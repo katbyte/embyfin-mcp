@@ -278,7 +278,7 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for _, id := range sirens {
-			_, _ = invoke("item_edit", map[string]any{"ids": []any{id}, "genres": []any{"Electronica"}})
+			undo(t, "item_edit", map[string]any{"ids": []any{id}, "genres": []any{"Electronica"}})
 		}
 	})
 	paired := func() bool {

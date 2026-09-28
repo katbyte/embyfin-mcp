@@ -138,7 +138,7 @@ func TestLibraryExport(t *testing.T) {
 	start := time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339)
 	call(t, "item_edit", map[string]any{"ids": []any{pilot}, "add_tags": []any{"zzyzx-export"}})
 	t.Cleanup(func() {
-		_, _ = invoke("item_edit", map[string]any{"ids": []any{pilot}, "remove_tags": []any{"zzyzx-export"}})
+		undo(t, "item_edit", map[string]any{"ids": []any{pilot}, "remove_tags": []any{"zzyzx-export"}})
 	})
 	since := filepath.Join(dir, "since.jsonl")
 	out = call(t, "library_export", map[string]any{"path": since, "library": "Shows", "saved_since": start})

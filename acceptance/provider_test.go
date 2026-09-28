@@ -174,7 +174,7 @@ func TestItemArtwork(t *testing.T) {
 			w, h, _ := primary(id)
 			t.Errorf("Blade Runner's poster is %dx%d, want the fixture's 200x300", w, h)
 		}
-		_ = waitForScan()
+		settleScan(t, waitForScan)
 	}
 	if w, h, ok := primary(id); !ok || w != 200 || h != 300 {
 		t.Logf("Blade Runner's poster is %dx%d (held: %v): putting the fixture's back first", w, h, ok)

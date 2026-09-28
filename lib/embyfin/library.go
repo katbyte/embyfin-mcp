@@ -533,8 +533,11 @@ func (c *Client) ListFolder(ctx context.Context, path string) (entries []FolderE
 	// a folder that is not there is answered with an error whose status
 	// differs by server; whether the path is there settles it
 	exists, perr := c.PathExists(ctx, path)
-	if perr != nil || exists {
-		return nil, exists, err
+	if perr != nil {
+		return nil, false, fmt.Errorf("%w; and asking whether %s is there failed too: %w", err, path, perr)
+	}
+	if exists {
+		return nil, true, err
 	}
 
 	return nil, false, nil

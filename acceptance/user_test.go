@@ -56,7 +56,7 @@ func TestWatchState(t *testing.T) {
 	if w, _ := out["watched"].(bool); !w || out["favourite"] != nil || out["position_s"] != nil {
 		t.Errorf("item_set_state = %v", out)
 	}
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": e1, "user": "alice", "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": e1, "user": "alice", "watched": false})
 
 	// per-user state on the item
 	last := call(t, "item_last_watched", map[string]any{"id": e1})
@@ -149,7 +149,7 @@ func TestFavourites(t *testing.T) {
 		t.Errorf("item_set_state = %v", out)
 	}
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false})
+		undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false})
 	})
 
 	// the favourites are library_items in the user's view. Emby keys watch
@@ -200,7 +200,7 @@ func TestHistory(t *testing.T) {
 	blade := findItem(t, "Movies", "Movie", "Blade Runner")
 	t.Cleanup(func() {
 		for _, id := range []string{aliens, blade} {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
+			undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
 		}
 	})
 	var out map[string]any
@@ -282,7 +282,7 @@ func TestHistory(t *testing.T) {
 	mononoke := findItem(t, "Movies", "Movie", "Princess Mononoke")
 	call(t, "item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": true})
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": false})
+		undo(t, "item_set_state", map[string]any{"id": mononoke, "user": "alice", "watched": false})
 	})
 	hist = call(t, "item_watch_history", map[string]any{"id": mononoke, "days": 7})
 	if str(hist["item"]) != "Princess Mononoke" || len(strs(t, hist["entries"], "entries")) != 0 || hist["complete"] != true {
@@ -300,7 +300,7 @@ func TestWatchHistoryOfATitleInsideAnother(t *testing.T) {
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	partTwo := findItem(t, "Movies", "Movie", "Dune: Part Two")
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": partTwo, "user": "alice", "watched": false})
+		undo(t, "item_set_state", map[string]any{"id": partTwo, "user": "alice", "watched": false})
 	})
 	playThrough(t, token, partTwo)
 
@@ -497,7 +497,7 @@ func TestProgress(t *testing.T) {
 		t.Errorf("item_set_state = %v", out)
 	}
 	t.Cleanup(func() {
-		_, _ = invoke("item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
+		undo(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
 	})
 	if after := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, after["in_progress"], "in_progress") != num(t, before["in_progress"], "in_progress")+1 {
 		t.Errorf("user_stats in_progress went from %v to %v, want one more", before["in_progress"], after["in_progress"])
@@ -567,7 +567,7 @@ func TestProgress(t *testing.T) {
 // five minutes, and the longest fixture runs three.)
 func TestInProgressSaysWhenPlayed(t *testing.T) {
 	film := findItem(t, "Movies", "Movie", "The Thirteenth Floor")
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": film, "user": "alice", "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
 	_, token := signInPlayer(t)
 	began := time.Now().Add(-time.Minute)
 	playThrough(t, token, film)
@@ -611,7 +611,7 @@ func TestInProgressSaysWhenPlayed(t *testing.T) {
 // servers, from the player's own report rather than a state set by hand.
 func TestAPlayStoppedPartWay(t *testing.T) {
 	film := findItem(t, "Movies", "Movie", "Limitless")
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": film, "user": "alice", "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
 	_, token := signInPlayer(t)
 	playTo(t, token, film, 10*60*10_000_000) // ten minutes in
 
@@ -654,9 +654,9 @@ func TestUserStats(t *testing.T) {
 	call(t, "item_set_state", map[string]any{"id": third, "user": "alice", "position_s": 1})
 	t.Cleanup(func() {
 		for _, id := range append(watch, third) {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
+			undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
 		}
-		_, _ = invoke("item_set_state", map[string]any{"id": mononoke, "user": "alice", "favourite": false})
+		undo(t, "item_set_state", map[string]any{"id": mononoke, "user": "alice", "favourite": false})
 	})
 
 	out := call(t, "user_stats", map[string]any{"user": "alice", "library": "Movies"})
@@ -718,7 +718,7 @@ func TestUserStatsHoursAndPlays(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for _, id := range byNumber {
-			_, _ = invoke("item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
+			undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
 		}
 	})
 	stats := func() map[string]any {
@@ -755,7 +755,7 @@ func TestUserStatsHoursAndPlays(t *testing.T) {
 // them, and nothing was ever most played there.
 func TestMostPlayedFilm(t *testing.T) {
 	film := findItem(t, "Movies", "Movie", "The Thirteenth Floor")
-	t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": film, "user": "alice", "watched": false}) })
+	putBack(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
 	_, token := signInPlayer(t)
 	playThrough(t, token, film)
 	var row map[string]any

@@ -60,11 +60,76 @@ func removeLibrary(t *testing.T, name string) {
 func putBack(t *testing.T, tool string, args map[string]any) {
 	t.Helper()
 
+	t.Cleanup(func() { undo(t, tool, args) })
+}
+
+// deleteLaterIfThere deletes what a test made once it ends, unless the test
+// deleted it itself: an answer that it is gone (gone, e.g. "no collection
+// named") is no failure. Any other is reported, as putBack does.
+func deleteLaterIfThere(t *testing.T, tool string, args map[string]any, gone string) {
+	t.Helper()
+
 	t.Cleanup(func() {
-		if err := retried(tool, args); err != nil {
-			t.Errorf("putting back with %s %v: %v", tool, args, err)
+		if _, err := invoke(tool, args); err == nil || strings.Contains(err.Error(), gone) {
+			return
 		}
+		undo(t, tool, args)
 	})
+}
+
+// undoIfThere is undo for a change to an item the test may since have
+// deleted, and its state with it: an item gone needs nothing put back, and a
+// read that can't say whether it is gone is reported.
+func undoIfThere(t *testing.T, id, tool string, args map[string]any) {
+	t.Helper()
+
+	if _, err := invoke("item_get", map[string]any{"id": id}); err != nil {
+		if !strings.Contains(err.Error(), "no item with id") {
+			t.Errorf("reading whether %s is still there: %v", id, err)
+		}
+
+		return
+	}
+	undo(t, tool, args)
+}
+
+// undo is putBack for a call made in a clean-up already under way.
+func undo(t *testing.T, tool string, args map[string]any) {
+	t.Helper()
+
+	if err := retried(tool, args); err != nil {
+		t.Errorf("putting back with %s %v: %v", tool, args, err)
+	}
+}
+
+// removeLibraryIfThere removes a library a test made, as removeLibrary does,
+// unless it is gone already: a test that deletes it itself, or stopped
+// before making it. A read that can't say is reported. It says whether the
+// library was there.
+func removeLibraryIfThere(t *testing.T, name string) bool {
+	t.Helper()
+
+	if _, err := invoke("library_get", map[string]any{"library": name}); err != nil {
+		if !strings.Contains(err.Error(), "no library named") {
+			t.Errorf("reading whether the library %s is still there: %v", name, err)
+		}
+
+		return false
+	}
+	removeLibrary(t, name)
+
+	return true
+}
+
+// settleScan waits for the scan a change started (waitForScan, or
+// waitForExpectedScan) and reports a wait that fails: the tests after would
+// start under the scan.
+func settleScan(t *testing.T, wait func() error) {
+	t.Helper()
+
+	if err := wait(); err != nil {
+		t.Errorf("waiting for the library scan: %v", err)
+	}
 }
 
 // deleteLater removes what a test created once it ends.

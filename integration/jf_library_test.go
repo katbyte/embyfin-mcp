@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/jf"
 )
 
@@ -119,7 +120,8 @@ func jfCount(ctx context.Context, parentID string, kind jf.BaseItemKind) int {
 // found by a third of the patience. The scan a library create queues does not
 // always run, and then every count stays at zero however long the wait: CI saw
 // a music library sit empty for the whole six minutes.
-func jfScanNudge(ctx context.Context) func(found int) {
+func jfScanNudge(ctx context.Context, t *testing.T) func(found int) {
+	t.Helper()
 	due, asked := time.Now().Add(scanPatience/3), false
 
 	return func(found int) {
@@ -127,7 +129,11 @@ func jfScanNudge(ctx context.Context) func(found int) {
 			return
 		}
 		asked = true
-		_, _ = jfc.RefreshLibrary(ctx)
+		// a nudge the server refuses leaves the wait to fail on the count
+		// alone, so it is said
+		if _, err := jfc.RefreshLibrary(ctx); err != nil {
+			t.Errorf("asking for the library scan again: %v", err)
+		}
 	}
 }
 
@@ -136,7 +142,7 @@ func jfScanNudge(ctx context.Context) func(found int) {
 func jfWaitForItems(ctx context.Context, t *testing.T, parentID string, l libraryFixture) {
 	t.Helper()
 
-	nudge := jfScanNudge(ctx)
+	nudge := jfScanNudge(ctx, t)
 	var last string
 	if l.CollectionType == "music" {
 		ok := poll(scanPatience, func() bool {
@@ -338,8 +344,11 @@ func TestJFVirtualFolders(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
+		// the library goes by one of the two names, as far as the test got
 		for _, n := range []string{name, renamed} {
-			_, _ = jfc.RemoveVirtualFolder(context.WithoutCancel(ctx), jf.RemoveVirtualFolderOperationOptions{Name: n, RefreshLibrary: new(false)})
+			if _, err := jfc.RemoveVirtualFolder(context.WithoutCancel(ctx), jf.RemoveVirtualFolderOperationOptions{Name: n, RefreshLibrary: new(false)}); err != nil && !client.IsNotFound(err) {
+				t.Errorf("removing %s: %v", n, err)
+			}
 		}
 	})
 

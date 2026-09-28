@@ -67,7 +67,7 @@ func TestAShowHoldingAFilmsIDs(t *testing.T) {
 			t.Errorf("audit_file_path finds %v", f)
 		}
 	}
-	if msg := callErr(t, "audit_provider", map[string]any{"library": "Messy Shows", "types": "Series"}); !strings.Contains(msg, "types must be Movie") {
+	if msg := callErr(t, "audit_provider", map[string]any{"library": "Messy Shows", "types": "Series"}); !strings.Contains(msg, "types must be among Movie, Episode") {
 		t.Errorf("audit_provider over series = %s", msg)
 	}
 	// and the film's TMDB number, looked up as a series, finds the series

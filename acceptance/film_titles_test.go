@@ -67,7 +67,7 @@ func TestAFilmInItsOwnLanguagesFolder(t *testing.T) {
 		t.Errorf("a folder in the film's own language = %v", out["findings"])
 	}
 
-	t.Cleanup(func() { _, _ = invoke("item_edit", map[string]any{"ids": []any{staged}, "year": 1997}) })
+	putBack(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1997})
 	call(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1998})
 	if out := check(); num(t, out["total_findings"], "total_findings") != 0 {
 		t.Errorf("a year one off = %v", out["findings"])

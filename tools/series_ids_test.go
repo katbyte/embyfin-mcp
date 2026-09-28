@@ -103,3 +103,28 @@ func TestOtherTitle(t *testing.T) {
 		}
 	}
 }
+
+// A show given by a name that matches none is read as an id too, for a show
+// the index has not caught up with. The server failing that read is said
+// beside the name that matched nothing, where it used to be dropped; the
+// server refusing the name as an id (a 4xx) is no failure, only no show.
+func TestSeriesNameThatIsNoIDSaysAFailedRead(t *testing.T) {
+	t.Parallel()
+
+	for status, said := range map[int]bool{http.StatusInternalServerError: true, http.StatusBadRequest: false} {
+		f, _ := zzyzxServer(t)
+		f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+			if param(r.URL.Query(), "Ids") != "" {
+				http.Error(w, "the id read broke", status)
+
+				return
+			}
+			writeJSON(t, w, page(map[string]any{"Id": "sev", "Name": "Severance", "Type": "Series", "ProductionYear": 2022, "Path": "/zz/shows/Severance"}))
+		})
+		cs := session(t, f, Options{})
+		msg := mustRefuse(t, cs, "library_episodes", map[string]any{"series": "Zzyzx Nowhere"})
+		if strings.Contains(msg, "reading it as an id failed") != said || strings.Contains(msg, "the id read broke") != said {
+			t.Errorf("HTTP %d on the id read: %q, want the failure said: %v", status, msg, said)
+		}
+	}
+}

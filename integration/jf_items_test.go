@@ -184,7 +184,7 @@ func TestJFItem(t *testing.T) {
 	if _, err := jfc.UpdateItem(ctx, id, *full); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _, _ = jfc.UpdateItem(context.WithoutCancel(ctx), id, original) })
+	undoLater(t, "putting the item back", func() error { _, err := jfc.UpdateItem(context.WithoutCancel(ctx), id, original); return err })
 	got := must(jfc.GetItem(ctx, id, jf.GetItemOperationOptions{UserId: adminID})).Model
 	if got.Overview != "SDK overview" || !slices.Equal(got.Genres, []string{"SDK Genre", "Action"}) || !slices.Equal(got.Tags, []string{"sdk"}) {
 		t.Errorf("after UpdateItem: overview %q, genres %v, tags %v", got.Overview, got.Genres, got.Tags)

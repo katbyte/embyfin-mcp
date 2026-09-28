@@ -53,6 +53,8 @@ type ep struct {
 
 type fakeSeries struct {
 	id, name string
+	// filmSeconds is a film's runtime, two hours when not given
+	filmSeconds int
 	// original is the title the series was first made under, when not its name
 	original string
 	year     int
@@ -153,7 +155,7 @@ func (s *fakeSeries) item() wireItem {
 	if s.film {
 		return wireItem{
 			ID: s.id, Name: s.name, Type: "Movie", Path: s.path, ProviderIDs: s.ids, ProductionYear: s.year,
-			LocationType: "FileSystem", RunTimeTicks: 7200 * 10_000_000,
+			LocationType: "FileSystem", RunTimeTicks: int64(cmp.Or(s.filmSeconds, 7200)) * 10_000_000,
 			MediaSources: []wireSource{probedSource(s.path, 1920, 1080, 4<<30)},
 		}
 	}
@@ -554,9 +556,12 @@ func guideServer(t *testing.T, run map[int][]string, airDate func(season, episod
 	return rewrite{target}
 }
 
-// aired2022 dates every episode in the past, so nothing is held back unaired.
+// aired2022 dates every episode in the past, so nothing is held back
+// unaired: season s episode e on 2022-SS-EE, rolled over to a real day where
+// that is none (the specials, season 0, in December 2021), as TMDB only
+// writes real days.
 func aired2022(season, episode int) string {
-	return fmt.Sprintf("2022-%02d-%02d", season, episode)
+	return time.Date(2022, time.Month(season), episode, 0, 0, 0, 0, time.UTC).Format(time.DateOnly)
 }
 
 // severance is the series the requirements were written against: two
@@ -848,11 +853,20 @@ func TestAired(t *testing.T) {
 		{"2026-09-16", false}, // tomorrow
 		{"2999-01-01", false}, // announced, years away
 		{"", false},           // announced without a date at all
-		{"soon", true},        // a date we cannot read is not evidence it is unaired
 	} {
 		if got := aired(tmdb.Episode{AirDate: tc.date}, now); got != tc.want {
 			t.Errorf("aired(%q) = %v, want %v", tc.date, got, tc.want)
 		}
+	}
+	// a server's record is dated by its day, and one it dates in a way that
+	// can't be read is an error, not a guess either way
+	for stamp, want := range map[string]bool{"2026-09-15T23:00:00.0000000Z": true, "2026-09-16T00:00:00.0000000Z": false, "": false} {
+		if got, err := recordAired(&embyfin.Item{PremiereDate: stamp}, now); err != nil || got != want {
+			t.Errorf("recordAired(%q) = %v, %v, want %v", stamp, got, err, want)
+		}
+	}
+	if _, err := recordAired(&embyfin.Item{ID: "7", Name: "Pilot", PremiereDate: "soon"}, now); err == nil || !strings.Contains(err.Error(), "Pilot (id 7)") {
+		t.Errorf("an unreadable record date = %v, want an error naming the episode", err)
 	}
 }
 

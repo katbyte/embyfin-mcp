@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -144,17 +145,11 @@ func seriesIDsDisagree(ctx context.Context, guide seriesGuide, series *embyfin.I
 
 // aired reports whether an episode has been broadcast by now. An episode with
 // no air date at all has not: TMDB carries announced episodes before it knows
-// when they run.
+// when they run. The date is a day, checked where it was read (TMDB's in
+// tmdb.DateYear, a server's in recordAired), so it compares as written with
+// today's, read in UTC as the day is.
 func aired(e tmdb.Episode, now time.Time) bool {
-	if e.AirDate == "" {
-		return false
-	}
-	day, err := time.Parse(time.DateOnly, e.AirDate)
-	if err != nil {
-		return true // an air date we cannot read is not evidence it is unaired
-	}
-
-	return !day.After(now)
+	return e.AirDate != "" && e.AirDate <= now.UTC().Format(time.DateOnly)
 }
 
 // sortMissing orders a worklist the way a season reads.
@@ -239,7 +234,11 @@ func showMissing(ctx context.Context, client *embyfin.Client, guide seriesGuide,
 			if !numbered(e) || held[[2]int{*e.ParentIndexNumber, *e.IndexNumber}] {
 				continue
 			}
-			if !unaired && !recordAired(e, now) {
+			on, err := recordAired(e, now)
+			if err != nil {
+				return missingOut{}, err
+			}
+			if !unaired && !on {
 				continue
 			}
 			known = append(known, missingRow{Season: *e.ParentIndexNumber, Episode: *e.IndexNumber, Name: e.Name, AirDate: e.PremiereDate})
@@ -395,12 +394,17 @@ func resolveSeriesRef(ctx context.Context, r *registry, ref, library string) (*e
 	}
 	if folder == nil {
 		it, ierr := r.client.ItemByID(ctx, ref)
-		switch {
+		var none *embyfin.NoItemError
+		switch status := apiclient.StatusCode(ierr); {
 		case ierr == nil && it.Type == "Series":
 			return it, nil, nil
 		case ierr == nil:
 			// the id of something else: say what, beside the name that matched nothing
 			return nil, nil, fmt.Errorf("%w; and as an id, %w", err, notASeries(it))
+		case !errors.As(ierr, &none) && (status < 400 || status >= 500):
+			// the server failing the read, not refusing a name as an id: the
+			// ref may be the id of a show the index has not caught up with
+			return nil, nil, fmt.Errorf("%w; and reading it as an id failed: %w", err, ierr)
 		}
 	}
 

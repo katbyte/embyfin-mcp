@@ -247,7 +247,7 @@ func TestAuditsRefuseIDsTheyCannotRead(t *testing.T) {
 			}
 		}
 	}
-	if msg := mustRefuse(t, cs, "audit_provider", map[string]any{"ids": []any{"40"}}); !strings.Contains(msg, `40 is a series, "Zzyzx Show", not one of the films this checks`) {
+	if msg := mustRefuse(t, cs, "audit_provider", map[string]any{"ids": []any{"40"}}); !strings.Contains(msg, `40 is a series, "Zzyzx Show", not one of the films or episodes this checks`) {
 		t.Errorf("audit_provider on a series' id = %q", msg)
 	}
 	if n := lookups.Load(); n != 0 {

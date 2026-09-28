@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -67,29 +66,33 @@ func TestDuplicateEpisodesMustBeOfTheSameShow(t *testing.T) {
 	}
 }
 
-// A duration too long to be an episode is broken metadata wherever it is: a
-// season of two, a season where every file is broken, and the specials all
-// hold one, and none of them has a median to compare against. The median
-// comparison itself still needs three episodes.
-func TestRuntimeAuditReportsBrokenDurationsInAnySeason(t *testing.T) {
+// The runtime audit reports only a length no film or episode can have: under
+// two minutes, or twelve hours or more. Nothing is judged against its season:
+// a 5-minute file among 22-minute ones is no finding here (TMDB's length for
+// that episode is audit_provider's), a season where every file is broken is
+// reported file by file, and eleven hours is long, not broken.
+func TestRuntimeAuditReportsOnlyLengthsNoFileCanHave(t *testing.T) {
 	t.Parallel()
 
 	s := &fakeSeries{id: "z", name: "Zzyzx Show", episodes: []ep{
 		{season: 0, number: 1, name: "Special", path: "/m/s0e1.mkv", minutes: 100000},
-		// a season of two, one of them broken
 		{season: 1, number: 1, name: "Fine", path: "/m/s1e1.mkv", minutes: 22},
 		{season: 1, number: 2, name: "Broken Short Season", path: "/m/s1e2.mkv", minutes: 100000},
 		// a season where every file is broken
 		{season: 2, number: 1, name: "Broken A", path: "/m/s2e1.mkv", minutes: 90000},
 		{season: 2, number: 2, name: "Broken B", path: "/m/s2e2.mkv", minutes: 90000},
 		{season: 2, number: 3, name: "Broken C", path: "/m/s2e3.mkv", minutes: 90000},
-		// an ordinary season with one truncated file, judged by its median
+		// short beside its season, and long, but either a length a file can have
 		{season: 3, number: 1, name: "One", path: "/m/s3e1.mkv", minutes: 22},
 		{season: 3, number: 2, name: "Two", path: "/m/s3e2.mkv", minutes: 22},
-		{season: 3, number: 3, name: "Three", path: "/m/s3e3.mkv", minutes: 22},
-		{season: 3, number: 4, name: "Truncated", path: "/m/s3e4.mkv", minutes: 5},
+		{season: 3, number: 3, name: "Five Minutes", path: "/m/s3e3.mkv", minutes: 5},
+		{season: 3, number: 4, name: "Eleven Hours", path: "/m/s3e4.mkv", minutes: 11*60 + 59},
+		// and the two that cannot be episodes at all
+		{season: 3, number: 5, name: "A Minute", path: "/m/s3e5.mkv", minutes: 1},
+		{season: 3, number: 6, name: "Twelve Hours", path: "/m/s3e6.mkv", minutes: 12 * 60},
 	}}
-	f := tvServer(t, s)
+	film := &fakeSeries{id: "f", name: "Zzyzx Film", film: true, path: "/m/Zzyzx Film (2001)/Zzyzx Film (2001).mkv", year: 2001, filmSeconds: 90}
+	f := tvServer(t, s, film)
 	// audit_all reads the library as an administrator is shown it (for
 	// versions) and every account's watch state: one account, whose view is
 	// the library's
@@ -104,33 +107,39 @@ func TestRuntimeAuditReportsBrokenDurationsInAnySeason(t *testing.T) {
 	cs := session(t, f, Options{})
 
 	out := mustCall(t, cs, "audit_runtime", map[string]any{})
-	details := map[string]string{}
-	for _, row := range objects(t, out["findings"], "findings") {
-		details[text(row["name"])] = text(row["detail"])
+	findings := objects(t, out["findings"], "findings")
+	got := make([]string, 0, len(findings))
+	for _, row := range findings {
+		got = append(got, text(row["name"])+": "+text(row["detail"]))
 	}
-	for _, name := range []string{"Special", "Broken Short Season", "Broken A", "Broken B", "Broken C"} {
-		found := false
-		for n, detail := range details {
-			if strings.HasSuffix(n, " "+name) && strings.Contains(detail, "duration metadata is broken") {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("%s: a broken duration was not reported: %v", name, details)
-		}
+	want := []string{
+		// the broken first, longest first, and a name settling a tie
+		"Zzyzx Show S00E01 Special: 1666 h 40 min: not a runtime, the file's duration metadata is broken",
+		"Zzyzx Show S01E02 Broken Short Season: 1666 h 40 min: not a runtime, the file's duration metadata is broken",
+		"Zzyzx Show S02E01 Broken A: 1500 h 0 min: not a runtime, the file's duration metadata is broken",
+		"Zzyzx Show S02E02 Broken B: 1500 h 0 min: not a runtime, the file's duration metadata is broken",
+		"Zzyzx Show S02E03 Broken C: 1500 h 0 min: not a runtime, the file's duration metadata is broken",
+		"Zzyzx Show S03E06 Twelve Hours: 12 h 0 min: not a runtime, the file's duration metadata is broken",
+		// then the too short, shortest first
+		"Zzyzx Show S03E05 A Minute: 60 s: too short to be the episode, an incomplete, sample or broken file",
+		"Zzyzx Film: 90 s: too short to be the film, an incomplete, sample or broken file",
 	}
-	if detail := details["Zzyzx Show S03E04 Truncated"]; detail != "5 min, far shorter than the rest of its season, which run 22 min: an incomplete or wrong file" {
-		t.Errorf("the truncated file = %q", detail)
+	if !slices.Equal(got, want) {
+		t.Errorf("findings =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	if n := number(t, out["total_findings"], "total_findings"); n != 6 {
-		t.Errorf("total_findings = %d, want the five broken and the truncated one: %v", n, details)
+	if n := number(t, out["total_findings"], "total_findings"); n != len(want) {
+		t.Errorf("total_findings = %d, want %d", n, len(want))
+	}
+	// the film is scanned beside the twelve episodes
+	if n := number(t, out["items_scanned"], "items_scanned"); n != 13 {
+		t.Errorf("items_scanned = %d, want the twelve episodes and the film", n)
 	}
 
 	// audit_all's row is the audit's own count
-	all := mustCall(t, cs, "audit_all", map[string]any{"library": "Shows"})
+	all := mustCall(t, cs, "audit_all", map[string]any{})
 	for _, row := range objects(t, all["audits"], "audits") {
-		if text(row["audit"]) == "audit_runtime" && number(t, row["findings"], "findings") != 6 {
-			t.Errorf("audit_all's audit_runtime row = %v, want 6", row)
+		if text(row["audit"]) == "audit_runtime" && number(t, row["findings"], "findings") != len(want) {
+			t.Errorf("audit_all's audit_runtime row = %v, want %d", row, len(want))
 		}
 	}
 }
@@ -250,102 +259,6 @@ func TestAuditAllReadsAMusicLibrary(t *testing.T) {
 	}
 }
 
-// A season mostly of minute-long previews beside a few whole episodes had a
-// median of a minute: the whole episodes were reported as thousands of
-// percent off, and the broken files never named. What a season typically
-// runs is its largest group of like runtimes - never the longer minority,
-// which called nine good 22-minute files "incomplete" beside three wrong
-// 45-minute ones - and a season split between two lengths, each held by
-// more than a quarter of it, is one finding naming both and judging neither.
-func TestRuntimeAuditJudgesBySeasonsTypicalRuntime(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name         string
-		mins         []int
-		want, others int // the typical runtime, and the other's when split
-	}{
-		{"nine right beside three wrong", []int{22, 22, 22, 22, 22, 22, 22, 22, 22, 45, 45, 45}, 22, 0},
-		{"six beside two longer", []int{42, 42, 42, 42, 42, 42, 60, 60}, 42, 0},
-		{"twelve beside four far longer", []int{30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 120, 120, 120, 120}, 30, 0},
-		{"one double-length finale", []int{45, 44, 46, 45, 45, 45, 45, 45, 45, 45, 90}, 45, 0},
-		{"one truncated file", []int{22, 22, 22, 5}, 22, 0},
-		{"one truncated file of three", []int{3, 3, 0}, 3, 0},
-		{"two and two", []int{22, 22, 45, 45}, 45, 22},
-		{"six previews beside four whole episodes", []int{1, 1, 1, 1, 1, 1, 30, 30, 31, 30}, 1, 30},
-	} {
-		group, other := typicalRuntime(tc.mins)
-		switch {
-		case group.median != tc.want:
-			t.Errorf("%s: typical = %d, want %d", tc.name, group.median, tc.want)
-		case tc.others == 0 && other != nil:
-			t.Errorf("%s: split with %v, want judged by %d", tc.name, *other, tc.want)
-		case tc.others != 0 && (other == nil || other.median != tc.others):
-			t.Errorf("%s: other = %v, want the season split with %d", tc.name, other, tc.others)
-		}
-	}
-
-	season := func(runtimes ...int) []map[string]any {
-		t.Helper()
-		eps := make([]ep, 0, len(runtimes))
-		for n, minutes := range runtimes {
-			eps = append(eps, ep{season: 1, number: n + 1, name: fmt.Sprintf("E%d", n+1), path: fmt.Sprintf("/media/shows/Zzyzx Show/Season 01/s01e%02d.mkv", n+1), minutes: minutes})
-		}
-
-		return objects(t, mustCall(t, session(t, tvServer(t, &fakeSeries{id: "z", name: "Zzyzx Show", episodes: eps}), Options{}), "audit_runtime", map[string]any{})["findings"], "findings")
-	}
-	rows := season(22, 22, 45, 22, 22, 22, 45, 22, 22, 22, 45, 22)
-	if len(rows) != 3 {
-		t.Fatalf("nine right and three wrong = %v, want the three", rows)
-	}
-	for _, row := range rows {
-		if !strings.HasPrefix(text(row["detail"]), "45 min, where its season runs 22 min") {
-			t.Errorf("%v = %q", row["name"], row["detail"])
-		}
-	}
-	rows = season(1, 30, 1, 30, 1, 30, 1, 1, 30, 1)
-	if len(rows) != 1 || text(rows[0]["id"]) != "z" || text(rows[0]["name"]) != "Zzyzx Show season 1" || text(rows[0]["path"]) != "/media/shows/Zzyzx Show/Season 01" ||
-		text(rows[0]["detail"]) != "the season is split between two lengths: 6 files run about 1 min (E01, E03, E05, E07, E08, E10) and 4 about 30 min (E02, E04, E06, E09). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files" {
-		t.Errorf("six previews beside four whole episodes = %v, want the season split, judging neither", rows)
-	}
-
-	// a file running neither length is not listed under one: it is judged
-	// by the nearer, on a row of its own
-	details := func(rows []map[string]any) map[string]string {
-		out := map[string]string{}
-		for _, row := range rows {
-			out[text(row["name"])] = text(row["detail"])
-		}
-
-		return out
-	}
-	got := details(season(45, 45, 45, 45, 45, 45, 22, 22, 22, 1))
-	if want := map[string]string{
-		"Zzyzx Show season 1":   "the season is split between two lengths: 6 files run about 45 min (E01, E02, E03, E04, E05, E06) and 3 about 22 min (E07, E08, E09). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files",
-		"Zzyzx Show S01E10 E10": "1 min, far shorter than the nearer of the two lengths its season runs (22 min; the other 45): an incomplete or wrong file",
-	}; !maps.Equal(got, want) {
-		t.Errorf("a split season with a minute-long file = %v, want %v", got, want)
-	}
-
-	// and so are files far from both, and a file holding two episodes
-	eps := make([]ep, 0, 16)
-	for n, minutes := range []int{45, 45, 45, 45, 45, 45, 45, 45, 22, 22, 22, 22, 5, 90} {
-		eps = append(eps, ep{season: 1, number: n + 1, name: fmt.Sprintf("E%d", n+1), path: fmt.Sprintf("/media/shows/Zzyzx Show/Season 01/s01e%02d.mkv", n+1), minutes: minutes})
-	}
-	eps = append(eps,
-		ep{season: 1, number: 15, number2: 16, name: "E15", path: "/media/shows/Zzyzx Show/Season 01/s01e15e16.mkv", minutes: 44},
-		ep{season: 1, number: 17, number2: 18, name: "E17", path: "/media/shows/Zzyzx Show/Season 01/s01e17e18.mkv", minutes: 60})
-	got = details(objects(t, mustCall(t, session(t, tvServer(t, &fakeSeries{id: "z", name: "Zzyzx Show", episodes: eps}), Options{}), "audit_runtime", map[string]any{})["findings"], "findings"))
-	if want := map[string]string{
-		"Zzyzx Show season 1":   "the season is split between two lengths: 8 files run about 45 min (E01, E02, E03, E04, E05, E06, E07, E08) and 4 about 22 min (E09, E10, E11, E12). One set is not what the other is - cut files or previews, double episodes, or another show's - so neither is judged by the other: compare the files",
-		"Zzyzx Show S01E13 E13": "5 min, far shorter than the nearer of the two lengths its season runs (22 min; the other 45): an incomplete or wrong file",
-		"Zzyzx Show S01E14 E14": "90 min, where the nearer of the two lengths its season runs is 45 min (the other 22; 100% off)",
-		"Zzyzx Show S01E17 E17": "60 min for 2 episodes, where the nearer of the two lengths its season runs is 22 min each, 44 expected (the other 45; 36% off)",
-	}; !maps.Equal(got, want) {
-		t.Errorf("a split season with files far from both = %v, want %v", got, want)
-	}
-}
-
 // audit_all said less than it knew. Its missing-episodes row asks no
 // provider, so it can see only gaps between files, and "series with episodes
 // missing: 0" read as nothing missing; its runtime row counted files with no
@@ -370,7 +283,7 @@ func TestAuditAllSaysWhatItDidNotCheck(t *testing.T) {
 	episodes := []map[string]any{episode(1, 30), episode(3, 0)}
 	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
 		switch types := param(r.URL.Query(), "IncludeItemTypes"); {
-		case types == "Episode":
+		case types == "Episode", types == "Movie,Episode":
 			writeJSON(t, w, page(episodes...))
 		case strings.Contains(types, "Series") && param(r.URL.Query(), "Ids") != "":
 			writeJSON(t, w, page(series))
@@ -425,7 +338,7 @@ func TestAuditAllSaysWhatItDidNotCheck(t *testing.T) {
 	if row := rows["audit_missing_episodes"]; number(t, row["findings"], "findings") != 1 || !boolean(t, row["partial"], "partial") || !strings.Contains(text(row["note"]), "runs not known: 1 of the 1 shows") {
 		t.Errorf("audit_missing_episodes row = %v, want the gap counted and the run said to be unknown", row)
 	}
-	if row := rows["audit_runtime"]; number(t, row["items_scanned"], "items_scanned") != 2 || !boolean(t, row["partial"], "partial") || !strings.Contains(text(row["note"]), "1 episode files the server holds no runtime for") {
+	if row := rows["audit_runtime"]; number(t, row["items_scanned"], "items_scanned") != 2 || !boolean(t, row["partial"], "partial") || !strings.Contains(text(row["note"]), "files the server holds no runtime for (never probed), counted in items_scanned and not judged: 1") {
 		t.Errorf("audit_runtime row = %v, want the unprobed file said", row)
 	}
 	if n := number(t, mustCall(t, cs, "audit_runtime", map[string]any{})["unprobed"], "unprobed"); n != 1 {
@@ -447,11 +360,11 @@ func TestAuditsLeaveAShowsExtrasAlone(t *testing.T) {
 		{season: 1, number: 2, name: "Two", path: "/media/shows/Zzyzx Show/Season 01/Zzyzx Show S01E02.mkv"},
 		{season: 1, number: 3, name: "Three", path: "/media/shows/Zzyzx Show/Season 01/Zzyzx Show S01E03.mkv"},
 		// what Emby makes of each season's Extras folder
-		{season: 1, name: "Featurette", path: "/media/shows/Zzyzx Show/Season 01/Extras/Featurette.mkv", minutes: 3, width: 640, height: 360},
-		{season: 1, name: "Featurette", path: "/media/shows/Zzyzx Show/Season 02/extras/Featurette.mkv", minutes: 3, width: 640, height: 360},
+		{season: 1, name: "Featurette", path: "/media/shows/Zzyzx Show/Season 01/Extras/Featurette.mkv", minutes: 1, width: 640, height: 360},
+		{season: 1, name: "Featurette", path: "/media/shows/Zzyzx Show/Season 02/extras/Featurette.mkv", minutes: 1, width: 640, height: 360},
 	}}
 	named := &fakeSeries{id: "x", name: "Extras", episodes: []ep{
-		{season: 1, number: 1, name: "Cut Short", path: "/media/shows/Extras/Extras S01E01.mkv", minutes: 5, width: 640, height: 360},
+		{season: 1, number: 1, name: "Cut Short", path: "/media/shows/Extras/Extras S01E01.mkv", minutes: 1, width: 640, height: 360},
 		{season: 1, number: 2, name: "Two", path: "/media/shows/Extras/Extras S01E02.mkv"},
 		{season: 1, number: 3, name: "Three", path: "/media/shows/Extras/Extras S01E03.mkv"},
 		{season: 1, number: 4, name: "Four", path: "/media/shows/Extras/Extras S01E04.mkv"},

@@ -74,9 +74,9 @@ func TestJFReadSweep(t *testing.T) {
 
 	// a playlist to read, and one of music for the mix made from a playlist
 	created := must(jfc.CreatePlaylist(ctx, jf.CreatePlaylistDto{Name: "SDK Sweep", Ids: []string{movie.Id}, MediaType: jf.MediaTypeVideo, UserId: adminID})).Model
-	t.Cleanup(func() { _, _ = jfc.DeleteItem(context.WithoutCancel(ctx), created.Id) })
+	removeLater(t, "deleting the playlist", func() error { _, err := jfc.DeleteItem(context.WithoutCancel(ctx), created.Id); return err })
 	music := must(jfc.CreatePlaylist(ctx, jf.CreatePlaylistDto{Name: "SDK Sweep Music", Ids: []string{song.Id}, MediaType: jf.MediaTypeAudio, UserId: adminID})).Model
-	t.Cleanup(func() { _, _ = jfc.DeleteItem(context.WithoutCancel(ctx), music.Id) })
+	removeLater(t, "deleting the music playlist", func() error { _, err := jfc.DeleteItem(context.WithoutCancel(ctx), music.Id); return err })
 	// and a collection holding the film, once its member has landed (a scan's
 	// refresh can write over it; see TestJFCollections)
 	jfScanIdle(ctx, t)

@@ -22,7 +22,9 @@ func TestDeletingACollectionJustMade(t *testing.T) {
 	id := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Just Made", "item_ids": []any{alien}})["id"])
 	t.Cleanup(func() {
 		if _, err := invoke("collection_get", map[string]any{"collection": id}); err == nil {
-			_, _ = invoke("collection_delete", map[string]any{"collection": id})
+			undo(t, "collection_delete", map[string]any{"collection": id})
+		} else if !strings.Contains(err.Error(), "no collection named") {
+			t.Errorf("reading whether the collection %s is still there: %v", id, err)
 		}
 	})
 

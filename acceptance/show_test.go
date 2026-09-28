@@ -239,10 +239,12 @@ func episodeKeys(t *testing.T, out map[string]any) []string {
 	return keys
 }
 
-// A season read whole sets each file's runtime against the season's median:
-// the messy Severance's third episode runs five seconds to its season's one,
-// and .hack//Liminality's last a second to its season's three minutes.
-func TestLibraryEpisodesRuntimeMultiples(t *testing.T) {
+// A season read with fields narrowed to runtime_s answers each file's own
+// runtime and nothing else: the messy Severance's third episode runs five
+// seconds to its season's one, and .hack//Liminality's last a second to its
+// season's three minutes. No file is set against its season's other files:
+// runtime_multiple is gone, and asking for it is refused.
+func TestLibraryEpisodesRuntimes(t *testing.T) {
 	sev := findItem(t, "Messy Shows", "Series", "Severance")
 	var hack string
 	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Shows", "limit": 50})["items"], "items") {
@@ -251,37 +253,27 @@ func TestLibraryEpisodesRuntimeMultiples(t *testing.T) {
 		}
 	}
 	for _, c := range []struct {
-		series    string
-		median    int
-		multiples []float64
+		series   string
+		runtimes []int
 	}{
-		{sev, 1, []float64{1, 1, 5}},
-		{hack, 180, []float64{1, 1, 0.01}},
+		{sev, []int{1, 1, 5}},
+		{hack, []int{180, 180, 1}},
 	} {
-		// season one: on Emby the messy Severance's season Extras featurette
-		// is an episode too, of no season it can be held to
-		out := call(t, "library_episodes", map[string]any{"series_id": c.series, "season": 1, "fields": []string{"runtime_s", "runtime_multiple"}})
-		var got []float64
+		out := call(t, "library_episodes", map[string]any{"series_id": c.series, "season": 1, "fields": []string{"runtime_s"}})
+		var got []int
 		for _, row := range rows(t, out["episodes"], "episodes") {
-			got = append(got, decimal(t, row["runtime_multiple"], "runtime_multiple"))
-			if m := num(t, row["season_median_runtime_s"], "season_median_runtime_s"); m != c.median {
-				t.Errorf("%v S01E%02d's season median = %d, want %d", out["series"], num(t, row["episode"], "episode"), m, c.median)
-			}
-			// narrowed to these two, nothing else comes back
-			if row["path"] != nil || row["width"] != nil {
+			got = append(got, num(t, row["runtime_s"], "runtime_s"))
+			// narrowed to it, nothing else comes back
+			if row["path"] != nil || row["width"] != nil || row["runtime_multiple"] != nil {
 				t.Errorf("fields not asked for came back: %v", row)
 			}
 		}
-		if !slices.Equal(got, c.multiples) {
-			t.Errorf("%v's runtime multiples = %v, want %v", out["series"], got, c.multiples)
+		if !slices.Equal(got, c.runtimes) {
+			t.Errorf("%v's runtimes = %v, want %v", out["series"], got, c.runtimes)
 		}
 	}
-	// a season's median needs three files, and a page of a library read holds
-	// part of a season at best, so a library read answers none
-	for _, row := range rows(t, call(t, "library_episodes", map[string]any{"library": "Messy Shows", "fields": []string{"runtime_multiple"}})["episodes"], "episodes") {
-		if row["runtime_multiple"] != nil {
-			t.Errorf("a library read set a runtime multiple: %v", row)
-		}
+	if msg := callErr(t, "library_episodes", map[string]any{"series_id": sev, "fields": []string{"runtime_multiple"}}); !strings.Contains(msg, `no such field "runtime_multiple"`) {
+		t.Errorf("runtime_multiple asked for = %q", msg)
 	}
 }
 
@@ -327,16 +319,16 @@ func TestShowEpisodesExist(t *testing.T) {
 		t.Errorf("by name = %v", byName)
 	}
 
-	// a hit asked for its facts sets its runtime against its season's: the
-	// messy Severance's third episode runs five times the other two
+	// a hit asked for its facts says its file's runtime: the messy
+	// Severance's third episode runs five seconds
 	messy := findItem(t, "Messy Shows", "Series", "Severance")
-	out = call(t, "show_episodes_exist", map[string]any{"series_id": messy, "fields": []string{"runtime_s", "runtime_multiple"}, "episodes": []map[string]any{{"season": 1, "episode": 3}, {"season": 1, "episode": 4}}})
+	out = call(t, "show_episodes_exist", map[string]any{"series_id": messy, "fields": []string{"runtime_s"}, "episodes": []map[string]any{{"season": 1, "episode": 3}, {"season": 1, "episode": 4}}})
 	got := rows(t, out["episodes"], "episodes")
-	if len(got) != 2 || num(t, got[0]["runtime_s"], "runtime_s") != 5 || decimal(t, got[0]["runtime_multiple"], "runtime_multiple") != 5 || num(t, got[0]["season_median_runtime_s"], "season_median_runtime_s") != 1 {
-		t.Errorf("the messy S01E03 = %v, want 5s, five times its season's 1s", got)
+	if len(got) != 2 || num(t, got[0]["runtime_s"], "runtime_s") != 5 {
+		t.Errorf("the messy S01E03 = %v, want 5s", got)
 	}
 	// a miss has no file to have a runtime
-	if len(got) == 2 && (got[1]["exists"] != false || got[1]["runtime_multiple"] != nil) {
+	if len(got) == 2 && (got[1]["exists"] != false || got[1]["runtime_s"] != nil) {
 		t.Errorf("the missing S01E04 = %v", got[1])
 	}
 

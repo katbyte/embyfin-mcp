@@ -1046,11 +1046,9 @@ func (p *providerTitles) collectionOf(ctx context.Context, id int) ([]titleHit, 
 		return parts, nil
 	}
 	for _, part := range res.Model.Parts {
-		year := 0
-		if len(part.ReleaseDate) >= 4 {
-			if y, err := strconv.Atoi(part.ReleaseDate[:4]); err == nil {
-				year = y
-			}
+		year, err := tmdb.DateYear(fmt.Sprintf("collection %d: film %d", id, part.Id), part.ReleaseDate)
+		if err != nil {
+			return nil, err
 		}
 		parts = append(parts, titleHit{ID: part.Id, Title: part.Title, Original: part.OriginalTitle, Year: year})
 	}
@@ -1104,14 +1102,6 @@ func (p *providerTitles) search(ctx context.Context, kind, title string, year in
 	}
 
 	hits = []titleHit{}
-	// a date with no year in it dates nothing
-	yearOf := func(date string) int {
-		if y, err := strconv.Atoi(date[:min(len(date), 4)]); err == nil {
-			return y
-		}
-
-		return 0
-	}
 	switch kind {
 	case "movie":
 		opts := tmdb.SearchMovieOperationOptions{Query: title}
@@ -1126,7 +1116,11 @@ func (p *providerTitles) search(ctx context.Context, kind, title string, year in
 		}
 		if res.Model != nil {
 			for _, r := range res.Model.Results {
-				hits = append(hits, titleHit{ID: r.Id, Title: r.Title, Original: r.OriginalTitle, Year: yearOf(r.ReleaseDate)})
+				y, err := tmdb.DateYear(fmt.Sprintf("search for the film %s: film %d", title, r.Id), r.ReleaseDate)
+				if err != nil {
+					return nil, err
+				}
+				hits = append(hits, titleHit{ID: r.Id, Title: r.Title, Original: r.OriginalTitle, Year: y})
 			}
 		}
 	case "tv":
@@ -1142,7 +1136,11 @@ func (p *providerTitles) search(ctx context.Context, kind, title string, year in
 		}
 		if res.Model != nil {
 			for _, r := range res.Model.Results {
-				hits = append(hits, titleHit{ID: r.Id, Title: r.Name, Original: r.OriginalName, Year: yearOf(r.FirstAirDate)})
+				y, err := tmdb.DateYear(fmt.Sprintf("search for the series %s: series %d", title, r.Id), r.FirstAirDate)
+				if err != nil {
+					return nil, err
+				}
+				hits = append(hits, titleHit{ID: r.Id, Title: r.Name, Original: r.OriginalName, Year: y})
 			}
 		}
 	}

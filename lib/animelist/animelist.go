@@ -145,10 +145,21 @@ type xmlAnime struct {
 // episodes are the provider's episode numbers a mapping names: pairs like
 // ;1-5;2-6+7; (an episode can be two of theirs), or a start and end with an
 // offset. A 0 is an episode the provider does not have.
-func (m xmlMapping) episodes() []int {
+func (m xmlMapping) episodes() ([]int, error) {
 	var out []int
 	if m.Start != "" {
-		start, end, offset := number(m.Start), number(m.End), number(m.Offset)
+		start, err := number("a mapping's start", m.Start)
+		if err != nil {
+			return nil, err
+		}
+		end, err := number("a mapping's end", m.End)
+		if err != nil {
+			return nil, err
+		}
+		offset, err := number("a mapping's offset", m.Offset)
+		if err != nil {
+			return nil, err
+		}
 		for ep := max(start, 1); ep <= end; ep++ {
 			if n := ep + offset; n > 0 {
 				out = append(out, n)
@@ -161,19 +172,33 @@ func (m xmlMapping) episodes() []int {
 			continue
 		}
 		for ep := range strings.SplitSeq(theirs, "+") {
-			if n := number(ep); n > 0 {
+			n, err := number("a mapping's episode", ep)
+			if err != nil {
+				return nil, err
+			}
+			if n > 0 {
 				out = append(out, n)
 			}
 		}
 	}
 
-	return out
+	return out, nil
 }
 
-func number(s string) int {
-	n, _ := strconv.Atoi(strings.TrimSpace(s))
+// number reads a number the list writes, 0 for none written. One that is
+// not a number is an error: read as 0 it would drop an episode, or place
+// an entry, without a word.
+func number(what, s string) (int, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("%s is %q, which is not a number", what, s)
+	}
 
-	return n
+	return n, nil
 }
 
 // id is s when it is a provider id; the list writes words like movie or OVA
@@ -200,25 +225,48 @@ func Parse(r io.Reader) (*List, error) {
 		if id(a.AniDB) == "" {
 			continue
 		}
+		tvdbOffset, err := number("its episodeoffset", a.TVDBOffset)
+		if err != nil {
+			return nil, fmt.Errorf("reading the anime list: AniDB %s: %w", a.AniDB, err)
+		}
+		tmdbOffset, err := number("its tmdboffset", a.TMDBOffset)
+		if err != nil {
+			return nil, fmt.Errorf("reading the anime list: AniDB %s: %w", a.AniDB, err)
+		}
 		e := &Entry{
 			AniDB: a.AniDB, Name: strings.TrimSpace(a.Name),
-			TVDB: id(a.TVDB), TVDBSeason: a.TVDBSeason, TVDBOffset: number(a.TVDBOffset),
-			TMDBTV: id(a.TMDBTV), TMDBSeason: a.TMDBSeason, TMDBOffset: number(a.TMDBOffset),
+			TVDB: id(a.TVDB), TVDBSeason: a.TVDBSeason, TVDBOffset: tvdbOffset,
+			TMDBTV: id(a.TMDBTV), TMDBSeason: a.TMDBSeason, TMDBOffset: tmdbOffset,
 			TMDBMovie: id(a.TMDBMovie), IMDB: a.IMDB,
 			tmdbPlaced: strings.TrimSpace(a.TMDBOffset) != "",
 		}
 		for _, m := range a.Mappings {
 			// AniDB season 1 is the entry's episodes, which say where it
 			// sits; season 0 its own specials, which only take numbers
+			var (
+				into *[]int
+				key  string
+			)
 			switch {
 			case m.AniDBSeason == "1" && m.TVDBSeason == "0":
-				e.TVDBSpecials = append(e.TVDBSpecials, m.episodes()...)
+				into = &e.TVDBSpecials
 			case m.AniDBSeason == "1" && m.TMDBSeason == "0":
-				e.TMDBSpecials = append(e.TMDBSpecials, m.episodes()...)
+				into = &e.TMDBSpecials
 			case m.AniDBSeason == "0" && m.TVDBSeason == "0" && e.TVDB != "":
-				l.claim("tvdb:"+e.TVDB, m.episodes())
+				key = "tvdb:" + e.TVDB
 			case m.AniDBSeason == "0" && m.TMDBSeason == "0" && e.TMDBTV != "":
-				l.claim("tmdb:"+e.TMDBTV, m.episodes())
+				key = "tmdb:" + e.TMDBTV
+			default:
+				continue
+			}
+			episodes, err := m.episodes()
+			if err != nil {
+				return nil, fmt.Errorf("reading the anime list: AniDB %s: %w", a.AniDB, err)
+			}
+			if into != nil {
+				*into = append(*into, episodes...)
+			} else {
+				l.claim(key, episodes)
 			}
 		}
 		l.entries[e.AniDB] = e
@@ -266,6 +314,10 @@ type Loader struct {
 
 	mu   sync.Mutex
 	list *List
+	// readAt is when the list held was read, and failed why reading it
+	// again last failed, nil once a read succeeds
+	readAt time.Time
+	failed error
 	// next is when the list held is read again: a day after it was read, an
 	// hour after a read of it failed
 	next time.Time
@@ -289,11 +341,26 @@ func NewLoader(source string, rt http.RoundTripper) *Loader {
 // Source is where the list is read from.
 func (l *Loader) Source() string { return l.source }
 
+// StaleError is what Load answers beside the list read before when reading
+// it again failed: that list still answers, and the answer says it is an
+// older copy, and why.
+type StaleError struct {
+	ReadAt time.Time // when the list answered was read
+	Err    error     // why reading it again failed
+}
+
+func (e *StaleError) Error() string {
+	return fmt.Sprintf("the anime list could not be read again (%v), so the copy read %s answers", e.Err, e.ReadAt.UTC().Format(time.RFC3339))
+}
+
+func (e *StaleError) Unwrap() error { return e.Err }
+
 // Load is the list, read again once what it holds is a day old. A list that
 // cannot be read again gives way to the one read before: the mapping
-// changes slowly, and an old copy answers better than an error. The failed
-// read is remembered and tried again only after an hour, and while a read is
-// under way every other call answers the list held at once: a source that is
+// changes slowly, and an old copy answers better than nothing. It comes
+// with a *StaleError saying so, until a read succeeds. The failed read is
+// remembered and tried again only after an hour, and while a read is under
+// way every other call answers the list held at once: a source that is
 // down or hangs (the read waits a minute) costs one call a wait, not every
 // call after it.
 //
@@ -308,14 +375,14 @@ func (l *Loader) Load(ctx context.Context) (*List, error) {
 		if err != nil {
 			return nil, err
 		}
-		l.list, l.next = list, l.now().Add(l.ttl)
+		l.list, l.readAt, l.next = list, l.now(), l.now().Add(l.ttl)
 
 		return l.list, nil
 	}
 	if l.reading || l.now().Before(l.next) {
 		defer l.mu.Unlock()
 
-		return l.list, nil
+		return l.list, l.stale()
 	}
 
 	// this call reads the list again, without holding the others up
@@ -326,13 +393,23 @@ func (l *Loader) Load(ctx context.Context) (*List, error) {
 	defer l.mu.Unlock()
 	l.reading = false
 	if err != nil {
-		l.next = l.now().Add(l.retry)
+		l.failed, l.next = err, l.now().Add(l.retry)
 
-		return l.list, nil
+		return l.list, l.stale()
 	}
-	l.list, l.next = list, l.now().Add(l.ttl)
+	l.list, l.readAt, l.next, l.failed = list, l.now(), l.now().Add(l.ttl), nil
 
 	return l.list, nil
+}
+
+// stale is the *StaleError for the list held when reading it again last
+// failed, and nil otherwise. l.mu is held.
+func (l *Loader) stale() error {
+	if l.failed == nil {
+		return nil
+	}
+
+	return &StaleError{ReadAt: l.readAt, Err: l.failed}
 }
 
 func (l *Loader) read(ctx context.Context) (*List, error) {

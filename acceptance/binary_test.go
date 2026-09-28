@@ -538,7 +538,7 @@ func TestTheBinary(t *testing.T) {
 				}
 				return false
 			}
-			t.Cleanup(func() { _, _ = invoke("item_set_state", map[string]any{"id": arrival, "favourite": false}) })
+			putBack(t, "item_set_state", map[string]any{"id": arrival, "favourite": false})
 			if !favourite(true) || favourite(false) {
 				t.Error("item_set_state through the binary did not change root's favourites")
 			}

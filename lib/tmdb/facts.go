@@ -108,18 +108,25 @@ type Movie struct {
 	ID          int
 	Title       string
 	ReleaseDate string
+	Year        int // the year of ReleaseDate, 0 when TMDB has no date
 	Runtime     int // minutes, 0 when TMDB has none
 	IMDbID      string
 }
 
-// Year is the year TMDB dates the film to, 0 when it has no date.
-func (m Movie) Year() int {
-	year, err := strconv.Atoi(m.ReleaseDate[:min(len(m.ReleaseDate), 4)])
+// DateYear is the year of a date TMDB answers as a day (2006-01-02), 0 for
+// none. A date written any other way is an error naming what carried it:
+// read as no date, or as the wrong year, it would date a film or an episode
+// wrongly without a word.
+func DateYear(what, date string) (int, error) {
+	if date == "" {
+		return 0, nil
+	}
+	day, err := time.Parse(time.DateOnly, date)
 	if err != nil {
-		return 0 // no date, or none that starts with a year
+		return 0, fmt.Errorf("tmdb %s: a date that can't be read (%q)", what, date)
 	}
 
-	return year
+	return day.Year(), nil
 }
 
 // Movie returns TMDB's film for a movie id; its ID is 0 when TMDB does not
@@ -138,7 +145,11 @@ func (f *Facts) Movie(ctx context.Context, id string) (Movie, error) {
 			return Movie{}, explain("movie "+id, err)
 		case res.Model != nil:
 			d := res.Model
-			m = Movie{ID: d.Id, Title: d.Title, ReleaseDate: d.ReleaseDate, Runtime: d.Runtime, IMDbID: d.ImdbId}
+			year, err := DateYear("movie "+id, d.ReleaseDate)
+			if err != nil {
+				return Movie{}, err
+			}
+			m = Movie{ID: d.Id, Title: d.Title, ReleaseDate: d.ReleaseDate, Year: year, Runtime: d.Runtime, IMDbID: d.ImdbId}
 		}
 	}
 	keep(f, f.movies, id, m)
@@ -204,7 +215,8 @@ type Episode struct {
 	Season  int
 	Episode int
 	Name    string
-	AirDate string
+	AirDate string // a day (2006-01-02), checked when TMDB's answer is read, or empty
+	Runtime int    // minutes, the episode's own; 0 when TMDB has none
 }
 
 // SeriesEpisodes lists every episode TMDB knows for a series id, season by
@@ -303,7 +315,10 @@ func (f *Facts) season(ctx context.Context, id string, n, number int) ([]Episode
 		if at == 0 {
 			at = number
 		}
-		out = append(out, Episode{Season: at, Episode: e.EpisodeNumber, Name: e.Name, AirDate: e.AirDate})
+		if _, err := DateYear(fmt.Sprintf("tv %s season %d episode %d", id, at, e.EpisodeNumber), e.AirDate); err != nil {
+			return nil, err
+		}
+		out = append(out, Episode{Season: at, Episode: e.EpisodeNumber, Name: e.Name, AirDate: e.AirDate, Runtime: e.Runtime})
 	}
 
 	return out, nil

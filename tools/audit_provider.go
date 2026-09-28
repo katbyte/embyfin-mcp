@@ -13,14 +13,16 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// audit_provider: films against their metadata provider, one request a film.
+// audit_provider: films and episodes against their metadata provider.
 //
 // A film matched by hand, or by a server that guessed, can hold a TMDB id
 // for one film and an IMDb id for another, or an IMDb id that is not a film
 // at all but a series or an episode of one. Nothing on the server shows it:
 // the item reads as matched. TMDB, asked about either id, says what it is,
 // and the same record says how long the film runs, which a truncated
-// download or a wrong file does not.
+// download or a wrong file does not. An episode's length is TMDB's for that
+// episode, from its series' season reads: the one length there is a fact to
+// judge a file by, where its season's other files are only more files.
 
 // checkMovieIDs asks TMDB about a film's ids and says what is wrong with
 // them, "" when nothing is. An IMDb id TMDB cannot place is not reported:
@@ -34,7 +36,7 @@ func checkMovieIDs(ctx context.Context, provider *tmdb.Facts, tmdbID, imdbID str
 		case m.ID == 0:
 			return fmt.Sprintf("TMDB has no film %s: the id is wrong, or the film was taken down", tmdbID), nil
 		case imdbID != "" && m.IMDbID != "" && !strings.EqualFold(m.IMDbID, imdbID):
-			return fmt.Sprintf("its TMDB id is %d, %s (%d), whose IMDb id is %s, not the %s it holds: one of the two is wrong", m.ID, m.Title, m.Year(), m.IMDbID, imdbID), nil
+			return fmt.Sprintf("its TMDB id is %d, %s (%d), whose IMDb id is %s, not the %s it holds: one of the two is wrong", m.ID, m.Title, m.Year, m.IMDbID, imdbID), nil
 		}
 
 		return "", nil
@@ -60,13 +62,13 @@ func checkMovieIDs(ctx context.Context, provider *tmdb.Facts, tmdbID, imdbID str
 // providerAuditIn is audit_provider's input.
 type providerAuditIn struct {
 	Library      string   `json:"library,omitempty"           jsonschema:"one library by name or id; default every library"`
-	IDs          []string `json:"ids,omitempty"               jsonschema:"only these films, by id: a handful checked without sweeping a library"`
-	Types        string   `json:"types,omitempty"             jsonschema:"what to check; Movie is the only kind yet, and the default"`
+	IDs          []string `json:"ids,omitempty"               jsonschema:"only these films or episodes, by id: a handful checked without sweeping a library"`
+	Types        string   `json:"types,omitempty"             jsonschema:"comma-separated: Movie, Episode; default both"`
 	Provider     string   `json:"provider,omitempty"          jsonschema:"the provider to ask: tmdb is the only one yet, and the default"`
-	Checks       string   `json:"checks,omitempty"            jsonschema:"comma-separated: ids (the ids the film holds agree with each other and exist), runtime (the file's runtime against the provider's); default both"`
-	TolerancePct int      `json:"tolerance_percent,omitempty" jsonschema:"runtime: flag when the file differs from the provider's runtime by more than this percent, default 20"`
+	Checks       string   `json:"checks,omitempty"            jsonschema:"comma-separated: ids (the ids a film holds agree with each other and exist; films only), runtime (the file's runtime against the provider's for that film or episode); default both"`
+	TolerancePct int      `json:"tolerance_percent,omitempty" jsonschema:"runtime: flag when the file differs from the provider's runtime by more than this percent (and 2 minutes or more), default 20"`
 	Limit        int      `json:"limit,omitempty"             jsonschema:"maximum findings, default 50"`
-	MaxLookups   int      `json:"max_lookups,omitempty"       jsonschema:"films to ask the provider about in this call, default 250"`
+	MaxLookups   int      `json:"max_lookups,omitempty"       jsonschema:"films and series to ask the provider about in this call, default 250: a film is one lookup, a series one for all its episodes"`
 	Offset       int      `json:"offset,omitempty"            jsonschema:"where to go on from: a previous call's next_offset"`
 }
 
@@ -75,14 +77,15 @@ type providerFinding struct {
 	Name     string   `json:"name"`
 	Year     int      `json:"year,omitempty"`
 	Path     string   `json:"path,omitempty"`
-	Holds    string   `json:"holds"          jsonschema:"the ids the film holds"`
+	Holds    string   `json:"holds"          jsonschema:"the ids the film holds, or for an episode its series' TMDB id"`
 	Problems []string `json:"problems"       jsonschema:"each begins with the check that failed: ids or runtime"`
 }
 
 type providerAuditOut struct {
 	Scanned    int               `json:"items_scanned"`
-	Found      int               `json:"total_findings"        jsonschema:"among the films this call asked about; the rest wait for next_offset"`
+	Found      int               `json:"total_findings"        jsonschema:"among the films and episodes this call asked about; the rest wait for next_offset"`
 	ByCheck    map[string]int    `json:"by_check"              jsonschema:"findings by the check that failed; a film failing both counts under both"`
+	Unjudged   int               `json:"runtime_not_judged"    jsonschema:"films and episodes scanned whose runtime was not judged, for want of a length on one side: no TMDB id (on the film, or on the episode's series), TMDB holds no length for it, or the server holds none for the file (never probed). None of them is known to be right"`
 	Findings   []providerFinding `json:"findings"              jsonschema:"capped at limit"`
 	NextOffset int               `json:"next_offset,omitempty" jsonschema:"pass back as offset to go on; absent when the sweep finished"`
 	Note       string            `json:"note,omitempty"        jsonschema:"set when the library was seen to change while this call read its films: films added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
@@ -95,8 +98,9 @@ func registerProviderCheckAudit(r *registry) {
 	client := r.client
 	provider := tmdbFacts(r.opts, r.opts.ProviderTransport)
 
-	desc := "Check films against their metadata provider, one request a film: the ids the film holds agree with each other and exist there (a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, an IMDb id that is a series or an episode rather than a film), and the file's runtime is the provider's (a truncated download, a wrong file, a wrong match). " +
-		"The item reads as matched on the server either way. Paged, every film once in the same order on every call: pass next_offset back as offset to go on; ids checks a handful of films without a sweep. TMDB is the only provider yet, and films the only kind."
+	desc := "Check films and episodes against their metadata provider. A film, one request each: the ids it holds agree with each other and exist there (a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, an IMDb id that is a series or an episode rather than a film), and the file's runtime is the provider's (a truncated download, a wrong file, a wrong match). " +
+		"An episode: the file's runtime against TMDB's for that episode, read once for its whole series by the series' TMDB id; a file holding several episodes (S01E01E02) against their lengths together. TMDB numbers episodes in the order they aired, so a show numbered another way is compared with other episodes than its own: each finding names the TMDB episode it was compared with beside the file's own title. " +
+		"The item reads as matched on the server either way. Paged, every film and then every episode once in the same order on every call: pass next_offset back as offset to go on; ids checks a handful without a sweep. What could not be judged, for want of a length on either side, is counted in runtime_not_judged. TMDB is the only provider yet."
 	if provider == nil {
 		desc += " Disabled: set EMBYFIN_TMDB_TOKEN to enable."
 	}
@@ -113,18 +117,18 @@ func registerProviderCheckAudit(r *registry) {
 	})
 }
 
-// auditAgainstProvider sweeps the films in order and asks the provider about
-// each that holds an id, until the lookup budget runs out.
+// auditAgainstProvider sweeps the films and then the episodes in order and
+// asks the provider about each film that holds an id, and each series an
+// episode is in, until the lookup budget runs out.
 func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider *tmdb.Facts, in providerAuditIn) (providerAuditOut, error) {
 	switch p := strings.ToLower(strings.TrimSpace(in.Provider)); p {
 	case "", "tmdb":
 	default:
 		return providerAuditOut{}, fmt.Errorf("provider must be tmdb, the only one supported yet, not %q", p)
 	}
-	switch t := strings.ToLower(strings.TrimSpace(in.Types)); t {
-	case "", "movie", "movies":
-	default:
-		return providerAuditOut{}, fmt.Errorf("types must be Movie, the only kind checked against a provider yet, not %q", t)
+	kinds, err := providerKinds(in.Types)
+	if err != nil {
+		return providerAuditOut{}, err
 	}
 	want := map[string]bool{}
 	if strings.TrimSpace(in.Checks) == "" {
@@ -154,51 +158,109 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 	if tolerance <= 0 {
 		tolerance = defaultRuntimeTolerancePct
 	}
-	opts := embyfin.SearchOptions{IncludeItemTypes: "Movie", Fields: "Path,ProviderIds,ProductionYear,SortName"}
+	// episodes are judged by runtime alone: with only ids asked for they
+	// have nothing to be judged by, and are not read
+	if !want["runtime"] {
+		kinds = slices.DeleteFunc(kinds, func(k string) bool { return k == typeEpisode })
+		if len(kinds) == 0 {
+			return providerAuditOut{}, errors.New("episodes are checked by runtime only: ask for checks runtime, or types Movie")
+		}
+	}
+	opts := embyfin.SearchOptions{IncludeItemTypes: strings.Join(kinds, ","), Fields: "Path,ProviderIds,ProductionYear,SortName"}
 	if ids := nonEmpty(in.IDs); len(ids) > 0 {
 		if in.Library != "" {
-			return providerAuditOut{}, errors.New("give library or ids, not both: a film is already in one library")
+			return providerAuditOut{}, errors.New("give library or ids, not both: a film or an episode is already in one library")
 		}
 		// read first: an id the server cannot use as a filter is not a
 		// narrower sweep, it is the whole library or nothing (see checkIDs)
-		if err := checkIDs(ctx, client, ids, []string{typeMovie}, "films"); err != nil {
+		if err := checkIDs(ctx, client, ids, kinds, "films or episodes"); err != nil {
 			return providerAuditOut{}, err
 		}
 		opts.IDs = strings.Join(ids, ",")
 	} else {
-		folder, err := resolveLibrary(ctx, client, in.Library)
-		if err != nil {
-			return providerAuditOut{}, err
+		folder, libErr := resolveLibrary(ctx, client, in.Library)
+		if libErr != nil {
+			return providerAuditOut{}, libErr
 		}
 		if folder != nil {
 			opts.ParentID = folder.ItemID
 		}
 	}
 
-	// every film, in an order this makes itself: by sort name and then by
-	// id. The servers' own sort by name leaves two films of one name (a
-	// remake, a second copy) in either order, and paged by offset one of
-	// them was asked about twice and the other never; neither server sorts
-	// by anything that tells every film apart
-	var films []embyfin.Item
+	// every film and then every episode, in an order this makes itself:
+	// films by sort name, episodes by series, season and number, then by id.
+	// The servers' own sort by name leaves two items of one name (a remake,
+	// a second copy) in either order, and paged by offset one of them was
+	// asked about twice and the other never
+	var all []embyfin.Item
 	read, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
-		films = append(films, items...)
+		for i := range items {
+			// a featurette Emby took for an episode, and a record of an
+			// episode with no file, have no file's runtime to judge
+			if items[i].Type == typeEpisode && (extraEpisode(&items[i]) || !items[i].HasFile()) {
+				continue
+			}
+			all = append(all, items[i])
+		}
 
 		return true
 	})
 	if err != nil {
 		return providerAuditOut{}, err
 	}
-	slices.SortFunc(films, func(a, b embyfin.Item) int {
-		return cmp.Or(strings.Compare(strings.ToLower(cmp.Or(a.SortName, a.Name)), strings.ToLower(cmp.Or(b.SortName, b.Name))), strings.Compare(a.ID, b.ID))
-	})
+	slices.SortFunc(all, func(a, b embyfin.Item) int { return providerOrder(&a, &b) })
+
+	// the TMDB id of each series an episode is in, read with the series
+	var seriesTMDB map[string]string
+	if slices.Contains(kinds, typeEpisode) {
+		if seriesTMDB, err = seriesTMDBIDs(ctx, client, all); err != nil {
+			return providerAuditOut{}, err
+		}
+	}
 
 	out := providerAuditOut{Findings: []providerFinding{}, ByCheck: map[string]int{}, Note: read.Changed()}
 	lookups := 0
-	start := min(max(in.Offset, 0), len(films))
-	items := films[start:]
+	asked := map[string]bool{} // series whose run this call has read
+	start := min(max(in.Offset, 0), len(all))
+	items := all[start:]
 	for i := range items {
 		it := &items[i]
+		if it.Type == typeEpisode {
+			tv := seriesTMDB[it.SeriesID]
+			if tv != "" && !asked[tv] {
+				if lookups >= maxLookups {
+					out.NextOffset = start + i
+
+					return out, nil
+				}
+				lookups++
+				asked[tv] = true
+			}
+			out.Scanned++
+			problem, judged, err := checkEpisodeRuntime(ctx, provider, it, tv, tolerance)
+			if err != nil {
+				return providerAuditOut{}, err
+			}
+			if !judged {
+				out.Unjudged++
+
+				continue
+			}
+			if problem == "" {
+				continue
+			}
+			out.Found++
+			out.ByCheck["runtime"]++
+			if len(out.Findings) < limit {
+				out.Findings = append(out.Findings, providerFinding{
+					ID: it.ID, Name: fmt.Sprintf("%s %s %s", it.SeriesName, episodeCode(it), it.Name), Path: it.Path,
+					Holds: "tmdb tv " + tv, Problems: []string{"runtime: " + problem},
+				})
+			}
+
+			continue
+		}
+
 		tmdbID, imdbID := providerID(it, "tmdb"), providerID(it, "imdb")
 		if tmdbID != "" || imdbID != "" {
 			if lookups >= maxLookups {
@@ -209,6 +271,9 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 			lookups++
 		}
 		out.Scanned++
+		if want["runtime"] && (tmdbID == "" || it.RunTimeTicks <= 0) {
+			out.Unjudged++
+		}
 		if tmdbID == "" && imdbID == "" {
 			continue
 		}
@@ -229,7 +294,9 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 			if err != nil {
 				return providerAuditOut{}, err
 			}
-			if pct, off := runtimeOff(it.RuntimeMinutes(), expected, tolerance); off {
+			if expected <= 0 {
+				out.Unjudged++
+			} else if pct, off := runtimeOff(it.RuntimeMinutes(), expected, tolerance); off {
 				problems = append(problems, fmt.Sprintf("runtime: file %d min, TMDB says %d min (%d%% off)", it.RuntimeMinutes(), expected, pct))
 			}
 		}
@@ -256,4 +323,121 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 	}
 
 	return out, nil
+}
+
+// providerKinds reads audit_provider's types: Movie, Episode or both, the
+// default.
+func providerKinds(types string) ([]string, error) {
+	var kinds []string
+	for t := range strings.SplitSeq(types, ",") {
+		switch k := strings.ToLower(strings.TrimSpace(t)); k {
+		case "":
+		case "movie", "movies":
+			kinds = append(kinds, typeMovie)
+		case "episode", "episodes":
+			kinds = append(kinds, typeEpisode)
+		default:
+			return nil, fmt.Errorf("types must be among Movie, Episode, not %q", k)
+		}
+	}
+	if len(kinds) == 0 {
+		return []string{typeMovie, typeEpisode}, nil
+	}
+
+	return slices.Compact(slices.Sorted(slices.Values(kinds))), nil
+}
+
+// providerOrder is the order audit_provider sweeps in: films by sort name,
+// then episodes by series, season and number, each settled by id.
+func providerOrder(a, b *embyfin.Item) int {
+	aEp, bEp := a.Type == typeEpisode, b.Type == typeEpisode
+	if aEp != bEp {
+		if aEp {
+			return 1
+		}
+
+		return -1
+	}
+	if !aEp {
+		return cmp.Or(strings.Compare(strings.ToLower(cmp.Or(a.SortName, a.Name)), strings.ToLower(cmp.Or(b.SortName, b.Name))), strings.Compare(a.ID, b.ID))
+	}
+	number := func(n *int) int {
+		if n == nil {
+			return -1
+		}
+
+		return *n
+	}
+
+	return cmp.Or(
+		strings.Compare(strings.ToLower(a.SeriesName), strings.ToLower(b.SeriesName)), strings.Compare(a.SeriesID, b.SeriesID),
+		cmp.Compare(number(a.ParentIndexNumber), number(b.ParentIndexNumber)), cmp.Compare(number(a.IndexNumber), number(b.IndexNumber)),
+		strings.Compare(a.ID, b.ID),
+	)
+}
+
+// seriesTMDBIDs reads the series the episodes are in, for the TMDB id each
+// holds; a series with none is absent.
+func seriesTMDBIDs(ctx context.Context, client *embyfin.Client, items []embyfin.Item) (map[string]string, error) {
+	var ids []string
+	for i := range items {
+		if items[i].Type == typeEpisode && items[i].SeriesID != "" {
+			ids = append(ids, items[i].SeriesID)
+		}
+	}
+	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
+	out := map[string]string{}
+	for chunk := range slices.Chunk(ids, idsPerRequest) {
+		if _, err := client.ReadAll(ctx, embyfin.SearchOptions{IDs: strings.Join(chunk, ","), IncludeItemTypes: "Series", Fields: "ProviderIds"}, embyfin.ToAnswer, func(series []embyfin.Item) bool {
+			for i := range series {
+				if tv := providerID(&series[i], "tmdb"); tv != "" {
+					out[series[i].ID] = tv
+				}
+			}
+
+			return true
+		}); err != nil {
+			return nil, fmt.Errorf("reading the series the episodes are in, for their TMDB ids: %w", err)
+		}
+	}
+
+	return out, nil
+}
+
+// checkEpisodeRuntime compares an episode file's runtime with TMDB's for the
+// episodes it holds, read from its series' run (tv, the series' TMDB id).
+// judged is false when either side has no length: no TMDB id, no numbers,
+// TMDB holding no such episode or no length for it, or the server none for
+// the file. The problem names the TMDB episodes compared with, so a show
+// TMDB numbers another way reads as that rather than as a wrong file.
+func checkEpisodeRuntime(ctx context.Context, provider *tmdb.Facts, it *embyfin.Item, tv string, tolerancePct int) (problem string, judged bool, err error) {
+	if tv == "" || it.RunTimeTicks <= 0 || it.ParentIndexNumber == nil || it.IndexNumber == nil {
+		return "", false, nil
+	}
+	season := *it.ParentIndexNumber
+	var run []tmdb.Episode
+	if season == 0 {
+		run, err = provider.SeriesSpecials(ctx, tv)
+	} else {
+		run, err = provider.SeriesEpisodes(ctx, tv)
+	}
+	if err != nil {
+		return "", false, err
+	}
+	expected := 0
+	var named []string
+	for _, n := range episodeSpan(it) {
+		i := slices.IndexFunc(run, func(e tmdb.Episode) bool { return e.Season == season && e.Episode == n })
+		if i < 0 || run[i].Runtime <= 0 {
+			return "", false, nil
+		}
+		expected += run[i].Runtime
+		named = append(named, fmt.Sprintf("S%02dE%02d %q", season, n, run[i].Name))
+	}
+	pct, off := runtimeOff(it.RuntimeMinutes(), expected, tolerancePct)
+	if !off {
+		return "", true, nil
+	}
+
+	return fmt.Sprintf("file %d min, TMDB says %d min for %s (%d%% off)", it.RuntimeMinutes(), expected, strings.Join(named, " and "), pct), true, nil
 }

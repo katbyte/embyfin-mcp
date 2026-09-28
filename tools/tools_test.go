@@ -493,11 +493,24 @@ func TestCutoffs(t *testing.T) {
 		t.Errorf("cutoff(7) is %v ago", d)
 	}
 	cut := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	if !afterCutoff("2026-01-02T00:00:00Z", cut) || afterCutoff("2025-12-31T00:00:00Z", cut) {
+	after := func(stamp string) bool {
+		t.Helper()
+		ok, err := afterCutoff(&embyfin.Item{ID: "1", Name: "Alien", DateCreated: stamp}, cut)
+		if err != nil {
+			t.Fatalf("afterCutoff(%q): %v", stamp, err)
+		}
+
+		return ok
+	}
+	if !after("2026-01-02T00:00:00Z") || !after("2026-01-01T00:00:00.0000000Z") || after("2025-12-31T00:00:00Z") {
 		t.Error("afterCutoff compares the wrong way")
 	}
-	if afterCutoff("", cut) || afterCutoff("yesterday", cut) {
-		t.Error("an unparseable stamp counts as after the cutoff")
+	if after("") {
+		t.Error("an item with no date counts as after the cutoff")
+	}
+	// a date that can't be read is neither: the error names the item
+	if _, err := afterCutoff(&embyfin.Item{ID: "1", Name: "Alien", DateCreated: "yesterday"}, cut); err == nil || !strings.Contains(err.Error(), "Alien (id 1)") {
+		t.Errorf("an unreadable date = %v, want an error naming the item", err)
 	}
 }
 
