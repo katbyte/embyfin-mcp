@@ -654,9 +654,11 @@ func TestAuditsAreFixable(t *testing.T) {
 	// ids and all: the fix is the identity, not the year alone, which would
 	// leave a 2021 film holding the 1984 film's ids
 	t.Run("year mismatch", func(t *testing.T) {
+		// Stargate, held as Stargate: Continuum, is dated wrong too, and
+		// stays so
 		years := map[string]any{"library": "Messy Movies", "checks": "year"}
-		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune"}) {
-			t.Fatalf("audit_file_path = %v, want [Dune]", got)
+		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
+			t.Fatalf("audit_file_path = %v, want [Dune Stargate: Continuum]", got)
 		}
 		counts := auditCounts(t, messy)
 		keepFiles(t, itemFolder(t, dune))
@@ -677,12 +679,12 @@ func TestAuditsAreFixable(t *testing.T) {
 		if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" || num(t, out["year"], "year") != 1984 || !strings.Contains(str(out["note"]), "set what is missing or wrong with item_edit") {
 			t.Errorf("item_identify_apply = %v", out)
 		}
-		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune"}) {
-			t.Errorf("with the new ids alone audit_file_path = %v, want [Dune] still", got)
+		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
+			t.Errorf("with the new ids alone audit_file_path = %v, want [Dune Stargate: Continuum] still", got)
 		}
 		call(t, "item_edit", map[string]any{"ids": []any{dune}, "year": 2021})
-		if n := num(t, call(t, "audit_file_path", years)["total_findings"], "total_findings"); n != 0 {
-			t.Errorf("after the match and the year audit_file_path found %d", n)
+		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Stargate: Continuum"}) {
+			t.Errorf("after the match and the year audit_file_path = %v, want Stargate's alone", got)
 		}
 		if got := call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841", "type": "movie"}); boolOf(got["found"]) || len(rowsOf(got["items"])) != 0 {
 			t.Errorf("tmdb 841 still finds %v", got)
@@ -961,6 +963,7 @@ func TestLookupsChangeNothing(t *testing.T) {
 		"audit_quality":                   {{"library": "Messy Movies"}},
 		"audit_runtime":                   {{"library": "Messy Shows"}},
 		"audit_spelling":                  {nil},
+		"provider_cache_clear":            {nil},
 		"audit_unwatched":                 {{"types": "Movie,Series"}},
 		"audit_whitespace":                {{"library": "Messy Shows"}},
 		"collection_get":                  {{"collection": col}},

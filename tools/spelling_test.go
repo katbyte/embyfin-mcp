@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -218,5 +219,147 @@ func TestSpellingContainsPairsOnly(t *testing.T) {
 	if g := pairs[[2]string{"Warner Bros.", "Warner Bros. Pictures"}]; g.Keep != "Warner Bros." ||
 		g.Note != `"Warner Bros." also begins "Warner Bros. Television": it may name their parent company rather than "Warner Bros. Pictures" cut short` {
 		t.Errorf("Warner Bros. and its pictures = %+v", g)
+	}
+}
+
+// Album and artist names, as the tracks' tags carry them: an album spelled
+// two ways by one album artist is a group naming that artist, and the same
+// slip between two artists' albums is none, their albums never compared; an
+// artist's name with and without a leading "The" is one spelling, and two
+// short names a letter apart ("Blur", "Blue") are two bands.
+func TestSpellingOfAlbumsAndArtists(t *testing.T) {
+	t.Parallel()
+
+	r := &spellingResult{counts: spellingCounts{fieldArtists: {}}, albumArtists: map[string]map[string]int{}}
+	for range 3 {
+		r.addAlbum("Wish You Were Here", "Pink Floyd")
+	}
+	r.addAlbum("Wish You Where Here", "Pink Floyd")
+	r.addAlbum("Zzyzx Greatest Hits", "Zzyzx One")
+	r.addAlbum("Zzyzx Greatest Hit", "Zzyzx Two")
+	for range 7 {
+		r.addArtist("Pink Floyd")
+	}
+	r.addArtist("The Pink Floyd")
+	r.addArtist("Blur")
+	r.addArtist("Blue")
+	r.addArtist("The The") //nolint:dupword // a band's name
+
+	got := r.groups([]string{fieldAlbums, fieldArtists})
+	if len(got) != 2 {
+		t.Fatalf("groups = %+v, want the album and the artist", got)
+	}
+	album, artist := got[0], got[1]
+	if album.Field != fieldAlbums || album.Kind != "near" || album.AlbumArtist != "Pink Floyd" || album.Keep != "Wish You Were Here" ||
+		!slices.Equal(album.Spellings, []spelling{{"Wish You Were Here", 3}, {"Wish You Where Here", 1}}) {
+		t.Errorf("the album = %+v", album)
+	}
+	if artist.Field != fieldArtists || artist.Kind != "spelling" || artist.AlbumArtist != "" || artist.Keep != "Pink Floyd" ||
+		!slices.Equal(artist.Spellings, []spelling{{"Pink Floyd", 7}, {"The Pink Floyd", 1}}) {
+		t.Errorf("the artist = %+v", artist)
+	}
+	if k := artistKey("The The"); k != "the" { //nolint:dupword // a band's name
+		t.Errorf("artistKey(The The) = %q, want the name kept", k)
+	}
+}
+
+// The album and artist names come off the tracks' tags, each spelling
+// counting the tracks that carry it; the album entries are never read. When
+// no track comes back with its album, album names are not compared and the
+// answer says so, rather than reading as nothing spelled two ways; artists
+// are compared either way. And metadata_rename refuses them, as names in the
+// files' tags.
+func TestSpellingReadsTheTracks(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		tracks []map[string]any
+		// albums is the album group's keep, "" for no album group, when
+		// the albums note must say none was compared
+		albums string
+	}{
+		{
+			name: "albums on the tracks",
+			tracks: []map[string]any{
+				{"Id": "t1", "Type": "Audio", "Name": "One", "Album": "Zzyzx Album", "AlbumArtist": "Zzyzx Band", "Artists": []string{"Zzyzx Band"}},
+				{"Id": "t2", "Type": "Audio", "Name": "Two", "Album": "Zzyzx Album", "AlbumArtist": "Zzyzx Band", "Artists": []string{"The Zzyzx Band"}},
+				{"Id": "t3", "Type": "Audio", "Name": "Three", "Album": "Zzyzx Albun", "AlbumArtist": "Zzyzx Band", "Artists": []string{"Zzyzx Band"}},
+			},
+			albums: "Zzyzx Album",
+		},
+		{
+			name: "no album on any track",
+			tracks: []map[string]any{
+				{"Id": "t1", "Type": "Audio", "Name": "One", "AlbumArtist": "Zzyzx Band", "Artists": []string{"Zzyzx Band"}},
+				{"Id": "t2", "Type": "Audio", "Name": "Two", "AlbumArtist": "Zzyzx Band", "Artists": []string{"The Zzyzx Band"}},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newFakeServer(t)
+			music := map[string]any{"Name": "Tunes", "CollectionType": "music", "ItemId": "lib-music", "Locations": []string{"/media/music"}}
+			f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page(music)) })
+			albumsRead := false
+			f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+				switch param(r.URL.Query(), "IncludeItemTypes") {
+				case "Audio":
+					writeJSON(t, w, page(tc.tracks...))
+				case musicAlbum:
+					albumsRead = true
+					writeJSON(t, w, page())
+				default:
+					writeJSON(t, w, page())
+				}
+			})
+			adminView(t, f)
+			cs := session(t, f, Options{})
+
+			out := mustCall(t, cs, "audit_spelling", map[string]any{})
+			if albumsRead || number(t, out["tracks_scanned"], "tracks_scanned") != len(tc.tracks) {
+				t.Errorf("album entries read %v, %v tracks scanned: want the %d tracks alone", albumsRead, out["tracks_scanned"], len(tc.tracks))
+			}
+			fields := map[string]map[string]any{}
+			for _, g := range objects(t, out["groups"], "groups") {
+				fields[text(g["field"])] = g
+			}
+			switch g, note := fields[fieldAlbums], text(out["albums_note"]); {
+			case tc.albums != "" && (g == nil || text(g["keep"]) != tc.albums || text(g["album_artist"]) != "Zzyzx Band" || note != ""):
+				t.Errorf("the album group = %v, albums_note %q", g, note)
+			case tc.albums == "" && (g != nil || note != "none of the 2 tracks read came back with an album name, so album names were not compared: whether any is spelled two ways is not known"):
+				t.Errorf("with no album on any track the album group = %v, albums_note %q", g, note)
+			}
+			if g := fields[fieldArtists]; g == nil || text(g["keep"]) != "Zzyzx Band" || text(g["kind"]) != "spelling" {
+				t.Errorf("the artist group = %v", g)
+			}
+
+			if msg := mustRefuse(t, cs, "metadata_rename", map[string]any{"field": "albums", "from": "Zzyzx Albun", "to": "Zzyzx Album"}); !strings.Contains(msg, "albums are names in the tracks' own tags") {
+				t.Errorf("metadata_rename of an album = %s", msg)
+			}
+		})
+	}
+}
+
+// A server with no library that can hold music is not read for album and
+// artist names: no track is asked for, and none is counted.
+func TestSpellingLeavesAFilmServersTracksAlone(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	films := map[string]any{"Name": "Films", "CollectionType": "movies", "ItemId": "lib-films", "Locations": []string{"/media/films"}}
+	f.mux.HandleFunc("GET /Library/VirtualFolders/Query", func(w http.ResponseWriter, _ *http.Request) { writeJSON(t, w, page(films)) })
+	tracksAsked := false
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, r *http.Request) {
+		if kinds := param(r.URL.Query(), "IncludeItemTypes"); kinds == "Audio" || kinds == musicAlbum {
+			tracksAsked = true
+		}
+		writeJSON(t, w, page())
+	})
+	adminView(t, f)
+	out := mustCall(t, session(t, f, Options{}), "audit_spelling", map[string]any{})
+	if tracksAsked || number(t, out["tracks_scanned"], "tracks_scanned") != 0 || out["albums_note"] != nil {
+		t.Errorf("a film server read for music names: asked %v, answer %v", tracksAsked, out)
 	}
 }

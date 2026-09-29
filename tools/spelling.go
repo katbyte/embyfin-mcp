@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -176,11 +177,14 @@ type spelling struct {
 }
 
 type vocabGroup struct {
-	Field     string     `json:"field"          jsonschema:"pass to metadata_rename"`
-	Kind      string     `json:"kind"           jsonschema:"spelling: one value spelled several ways; near: a letter or two apart, or only a mark apart (note says), a typo or two different things; contains: two studios, one named by the other's first words - the same company cut short, or two companies (Paramount and Paramount Television), so check before merging"`
-	Keep      string     `json:"keep"           jsonschema:"the most used spelling, which a merge would keep; for near and contains, merge only once both are known to be one thing"`
-	Spellings []spelling `json:"spellings"      jsonschema:"every spelling involved, the most used first"`
-	Note      string     `json:"note,omitempty" jsonschema:"contains: the other studios the shorter name begins, when there are any - it may then be their parent company rather than either one cut short. near: when values differ only by a mark (+, !, brackets), which can make another name or be a typo"`
+	Field string `json:"field" jsonschema:"genres, tags or studios: pass to metadata_rename. albums or artists: names in the tracks' own tags, which a rename on the server does not change - correct the tags in the files and scan"`
+	// AlbumArtist is the album artist an albums group was found within:
+	// album names are compared only among one artist's albums
+	AlbumArtist string     `json:"album_artist,omitempty" jsonschema:"albums: the album artist whose albums these are, as most of its tracks spell it; album names are only compared within one album artist"`
+	Kind        string     `json:"kind"                   jsonschema:"spelling: one value spelled several ways; near: a letter or two apart, or only a mark apart (note says), a typo or two different things; contains: two studios, one named by the other's first words - the same company cut short, or two companies (Paramount and Paramount Television), so check before merging"`
+	Keep        string     `json:"keep"                   jsonschema:"the most used spelling, which a merge would keep; for near and contains, merge only once both are known to be one thing"`
+	Spellings   []spelling `json:"spellings"              jsonschema:"every spelling involved, the most used first"`
+	Note        string     `json:"note,omitempty"         jsonschema:"contains: the other studios the shorter name begins, when there are any - it may then be their parent company rather than either one cut short. near: when values differ only by a mark (+, !, brackets), which can make another name or be a typo"`
 }
 
 // spellingsOf lists one key's spellings, most used first, then alphabetical
@@ -475,40 +479,273 @@ func typoDistance(a, b string, limit int) int {
 	return prev[len(rb)]
 }
 
+// The names in a music library's tags: an album's, compared among its album
+// artist's albums, and an artist's. A tagger leaves them spelled one way on
+// some tracks and another on the rest ("Wish You Where Here" on one track of
+// Wish You Were Here, "The Pink Floyd" on another), and each spelling becomes
+// an album or an artist of its own, or a track filed under a name its album
+// does not carry. They are the files' tags, so they are corrected in the
+// files, not on the server, and metadata_rename does not take them.
+const (
+	fieldAlbums  = "albums"
+	fieldArtists = "artists"
+)
+
+var nameFields = []string{fieldAlbums, fieldArtists}
+
+// spellingFieldsAll is every field audit_spelling reads.
+var spellingFieldsAll = append(slices.Clone(vocabFields), nameFields...)
+
+// nameField maps what a caller wrote (album, Artists...) onto the name in
+// nameFields, or returns "" for anything else.
+func nameField(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s != "" && !strings.HasSuffix(s, "s") {
+		s += "s"
+	}
+	if slices.Contains(nameFields, s) {
+		return s
+	}
+
+	return ""
+}
+
 // spellingFields resolves audit_spelling's field argument.
 func spellingFields(field string) ([]string, error) {
 	f := strings.ToLower(strings.TrimSpace(field))
 	if f == "" || f == "all" {
-		return vocabFields, nil
+		return spellingFieldsAll, nil
 	}
-	if f = vocabField(f); f == "" {
-		return nil, fmt.Errorf("unknown field %q; choose one of: %s", field, strings.Join(vocabFields, ", "))
+	if v := cmp.Or(vocabField(f), nameField(f)); v != "" {
+		return []string{v}, nil
 	}
 
-	return []string{f}, nil
+	return nil, fmt.Errorf("unknown field %q; choose one of: %s", field, strings.Join(spellingFieldsAll, ", "))
 }
 
-// spellingAudit sweeps a library's items and gathers the fields' spellings,
-// with the note on the library changing under the sweep.
-func spellingAudit(ctx context.Context, client *embyfin.Client, library, types string, fields []string) (spellings spellingCounts, items int, note string, err error) {
-	opts, err := sweepOptions(ctx, client, library, types, vocabularyTypes, embyfin.FieldsVocabulary)
-	if err != nil {
-		return nil, 0, "", err
+// artistKey is how an artist's name is compared: normalised, with a
+// leading "The" set aside - "The Pink Floyd" is Pink Floyd, as "The Beatles"
+// and "Beatles" are one band - unless it is the whole name.
+func artistKey(v string) string {
+	k := norm(v)
+	if rest, ok := strings.CutPrefix(k, "the "); ok && rest != "" {
+		return rest
 	}
-	counts := newSpellingCounts(fields)
-	scanned := 0
+
+	return k
+}
+
+// albumsField is the field an album's spellings are counted under: one per
+// album artist, so two artists' albums are never compared.
+func albumsField(artist string) string { return fieldAlbums + albumSep + artistKey(artist) }
+
+// albumSep parts albumsField's album artist from the field's name.
+const albumSep = "\x01"
+
+// albumArtistOf is the artist a track's album is filed under: its album
+// artist, else its first artist.
+func albumArtistOf(it *embyfin.Item) string {
+	if it.AlbumArtist != "" || len(it.Artists) == 0 {
+		return it.AlbumArtist
+	}
+
+	return it.Artists[0]
+}
+
+// spellingResult is what the spelling sweep gathered: the counts, how much
+// it read, whether the album names could be read, and the note on the
+// library changing under it.
+type spellingResult struct {
+	counts spellingCounts
+	// albumArtists is each album artist's spellings, by the key its albums
+	// are counted under, for naming a group's artist
+	albumArtists map[string]map[string]int
+	items        int
+	tracks       int
+	// albumsUnread says album names were asked for and tracks were read,
+	// but no track came back with its album: nothing was compared, which
+	// is not the same as nothing spelled two ways
+	albumsUnread string
+	note         string
+}
+
+// groups is everything the sweep has to say about the fields, in order.
+func (r *spellingResult) groups(fields []string) []vocabGroup {
+	var out []vocabGroup
+	for _, f := range fields {
+		if f != fieldAlbums {
+			out = append(out, r.counts.report(f)...)
+			continue
+		}
+		var scopes []string
+		for k := range r.counts {
+			if strings.HasPrefix(k, fieldAlbums+albumSep) {
+				scopes = append(scopes, k)
+			}
+		}
+		slices.Sort(scopes)
+		for _, scope := range scopes {
+			artist := ""
+			if sp := r.artistSpellings(strings.TrimPrefix(scope, fieldAlbums+albumSep)); len(sp) > 0 {
+				artist = sp[0].Value
+			}
+			for _, g := range r.counts.report(scope) {
+				g.Field, g.AlbumArtist = fieldAlbums, artist
+				out = append(out, g)
+			}
+		}
+	}
+
+	return out
+}
+
+// artistSpellings is an album artist's spellings, most used first.
+func (r *spellingResult) artistSpellings(key string) []spelling {
+	out := make([]spelling, 0, len(r.albumArtists[key]))
+	for v, n := range r.albumArtists[key] {
+		out = append(out, spelling{Value: v, Items: n})
+	}
+	sortSpellings(out)
+
+	return out
+}
+
+// addAlbum counts one album name under its album artist.
+func (r *spellingResult) addAlbum(album, artist string) {
+	field := albumsField(artist)
+	if r.counts[field] == nil {
+		r.counts[field] = map[string]map[string]int{}
+	}
+	r.counts.addValue(field, album)
+	key := artistKey(artist)
+	if r.albumArtists[key] == nil {
+		r.albumArtists[key] = map[string]int{}
+	}
+	if a := strings.TrimSpace(artist); a != "" {
+		r.albumArtists[key][a]++
+	}
+}
+
+// spellingAudit sweeps a library's items and gathers the fields' spellings:
+// genres, tags and studios off the items of types, and album and artist
+// names off the library's tracks, whatever types says - or, for albums, off
+// its album entries when the server gives no track's album in a list.
+func spellingAudit(ctx context.Context, client *embyfin.Client, library, types string, fields []string) (*spellingResult, error) {
+	var vocab, names []string
+	for _, f := range fields {
+		if slices.Contains(nameFields, f) {
+			names = append(names, f)
+		} else {
+			vocab = append(vocab, f)
+		}
+	}
+	r := &spellingResult{counts: newSpellingCounts(vocab), albumArtists: map[string]map[string]int{}}
+	var notes []string
+	if len(vocab) > 0 {
+		opts, err := sweepOptions(ctx, client, library, types, vocabularyTypes, embyfin.FieldsVocabulary)
+		if err != nil {
+			return nil, err
+		}
+		read, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
+			for i := range items {
+				r.items++
+				r.counts.add(&items[i])
+			}
+			return true
+		})
+		if err != nil {
+			return nil, err
+		}
+		notes = append(notes, read.Changed())
+	}
+	r.note = joinNotes(notes...)
+	if len(names) == 0 {
+		return r, nil
+	}
+	// the names are music's: a library that holds none is not read for them
+	if music, err := holdsMusic(ctx, client, library); err != nil || !music {
+		return r, err
+	}
+
+	artists, albums := slices.Contains(names, fieldArtists), slices.Contains(names, fieldAlbums)
+	if artists {
+		r.counts[fieldArtists] = map[string]map[string]int{}
+	}
+	opts, err := sweepOptions(ctx, client, library, "Audio", "Audio", "Path")
+	if err != nil {
+		return nil, err
+	}
+	withAlbum := 0
 	read, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
 		for i := range items {
-			scanned++
-			counts.add(&items[i])
+			it := &items[i]
+			r.tracks++
+			if artists {
+				// each name once a track, whether it is the track's artist,
+				// its album artist or both
+				seen := map[string]bool{}
+				for _, a := range append(slices.Clone(it.Artists), it.AlbumArtist) {
+					if a = strings.TrimSpace(a); a != "" && !seen[a] {
+						seen[a] = true
+						r.addArtist(a)
+					}
+				}
+			}
+			if albums && strings.TrimSpace(it.Album) != "" {
+				withAlbum++
+				r.addAlbum(it.Album, albumArtistOf(it))
+			}
 		}
 		return true
 	})
 	if err != nil {
-		return nil, 0, "", err
+		return nil, err
+	}
+	notes = append(notes, read.Changed())
+	if albums && withAlbum == 0 && r.tracks > 0 {
+		r.albumsUnread = fmt.Sprintf("none of the %d tracks read came back with an album name, so album names were not compared: whether any is spelled two ways is not known", r.tracks)
+	}
+	r.note = joinNotes(slices.Compact(notes)...)
+
+	return r, nil
+}
+
+// holdsMusic says whether a library, or any library when none is named, can
+// hold music: a music library, or one of mixed content, which on both
+// servers has no collection type.
+func holdsMusic(ctx context.Context, client *embyfin.Client, library string) (bool, error) {
+	music := func(f *embyfin.VirtualFolder) bool {
+		return f.CollectionType == "music" || f.CollectionType == "" || f.CollectionType == "mixed"
+	}
+	if library != "" {
+		folder, err := resolveLibrary(ctx, client, library)
+		if err != nil || folder == nil {
+			return folder == nil && err == nil, err
+		}
+
+		return music(folder), nil
+	}
+	folders, err := client.VirtualFolders(ctx)
+	if err != nil {
+		return false, err
 	}
 
-	return counts, scanned, read.Changed(), nil
+	return slices.ContainsFunc(folders, func(f embyfin.VirtualFolder) bool { return music(&f) }), nil
+}
+
+// addArtist counts one artist's name, a leading "The" set aside in the key.
+func (r *spellingResult) addArtist(v string) {
+	k := artistKey(v)
+	if k == "" {
+		return
+	}
+	if marks := nameMarks(v); marks != "" {
+		k += markSep + marks
+	}
+	if r.counts[fieldArtists][k] == nil {
+		r.counts[fieldArtists][k] = map[string]int{}
+	}
+	r.counts[fieldArtists][k][strings.TrimSpace(v)]++
 }
 
 func registerSpellingTools(r *registry) {
@@ -516,19 +753,22 @@ func registerSpellingTools(r *registry) {
 
 	type auditIn struct {
 		Library string `json:"library,omitempty" jsonschema:"library name or id; default every library"`
-		Field   string `json:"field,omitempty"   jsonschema:"genres, tags or studios; default all three"`
-		Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types to read; default Movie,Series"`
+		Field   string `json:"field,omitempty"   jsonschema:"genres, tags, studios, albums or artists; default all five"`
+		Types   string `json:"types,omitempty"   jsonschema:"comma-separated item types whose genres, tags and studios are read; default Movie,Series. Albums and artists are read off the tracks whatever this says"`
 		Limit   int    `json:"limit,omitempty"   jsonschema:"maximum groups to return, default 50"`
 	}
 	type auditOut struct {
-		Scanned int          `json:"items_scanned"`
-		Found   int          `json:"total_findings" jsonschema:"groups of every kind, before limit"`
-		Groups  []vocabGroup `json:"groups"`
-		Note    string       `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or counted though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
+		Scanned    int          `json:"items_scanned"         jsonschema:"items whose genres, tags and studios were read"`
+		Tracks     int          `json:"tracks_scanned"        jsonschema:"tracks whose album and artist names were read; 0 when neither was asked for, or the library holds no music"`
+		AlbumsNote string       `json:"albums_note,omitempty" jsonschema:"set when album names were asked for and no track came back with one: none was compared, which says nothing of whether any is spelled two ways"`
+		Found      int          `json:"total_findings"        jsonschema:"groups of every kind, before limit"`
+		Groups     []vocabGroup `json:"groups"`
+		Note       string       `json:"note,omitempty"        jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or counted though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_spelling",
 		Description: "Find genres, tags and studios that mean the same thing but are spelled differently: 'Sci-Fi' and 'Sci Fi', 'Science-Fiction' and 'Science Fiction', a letter apart ('Superhero' and 'Superhreo'), or a studio named by another's first words ('Warner Bros.' and 'Warner Bros. Pictures'). Each group says which kind it is and which spelling is most used. " +
+			"In a music library it reads album and artist names too, off the tracks' tags: an album spelled two ways by one album artist ('Wish You Were Here' and 'Wish You Where Here'), compared only among that artist's albums, and an artist spelled two ways across the library, a leading 'The' counting as a spelling ('The Pink Floyd' and 'Pink Floyd'). Those are names in the files' tags, which a rename on the server does not change and a scan brings back: correct them in the files and scan, not with metadata_rename. Each spelling counts the tracks that carry it; when no track comes back with its album, albums_note says album names were not compared. " +
 			"Merge a group with metadata_rename, passing the field and the spellings as reported here. A near or a contains group can be two different things - 'Paramount' and 'Paramount Television' are two companies - so read both first. A studio and a longer name it begins are a pair of their own, never joined to a third through it, and a note says when the shorter name begins others too, which makes it likelier a parent company than either one cut short. Values a whole short word apart ('teenage life', 'teenage love') are no near group, though two letters swapped in one ('Film Nior') are. Values only a mark apart ('discovery+' beside 'Discovery', 'Yahoo!' beside 'Yahoo') are never one spelling: a near group, with a note, as the mark can make another name or be a typo. " +
 			"Studio names mostly come from the metadata provider, so a merge of them does not last: an item_refresh with replace_all puts the provider's names back on both servers, and on Jellyfin a plain refresh adds the provider's name back beside the merged one.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditIn) (*mcp.CallToolResult, auditOut, error) {
@@ -536,7 +776,7 @@ func registerSpellingTools(r *registry) {
 		if err != nil {
 			return nil, auditOut{}, err
 		}
-		counts, scanned, note, err := spellingAudit(ctx, client, in.Library, in.Types, fields)
+		sweep, err := spellingAudit(ctx, client, in.Library, in.Types, fields)
 		if err != nil {
 			return nil, auditOut{}, err
 		}
@@ -545,13 +785,11 @@ func registerSpellingTools(r *registry) {
 		if limit <= 0 {
 			limit = 50
 		}
-		out := auditOut{Scanned: scanned, Groups: []vocabGroup{}, Note: note}
-		for _, f := range fields {
-			for _, g := range counts.report(f) {
-				out.Found++
-				if len(out.Groups) < limit {
-					out.Groups = append(out.Groups, g)
-				}
+		out := auditOut{Scanned: sweep.items, Tracks: sweep.tracks, AlbumsNote: sweep.albumsUnread, Groups: []vocabGroup{}, Note: sweep.note}
+		for _, g := range sweep.groups(fields) {
+			out.Found++
+			if len(out.Groups) < limit {
+				out.Groups = append(out.Groups, g)
 			}
 		}
 
@@ -583,6 +821,9 @@ func registerSpellingTools(r *registry) {
 			"Afterwards it reads the items changed again - through the server's own filter for the old value, and each by id as item_get reads it - until none shows the old value (Emby shows an album or an artist with its tracks' old genre too for a moment after they change), ten seconds at most; still_listed names any the server still shows it on, and an item whose own record has the old value again is an error.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in renameIn) (*mcp.CallToolResult, renameOut, error) {
 		field := vocabField(in.Field)
+		if f := nameField(in.Field); field == "" && f != "" {
+			return nil, renameOut{}, fmt.Errorf("%s are names in the tracks' own tags, which a rename on the server does not change and the next scan reads back: correct them in the files and scan", f)
+		}
 		if field == "" {
 			return nil, renameOut{}, fmt.Errorf("unknown field %q; choose one of: %s", in.Field, strings.Join(vocabFields, ", "))
 		}

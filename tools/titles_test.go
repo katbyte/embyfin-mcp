@@ -10,8 +10,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // What a film's path names, against every title the item goes by. A folder
@@ -436,5 +438,77 @@ func TestAuditFilePathReadsEveryJellyfinVersion(t *testing.T) {
 	}
 	if q := param(first, "fields"); !strings.Contains(q, "MediaSourceCount") {
 		t.Errorf("the sweep did not ask how many versions each item holds: %s", q)
+	}
+}
+
+// TMDB's titles, collections and searches are kept an hour, as its facts
+// are: kept for the life of the process, a title put right at TMDB went
+// unseen until a restart. Clear forgets them at once, and says how many.
+func TestProviderTitlesAreKeptAnHour(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	p := &providerTitles{now: func() time.Time { return now }}
+	p.reset()
+	put := func() {
+		p.lock()
+		p.searched["movie:zzyzx:1999"] = []titleHit{{ID: 1, Title: "Zzyzx"}}
+		p.alternative["movie:1"] = []string{"Zzyzx Again"}
+		p.mu.Unlock()
+	}
+	held := func() int {
+		p.lock()
+		defer p.mu.Unlock()
+
+		return len(p.searched) + len(p.alternative)
+	}
+	put()
+	now = now.Add(59 * time.Minute)
+	if n := held(); n != 2 {
+		t.Errorf("after 59 minutes %d answers are kept, want both", n)
+	}
+	now = now.Add(2 * time.Minute)
+	if n := held(); n != 0 {
+		t.Errorf("after an hour %d answers are kept, want none", n)
+	}
+	put()
+	if n := p.Clear(); n != 2 || held() != 0 {
+		t.Errorf("Clear forgot %d, and %d are kept: want 2 forgotten and none kept", n, held())
+	}
+}
+
+// provider_cache_clear reaches every cache the tools made, and says plainly
+// when there is none because no TMDB token is set.
+func TestProviderCacheClear(t *testing.T) {
+	t.Parallel()
+
+	out := mustCall(t, session(t, newFakeServer(t), Options{}), "provider_cache_clear", map[string]any{})
+	if number(t, out["cleared"], "cleared") != 0 || !strings.Contains(text(out["note"]), "no TMDB token is set") {
+		t.Errorf("without a token = %v", out)
+	}
+
+	f := newFakeServer(t)
+	srv := mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
+	r := &registry{server: srv, client: f.client(t), opts: Options{Toolsets: []string{"all"}, TMDBKey: "k"}}
+	queueTools(r)
+	if len(r.providerCaches) == 0 {
+		t.Fatal("no TMDB cache was kept for provider_cache_clear")
+	}
+	var titles *providerTitles
+	for _, c := range r.providerCaches {
+		if p, ok := c.(*providerTitles); ok {
+			titles = p
+		}
+	}
+	if titles == nil {
+		t.Fatal("no title cache among the caches kept")
+	}
+	titles.lock()
+	titles.searched["movie:zzyzx:1999"] = []titleHit{{ID: 1}}
+	titles.mu.Unlock()
+	cs := hostRegistry(t, r)
+	out = mustCall(t, cs, "provider_cache_clear", map[string]any{})
+	if number(t, out["cleared"], "cleared") != 1 || text(out["note"]) != "forgot 1 answers from TMDB; the next read of each asks TMDB again" {
+		t.Errorf("provider_cache_clear = %v", out)
 	}
 }

@@ -118,7 +118,7 @@ func (l libraryFixture) episodes() int {
 // remote-image, remote-search and refresh tests need, and each library with
 // providers on costs a cassette full of provider traffic.
 var (
-	sdkMovies = libraryFixture{Name: "SDK Movies", CollectionType: "movies", Folder: "/media/movies", Providers: true, Movies: 9}
+	sdkMovies = libraryFixture{Name: "SDK Movies", CollectionType: "movies", Folder: "/media/movies", Providers: true, Movies: 10}
 	sdkShows  = libraryFixture{Name: "SDK Shows", CollectionType: "tvshows", Folder: "/media/shows", Series: 4, Episodes: 11}
 	// sdkScratch sits over a folder the destructive test lays out itself,
 	// so the delete has something to remove that nothing else relies on
@@ -130,8 +130,8 @@ var (
 	// fetchers off, for what the servers read off the files themselves: a
 	// legacy codec, a language, a film held as two files, a disc kept whole,
 	// a file holding two episodes
-	sdkMessyMovies = libraryFixture{Name: "SDK Messy Movies", CollectionType: "movies", Folder: "/media/messy-movies", Movies: 13, Versions: 1}
-	sdkMessyShows  = libraryFixture{Name: "SDK Messy Shows", CollectionType: "tvshows", Folder: "/media/messy-shows", Series: 11, Episodes: 27, ExtraEpisodes: 1}
+	sdkMessyMovies = libraryFixture{Name: "SDK Messy Movies", CollectionType: "movies", Folder: "/media/messy-movies", Movies: 14, Versions: 1}
+	sdkMessyShows  = libraryFixture{Name: "SDK Messy Shows", CollectionType: "tvshows", Folder: "/media/messy-shows", Series: 12, Episodes: 30, ExtraEpisodes: 1}
 	// sdkBulk sits over a folder the bulk delete test lays out itself
 	sdkBulk = libraryFixture{Name: "SDK Bulk Delete", CollectionType: "movies", Folder: "/media/sdk-bulk", Movies: len(bulkTitles)}
 )
@@ -159,6 +159,7 @@ var movies = []movieFixture{
 	{"Princess Mononoke", 1997, "128", "tt0119698", "Animation", "Hayao Miyazaki"},
 	{"Arrival", 2016, "329865", "tt2543164", "Drama", "Denis Villeneuve"},
 	{"The Thirteenth Floor", 1999, "1090", "tt0139809", "Science Fiction", "Josef Rusnak"},
+	{"Brüno", 2009, "18480", "tt0889583", "Comedy", "Larry Charles"},
 	{"Limitless", 2011, "51876", "tt1219289", "Thriller", "Neil Burger"},
 }
 

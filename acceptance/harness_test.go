@@ -64,7 +64,7 @@ var libraries = []libraryFixture{
 	{Name: "Music", Type: "music", Folder: "/media/music", Items: musicAlbums},
 }
 
-// messyMovies is how many films the messy library stores: twelve folders, but
+// messyMovies is how many films the messy library stores: thirteen folders, but
 // Jellyfin folds the two Blade Runner files into one entry with two versions
 // while Emby keeps them as two items. Emby does merge them - by file name,
 // and the two Aliens by their shared TMDB id - but only in what it shows
@@ -73,21 +73,21 @@ var libraries = []libraryFixture{
 // Interstellar's trailers and extras are no film on either.
 func messyMovies() int {
 	if isJellyfin() {
-		return 12
+		return 13
 	}
 
-	return 13
+	return 14
 }
 
 // The messy show library: Severance, Star Trek The Next Generation, Star Trek:
 // Deep Space Nine, Andor, the A Knight of the Seven Kingdoms pair,
-// .hack//Liminality, The Wire split across two folders, the Asterix & Obelix
-// series holding a film's ids and Red Dwarf from its third season,
-// holding twenty-seven episode files between them (scripts/testenv.sh says
-// what is wrong with each).
+// .hack//Liminality, .hack//SIGN, The Wire split across two folders, the
+// Asterix & Obelix series holding a film's ids and Red Dwarf from its third
+// season, holding thirty episode files between them (scripts/testenv.sh
+// says what is wrong with each).
 const (
-	messySeries       = 11
-	messyEpisodeFiles = 27
+	messySeries       = 12
+	messyEpisodeFiles = 30
 )
 
 // messyEpisodes is how many episodes the messy show library stores: its
@@ -164,6 +164,7 @@ var movies = []movieFixture{
 	{"Princess Mononoke", 1997, "128", "tt0119698", "Animation", "Hayao Miyazaki"},
 	{"Arrival", 2016, "329865", "tt2543164", "Drama", "Denis Villeneuve"},
 	{"The Thirteenth Floor", 1999, "1090", "tt0139809", "Science Fiction", "Josef Rusnak"},
+	{"Brüno", 2009, "18480", "tt0889583", "Comedy", "Larry Charles"},
 	{"Limitless", 2011, "51876", "tt1219289", "Thriller", "Neil Burger"},
 }
 

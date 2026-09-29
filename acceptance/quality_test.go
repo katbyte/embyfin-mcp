@@ -255,11 +255,10 @@ func TestQualityCompareCaveats(t *testing.T) {
 		t.Errorf("4:3 against 16:9 = %v, b %v", caveats(out), b)
 	}
 	// a bigger frame on under half the bits a pixel still wins on class, and
-	// the answer says what that hides: a 720p encode at 4 Mbps against a
-	// 1080p one at 800 kbps, rates as real files carry (the fixtures' still
-	// frames run a few kilobits a second, below where bits per pixel say
-	// anything)
-	out = compare(given(map[string]any{"bitrate": 4000000}), map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 800000})
+	// the answer says what that hides - however few the bits: the fixture's
+	// still frame runs a few kilobits a second, and bits per pixel rounded
+	// to two places once read it and a fifth of it both as 0
+	out = compare(item, map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": rate / 5})
 	if str(out["verdict"]) != "b_better" || str(out["decided_by"]) != "resolution" || !strings.Contains(caveats(out), "the larger frame is the more thinly encoded one") {
 		t.Errorf("a starved 1080p = %v by %v: %v", out["verdict"], out["decided_by"], caveats(out))
 	}

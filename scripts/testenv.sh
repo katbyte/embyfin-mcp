@@ -106,6 +106,7 @@ Dune Part Two (2024)|Dune: Part Two|2024|693134|tt15239678|167|Science Fiction|D
 Princess Mononoke (1997)|Princess Mononoke|1997|128|tt0119698|134|Animation|Hayao Miyazaki|Ashitaka, a prince cursed by a demon boar god, travels west in search of a cure and finds himself caught in a war between the gods of the forest and a mining town that is destroying it.
 Arrival (2016)|Arrival|2016|329865|tt2543164|116|Drama|Denis Villeneuve|Taking place after alien crafts land around the world, an expert linguist is recruited by the military to determine whether they come in peace.
 The Thirteenth Floor (1999)|The Thirteenth Floor|1999|1090|tt0139809|100|Science Fiction|Josef Rusnak|When his mentor is murdered, a computer scientist enters the simulation of 1937 Los Angeles they built together to find the killer, and begins to doubt that his own world is real.
+Brüno (2009)|Brüno|2009|18480|tt0889583|83|Comedy|Larry Charles|Flamboyantly gay Austrian television reporter Bruno stirs up trouble with unsuspecting guests and large crowds through brutally frank interviews and painfully hilarious public displays of homosexuality.
 Limitless (2011)|Limitless|2011|51876|tt1219289|106|Thriller|Neil Burger|The life of an unsuccessful writer is transformed by a top-secret '\''smart drug'\'' that allows him to use 100% of his brain and become a perfect version of himself. His enhanced abilities soon attract shadowy forces that threaten his new life.'
 
 # folder|title|year|tmdb|tvdb|imdb|genre|plot
@@ -242,6 +243,10 @@ SirensCeol|Afterworld|4|A Grand Illusion'
 #                                  nfo as VIDEO_TS.nfo): one film at its folder, like Cube, which the
 #                                  disc audit must leave alone. Jellyfin probes the disc, Emby does not
 #   Memento (2000)                 nfo carries Breaking Bad's IMDb id and no TMDB one: a series' id on a film
+#   Stargate (1994)                matched as the wrong film: the folder and file are Stargate's, running
+#                                  its 121 minutes, and the nfo holds it as Stargate: Continuum (2008),
+#                                  TMDB 12914, 98 minutes - the name another film in the series begins
+#                                  with, another year, and a runtime that is the path's film's
 #   Star Wars Episode IV - A New Hope Despecialized Edition (1977)
 #                                  the fan restoration of Star Wars: nfo carries a TMDB id TMDB has no
 #                                  film for, and the genre spelled Science-Fiction where the rest say
@@ -267,6 +272,9 @@ SirensCeol|Afterworld|4|A Grand Illusion'
 #                                  list says TVDB and TMDB fold into .hack//SIGN's specials; genre
 #                                  Science-Fiction; two episodes of three minutes and a third of one
 #                                  second: a runtime outlier
+#   hack SIGN (2002)               .hack//SIGN, with TMDB, TVDB and AniDB ids: two episodes, and the
+#                                  special TVDB numbers 2 - by the anime list .hack//Liminality's first
+#                                  episode, which the library holds on its own as well
 #   The Wire + The Wire (2002)     one show split by a folder rename: both tvshow.nfo files carry its
 #                                  ids, the first two episodes are in one folder and the second and
 #                                  third in the other, the second held twice - a 720p copy in the
@@ -707,6 +715,13 @@ fixtures() {
   video "${m}/Memento (2000)/Memento (2000).mp4" $((113 * 60)) 640x360
   movie_nfo "${m}/Memento (2000)" "Memento" 2000 "" tt0903747 "" Mystery "" "Leonard Shelby is tracking down the man who raped and murdered his wife. The difficulty of locating his wife's killer, however, is compounded by the fact that he suffers from a rare, untreatable form of short-term memory loss."
   poster "${m}/Memento (2000)/poster.jpg"
+  # a film matched as another: Stargate's file, held as Stargate: Continuum.
+  # A few seconds past its minute, as a real file runs: on the minute it was
+  # the Despecialized Edition's 121 at the same frame, to the byte
+  sg="${m}/Stargate (1994)"
+  video "${sg}/Stargate (1994).mp4" "$(runs 121 0 "Stargate")" 640x360
+  movie_nfo "$sg" "Stargate: Continuum" 2008 12914 tt0929629 98 "Science Fiction" "Martin Wood" "Ba'al travels back in time and prevents the Stargate program from being started. SG-1 must somehow restore history."
+  poster "${sg}/poster.jpg"
   sw="${m}/Star Wars Episode IV - A New Hope Despecialized Edition (1977)"
   # the restoration runs the 1977 cut's length, TMDB's 121 minutes for Star Wars
   video "${sw}/Star Wars Episode IV - A New Hope Despecialized Edition (1977).mp4" $((121 * 60)) 640x360 libx264 ger
@@ -782,6 +797,33 @@ fixtures() {
   episode "${g}/Season 01/hack Liminality S01E01" 1 1 "In the Case of Mai Minase" 180 160x90
   episode "${g}/Season 01/hack Liminality S01E02" 1 2 "In the Case of Yuki Aihara" 180 176x90
   episode "${g}/Season 01/hack Liminality S01E03" 1 3 "In the Case of Kyoko Tohno" 1 160x90
+
+  # .hack//SIGN, the show whose specials TVDB and TMDB fold .hack//Liminality
+  # into, held with its ids (TMDB's tv 8864, which TMDB names .hack; TVDB
+  # 79099; AniDB 24): two episodes, and the special TVDB numbers 2, named
+  # the way Sonarr names it - the anime list's first episode of Liminality,
+  # which the library holds as a series of its own too. TMDB numbers the
+  # same special 1, so against TMDB's special 2 it runs long
+  h="${s}/hack SIGN (2002)"
+  mkdir -p "$h"
+  {
+    echo '<?xml version="1.0" encoding="utf-8"?>'
+    echo '<tvshow>'
+    echo '  <title>.hack//SIGN</title>'
+    echo '  <year>2002</year>'
+    echo '  <plot>.hack follows several young players as they navigate the vast, mysterious MMORPG known as “The World” – a place, it turns out, that is sometimes impossible to leave.</plot>'
+    echo '  <genre>Animation</genre>'
+    echo '  <uniqueid type="tmdb" default="true">8864</uniqueid>'
+    echo '  <tvdbid>79099</tvdbid>'
+    echo '  <uniqueid type="tvdb">79099</uniqueid>'
+    echo '  <uniqueid type="imdb">tt0361140</uniqueid>'
+    echo '  <anidbid>24</anidbid>'
+    echo '  <uniqueid type="anidb">24</uniqueid>'
+    echo '</tvshow>'
+  } > "${h}/tvshow.nfo"
+  episode "${h}/Season 01/hack SIGN S01E01" 1 1 "Role Play" "$(runs 24 1 ".hack//SIGN")" 640x360
+  episode "${h}/Season 01/hack SIGN S01E02" 1 2 "Guardian" "$(runs 24 2 ".hack//SIGN")" 640x360
+  episode "${h}/Season 00/hack SIGN S00E02" 0 2 "In the Case of Mai Minase" "$(runs 46 2 ".hack//SIGN")" 640x360
 
   # one show split by a folder rename: the old folder had no year, the new
   # one has, and both carry the show's ids. The second episode landed in

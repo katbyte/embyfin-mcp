@@ -3,6 +3,7 @@
 package acceptance
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -352,10 +353,10 @@ func TestInstantMixFromAPlaylist(t *testing.T) {
 //
 // Emby builds albums from the tags alone, so the misspelt one is an album of
 // its own; Jellyfin builds them from folders, so it is one track of the
-// album it sits in. Both make artists of every name the tags carry. Nothing
-// here tells the two Pink Floyds apart, or the two spellings of the album:
-// audit_spelling reads genres, tags and studios, not the names of artists or
-// albums.
+// album it sits in. Both make artists of every name the tags carry.
+// audit_spelling reads the names off the tracks' tags, so it finds both
+// defects on either server: the album spelled two ways by one album artist,
+// and the artist written with and without "The".
 func TestMusicTagDefects(t *testing.T) {
 	namesOf := func(kind string) map[string]map[string]any {
 		out := map[string]map[string]any{}
@@ -417,9 +418,34 @@ func TestMusicTagDefects(t *testing.T) {
 	}
 
 	// what audit_spelling reads in a music library: the genre spelled two
-	// ways, and neither artist's nor album's name
+	// ways, the album spelled two ways under Pink Floyd - three tracks
+	// against one - and Pink Floyd written with "The" on one track of eight
 	spelling := call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum"})
-	if groups := rows(t, spelling["groups"], "groups"); len(groups) != 1 || str(groups[0]["field"]) != "genres" {
-		t.Errorf("audit_spelling over Music = %v, want the Electronica pair alone", groups)
+	groups := map[string]map[string]any{}
+	for _, g := range rows(t, spelling["groups"], "groups") {
+		groups[str(g["field"])] = g
+	}
+	if len(groups) != 3 || num(t, spelling["total_findings"], "total_findings") != 3 || groups["genres"] == nil {
+		t.Errorf("audit_spelling over Music = %v, want the Electronica pair, the album and the artist", spelling["groups"])
+	}
+	counted := func(g map[string]any) string {
+		var out []string
+		for _, sp := range rows(t, g["spellings"], "spellings") {
+			out = append(out, fmt.Sprintf("%s %d", str(sp["value"]), num(t, sp["items"], "items")))
+		}
+		return strings.Join(out, ", ")
+	}
+	if g := groups["albums"]; g == nil || str(g["kind"]) != "near" || str(g["album_artist"]) != "Pink Floyd" || counted(g) != "Wish You Were Here 3, "+misspeltAlbum+" 1" {
+		t.Errorf("the album group = %v", g)
+	}
+	if g := groups["artists"]; g == nil || str(g["kind"]) != "spelling" || counted(g) != "Pink Floyd 8, "+pinkFloydAgain+" 1" {
+		t.Errorf("the artist group = %v", g)
+	}
+	if n := num(t, spelling["tracks_scanned"], "tracks_scanned"); n != 20 || spelling["albums_note"] != nil {
+		t.Errorf("tracks_scanned %d, albums_note %v: want the 20 tracks read, each with its album", n, spelling["albums_note"])
+	}
+	// and the names are the files' to correct, not the server's
+	if msg := callErr(t, "metadata_rename", map[string]any{"field": "artists", "from": pinkFloydAgain, "to": "Pink Floyd"}); !strings.Contains(msg, "names in the tracks' own tags") {
+		t.Errorf("metadata_rename of an artist = %s", msg)
 	}
 }

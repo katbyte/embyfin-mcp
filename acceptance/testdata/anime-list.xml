@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Entries copied verbatim from Anime-Lists' anime-list-master.xml, for audit_anime_ids' live test: .hack//Liminality, and Dragon Ball Z with two of the specials TVDB and TMDB fold into it (Bardock - The Father of Goku, The History of Trunks). -->
+<!-- Entries copied verbatim from Anime-Lists' anime-list-master.xml, for audit_anime_ids' live test: .hack//Sign and .hack//Liminality, which TVDB and TMDB fold into its specials, and Dragon Ball Z with two of the specials TVDB and TMDB fold into it (Bardock - The Father of Goku, The History of Trunks). -->
 <anime-list>
+  <anime anidbid="24" tvdbid="79099" defaulttvdbseason="1" episodeoffset="" tmdbtv="8864" tmdbseason="1" tmdboffset="" tmdbid="" imdbid="">
+    <name>.hack//Sign</name>
+    <mapping-list>
+      <mapping anidbseason="0" tvdbseason="0">;2-6;</mapping>
+    </mapping-list>
+  </anime>
   <anime anidbid="222" tvdbid="79099" defaulttvdbseason="0" episodeoffset="1" tmdbtv="8864" tmdbseason="0" tmdboffset="1" tmdbid="" imdbid="">
     <name>.hack//Liminality</name>
   </anime>

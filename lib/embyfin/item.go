@@ -192,6 +192,11 @@ type Item struct {
 	UserData         *UserData `json:"UserData,omitempty"`
 	SeriesName       string    `json:"SeriesName,omitempty"`
 	SeriesID         string    `json:"SeriesId,omitempty"`
+	// Album, AlbumArtist and Artists are a track's tags as the server read
+	// them (an album entry carries its name and AlbumArtist)
+	Album       string   `json:"Album,omitempty"`
+	AlbumArtist string   `json:"AlbumArtist,omitempty"`
+	Artists     []string `json:"Artists,omitempty"`
 	// ParentIndexNumber is an episode's season number and IndexNumber its
 	// episode number (a season's own number, on a season). Either is nil
 	// when the server holds none, which is not 0: season 0 is the specials.
@@ -325,7 +330,13 @@ type SearchOptions struct {
 	// Path finds the item holding exactly this file. Emby answers it;
 	// Jellyfin's item query has no such parameter, so a caller needing it on
 	// both backends reads a folder and compares paths itself.
-	Path           string
+	Path string
+	// IsMissing true lists only the server's records of episodes it has no
+	// file for, which Jellyfin keeps with the TheTVDB plugin and leaves out
+	// of an item query unless asked. Emby's item query has no such
+	// parameter, and a search passing it there is refused rather than
+	// answered with every episode.
+	IsMissing      *bool
 	UserID         string // user context: adds watch state to UserData
 	EnableUserData bool
 	Fields         string // override FieldsDefault
@@ -373,6 +384,9 @@ func isDate(s string) bool {
 const embyPlayFields = "UserDataPlayCount,UserDataLastPlayedDate"
 
 func (c *Client) searchEmby(ctx context.Context, opts SearchOptions, fields string) ([]Item, int, error) {
+	if opts.IsMissing != nil {
+		return nil, 0, errors.New("emby's item query has no filter for missing episodes: read an episode's record by its having no file")
+	}
 	if opts.EnableUserData {
 		fields += "," + embyPlayFields
 	}
@@ -488,6 +502,7 @@ func (c *Client) searchJF(ctx context.Context, opts SearchOptions, fields string
 		SortBy:              list[jf.ItemSortBy](opts.SortBy),
 		SortOrder:           list[jf.SortOrder](opts.SortOrder),
 		MinDateLastSaved:    opts.SavedSince,
+		IsMissing:           opts.IsMissing,
 		UserId:              opts.UserID,
 		Limit:               nz(opts.Limit),
 		StartIndex:          nz(opts.StartIndex),

@@ -421,8 +421,8 @@ func TestTheBinary(t *testing.T) {
 					t.Errorf("%s, a %s tool, is hinted read-only %v, destructive %v", tool.Name, kind, a.ReadOnlyHint, *a.DestructiveHint)
 				}
 			}
-			if len(kinds["read"]) != 61 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
-				t.Errorf("read %d, write %d, delete %d, want 61, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
+			if len(kinds["read"]) != 62 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
+				t.Errorf("read %d, write %d, delete %d, want 62, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
 			}
 			if want := []string{"collection_delete", "item_delete", "item_orphans_delete", "library_delete", "playlist_delete"}; !slices.Equal(sorted(kinds["delete"]), want) {
 				t.Errorf("delete tools = %v, want %v", kinds["delete"], want)
@@ -643,8 +643,8 @@ func TestTheBinary(t *testing.T) {
 		if got, want := listed(t, cs), toolsFor(t, tools.Options{Toolsets: []string{"curation"}}); !slices.Equal(got, want) {
 			t.Errorf("tools = %v\nwant %v", got, want)
 		}
-		if got := findings(t, callOn(t, cs, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "year"})); !slices.Equal(got, []string{"Dune"}) {
-			t.Errorf("audit_file_path over HTTP = %v, want [Dune]", got)
+		if got := findings(t, callOn(t, cs, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "year"})); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
+			t.Errorf("audit_file_path over HTTP = %v, want [Dune Stargate: Continuum]", got)
 		}
 		_ = cs.Close()
 

@@ -191,8 +191,13 @@ func TestSpellingReport(t *testing.T) {
 		t.Errorf("a genre inside another = %+v", g)
 	}
 
-	if fields, err := spellingFields(""); err != nil || len(fields) != 3 {
+	if fields, err := spellingFields(""); err != nil || !slices.Equal(fields, []string{fieldGenres, fieldTags, fieldStudios, fieldAlbums, fieldArtists}) {
 		t.Errorf("spellingFields() = %v, %v", fields, err)
+	}
+	for in, want := range map[string]string{"album": fieldAlbums, "Artists": fieldArtists, "genre": fieldGenres} {
+		if fields, err := spellingFields(in); err != nil || !slices.Equal(fields, []string{want}) {
+			t.Errorf("spellingFields(%q) = %v, %v, want %s", in, fields, err, want)
+		}
 	}
 	if _, err := spellingFields("narrators"); err == nil {
 		t.Error("an unknown field was accepted")

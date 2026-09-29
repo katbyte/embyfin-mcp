@@ -25,10 +25,27 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	titles := map[string]any{"library": "Messy Movies", "checks": "title"}
 	before := auditRow(t, "Messy Movies", "audit_file_path")
 
+	// the one title the messy films already get wrong: Stargate's file held
+	// as Stargate: Continuum, a subtitle added to the path's title, which
+	// TMDB says is the film of 1994 - and the runtime is its too
+	stargate := findItem(t, "Messy Movies", "Movie", "Stargate: Continuum")
+	lasting := rows(t, call(t, "audit_file_path", titles)["findings"], "findings")
+	if len(lasting) != 1 || str(lasting[0]["id"]) != stargate ||
+		!slices.Equal(strs(t, lasting[0]["problems"], "problems"), []string{`title: the path is named "Stargate", the server holds "Stargate: Continuum": the item's title is the path's with "Continuum" added: an edition, a subtitle, or another film - can't tell from the names`}) ||
+		str(lasting[0]["path_tmdb"]) != "2164 Stargate (1994)" || str(lasting[0]["item_tmdb"]) != "12914" ||
+		!strings.Contains(str(lasting[0]["diagnosis"]), "it is matched to another film than the one on disk; the file runs 121 min, and TMDB's 2164 runs 121 and its 12914 98: the file's runtime is the path's film's") {
+		t.Fatalf("the messy films' title rows = %v, want Stargate held as Stargate: Continuum alone", lasting)
+	}
+
 	rename(t, interstellar, "Arrival")
 	out := call(t, "audit_file_path", titles)
-	found := rows(t, out["findings"], "findings")
-	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
+	var found []map[string]any
+	for _, row := range rows(t, out["findings"], "findings") {
+		if str(row["id"]) != stargate {
+			found = append(found, row)
+		}
+	}
+	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != 2 {
 		t.Fatalf("with Interstellar held as Arrival = %v", found)
 	}
 	f := found[0]
@@ -46,8 +63,8 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 		t.Errorf("audit_all's row = %d with the title wrong, want %d", n, before+1)
 	}
 	call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "name": "Interstellar"})
-	if n := num(t, call(t, "audit_file_path", titles)["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("with the title put back the title check finds %d", n)
+	if n := num(t, call(t, "audit_file_path", titles)["total_findings"], "total_findings"); n != 1 {
+		t.Errorf("with the title put back the title check finds %d, want Stargate's alone", n)
 	}
 	if n := auditRow(t, "Messy Movies", "audit_file_path"); n != before {
 		t.Errorf("audit_all's row = %d with the title put back, want %d", n, before)
@@ -60,9 +77,9 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	for year, flagged := range map[int]bool{2013: false, 2015: false, 2016: true, 2012: true} {
 		call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": year})
 		got := findings(t, call(t, "audit_file_path", years))
-		want := []string{"Dune"}
+		want := []string{"Dune", "Stargate: Continuum"}
 		if flagged {
-			want = []string{"Dune", "Interstellar"}
+			want = []string{"Dune", "Interstellar", "Stargate: Continuum"}
 		}
 		if !slices.Equal(got, want) {
 			t.Errorf("with Interstellar's year %d the year check finds %v, want %v", year, got, want)
@@ -75,7 +92,7 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 		}
 	}
 	call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2014})
-	if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune"}) {
+	if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
 		t.Errorf("with the year put back the year check finds %v", got)
 	}
 
@@ -118,8 +135,8 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 			t.Errorf("the film in a collection's folder was reported: %v", f)
 		}
 	}
-	if n := num(t, out["total_findings"], "total_findings"); n != 1 || num(t, out["items_scanned"], "items_scanned") != messyMovies()+1 {
-		t.Errorf("with the collection staged = %d rows of %v, want the messy Dune's year alone of %d", n, out["items_scanned"], messyMovies()+1)
+	if n := num(t, out["total_findings"], "total_findings"); n != 2 || num(t, out["items_scanned"], "items_scanned") != messyMovies()+1 {
+		t.Errorf("with the collection staged = %d rows of %v, want the messy Dune's year and Stargate's row alone of %d", n, out["items_scanned"], messyMovies()+1)
 	}
 }
 
@@ -762,6 +779,21 @@ func TestAuditMissingProviderLinksOnly(t *testing.T) {
 	}
 	if n := auditRow(t, "Messy Movies", "audit_missing_metadata_provider"); n != before-1 {
 		t.Errorf("audit_all's row = %d identified, want %d", n, before-1)
+	}
+}
+
+// One show in two folders a space and a letter's case apart, neither with
+// an id: the messy A Knight of the Seven Kingdoms pair, E01 in one and E02 in
+// the other. With E03 staged beside E01, that folder alone skips E02 - which
+// is the other folder's file, so the show, judged as one, is missing
+// nothing.
+func TestAuditMissingEpisodesJoinsTwinFolders(t *testing.T) {
+	knight := "messy-shows/A Knight of the Seven Kingdoms (2026)/Season 01/"
+	stage(t, plus(0, 0, 1), map[string][]byte{
+		knight + "A Knight of the Seven Kingdoms S01E03.mp4": fixture(t, "messy-shows/Severance/Season 01/Severance S01E03.mp4"),
+	})
+	if got := findings(t, call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})); !slices.Equal(got, []string{"Andor", "Star Trek The Next Generation", "Star Trek: Deep Space Nine"}) {
+		t.Errorf("with E03 beside E01 = %v, want the Knight's E02 found in its other folder", got)
 	}
 }
 

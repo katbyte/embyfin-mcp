@@ -100,7 +100,10 @@ func film(id, name string, year int) map[string]any {
 func writeRaw(t *testing.T, w http.ResponseWriter, body string) {
 	t.Helper()
 
-	if _, err := io.WriteString(w, body); err != nil { //nolint:gosec // a canned test server's answer, written by the test
+	// a canned test server's answer, written by the test. gosec's taint
+	// analysis flags this on some runs of the same code and not on others,
+	// so the directive is marked as one that may go unused
+	if _, err := io.WriteString(w, body); err != nil { //nolint:gosec,nolintlint // see above
 		t.Errorf("answering a canned route: %v", err)
 	}
 }

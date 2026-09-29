@@ -150,7 +150,7 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	}
 	// the delete says what the scan it raced may do, and so does the change
 	// of alice's state, which a scan saving the item can undo
-	if note := str(deleted["note"]); !strings.Contains(note, "was running: it can list this item again") {
+	if note := str(deleted["note"]); !strings.Contains(note, "was running: it can list this item again") || !strings.Contains(note, "until a later scan lets it go") {
 		t.Errorf("item_delete during a scan: note = %q, want it to say a scan was running", note)
 	}
 	switch msg := fmt.Sprint(markErr); {
@@ -162,9 +162,9 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 
 	// Jellyfin's scan, having read the copy's folder before the delete,
 	// can list the copy again when it finishes (seen on a CI runner, not on
-	// every run): the files stay gone and the next scan lets it go, which
-	// the delete's note says. Everywhere else, and after that next scan, the
-	// copy must be gone.
+	// every run): the files stay gone and a later scan lets it go - the
+	// next as a rule, the one after at most - which the delete's note says.
+	// Everywhere else the copy must be gone, and on Jellyfin after two scans.
 	racedBack := func() bool {
 		_, err := invoke("item_get", map[string]any{"id": staged})
 		return err == nil
@@ -198,7 +198,7 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 		if _, err := os.Stat(copied); !os.IsNotExist(err) {
 			t.Errorf("%s the deleted copy's folder is on disk: %v", when, err)
 		}
-		if when == "once the scan finished" && isJellyfin() && racedBack() {
+		if when != "after the last scan" && isJellyfin() && racedBack() {
 			t.Logf("%s Jellyfin lists the deleted copy again, its files gone, as the delete's note says it may", when)
 			return
 		}
@@ -210,12 +210,17 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 		}
 	}
 	stand("once the scan finished")
-	// and the next scan, the first to start after the delete
-	call(t, "library_scan", nil)
-	if err := waitForExpectedScan(); err != nil {
-		t.Fatal(err)
+	// and the next scans, the first to start after the delete: Jellyfin has
+	// kept the copy through the first of them (twice in a few dozen runs,
+	// with the copy a film of 100 minutes), and must let it go by the
+	// second, as the delete's note says
+	for _, when := range []string{"after another scan", "after the last scan"} {
+		call(t, "library_scan", nil)
+		if err := waitForExpectedScan(); err != nil {
+			t.Fatal(err)
+		}
+		stand(when)
 	}
-	stand("after another scan")
 }
 
 // An edit made straight after item_refresh answers stays. It did not:

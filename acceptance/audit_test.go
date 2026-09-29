@@ -308,7 +308,7 @@ func TestAuditMissingPoster(t *testing.T) {
 	// no messy series has a poster.jpg, and with the fetchers off nothing
 	// gave it one
 	out = call(t, "audit_missing_poster", map[string]any{"library": "Messy Shows"})
-	if got, want := findings(t, out), sorted(append([]string{".hack//Liminality", "Severance", "The Wire", "The Wire", "Red Dwarf", "Asterix & Obelix: The Big Fight"}, unmatchedShows...)); !slices.Equal(got, want) || len(want) != messySeries {
+	if got, want := findings(t, out), sorted(append([]string{".hack//Liminality", ".hack//SIGN", "Severance", "The Wire", "The Wire", "Red Dwarf", "Asterix & Obelix: The Big Fight"}, unmatchedShows...)); !slices.Equal(got, want) || len(want) != messySeries {
 		t.Errorf("series with no poster = %v, want every one of the %d: %v", got, messySeries, want)
 	}
 	// nor any messy episode an image, where the clean show library's were
@@ -323,30 +323,41 @@ func TestAuditMissingPoster(t *testing.T) {
 	}
 }
 
-// The messy Dune's folder says (2021) and its nfo 1984; every other messy
-// film's folder names it as the server does, edition words after the year
-// included ("Alien (1979) Directors Cut" is Alien). The loose DVD's file is
+// The messy Dune's folder says (2021) and its nfo 1984, and Stargate's file
+// is held as Stargate: Continuum of 2008; every other messy film's folder
+// names it as the server does, edition words after the year included
+// ("Alien (1979) Directors Cut" is Alien). The loose DVD's file is
 // VTS_01_1.VOB, which names no film: a disc's files are read by the folder
 // above them, and that names the film the server holds.
 func TestAuditFilePath(t *testing.T) {
 	out := call(t, "audit_file_path", map[string]any{"library": "Messy Movies"})
-	if got := findings(t, out); !slices.Equal(got, []string{"Dune"}) {
-		t.Fatalf("file path = %v, want [Dune]", got)
+	if got := findings(t, out); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
+		t.Fatalf("file path = %v, want [Dune Stargate: Continuum]", got)
 	}
-	f := rows(t, out["findings"], "findings")[0]
-	if problems := strs(t, f["problems"], "problems"); len(problems) != 1 || !strings.Contains(problems[0], "year: path says 2021, metadata says 1984") || str(f["type"]) != "Movie" {
-		t.Errorf("Dune = %v", f)
+	for _, f := range rows(t, out["findings"], "findings") {
+		problems := strs(t, f["problems"], "problems")
+		switch title(str(f["name"])) {
+		case "Dune":
+			if len(problems) != 1 || !strings.Contains(problems[0], "year: path says 2021, metadata says 1984") || str(f["type"]) != "Movie" {
+				t.Errorf("Dune = %v", f)
+			}
+		case "Stargate: Continuum":
+			if len(problems) != 2 || !strings.HasPrefix(problems[0], `title: the path is named "Stargate"`) || problems[1] != "year: path says 1994, metadata says 2008" {
+				t.Errorf("Stargate = %v", f)
+			}
+		}
 	}
 	byCheck, _ := out["by_check"].(map[string]any)
-	if num(t, byCheck["year"], "year") != 1 || len(byCheck) != 1 {
+	// Stargate's row fails both checks, and counts under each
+	if num(t, byCheck["year"], "year") != 2 || num(t, byCheck["title"], "title") != 1 || len(byCheck) != 2 {
 		t.Errorf("by_check = %v", byCheck)
 	}
 	// the year check alone, and the title check alone
-	if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "year"})); !slices.Equal(got, []string{"Dune"}) {
+	if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "year"})); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
 		t.Errorf("checks=year = %v", got)
 	}
-	if n := num(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title"})["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("checks=title found %d", n)
+	if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title"})); !slices.Equal(got, []string{"Stargate: Continuum"}) {
+		t.Errorf("checks=title = %v", got)
 	}
 	// types narrows what is swept: the films alone are the whole library
 	if n := num(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "types": "Series"})["items_scanned"], "items_scanned"); n != 0 {
@@ -411,8 +422,8 @@ func TestAuditFilePathSeriesSeasonAndEpisode(t *testing.T) {
 	}
 	// the plainest first: a number or the series disagreeing, then titles,
 	// then years. Across every library that is Andor's rows, then The
-	// Expanse's file named for another episode, then the messy Dune's year,
-	// and a limit keeps the first of them
+	// Expanse's file named for another episode and Stargate held as another
+	// film, then the messy Dune's year, and a limit keeps the first of them
 	all := call(t, "audit_file_path", nil)
 	var order []string
 	for _, f := range rows(t, all["findings"], "findings") {
@@ -420,8 +431,8 @@ func TestAuditFilePathSeriesSeasonAndEpisode(t *testing.T) {
 		order = append(order, check)
 	}
 	numbers := len(got)
-	if len(order) != numbers+2 || !slices.Equal(order[numbers:], []string{"title", "year"}) {
-		t.Errorf("every library's rows lead with %v, want Andor's %d, then a title, then a year", order, numbers)
+	if len(order) != numbers+3 || !slices.Equal(order[numbers:], []string{"title", "title", "year"}) {
+		t.Errorf("every library's rows lead with %v, want Andor's %d, then two titles, then a year", order, numbers)
 	}
 	for _, check := range order[:min(numbers, len(order))] {
 		if check != "series" && check != "season" && check != "episode" {
@@ -430,8 +441,8 @@ func TestAuditFilePathSeriesSeasonAndEpisode(t *testing.T) {
 	}
 	capped := call(t, "audit_file_path", map[string]any{"limit": 1})
 	found := rows(t, capped["findings"], "findings")
-	if len(found) != 1 || num(t, capped["total_findings"], "total_findings") != numbers+2 {
-		t.Fatalf("limit 1 = %v of %v, want one row of %d", found, capped["total_findings"], numbers+2)
+	if len(found) != 1 || num(t, capped["total_findings"], "total_findings") != numbers+3 {
+		t.Fatalf("limit 1 = %v of %v, want one row of %d", found, capped["total_findings"], numbers+3)
 	}
 	if str(found[0]["series"]) != "Andor" || !slices.Contains([]string{"series", "season", "episode"}, strings.SplitN(strs(t, found[0]["problems"], "problems")[0], ":", 2)[0]) {
 		t.Errorf("the row a limit of 1 keeps = %v, want one of Andor's numbers or its series", found[0])
@@ -877,9 +888,10 @@ func findingIDs(t *testing.T, out map[string]any) []string {
 }
 
 // Movie runtimes come from TMDB, through the provider proxy. The messy
-// films run TMDB's lengths but Arrival, cut short at 40 minutes of TMDB's
-// 116: a copy no length a film cannot have gives away, which only a
-// provider's fact for the film can.
+// films run TMDB's lengths but two: Arrival, cut short at 40 minutes of
+// TMDB's 116, a copy no length a film cannot have gives away, which only a
+// provider's fact for the film can; and Stargate's 121 minutes, held as
+// Stargate: Continuum, which TMDB says runs 98.
 func TestAuditProviderRuntime(t *testing.T) {
 	needsTMDBCassette(t)
 	out := call(t, "audit_provider", map[string]any{"library": "Messy Movies", "checks": "runtime"})
@@ -891,9 +903,9 @@ func TestAuditProviderRuntime(t *testing.T) {
 	// server read it: a second on Jellyfin, which reads the disc's one-second
 	// title, and not at all on Emby, which does not, so there it has no
 	// runtime to hold to TMDB's
-	want := []string{"Arrival"}
+	want := []string{"Arrival", "Stargate: Continuum"}
 	if isJellyfin() {
-		want = []string{"Arrival", "Moon"}
+		want = []string{"Arrival", "Moon", "Stargate: Continuum"}
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("runtime off = %v, want %v", got, want)
@@ -904,6 +916,9 @@ func TestAuditProviderRuntime(t *testing.T) {
 	for _, f := range rows(t, out["findings"], "findings") {
 		if title(str(f["name"])) == "Arrival" && !slices.Equal(strs(t, f["problems"], "problems"), []string{"runtime: file 40 min, TMDB says 116 min (65% off)"}) {
 			t.Errorf("Arrival's problems = %v", f["problems"])
+		}
+		if title(str(f["name"])) == "Stargate: Continuum" && !slices.Equal(strs(t, f["problems"], "problems"), []string{"runtime: file 121 min, TMDB says 98 min (23% off)"}) {
+			t.Errorf("Stargate's problems = %v", f["problems"])
 		}
 	}
 
@@ -1002,8 +1017,8 @@ func TestAuditAll(t *testing.T) {
 		"audit_missing_metadata_provider": len(messyUnmatched),
 		"audit_missing_poster":            len(messyPosterless),
 		"audit_missing_overview":          len(messyBare),
-		// Dune's year
-		"audit_file_path": 1,
+		// Dune's year, and Stargate held as Stargate: Continuum
+		"audit_file_path": 2,
 		// Blade Runner's two files; on Emby the two Aliens too (below)
 		"audit_multiple_versions":  1,
 		"audit_duplicates":         1,
@@ -1014,7 +1029,7 @@ func TestAuditAll(t *testing.T) {
 		// every film but the Blade Runner cuts and the discs kept whole,
 		// which Emby never probes and so does not judge; Jellyfin reads the
 		// DVD, and it is a 480p MPEG-2 one
-		"audit_quality":          10,
+		"audit_quality":          11,
 		"audit_missing_episodes": 0,
 		// the Despecialized Edition's Science-Fiction
 		"audit_spelling":   1,
@@ -1024,7 +1039,7 @@ func TestAuditAll(t *testing.T) {
 		// Emby shows the two messy Aliens, sharing a TMDB id, as one film's
 		// versions as well, which leaves no duplicates in the library
 		want["audit_multiple_versions"], want["audit_duplicates"] = 2, 0
-		want["audit_quality"] = 8 // and judges them as one film, and the DVD not at all
+		want["audit_quality"] = 9 // and judges them as one film, and the DVD not at all
 	}
 	for audit, n := range want {
 		if counts[audit] != n {
@@ -1140,7 +1155,9 @@ func TestAuditAll(t *testing.T) {
 
 			continue
 		}
-		want, applies := map[string]int{"audit_missing_poster": covers, "audit_spelling": 1}[name]
+		// the spellings: the genre, and in the tracks' tags an album and an
+		// artist each written two ways
+		want, applies := map[string]int{"audit_missing_poster": covers, "audit_spelling": 3}[name]
 		switch {
 		case !applies:
 			t.Errorf("Music %s ran: %v", name, row)
@@ -1156,8 +1173,8 @@ func TestAuditAll(t *testing.T) {
 	if !ran["audit_missing_poster"] || !ran["audit_spelling"] || !ran["audit_whitespace"] || len(ran) != 3 {
 		t.Errorf("over Music audit_all ran %v, want the covers, the spellings and the spaces", ran)
 	}
-	if num(t, music["total_findings"], "total_findings") != covers+1 {
-		t.Errorf("Music total_findings = %v, want the %d albums with no cover and the one spelling", music["total_findings"], covers)
+	if num(t, music["total_findings"], "total_findings") != covers+3 {
+		t.Errorf("Music total_findings = %v, want the %d albums with no cover and the three spellings", music["total_findings"], covers)
 	}
 	// and across the server they count the albums beside the films and series
 	for _, row := range rows(t, whole["audits"], "audits") {

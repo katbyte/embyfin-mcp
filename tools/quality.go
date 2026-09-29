@@ -200,6 +200,10 @@ type copyFacts struct {
 	videoFrom, fileFrom string
 	// audio is every audio track's rate added up, or 0 when any is unknown
 	audio int64
+	// bpp is BitsPerPixel unrounded, which the comparisons read: rounded
+	// first, a frame under 0.005 bits a pixel read as 0 and was never
+	// judged thin, however thin
+	bpp float64
 }
 
 // Where a copy's bitrate came from, and so what it measures.
@@ -532,9 +536,9 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 
 		// a bigger frame encoded thinly enough is the same picture softened:
 		// worth saying, not worth overruling the class on
-		if hi.BitsPerPixel > 0 && lo.BitsPerPixel > 0 && hi.BitsPerPixel < lo.BitsPerPixel/2 {
+		if hi.bpp > 0 && lo.bpp > 0 && hi.bpp < lo.bpp/2 {
 			out.Caveats = append(out.Caveats, fmt.Sprintf(
-				"the larger frame is the more thinly encoded one (%.2f bits per pixel against %.2f): a %dp encode starved of bitrate can look worse than a well-fed %dp one, and the class alone does not see that",
+				"the larger frame is the more thinly encoded one (%g bits per pixel against %g): a %dp encode starved of bitrate can look worse than a well-fed %dp one, and the class alone does not see that",
 				hi.BitsPerPixel, lo.BitsPerPixel, hi.ResolutionClass, lo.ResolutionClass))
 		}
 
@@ -624,7 +628,8 @@ func settleBitrates(out *compareOut) {
 			out.Reasons = append(out.Reasons, fmt.Sprintf("%s: %s is %s, worth %s of h264 at x%.2f", side.name, f.VideoCodec, mbps(f.Bitrate), mbps(f.Effective), factor))
 		}
 		if px := f.Width * f.Height; px > 0 {
-			f.BitsPerPixel = math.Round(float64(f.Effective)/float64(px)*100) / 100
+			f.bpp = float64(f.Effective) / float64(px)
+			f.BitsPerPixel = threeFigures(f.bpp)
 		}
 	}
 }
@@ -790,3 +795,14 @@ func bytes(b int64) string {
 }
 
 var errNoCopy = errors.New("each copy needs either an item_id or a frame size: give width and height, or the item to read them off")
+
+// threeFigures rounds a number to three significant figures, which says a
+// thin encode's 0.0021 bits a pixel where two decimal places said 0.
+func threeFigures(x float64) float64 {
+	if x == 0 {
+		return 0
+	}
+	scale := math.Pow(10, 2-math.Floor(math.Log10(math.Abs(x))))
+
+	return math.Round(x*scale) / scale
+}

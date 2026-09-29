@@ -183,10 +183,10 @@ func TestLibraryFilters(t *testing.T) {
 	// the messy series carry only what their nfo says, and nothing else:
 	// Severance's and both The Wires' Drama, Andor's and Deep Space Nine's
 	// Science Fiction, .hack//Liminality's Science-Fiction, the Asterix
-	// series' Animation and Red Dwarf's Comedy
+	// series' and .hack//SIGN's Animation, and Red Dwarf's Comedy
 	out = call(t, "library_filters", map[string]any{"library": "Messy Shows", "types": "Series"})
-	if g := valueCounts(t, out["genres"], "genres"); len(g) != 5 || g["Drama"] != 3 || g["Science Fiction"] != 2 || g["Science-Fiction"] != 1 || g["Animation"] != 1 || g["Comedy"] != 1 {
-		t.Errorf("Messy Shows genres = %v, want Drama on three, Science Fiction on two, and Science-Fiction, Animation and Comedy on one each", g)
+	if g := valueCounts(t, out["genres"], "genres"); len(g) != 5 || g["Drama"] != 3 || g["Science Fiction"] != 2 || g["Science-Fiction"] != 1 || g["Animation"] != 2 || g["Comedy"] != 1 {
+		t.Errorf("Messy Shows genres = %v, want Drama on three, Science Fiction and Animation on two, and Science-Fiction and Comedy on one each", g)
 	}
 	if n := num(t, out["items_scanned"], "items_scanned"); n != messySeries {
 		t.Errorf("Messy Shows filters read %d series, want %d", n, messySeries)
@@ -351,12 +351,12 @@ func TestAuditSpellingAndMetadataRename(t *testing.T) {
 		counts[str(s["value"])] = num(t, s["items"], "items")
 	}
 	// Blade Runner counts once where it is one film, twice on Emby
-	carriers := 3
+	carriers := 4
 	if !versionsMerged() {
-		carriers = 4
+		carriers = 5
 	}
 	if counts["Science Fiction"] != carriers || counts["Science-Fiction"] != 1 || len(counts) != 2 {
-		t.Errorf("the genre's spellings = %v, want Dune's, Interstellar's and Blade Runner's against the Despecialized Edition's", counts)
+		t.Errorf("the genre's spellings = %v, want Dune's, Interstellar's, Blade Runner's and Stargate's against the Despecialized Edition's", counts)
 	}
 
 	// both nfos say Science Fiction, and Dune gets it hyphenated as well
@@ -541,11 +541,11 @@ func TestAuditQuality(t *testing.T) {
 	// disc it is; Emby never probes it
 	out := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
 	got := findings(t, out)
-	want := []string{"Alien", "Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Moon", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)"}
+	want := []string{"Alien", "Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Moon", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)", "Stargate: Continuum"}
 	unprobedWant := []string{"Cube"}
 	if !isJellyfin() {
 		// Emby shows the two Aliens as one film's versions
-		want = []string{"Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)"}
+		want = []string{"Alien", "Arrival", "Coyote vs. Acme", "Dune", "Interstellar", "Memento", "Princess Mononoke", "Star Wars: Episode IV - A New Hope (Despecialized Edition)", "Stargate: Continuum"}
 		unprobedWant = []string{"Cube", "Moon"}
 	}
 	if !slices.Equal(got, want) {
@@ -743,22 +743,32 @@ func TestAuditMissingEpisodes(t *testing.T) {
 		}
 	}
 	slices.Sort(unknown)
-	wantUnknown := sorted(append([]string{".hack//Liminality", "Asterix & Obelix: The Big Fight"}, unmatchedShows...))
+	// the A Knight of the Seven Kingdoms pair, two folders named alike, is
+	// one show, named by its first entry
+	var judged []string
+	for _, s := range unmatchedShows {
+		if s != "A Knight of the Seven Kingdoms" {
+			judged = append(judged, s)
+		}
+	}
+	wantUnknown := sorted(append([]string{".hack//Liminality", "Asterix & Obelix: The Big Fight"}, judged...))
 	if !slices.Equal(unknown, wantUnknown) || num(t, out["total_unknown"], "total_unknown") != len(wantUnknown) {
 		t.Errorf("unknown = %v, want %v", unknown, wantUnknown)
 	}
 
 	// paged two shows at a time, the walk to the end asks after every show
 	// once and finds what the one call found. The Wire's two entries are one
-	// show, asked after once
-	shows := messySeries - 1
+	// show, asked after once, and so are the A Knight of the Seven Kingdoms
+	// pair's
+	shows := messySeries - 2
 	var paged, pagedUnknown []string
 	offset, pages := 0, 0
 	for {
 		page := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true, "max_lookups": 2, "offset": offset})
 		pages++
 		paged = append(paged, findings(t, page)...)
-		for _, u := range rows(t, page["unknown"], "unknown") {
+		// a page whose shows' runs were all read has no unknown to list
+		for _, u := range rowsOf(page["unknown"]) {
 			pagedUnknown = append(pagedUnknown, title(str(u["name"])))
 		}
 		next, more := page["next_offset"]
@@ -790,7 +800,7 @@ func TestAuditUnwatched(t *testing.T) {
 	}
 	// oldest additions first, and the films added together by name, so a
 	// limit keeps the same ones each call
-	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{"Alien", "Aliens", "Arrival", "Blade Runner", "Dune", "Dune: Part Two", "Limitless", "Princess Mononoke", "The Thirteenth Floor"}) {
+	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{"Alien", "Aliens", "Arrival", "Blade Runner", "Brüno", "Dune", "Dune: Part Two", "Limitless", "Princess Mononoke", "The Thirteenth Floor"}) {
 		t.Errorf("unwatched in order = %v", got)
 	}
 	if capped := call(t, "audit_unwatched", map[string]any{"library": "Movies", "limit": 2}); !slices.Equal(names(t, capped["findings"], "findings"), []string{"Alien", "Aliens"}) || num(t, capped["total_findings"], "total_findings") != len(movies) {

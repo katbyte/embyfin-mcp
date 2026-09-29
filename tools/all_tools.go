@@ -92,7 +92,7 @@ var Toolsets = map[string][]string{
 	"curation": {
 		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
 		"audit_file_path", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_whitespace", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_anime_ids", "audit_provider", "quality_compare", "plan_check",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_whitespace", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_anime_ids", "audit_provider", "provider_cache_clear", "quality_compare", "plan_check",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes_exist", "show_missing", "show_resolve",
@@ -160,6 +160,11 @@ type registry struct {
 	// series_index.go
 	seriesOnce sync.Once
 	series     *seriesCache
+
+	// providerCaches are the TMDB answers the tools keep, every one made at
+	// registration, for provider_cache_clear to forget
+	cacheMu        sync.Mutex
+	providerCaches []providerCache
 
 	// errorLog is where a handler's panic is logged; nil is the process's
 	// log (see logError)
@@ -397,6 +402,7 @@ func queueTools(r *registry) {
 	registerDiscAudit(r)
 	registerAnimeAudit(r)
 	registerProviderCheckAudit(r)
+	registerProviderCacheTool(r)
 	registerExportTool(r)
 	registerPlanTools(r)
 	registerOrphanTools(r)

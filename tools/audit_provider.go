@@ -96,7 +96,7 @@ var providerChecks = []string{"ids", "runtime"}
 
 func registerProviderCheckAudit(r *registry) {
 	client := r.client
-	provider := tmdbFacts(r.opts, r.opts.ProviderTransport)
+	provider := r.tmdbFacts(r.opts.ProviderTransport)
 
 	desc := "Check films and episodes against their metadata provider. A film, one request each: the ids it holds agree with each other and exist there (a TMDB id whose film carries a different IMDb id, a TMDB id TMDB no longer has, an IMDb id that is a series or an episode rather than a film), and the file's runtime is the provider's (a truncated download, a wrong file, a wrong match). " +
 		"An episode: the file's runtime against TMDB's for that episode, read once for its whole series by the series' TMDB id; a file holding several episodes (S01E01E02) against their lengths together. TMDB numbers episodes in the order they aired, so a show numbered another way is compared with other episodes than its own: each finding names the TMDB episode it was compared with beside the file's own title. " +
@@ -440,4 +440,33 @@ func checkEpisodeRuntime(ctx context.Context, provider *tmdb.Facts, it *embyfin.
 	}
 
 	return fmt.Sprintf("file %d min, TMDB says %d min for %s (%d%% off)", it.RuntimeMinutes(), expected, strings.Join(named, " and "), pct), true, nil
+}
+
+// registerProviderCacheTool is provider_cache_clear: forgetting the TMDB
+// answers the tools keep, for when TMDB was just put right and an hour is
+// too long to wait. It changes nothing on the media server.
+func registerProviderCacheTool(r *registry) {
+	type clearOut struct {
+		Cleared int    `json:"cleared" jsonschema:"answers forgotten, across every tool that keeps them"`
+		Note    string `json:"note"    jsonschema:"what was cleared and what the next reads do"`
+	}
+	add(r, readTool, &mcp.Tool{
+		Name: "provider_cache_clear",
+		Description: "Forget the answers this embyfin-mcp process keeps from TMDB - films, series and their episodes, ids looked up, alternative and translated titles, collections and title searches - so the next read of each asks TMDB again. Each is kept an hour at most anyway; clear them after putting something right at TMDB (a runtime, an episode added, a wrong id) to see it straight away. " +
+			"It changes nothing on the media server, and nothing the media server itself fetched: a server's own metadata comes back from its providers only with item_refresh.",
+	}, func(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, clearOut, error) {
+		r.cacheMu.Lock()
+		caches := slices.Clone(r.providerCaches)
+		r.cacheMu.Unlock()
+		if len(caches) == 0 {
+			return nil, clearOut{Note: "no TMDB token is set (EMBYFIN_TMDB_TOKEN), so no answer from TMDB is kept"}, nil
+		}
+		out := clearOut{}
+		for _, c := range caches {
+			out.Cleared += c.Clear()
+		}
+		out.Note = fmt.Sprintf("forgot %d answers from TMDB; the next read of each asks TMDB again", out.Cleared)
+
+		return nil, out, nil
+	})
 }

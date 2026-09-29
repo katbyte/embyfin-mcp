@@ -382,7 +382,7 @@ type otherOrder struct {
 // missing.
 type missingEpisodesOut struct {
 	Scanned      int              `json:"items_scanned"                      jsonschema:"episode files read"`
-	Series       int              `json:"series"                             jsonschema:"shows judged: with provider, the shows asked about in this call. A show held under two entries sharing its ids is one"`
+	Series       int              `json:"series"                             jsonschema:"shows judged: with provider, the shows asked about in this call. A show held under two entries sharing its ids, or in two folders beside each other named alike (a space or a letter's case apart), is one"`
 	Found        int              `json:"total_findings"`
 	Findings     []missingFinding `json:"findings"                           jsonschema:"capped at limit; total_findings is the real count"`
 	RunsKnown    bool             `json:"runs_known"                         jsonschema:"true only when every show judged had its whole run read (from the server's own records or, with provider, from TMDB), so a show not listed lacks no aired episode in that run's numbering. False when any show was judged only by the numbers skipped between its files - total_unknown says how many: a show not listed is then NOT known to be complete"`
@@ -509,18 +509,21 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 	bySeries := map[string]*series{}
 	answer := missingEpisodesOut{Findings: []missingFinding{}}
 	now := time.Now()
-	// the episodes and the server's records of those it has no file for, in
-	// one sweep. Jellyfin keeps such records only with the TheTVDB plugin,
-	// and whether its item query lists them as show_missing's episode read
-	// does has not been seen on a server keeping them
+	// the episodes and the server's records of those it has no file for.
+	// Emby lists its records among the episodes; Jellyfin, which keeps them
+	// only with the TheTVDB plugin, leaves them out of an item query unless
+	// asked for them alone (IsMissing), so there they are a second read, as
+	// show_missing's episode read asks for them apart
 	var reads []embyfin.ReadResult
 	var dateErr error // a record's date that can't be read, which stops the sweep
-	swept, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
+	seen := map[string]bool{}
+	take := func(items []embyfin.Item) bool {
 		for i := range items {
 			it := &items[i]
-			if it.SeriesID == "" {
+			if it.SeriesID == "" || seen[it.ID] {
 				continue
 			}
+			seen[it.ID] = true
 			s := bySeries[it.SeriesID]
 			if s == nil {
 				s = &series{name: it.SeriesName, onDisk: map[int][]int{}, held: map[[2]int]bool{}, titles: map[[2]int]string{}}
@@ -559,7 +562,8 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 			}
 		}
 		return true
-	})
+	}
+	swept, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, take)
 	if err != nil {
 		return missingEpisodesOut{}, err
 	}
@@ -567,6 +571,18 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 		return missingEpisodesOut{}, dateErr
 	}
 	reads = append(reads, swept)
+	if client.Backend() == embyfin.Jellyfin {
+		missing := opts
+		missing.IsMissing = new(true)
+		records, err := client.ReadAll(ctx, missing, embyfin.ToAnswer, take)
+		if err != nil {
+			return missingEpisodesOut{}, fmt.Errorf("reading the server's records of episodes it has no file for: %w", err)
+		}
+		if dateErr != nil {
+			return missingEpisodesOut{}, dateErr
+		}
+		reads = append(reads, records)
+	}
 
 	// the series themselves, for the ids a provider knows them by and for the
 	// ids that make two entries one show
@@ -590,11 +606,12 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 	}
 
 	// one show split across two entries - a folder renamed and the old one
-	// left behind, both carrying the show's ids - is one show: judged alone,
-	// each entry was missing what the other holds, where both servers answer
-	// either entry with the other's episodes too (show_missing reads it so).
-	// Entries sharing a tmdb, tvdb or imdb id are judged together, named by
-	// the first, and the finding names the rest
+	// left behind, both carrying the show's ids, or two folders a space or a
+	// letter's case apart with none - is one show: judged alone, each entry
+	// was missing what the other holds, where both servers answer either
+	// entry with the other's episodes too (show_missing reads it so). Entries
+	// sharing a tmdb, tvdb or imdb id, or twin folders, are judged together,
+	// named by the first, and the finding names the rest
 	shows := sameShows(ids, func(id string) *embyfin.Item { return items[id] })
 	for _, show := range shows {
 		lead := bySeries[show[0]]
@@ -705,7 +722,7 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 				}
 				also = append(also, "id "+other+where)
 			}
-			warnings = append(warnings, fmt.Sprintf("the library holds %q under %d entries sharing its ids (also %s), judged here as one show: what is listed is missing from all of them. audit_duplicates lists every show in this state", s.name, len(show), strings.Join(also, "; ")))
+			warnings = append(warnings, fmt.Sprintf("the library holds %q under %d entries %s (also %s), judged here as one show: what is listed is missing from all of them. %s", s.name, len(show), joinedBy(show, items), strings.Join(also, "; "), joinedListedBy(show, items)))
 		}
 		if offRun != "" {
 			warnings = append(warnings, fmt.Sprintf("the files hold %s, which TMDB's aired order has no episode for: they may be numbered in another order (TVDB's, a DVD's), and what is listed by TMDB may be held under other numbers", offRun))
@@ -735,9 +752,62 @@ func auditMissingEpisodes(ctx context.Context, client *embyfin.Client, guide ser
 	return answer, nil
 }
 
+// joinedBy says what joined the entries of one show: sharing its ids,
+// folders named alike beside each other, or both.
+func joinedBy(show []string, items map[string]*embyfin.Item) string {
+	ids, folders := joinedHow(show, items)
+	switch {
+	case ids && folders:
+		return "sharing its ids and in folders named alike beside each other"
+	case folders:
+		return "in folders named alike beside each other"
+	}
+
+	return "sharing its ids"
+}
+
+// joinedListedBy names the audit that lists every show held that way.
+func joinedListedBy(show []string, items map[string]*embyfin.Item) string {
+	ids, folders := joinedHow(show, items)
+	switch {
+	case ids && folders:
+		return "audit_duplicates lists every show sharing ids, and audit_duplicate_series every pair of folders named alike"
+	case folders:
+		return "audit_duplicate_series lists every pair of folders named alike"
+	}
+
+	return "audit_duplicates lists every show in this state"
+}
+
+// joinedHow says whether any two of a show's entries share a provider id,
+// and whether any two are twin folders.
+func joinedHow(show []string, items map[string]*embyfin.Item) (ids, folders bool) {
+	for i, a := range show {
+		for _, b := range show[i+1:] {
+			x, y := items[a], items[b]
+			if x == nil || y == nil {
+				continue
+			}
+			for _, p := range []string{"tmdb", "tvdb", "imdb"} {
+				if v := providerID(x, p); v != "" && v == providerID(y, p) {
+					ids = true
+				}
+			}
+			if k := twinFolderKey(x.Path); k != "" && k == twinFolderKey(y.Path) {
+				folders = true
+			}
+		}
+	}
+
+	return ids, folders
+}
+
 // sameShows groups series ids into shows: entries sharing a tmdb, tvdb or
-// imdb id are one show, held under more than one entry - unless their AniDB
-// ids differ (see sameAnime): a group holds at most one AniDB id, so an
+// imdb id are one show, held under more than one entry, and so are entries
+// in folders beside each other whose names differ only by spacing, case, an
+// accent or punctuation (twinFolderKey, audit_duplicate_series' rule), which
+// a rename leaves with no ids to share - unless their AniDB ids differ (see
+// sameAnime): a group holds at most one AniDB id, so an
 // anime entry kept apart is not joined to its parent by the parent's id it
 // carries. Each group is in the order its entries sort by (name, then id),
 // so the first names it, and an entry that cannot be read (itemOf answers
@@ -775,12 +845,16 @@ func sameShows(ids []string, itemOf func(string) *embyfin.Item) [][]string {
 			continue
 		}
 		anidb[id] = providerID(it, "anidb")
+		var keys []string
 		for _, p := range []string{"tmdb", "tvdb", "imdb"} {
-			v := providerID(it, p)
-			if v == "" {
-				continue
+			if v := providerID(it, p); v != "" {
+				keys = append(keys, p+":"+v)
 			}
-			key := p + ":" + v
+		}
+		if folder := twinFolderKey(it.Path); folder != "" {
+			keys = append(keys, "folder:"+folder)
+		}
+		for _, key := range keys {
 			for _, other := range holders[key] {
 				// the earlier entry stays the root, so a show is named by
 				// the first of its entries
@@ -829,7 +903,7 @@ type unwatchedOut struct {
 func registerMediaAudits(r *registry) {
 	client := r.client
 	var guide seriesGuide
-	if facts := tmdbFacts(r.opts, r.opts.ProviderTransport); facts != nil {
+	if facts := r.tmdbFacts(r.opts.ProviderTransport); facts != nil {
 		guide = facts
 	}
 
@@ -846,7 +920,7 @@ func registerMediaAudits(r *registry) {
 		Name: "audit_missing_episodes",
 		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have aired and have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). " +
 			"With provider true, each series' whole run is read from the configured metadata providers instead (TMDB, with EMBYFIN_TMDB_TOKEN set), one request a series and paged, so what a series lacks after its last file is seen too. " +
-			"A show held under two entries sharing its ids (a folder renamed and the old one left behind) is judged as one show, named by the first entry with the rest in its warning; two entries whose AniDB ids differ are two shows, whatever else they share. " +
+			"A show held under two entries sharing its ids (a folder renamed and the old one left behind), or in two folders beside each other whose names differ only by spacing, case, an accent or punctuation (audit_duplicate_series' rule), is judged as one show, named by the first entry with the rest in its warning; two entries whose AniDB ids differ are two shows, whatever else they share. " +
 			"TMDB's runs are in its aired order and files are compared with them number by number: a show whose files hold numbers that order has no episode for (numbered the TVDB way, as Sonarr names them, or a DVD's) is listed in numbered_otherwise and warned on, because what TMDB lists as missing may be held under other numbers. " +
 			"A gap just after a file titled 'A & B' (two segments named by the first number alone) is warned on as probably held by that file. " +
 			"Read 'runs_known': it is true only when every show's whole run was read; when it is false, total_unknown shows were judged only by the gaps between their files, so a show not listed is not known to be complete, and each finding says run_known for its own show.",

@@ -12,12 +12,19 @@
 
 - `audit_provider` checks each episode's runtime against TMDB's for that episode, names the TMDB episode it compared with, and counts what it could not judge in `runtime_not_judged`
 - `audit_anime_ids` says in `note` when an older copy of the anime list answered because it could not be read again
+- `audit_spelling` reads album and artist names off a music library's tracks: an album spelled two ways by one album artist, an artist with and without `The`; `metadata_rename` refuses them, as they are the files' tags
+- `provider_cache_clear` forgets the TMDB answers the tools keep, so the next read asks TMDB again
 
 ### Fixed
 
 - a date from TMDB or the server that can't be read is an error naming the item, not a missing date or a guess
 - a failed server read while finding a show by name, or while checking a folder, is reported instead of dropped
 - a number in the anime list that can't be read is an error naming the entry, not an episode dropped
+- `audit_missing_episodes` judges a show in two folders named alike as one show, rather than reporting as missing what the other folder holds
+- `audit_missing_episodes` reads Jellyfin's records of episodes it has no file for (kept with the TheTVDB plugin), which its sweep never asked for
+- alternative titles, translations and searches from TMDB are kept an hour, not until a restart
+- `quality_compare` judges a very thinly encoded frame as thin, and gives its bits per pixel to three figures rather than as 0
+- `item_delete`'s note on a scan that was running says Jellyfin can keep the deleted item listed through one more scan, not only until the next
 
 ## 0.3.0 (2026-09-27)
 

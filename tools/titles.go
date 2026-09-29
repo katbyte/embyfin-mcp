@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/katbyte/embyfin-mcp/lib/client"
@@ -791,8 +792,15 @@ func lookalikeLetters(title string) (found []string, plain string) {
 // the process as tmdb.Facts keeps its own.
 type providerTitles struct {
 	api *tmdb.Client
+	// now is the clock, for a test to move; nil is the wall clock
+	now func() time.Time
 
-	mu          sync.Mutex
+	mu sync.Mutex
+	// since is when the answers kept were first read: past titlesTTL they
+	// are all forgotten, as TMDB's own facts are (lib/tmdb factsTTL), where
+	// once they were kept for the life of the process and a title put right
+	// at TMDB went unseen until a restart
+	since       time.Time
 	alternative map[string][]string   // "movie:ID" or "tv:ID" -> the titles TMDB lists for it
 	translated  map[string][]string   // "movie:ID" or "tv:ID" -> its titles in TMDB's translations
 	collected   map[string][]titleHit // movie ID -> the films of the TMDB collection it is in
@@ -829,7 +837,49 @@ func newProviderTitlesVia(opts Options, rt http.RoundTripper) *providerTitles {
 	// tried again: one such failure used to be the end of TMDB for a sweep
 	api.Client.HTTPClient = tmdb.HTTPClient(rt)
 
-	return &providerTitles{api: api, alternative: map[string][]string{}, translated: map[string][]string{}, collected: map[string][]titleHit{}, collections: map[int][]titleHit{}, searched: map[string][]titleHit{}, unanswered: map[string]bool{}}
+	p := &providerTitles{api: api}
+	p.reset()
+
+	return p
+}
+
+// titlesTTL is how long the answers are kept, TMDB's facts' hour.
+const titlesTTL = time.Hour
+
+// reset forgets every answer kept; the caller holds mu, or owns p alone.
+func (p *providerTitles) reset() int {
+	n := len(p.alternative) + len(p.translated) + len(p.collected) + len(p.collections) + len(p.searched) + len(p.unanswered)
+	p.alternative, p.translated = map[string][]string{}, map[string][]string{}
+	p.collected, p.collections = map[string][]titleHit{}, map[int][]titleHit{}
+	p.searched, p.unanswered = map[string][]titleHit{}, map[string]bool{}
+	p.since = time.Time{}
+
+	return n
+}
+
+// lock takes mu, first forgetting the answers kept when they are older than
+// titlesTTL.
+func (p *providerTitles) lock() {
+	p.mu.Lock()
+	now := time.Now()
+	if p.now != nil {
+		now = p.now()
+	}
+	switch {
+	case p.since.IsZero():
+		p.since = now
+	case now.Sub(p.since) >= titlesTTL:
+		p.reset()
+		p.since = now
+	}
+}
+
+// Clear forgets every answer kept, and says how many there were.
+func (p *providerTitles) Clear() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.reset()
 }
 
 // tmdbError names the setting to check when TMDB refuses the credential.
@@ -859,7 +909,7 @@ func tmdbKind(itemType string) string {
 // has none.
 func (p *providerTitles) alternatives(ctx context.Context, kind, id string) ([]string, error) {
 	memo := kind + ":" + id
-	p.mu.Lock()
+	p.lock()
 	titles, ok := p.alternative[memo]
 	p.mu.Unlock()
 	if ok {
@@ -903,7 +953,7 @@ func (p *providerTitles) alternatives(ctx context.Context, kind, id string) ([]s
 		}
 	}
 
-	p.mu.Lock()
+	p.lock()
 	p.alternative[memo] = titles
 	p.mu.Unlock()
 
@@ -917,7 +967,7 @@ func (p *providerTitles) alternatives(ctx context.Context, kind, id string) ([]s
 // TMDB does not know has none.
 func (p *providerTitles) translations(ctx context.Context, kind, id string) ([]string, error) {
 	memo := kind + ":" + id
-	p.mu.Lock()
+	p.lock()
 	titles, ok := p.translated[memo]
 	p.mu.Unlock()
 	if ok {
@@ -965,7 +1015,7 @@ func (p *providerTitles) translations(ctx context.Context, kind, id string) ([]s
 		}
 	}
 
-	p.mu.Lock()
+	p.lock()
 	p.translated[memo] = titles
 	p.mu.Unlock()
 
@@ -976,7 +1026,7 @@ func (p *providerTitles) translations(ctx context.Context, kind, id string) ([]s
 // holds Aliens and Alien³ - the film itself among them; none when TMDB puts it
 // in no collection, or does not know the id.
 func (p *providerTitles) collectionParts(ctx context.Context, id string) ([]titleHit, error) {
-	p.mu.Lock()
+	p.lock()
 	parts, ok := p.collected[id]
 	p.mu.Unlock()
 	if ok {
@@ -1006,7 +1056,7 @@ func (p *providerTitles) collectionParts(ctx context.Context, id string) ([]titl
 		}
 	}
 
-	p.mu.Lock()
+	p.lock()
 	p.collected[id] = parts
 	p.mu.Unlock()
 
@@ -1016,7 +1066,7 @@ func (p *providerTitles) collectionParts(ctx context.Context, id string) ([]titl
 // collection is the films of a TMDB collection, each with its title and year,
 // asked once for every film of it.
 func (p *providerTitles) collection(ctx context.Context, id int) ([]titleHit, error) {
-	p.mu.Lock()
+	p.lock()
 	parts, ok := p.collections[id]
 	p.mu.Unlock()
 	if ok {
@@ -1026,7 +1076,7 @@ func (p *providerTitles) collection(ctx context.Context, id int) ([]titleHit, er
 	if err != nil {
 		return nil, err
 	}
-	p.mu.Lock()
+	p.lock()
 	p.collections[id] = parts
 	p.mu.Unlock()
 
@@ -1059,7 +1109,7 @@ func (p *providerTitles) collectionOf(ctx context.Context, id int) ([]titleHit, 
 // asked says whether search has already answered for a title and year,
 // so asking again costs TMDB nothing.
 func (p *providerTitles) asked(kind, title string, year int) bool {
-	p.mu.Lock()
+	p.lock()
 	defer p.mu.Unlock()
 	_, ok := p.searched[searchMemo(kind, title, year)]
 
@@ -1069,7 +1119,7 @@ func (p *providerTitles) asked(kind, title string, year int) bool {
 // failedBefore says whether search failed for a title and year, TMDB not
 // answering (its caller's own giving up aside), and has not answered since.
 func (p *providerTitles) failedBefore(kind, title string, year int) bool {
-	p.mu.Lock()
+	p.lock()
 	defer p.mu.Unlock()
 
 	return p.unanswered[searchMemo(kind, title, year)]
@@ -1080,7 +1130,7 @@ func (p *providerTitles) unansweredSearch(ctx context.Context, memo string) {
 	if ctx.Err() != nil {
 		return
 	}
-	p.mu.Lock()
+	p.lock()
 	p.unanswered[memo] = true
 	p.mu.Unlock()
 }
@@ -1094,7 +1144,7 @@ func searchMemo(kind, title string, year int) string {
 // there is one: films for kind movie, series for tv.
 func (p *providerTitles) search(ctx context.Context, kind, title string, year int) ([]titleHit, error) {
 	memo := searchMemo(kind, title, year)
-	p.mu.Lock()
+	p.lock()
 	hits, ok := p.searched[memo]
 	p.mu.Unlock()
 	if ok {
@@ -1145,7 +1195,7 @@ func (p *providerTitles) search(ctx context.Context, kind, title string, year in
 		}
 	}
 
-	p.mu.Lock()
+	p.lock()
 	p.searched[memo] = hits
 	delete(p.unanswered, memo)
 	p.mu.Unlock()

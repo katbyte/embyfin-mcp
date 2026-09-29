@@ -99,12 +99,12 @@ func TestAuditProviderIDs(t *testing.T) {
 	// both checks, which is what a sweep runs unless told otherwise: the
 	// staged film fails both, on one row counted under each, and the films
 	// TestAuditProviderRuntime finds off TMDB's runtimes fail the runtime
-	// check: Arrival, cut short, and on Jellyfin the DVD kept whole, read as
-	// the second its title runs. Emby never reads the disc, so it has no
-	// runtime to hold to TMDB's
-	runtimeOff := 1
+	// check: Arrival, cut short, Stargate held as Stargate: Continuum, and on
+	// Jellyfin the DVD kept whole, read as the second its title runs. Emby
+	// never reads the disc, so it has no runtime to hold to TMDB's
+	runtimeOff := 2
 	if isJellyfin() {
-		runtimeOff = 2
+		runtimeOff = 3
 	}
 	out = call(t, "audit_provider", map[string]any{"library": "Messy Movies"})
 	byCheck := object(t, out["by_check"], "by_check")

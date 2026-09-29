@@ -662,3 +662,28 @@ func TestQualityCompareReadsAVersionByItsID(t *testing.T) {
 		t.Errorf("an unknown id = %q", msg)
 	}
 }
+
+// A frame encoded very thinly is still judged thin: bits per pixel were
+// rounded to two places before the comparison, so a 1080p at 5 kbps read as
+// 0 and drew no caveat against a 720p at 12 kbps, and 0 dropped the number
+// from the answer. They are compared unrounded now and given to three
+// figures.
+func TestQualityCompareJudgesAThinFrame(t *testing.T) {
+	t.Parallel()
+
+	cs := session(t, tvServer(t, severance()), Options{})
+	out := mustCall(t, cs, "quality_compare", map[string]any{
+		"a": map[string]any{"width": 1280, "height": 720, "video_codec": "h264", "bitrate": 12000},
+		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 5000},
+	})
+	b, ok := out["b"].(map[string]any)
+	if !ok {
+		t.Fatalf("no b side: %v", out)
+	}
+	if got := decimal(t, b["bits_per_pixel"], "bits_per_pixel"); got != 0.00241 {
+		t.Errorf("b's bits_per_pixel = %v, want 0.00241", got)
+	}
+	if caveats := strings.Join(texts(out["caveats"]), " | "); !strings.Contains(caveats, "the larger frame is the more thinly encoded one (0.00241 bits per pixel against 0.013)") {
+		t.Errorf("caveats = %s, want the 1080p named the thinner", caveats)
+	}
+}

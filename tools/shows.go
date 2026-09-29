@@ -587,7 +587,7 @@ func registerShowTools(r *registry) {
 	client := r.client
 
 	var guide seriesGuide
-	if facts := tmdbFacts(r.opts, r.opts.ProviderTransport); facts != nil {
+	if facts := r.tmdbFacts(r.opts.ProviderTransport); facts != nil {
 		guide = facts
 	}
 

@@ -368,6 +368,10 @@ func TestEmbyPerUserRouteKeepsEveryFilter(t *testing.T) {
 		case reflect.Slice:
 			f.Set(reflect.ValueOf([]string{"a"}))
 		case reflect.Pointer:
+			if f.Type().Elem().Kind() == reflect.Bool {
+				f.Set(reflect.ValueOf(new(true)))
+				continue
+			}
 			f.Set(reflect.ValueOf(new(3)))
 		case reflect.Bool:
 			f.SetBool(true)
@@ -377,6 +381,13 @@ func TestEmbyPerUserRouteKeepsEveryFilter(t *testing.T) {
 			t.Fatalf("SearchOptions.%s is a %s: teach this test to set one", v.Type().Field(i).Name, f.Kind())
 		}
 	}
+	// Emby's item query has no filter for missing episodes, and a search
+	// asking for one is refused rather than answered with every episode
+	full.SavedSince = "2026-01-02"
+	if _, _, err := c.Search(t.Context(), full); err == nil || !strings.Contains(err.Error(), "no filter for missing episodes") {
+		t.Errorf("a search for missing episodes on Emby = %v, want it refused", err)
+	}
+	full.IsMissing = nil
 	// a saved-since has to be a date to be sent at all
 	full.UserID, full.SavedSince = "", "2026-01-02"
 	if _, _, err := c.Search(t.Context(), full); err != nil {
@@ -416,6 +427,15 @@ func TestSearchJellyfin(t *testing.T) {
 
 	if _, _, err := c.Search(t.Context(), SearchOptions{Years: "nineteen"}); err == nil || !strings.Contains(err.Error(), "years") {
 		t.Errorf("a bad year = %v", err)
+	}
+
+	// the records of episodes with no file, which Jellyfin lists only when
+	// asked for them
+	if _, _, err := c.Search(t.Context(), SearchOptions{IncludeItemTypes: "Episode", IsMissing: new(true)}); err != nil {
+		t.Fatal(err)
+	}
+	if all := f.all("GET /Items"); all[len(all)-1].query.Get("isMissing") != "true" {
+		t.Errorf("a search for missing episodes sent %v, want isMissing=true", all[len(all)-1].query)
 	}
 }
 

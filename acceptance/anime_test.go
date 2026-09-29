@@ -44,7 +44,9 @@ func seriesCount(t *testing.T, library string) int {
 // GitHub.
 //
 // The OVA held on its own, .hack//Liminality, is a lasting fixture: TMDB and
-// TVDB fold it into .hack//SIGN's specials. The other two are Dragon Ball Z
+// TVDB fold it into .hack//SIGN's specials, and the library holds .hack//SIGN
+// too, with the special TVDB numbers 2 - by the list Liminality's first
+// episode, held twice. The other two are Dragon Ball Z
 // and The History of Trunks, one of its specials, staged and taken away
 // again, since the messy show library's count is read by tests that have
 // nothing to do with anime.
@@ -54,12 +56,23 @@ func TestAuditAnimeIDs(t *testing.T) {
 	}
 	have := seriesCount(t, "Messy Shows")
 
-	// the fixtures alone: .hack//Liminality, and nothing else to say
+	// the fixtures alone: .hack//Liminality kept separate, and its first
+	// episode held again among .hack//SIGN's specials
 	out := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
 	kept := rows(t, out["kept_separate"], "kept_separate")
-	if num(t, out["list_entries"], "list_entries") != 4 || num(t, out["items_scanned"], "items_scanned") != have || len(kept) != 1 ||
-		num(t, out["total_ids_disagree"], "total_ids_disagree") != 0 || num(t, out["total_split_out"], "total_split_out") != 0 {
-		t.Fatalf("the fixtures = %v, want .hack//Liminality kept separate and nothing else", out)
+	if num(t, out["list_entries"], "list_entries") != 5 || num(t, out["items_scanned"], "items_scanned") != have || len(kept) != 1 ||
+		num(t, out["total_ids_disagree"], "total_ids_disagree") != 0 || num(t, out["total_split_out"], "total_split_out") != 1 {
+		t.Fatalf("the fixtures = %v, want .hack//Liminality kept separate and held again in .hack//SIGN, nothing else", out)
+	}
+	sign := findItem(t, "Messy Shows", "Series", ".hack//SIGN")
+	held := rows(t, out["split_out"], "split_out")[0]
+	var heldEps []string
+	for _, sp := range rows(t, held["specials"], "specials") {
+		heldEps = append(heldEps, fmt.Sprintf("%d %s", num(t, sp["episode"], "episode"), str(sp["name"])))
+	}
+	if str(held["series_id"]) != sign || str(held["anidb"]) != "AniDB 222 .hack//Liminality" || str(held["where"]) != "TVDB specials from 2" ||
+		str(held["held_also"]) != str(kept[0]["id"]) || !slices.Equal(heldEps, []string{"2 In the Case of Mai Minase"}) {
+		t.Errorf("split_out = %v, want .hack//SIGN's special 2 as Liminality's, held also as the series", held)
 	}
 	if row := kept[0]; title(str(row["name"])) != ".hack//Liminality" || str(row["anidb"]) != "AniDB 222 .hack//Liminality" ||
 		str(row["detail"]) != "an AniDB entry of its own; TMDB folds it into the specials of tv 8864, and TVDB into those of series 79099" {
@@ -110,7 +123,7 @@ func TestAuditAnimeIDs(t *testing.T) {
 	}
 
 	out = call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
-	if num(t, out["list_entries"], "list_entries") != 4 || num(t, out["items_scanned"], "items_scanned") != have+2 {
+	if num(t, out["list_entries"], "list_entries") != 5 || num(t, out["items_scanned"], "items_scanned") != have+2 {
 		t.Fatalf("out = %v", out)
 	}
 
@@ -142,8 +155,8 @@ func TestAuditAnimeIDs(t *testing.T) {
 	if !slices.Equal(eps, []int{4}) {
 		t.Errorf("Bardock is specials %v, want 4", eps)
 	}
-	if n := num(t, out["total_split_out"], "total_split_out"); n != 1 {
-		t.Errorf("split_out = %v, want Bardock alone", out["split_out"])
+	if n := num(t, out["total_split_out"], "total_split_out"); n != 2 {
+		t.Errorf("split_out = %v, want Bardock and .hack//SIGN's special", out["split_out"])
 	}
 
 	// the one that turns on the series' own AniDB id, read from its nfo; the
@@ -160,7 +173,7 @@ func TestAuditAnimeIDs(t *testing.T) {
 		t.Errorf("kept_separate = %v", out["kept_separate"])
 	}
 	// a limit caps each list, not its count
-	if capped := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows", "limit": 1}); len(rows(t, capped["split_out"], "split_out")) != 1 || num(t, capped["total_split_out"], "total_split_out") != 1 {
+	if capped := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows", "limit": 1}); len(rows(t, capped["split_out"], "split_out")) != 1 || num(t, capped["total_split_out"], "total_split_out") != 2 {
 		t.Errorf("limit 1 = %v", capped)
 	}
 
@@ -206,6 +219,10 @@ func TestAuditAnimeIDs(t *testing.T) {
 		out := call(t, "audit_anime_ids", map[string]any{"library": "Messy Shows"})
 		var got []string
 		for _, row := range rows(t, out["split_out"], "split_out") {
+			// .hack//SIGN's special is the fixtures' own, read above
+			if str(row["series_id"]) == sign {
+				continue
+			}
 			var eps []string
 			for _, s := range rows(t, row["specials"], "specials") {
 				eps = append(eps, fmt.Sprint(num(t, s["episode"], "episode")))
@@ -223,8 +240,8 @@ func TestAuditAnimeIDs(t *testing.T) {
 			}
 			got = append(got, line)
 		}
-		if n := num(t, out["total_split_out"], "total_split_out"); n != len(got) {
-			t.Errorf("total_split_out = %d for %d rows", n, len(got))
+		if n := num(t, out["total_split_out"], "total_split_out"); n != len(got)+1 {
+			t.Errorf("total_split_out = %d for %d rows and .hack//SIGN's", n, len(got))
 		}
 
 		return got

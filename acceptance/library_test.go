@@ -240,7 +240,7 @@ func TestLibraryItemsSorts(t *testing.T) {
 	// premiered: TMDB's release dates, which for these films fall in the
 	// order of their years
 	out = call(t, "library_items", map[string]any{"library": "Movies", "sort": "premiered", "limit": 50})
-	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Alien", "Blade Runner", "Aliens", "Princess Mononoke", "The Thirteenth Floor", "Limitless", "Arrival", "Dune", "Dune: Part Two"}) {
+	if got := names(t, out["items"], "items"); !slices.Equal(got, []string{"Alien", "Blade Runner", "Aliens", "Princess Mononoke", "The Thirteenth Floor", "Brüno", "Limitless", "Arrival", "Dune", "Dune: Part Two"}) {
 		t.Errorf("by premiere = %v", got)
 	}
 
@@ -465,9 +465,9 @@ func TestLibraryFiltersEverywhere(t *testing.T) {
 		t.Errorf("every library's filters read %d items, want the %d films and series", n, want)
 	}
 	// Science Fiction on four clean films and The Expanse; on the messy Dune,
-	// Interstellar and Blade Runner (once or twice, as the server stores
-	// it); and on the messy Andor and Deep Space Nine
-	want := 4 + 1 + 3 + 2
+	// Interstellar, Stargate and Blade Runner (once or twice, as the server
+	// stores it); and on the messy Andor and Deep Space Nine
+	want := 4 + 1 + 4 + 2
 	if !versionsMerged() {
 		want++
 	}

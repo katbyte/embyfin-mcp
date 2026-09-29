@@ -214,7 +214,7 @@ type versionsIn struct {
 // states its own defaults; the sweep is the shared one.
 func registerVersionsAudit(r *registry, c auditCheck) {
 	client := r.client
-	check := newTitleCheck(r.opts)
+	check := r.newTitleCheck()
 
 	add(r, readTool, &mcp.Tool{
 		Name:        c.name,
@@ -340,7 +340,7 @@ func registerAuditTools(r *registry) {
 		})
 	}
 
-	check := newTitleCheck(r.opts)
+	check := r.newTitleCheck()
 	type dupOut struct {
 		Scanned     int             `json:"items_scanned"`
 		TotalGroups int             `json:"total_findings"`
@@ -1246,8 +1246,9 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 
 // spellingRow is audit_all's audit_spelling row: the groups spelled more than
 // one way among the genres, tags and studios of what the library holds,
-// albums included where it holds music, and what its read saw of the
-// library changing under it.
+// albums included where it holds music, and there the album and artist
+// names in its tracks' tags too, and what its reads saw of the library
+// changing under them.
 func spellingRow(ctx context.Context, client *embyfin.Client, library string, folder *embyfin.VirtualFolder) (auditAllRow, error) {
 	// the spellings apply to every kind of library, music with its albums;
 	// were they ever not to, the row would say so rather than count nothing
@@ -1255,16 +1256,16 @@ func spellingRow(ctx context.Context, client *embyfin.Client, library string, fo
 	if !applies {
 		return auditAllRow{Audit: "audit_spelling", Skipped: true, Note: "nothing in this library carries genres, tags or studios the audit reads"}, nil
 	}
-	spellings, scanned, note, err := spellingAudit(ctx, client, library, types, vocabFields)
+	fields, what := vocabFields, "groups of genres, tags and studios spelled more than one way"
+	if slices.Contains(strings.Split(types, ","), musicAlbum) {
+		fields, what = spellingFieldsAll, "groups of genres, tags, studios, album names and artist names spelled more than one way"
+	}
+	sweep, err := spellingAudit(ctx, client, library, types, fields)
 	if err != nil {
 		return auditAllRow{}, err
 	}
-	groups := 0
-	for _, f := range vocabFields {
-		groups += len(spellings.report(f))
-	}
 
-	return auditAllRow{Audit: "audit_spelling", Findings: groups, Scanned: scanned, Types: types, Note: "groups of genres, tags and studios spelled more than one way", changed: note}, nil
+	return auditAllRow{Audit: "audit_spelling", Findings: len(sweep.groups(fields)), Scanned: sweep.items, Types: types, Note: what, changed: sweep.note}, nil
 }
 
 // runtime audit -----------------------------------------------------------
@@ -1428,6 +1429,38 @@ func auditRuntimes(ctx context.Context, client *embyfin.Client, parent string, l
 }
 
 // tmdbFacts is how the tools ask TMDB, or nil when no token is set.
+// providerCache is TMDB's answers as a tool keeps them: forgotten on
+// Clear, which says how many there were.
+type providerCache interface{ Clear() int }
+
+// remember keeps a cache the tools made, for provider_cache_clear.
+func (r *registry) remember(c providerCache) {
+	r.cacheMu.Lock()
+	defer r.cacheMu.Unlock()
+
+	r.providerCaches = append(r.providerCaches, c)
+}
+
+// tmdbFacts is tmdbFacts, kept for provider_cache_clear.
+func (r *registry) tmdbFacts(rt http.RoundTripper) *tmdb.Facts {
+	facts := tmdbFacts(r.opts, rt)
+	if facts != nil {
+		r.remember(facts)
+	}
+
+	return facts
+}
+
+// newTitleCheck is newTitleCheck, its titles kept for provider_cache_clear.
+func (r *registry) newTitleCheck() *titleCheck {
+	check := newTitleCheck(r.opts)
+	if check.titles != nil {
+		r.remember(check.titles)
+	}
+
+	return check
+}
+
 func tmdbFacts(opts Options, rt http.RoundTripper) *tmdb.Facts {
 	if opts.TMDBKey == "" {
 		return nil

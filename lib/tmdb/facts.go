@@ -85,6 +85,23 @@ func recall[T any](f *Facts, memo map[string]kept[T], key string) (T, bool) {
 	return k.value, true
 }
 
+// Clear forgets every answer kept, so the next read of each asks TMDB
+// again, and says how many there were.
+func (f *Facts) Clear() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	// the counts are taken before the maps are emptied: deferred calls run
+	// after the return value is worked out
+	defer func() {
+		clear(f.movies)
+		clear(f.guides)
+		clear(f.specials)
+		clear(f.found)
+	}()
+
+	return len(f.movies) + len(f.guides) + len(f.specials) + len(f.found)
+}
+
 // keep stores an answer as read now.
 func keep[T any](f *Facts, memo map[string]kept[T], key string, value T) {
 	f.mu.Lock()

@@ -109,8 +109,11 @@ func registerFilePathAudit(r *registry) {
 	// lists - behind one breaker, so TMDB down is seen once and not paid for
 	// row by row (see tmdb.Breaker)
 	guarded := tmdb.Guarded(r.opts.ProviderTransport)
-	provider := tmdbFacts(r.opts, guarded)
+	provider := r.tmdbFacts(guarded)
 	titles := newProviderTitlesVia(r.opts, guarded)
+	if titles != nil {
+		r.remember(titles)
+	}
 
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_file_path",

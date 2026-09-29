@@ -142,6 +142,34 @@
       "elided_size": 31370
     },
     {
+      "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/images/Everyman Pictures/thumb.jpg",
+      "method": "GET",
+      "host": "raw.githubusercontent.com",
+      "path": "/jellyfin/emby-artwork/master/studios/images/Everyman Pictures/thumb.jpg",
+      "status": 200,
+      "headers": {
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "max-age=300",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+        "Content-Type": "image/jpeg",
+        "Cross-Origin-Resource-Policy": "cross-origin",
+        "Source-Age": "0",
+        "Strict-Transport-Security": "max-age=31536000",
+        "Vary": "Authorization,Accept-Encoding",
+        "Via": "1.1 varnish",
+        "X-Content-Type-Options": "nosniff",
+        "X-Fastly-Request-Id": "d5b60d25b0189e660a6f78a8aeebd3ac262b9754",
+        "X-Frame-Options": "deny",
+        "X-Github-Edge-Region": "iad",
+        "X-Github-Request-Id": "CA14:14ABF7:7346E:FA388:6ABB28AC",
+        "X-Xss-Protection": "1; mode=block"
+      },
+      "elided": true,
+      "elided_type": "image/jpeg",
+      "elided_size": 57446
+    },
+    {
       "key": "GET raw.githubusercontent.com/jellyfin/emby-artwork/master/studios/images/FilmNation Entertainment/thumb.jpg",
       "method": "GET",
       "host": "raw.githubusercontent.com",

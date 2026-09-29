@@ -73,8 +73,9 @@ func TestAuditMissingEpisodesPagesSeriesOfOneNameOnce(t *testing.T) {
 	t.Parallel()
 
 	twins := []*fakeSeries{
-		{id: "t1", name: "Zzyzx Twin", episodes: []ep{{season: 1, number: 1, name: "one", path: "/m/t1.mkv"}}},
-		{id: "t2", name: "Zzyzx Twin", episodes: []ep{{season: 1, number: 1, name: "one", path: "/m/t2.mkv"}}},
+		// two shows of one name, in folders told apart by their years
+		{id: "t1", name: "Zzyzx Twin", path: "/media/shows/Zzyzx Twin (2001)", episodes: []ep{{season: 1, number: 1, name: "one", path: "/m/t1.mkv"}}},
+		{id: "t2", name: "Zzyzx Twin", path: "/media/shows/Zzyzx Twin (2011)", episodes: []ep{{season: 1, number: 1, name: "one", path: "/m/t2.mkv"}}},
 	}
 	cs := session(t, tvServer(t, twins...), Options{TMDBKey: "k", ProviderTransport: guideServer(t, map[int][]string{1: {"one"}}, aired2022)})
 
@@ -320,5 +321,45 @@ func TestAuditMissingEpisodesKeepsAnimeWithOtherAniDBIDsApart(t *testing.T) {
 	out = mustCall(t, session(t, tvServer(t, parent, ova), Options{}), "audit_missing_episodes", map[string]any{})
 	if number(t, out["total_findings"], "total_findings") != 0 || number(t, out["series"], "series") != 1 {
 		t.Errorf("sharing a TVDB id and one AniDB id = %v, want one show with nothing missing", out)
+	}
+}
+
+// Two folders of one show a space and a letter's case apart, neither with an
+// id - the pair a rename leaves - are judged as one show by
+// audit_duplicate_series' folder rule: the E02 one folder lacks is the
+// other's file. The gap after both is the show's, and the warning says the
+// folders joined it. Folders told apart by a year are two shows.
+func TestAuditMissingEpisodesJoinsTwinFolders(t *testing.T) {
+	t.Parallel()
+
+	first := &fakeSeries{id: "k1", name: "Zzyzx Knight", path: "/media/shows/Zzyzx Knight (2026)", episodes: []ep{
+		{season: 1, number: 1, name: "one", path: "/m/k1/s01e01.mkv"},
+		{season: 1, number: 3, name: "three", path: "/m/k1/s01e03.mkv"},
+		{season: 1, number: 5, name: "five", path: "/m/k1/s01e05.mkv"},
+	}}
+	second := &fakeSeries{id: "k2", name: "Zzyzx Knight", path: "/media/shows/Zzyzx  knight (2026)", episodes: []ep{
+		{season: 1, number: 2, name: "two", path: "/m/k2/s01e02.mkv"},
+	}}
+	older := &fakeSeries{id: "o1", name: "Zzyzx Knight", path: "/media/shows/Zzyzx Knight (1996)", episodes: []ep{
+		{season: 1, number: 1, name: "one", path: "/m/o1/s01e01.mkv"},
+		{season: 1, number: 3, name: "three", path: "/m/o1/s01e03.mkv"},
+	}}
+	cs := session(t, tvServer(t, first, second, older), Options{})
+
+	out := mustCall(t, cs, "audit_missing_episodes", map[string]any{})
+	got := map[string]map[string]any{}
+	for _, row := range objects(t, out["findings"], "findings") {
+		got[text(row["id"])] = row
+	}
+	if len(got) != 2 || number(t, out["series"], "series") != 2 {
+		t.Fatalf("findings = %v of %v shows, want the pair once and the older show", got, out["series"])
+	}
+	if row := got["k1"]; row == nil || text(row["detail"]) != "missing between the episodes on disk: S01E04" ||
+		!strings.Contains(text(row["warning"]), `under 2 entries in folders named alike beside each other (also id k2 at /media/shows/Zzyzx  knight (2026))`) ||
+		!strings.Contains(text(row["warning"]), "audit_duplicate_series lists every pair of folders named alike") {
+		t.Errorf("the pair = %v, want S01E04 alone and the folders named", row)
+	}
+	if row := got["o1"]; row == nil || text(row["detail"]) != "missing between the episodes on disk: S01E02" || strings.Contains(text(row["warning"]), "entries") {
+		t.Errorf("the older show = %v, want its own gap, joined to nothing", row)
 	}
 }
