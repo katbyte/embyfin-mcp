@@ -8,14 +8,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 )
 
-// Two folders for one show.
+// Two folders for one show: audit_duplicates' folder_groups.
 //
 // A rename that differs only in spacing, case or an accent leaves the old
 // folder behind and the server builds a SECOND series from it, splitting the
-// episodes across two entries that answer separately. audit_duplicates cannot
+// episodes across two entries that answer separately. Sharing an id cannot
 // see it when the second entry carries no provider id - which is the usual
 // case, because nothing matched it.
 //
@@ -55,16 +55,13 @@ func folderKey(name string) string {
 	return b.String()
 }
 
-type folderIn struct {
-	Library string `json:"library,omitempty" jsonschema:"one library by name or id"`
-	Limit   int    `json:"limit,omitempty"   jsonschema:"maximum groups, default 50"`
-}
-
+// folderOut is what the folder rule found: how many series were read, how
+// many pairs of folders name one show, and the first of them up to a limit.
 type folderOut struct {
-	Scanned int           `json:"items_scanned"`
-	Found   int           `json:"total_findings"`
-	Groups  []folderGroup `json:"groups"         jsonschema:"capped at limit; total_findings is the real count"`
-	Note    string        `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
+	Scanned int
+	Found   int
+	Groups  []folderGroup
+	Note    string
 }
 
 type folderRow struct {
@@ -80,26 +77,15 @@ type folderGroup struct {
 	Series []folderRow `json:"series" jsonschema:"the entries built from those folders"`
 }
 
-func registerDuplicateSeriesAudit(r *registry) {
-	client := r.client
-
-	add(r, readTool, &mcp.Tool{
-		Name: "audit_duplicate_series",
-		Description: "Find shows the server holds twice because two folders name the same series: a rename that changed only spacing, case, an accent or punctuation leaves the old folder behind and a second entry is built from it. " +
-			"The episodes are then split across both entries, so each answers 'no' to half the questions asked of it. audit_duplicates cannot see these when the second entry carries no provider id, which is usual.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in folderIn) (*mcp.CallToolResult, folderOut, error) {
-		out, err := auditDuplicateSeries(ctx, client, in)
-
-		return nil, out, err
-	})
-}
-
-func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folderIn) (folderOut, error) {
-	limit := in.Limit
-	if limit <= 0 {
-		limit = 50
+// duplicateFolders is audit_duplicates' folder rule over one library, or
+// every library: the series whose folders name one show, up to limit of them.
+// It reads nothing when the types asked for leave series out, since it finds
+// series alone, and types left empty asks for them.
+func duplicateFolders(ctx context.Context, client *embyfin.Client, library, types string, limit int) (folderOut, error) {
+	if types != "" && !slices.ContainsFunc(strings.Split(types, ","), func(t string) bool { return strings.EqualFold(strings.TrimSpace(t), "Series") }) {
+		return folderOut{Groups: []folderGroup{}}, nil
 	}
-	opts, err := sweepOptions(ctx, client, in.Library, "Series", "Series", "Path,ProductionYear")
+	opts, err := sweepOptions(ctx, client, library, "Series", "Series", "Path,ProductionYear")
 	if err != nil {
 		return folderOut{}, err
 	}
@@ -115,7 +101,7 @@ func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folder
 			}
 			// split on either separator: a server on Windows answers with
 			// backslashes, whatever this runs on
-			folder := baseName(it.Path)
+			folder := mediapath.Base(it.Path)
 			name := folderKey(folder)
 			// a name that folds to nothing ("???") says nothing to compare,
 			// and would otherwise meet every other one like it
@@ -126,7 +112,7 @@ func auditDuplicateSeries(ctx context.Context, client *embyfin.Client, in folder
 			// one holding the same show are two folders of the same name
 			// and nothing is wrong with that. A rename leaves its twin
 			// beside it.
-			key := folderKey(parentDir(it.Path)) + "/" + name
+			key := folderKey(mediapath.Dir(it.Path)) + "/" + name
 			byKey[key] = append(byKey[key], folderRow{
 				SeriesID: it.ID, Name: it.Name, Year: it.ProductionYear,
 				Folder: folder, Path: it.Path,

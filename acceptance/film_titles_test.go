@@ -8,6 +8,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // A copy of the messy Princess Mononoke in a folder named for its original,
@@ -16,10 +20,10 @@ import (
 // is still the film; two off is not, and TMDB, asked by the path's title and
 // year, finds the film itself, so the item's year is the one to check.
 func TestAFilmInItsOwnLanguagesFolder(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
-	dir := filepath.Join(dataDir(), "messy-movies", "もののけ姫 (1997)")
+	dir := filepath.Join(testenv.DataDir(), "messy-movies", "もののけ姫 (1997)")
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
 		if err := scanUntil("Messy Movies", messyMovies()); err != nil {
@@ -43,7 +47,7 @@ func TestAFilmInItsOwnLanguagesFolder(t *testing.T) {
 	}
 	var staged string
 	for _, id := range itemsTitled(t, "Messy Movies", "Movie", "Princess Mononoke") {
-		if strings.Contains(str(call(t, "item_get", map[string]any{"id": id})["path"]), "もののけ姫") {
+		if strings.Contains(acc.Str(suite.Call(t, "item_get", map[string]any{"id": id})["path"]), "もののけ姫") {
 			staged = id
 		}
 	}
@@ -51,41 +55,41 @@ func TestAFilmInItsOwnLanguagesFolder(t *testing.T) {
 		t.Fatal("the copy in the Japanese folder is not listed")
 	}
 
-	got := call(t, "item_get", map[string]any{"id": staged})
-	if str(got["original_title"]) != "もののけ姫" || got["warning"] != nil {
+	got := suite.Call(t, "item_get", map[string]any{"id": staged})
+	if acc.Str(got["original_title"]) != "もののけ姫" || got["warning"] != nil {
 		t.Errorf("item_get = original_title %v, warning %v, want its original title and no warning", got["original_title"], got["warning"])
 	}
 	check := func() map[string]any {
 		t.Helper()
-		out := call(t, "audit_file_path", map[string]any{"ids": []any{staged}})
-		if n := num(t, out["items_scanned"], "items_scanned"); n != 1 {
+		out := suite.Call(t, "audit_file_path", map[string]any{"ids": []any{staged}})
+		if n := acc.Num(t, out["items_scanned"], "items_scanned"); n != 1 {
 			t.Fatalf("audit_file_path by id scanned %d items", n)
 		}
 		return out
 	}
-	if out := check(); num(t, out["total_findings"], "total_findings") != 0 {
+	if out := check(); acc.Num(t, out["total_findings"], "total_findings") != 0 {
 		t.Errorf("a folder in the film's own language = %v", out["findings"])
 	}
 
-	putBack(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1997})
-	call(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1998})
-	if out := check(); num(t, out["total_findings"], "total_findings") != 0 {
+	suite.PutBack(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1997})
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1998})
+	if out := check(); acc.Num(t, out["total_findings"], "total_findings") != 0 {
 		t.Errorf("a year one off = %v", out["findings"])
 	}
-	if w := call(t, "item_get", map[string]any{"id": staged})["warning"]; w != nil {
+	if w := suite.Call(t, "item_get", map[string]any{"id": staged})["warning"]; w != nil {
 		t.Errorf("item_get with the year one off warned: %v", w)
 	}
 
 	needsTMDBRecording(t, searchKey("query=%E3%82%82%E3%81%AE%E3%81%AE%E3%81%91%E5%A7%AB&year=1997"))
-	call(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1999})
-	row := rows(t, check()["findings"], "findings")
-	if len(row) != 1 || !slices.Equal(strs(t, row[0]["problems"], "problems"), []string{"year: path says 1997, metadata says 1999"}) {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{staged}, "year": 1999})
+	row := acc.Rows(t, check()["findings"], "findings")
+	if len(row) != 1 || !slices.Equal(acc.Strs(t, row[0]["problems"], "problems"), []string{"year: path says 1997, metadata says 1999"}) {
 		t.Fatalf("a year two off = %v", row)
 	}
-	if str(row[0]["item_tmdb"]) != "128" || row[0]["path_tmdb"] != nil || !strings.Contains(str(row[0]["diagnosis"]), "TMDB's search finds this very film, TMDB 128, by the path's title and year") {
+	if acc.Str(row[0]["item_tmdb"]) != "128" || row[0]["path_tmdb"] != nil || !strings.Contains(acc.Str(row[0]["diagnosis"]), "TMDB's search finds this very film, TMDB 128, by the path's title and year") {
 		t.Errorf("the TMDB diagnosis = %v", row[0])
 	}
-	if w := str(call(t, "item_get", map[string]any{"id": staged})["warning"]); !strings.Contains(w, `named for "もののけ姫" (1997), not Princess Mononoke (1999)`) {
+	if w := acc.Str(suite.Call(t, "item_get", map[string]any{"id": staged})["warning"]); !strings.Contains(w, `named for "もののけ姫" (1997), not Princess Mononoke (1999)`) {
 		t.Errorf("item_get with the year two off = %q", w)
 	}
 }
@@ -97,18 +101,18 @@ func TestALookalikeLetterInAName(t *testing.T) {
 	arrival := findItem(t, "Messy Movies", "Movie", "Arrival")
 	lookalike := "\u0410rrival"
 	t.Cleanup(func() {
-		if _, err := invoke("item_edit", map[string]any{"ids": []any{arrival}, "name": "Arrival"}); err != nil {
+		if _, err := suite.Invoke("item_edit", map[string]any{"ids": []any{arrival}, "name": "Arrival"}); err != nil {
 			t.Error(err)
 		}
 	})
-	call(t, "item_edit", map[string]any{"ids": []any{arrival}, "name": lookalike})
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{arrival}, "name": lookalike})
 
-	out := call(t, "audit_file_path", map[string]any{"ids": []any{arrival}})
-	found := rows(t, out["findings"], "findings")
+	out := suite.Call(t, "audit_file_path", map[string]any{"ids": []any{arrival}})
+	found := acc.Rows(t, out["findings"], "findings")
 	if len(found) != 1 {
 		t.Fatalf("audit_file_path = %v", found)
 	}
-	problems := strs(t, found[0]["problems"], "problems")
+	problems := acc.Strs(t, found[0]["problems"], "problems")
 	if len(problems) != 1 || !strings.HasPrefix(problems[0], "lookalike: \"\u0410rrival\" is spelled with the Cyrillic \u0410 (U+0410) in place of the Latin A") || !strings.Contains(problems[0], `item_edit name "Arrival" puts it right`) {
 		t.Errorf("problems = %v", problems)
 	}
@@ -116,8 +120,8 @@ func TestALookalikeLetterInAName(t *testing.T) {
 	// what the row is about: the plain title finds it no more, the
 	// lookalike does
 	search := func(query string) bool {
-		for _, row := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": query})["items"], "items") {
-			if str(row["id"]) == arrival {
+		for _, row := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "query": query})["items"], "items") {
+			if acc.Str(row["id"]) == arrival {
 				return true
 			}
 		}
@@ -127,8 +131,8 @@ func TestALookalikeLetterInAName(t *testing.T) {
 		t.Errorf("a search for Arrival finds the renamed film %v, for %s %v: want only the lookalike to", search("Arrival"), lookalike, search(lookalike))
 	}
 
-	call(t, "item_edit", map[string]any{"ids": []any{arrival}, "name": "Arrival"})
-	if n := num(t, call(t, "audit_file_path", map[string]any{"ids": []any{arrival}})["total_findings"], "total_findings"); n != 0 {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{arrival}, "name": "Arrival"})
+	if n := acc.Num(t, suite.Call(t, "audit_file_path", map[string]any{"ids": []any{arrival}})["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("renamed back, audit_file_path still finds %d", n)
 	}
 }

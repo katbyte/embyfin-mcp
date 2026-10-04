@@ -206,7 +206,7 @@ func registerAnimeAudit(r *registry) {
 			return nil, animeOut{}, err
 		}
 		opts := embyfin.SearchOptions{IncludeItemTypes: "Series", Fields: "Path,ProviderIds,ProductionYear"}
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, animeOut{}, err
 		}

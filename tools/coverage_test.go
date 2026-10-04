@@ -336,9 +336,10 @@ func TestItemFindByMetadataID(t *testing.T) {
 	}
 }
 
-// library_recent asks newest first and keeps only what was added inside the
-// window, which the server cannot filter on.
-func TestLibraryRecentKeepsTheWindow(t *testing.T) {
+// library_items with added_since reads newest first, a page at a time, and
+// stops at the first item older than the time: the whole library is never
+// read for the handful added this week.
+func TestLibraryItemsAddedSince(t *testing.T) {
 	t.Parallel()
 
 	f, _ := zzyzxServer(t)
@@ -350,35 +351,38 @@ func TestLibraryRecentKeepsTheWindow(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	// one more than the limit is asked for, to know whether it cut the period
-	out := mustCall(t, cs, "library_recent", map[string]any{"library": "Zzyzx Films"})
+	since := func(days int) string { return time.Now().AddDate(0, 0, -days).UTC().Format(time.DateOnly) }
+	out := mustCall(t, cs, "library_items", map[string]any{"library": "Zzyzx Films", "added_since": since(60)})
 	q := lastQuery(t, f, "/Items")
-	if q.Get("SortBy") != "DateCreated,SortName" || q.Get("SortOrder") != "Descending" || q.Get("IncludeItemTypes") != "Movie,Series,Episode" || q.Get("Limit") != "26" || q.Get("ParentId") != "lib9" {
+	if q.Get("SortBy") != "DateCreated,SortName" || q.Get("SortOrder") != "Descending" || q.Get("IncludeItemTypes") != "Movie" || q.Get("Limit") != "1000" || q.Get("ParentId") != "lib9" {
 		t.Errorf("query = %v", q)
 	}
 	items := objects(t, out["items"], "items")
-	if len(items) != 1 || items[0]["id"] != "9" || text(items[0]["added"]) == "" || boolean(t, out["more"], "more") {
-		t.Errorf("items = %v, more %v, want the one inside 60 days and no more", items, out["more"])
+	if len(items) != 1 || items[0]["id"] != "9" || text(items[0]["added"]) == "" || number(t, out["total"], "total") != 1 {
+		t.Errorf("items = %v, total %v, want the one inside 60 days, counted", items, out["total"])
 	}
 
-	out = mustCall(t, cs, "library_recent", map[string]any{"days": 200, "types": "Movie", "limit": 5})
-	if q = lastQuery(t, f, "/Items"); q.Get("IncludeItemTypes") != "Movie" || q.Get("Limit") != "6" || q.Has("ParentId") {
+	out = mustCall(t, cs, "library_items", map[string]any{"added_since": since(200), "types": "Movie,Series", "limit": 5})
+	if q = lastQuery(t, f, "/Items"); q.Get("IncludeItemTypes") != "Movie,Series" || q.Has("ParentId") {
 		t.Errorf("query = %v", q)
 	}
-	if items = objects(t, out["items"], "items"); len(items) != 2 || boolean(t, out["more"], "more") {
-		t.Errorf("items = %v, more %v, want both inside 200 days and no more", items, out["more"])
+	if items = objects(t, out["items"], "items"); len(items) != 2 || number(t, out["total"], "total") != 2 {
+		t.Errorf("items = %v, total %v, want both inside 200 days", items, out["total"])
 	}
-	// a limit that cuts the period says so, rather than answer as if the
-	// newest one were all there was
-	out = mustCall(t, cs, "library_recent", map[string]any{"days": 200, "limit": 1})
-	if items = objects(t, out["items"], "items"); len(items) != 1 || items[0]["id"] != "9" || !boolean(t, out["more"], "more") || !strings.Contains(text(out["note"]), "more than 1 items were added") {
+	// a limit pages what was added, and total still counts it all
+	out = mustCall(t, cs, "library_items", map[string]any{"added_since": since(200), "limit": 1})
+	if items = objects(t, out["items"], "items"); len(items) != 1 || items[0]["id"] != "9" || number(t, out["total"], "total") != 2 {
 		t.Errorf("a limit of one over two = %v", out)
 	}
-
-	// a page is capped where the bulk reads cap theirs
-	mustCall(t, cs, "library_recent", map[string]any{"limit": 50000})
-	if q = lastQuery(t, f, "/Items"); q.Get("Limit") != "1001" {
-		t.Errorf("limit 50000 asked for %s, want the cap of 1000 and one to see past it", q.Get("Limit"))
+	// a time as well as a date, and any other sort is refused
+	if _, msg := callTool(t, cs, "library_items", map[string]any{"added_since": "yesterday"}); !strings.Contains(msg, "is not a date") {
+		t.Errorf("added_since yesterday = %q", msg)
+	}
+	if _, msg := callTool(t, cs, "library_items", map[string]any{"added_since": since(60), "sort": "name"}); !strings.Contains(msg, "sort is added or left out") {
+		t.Errorf("added_since with another sort = %q", msg)
+	}
+	if out = mustCall(t, cs, "library_items", map[string]any{"added_since": time.Now().Add(-48 * time.Hour).UTC().Format(time.RFC3339), "sort": "added"}); number(t, out["total"], "total") != 1 {
+		t.Errorf("added_since as a time = %v", out)
 	}
 }
 
@@ -641,8 +645,8 @@ func TestTheHistoryToolsReadTheWholePeriod(t *testing.T) {
 	f.mux.HandleFunc("GET /Items", itemsByID(t, map[string]string{"9": "Zzyzx", "8": "Xyzzy"}))
 	cs := session(t, f, Options{})
 
-	out := mustCall(t, cs, "item_watch_history", map[string]any{"id": "9"})
-	if got := texts(out["entries"]); len(got) != 1 || !strings.HasSuffix(got[0], "Quux has finished playing Zzyzx") {
+	out := mustCall(t, cs, "server_activity", map[string]any{"item": "9"})
+	if got := objects(t, out["entries"], "entries"); len(got) != 1 || got[0]["summary"] != "Quux has finished playing Zzyzx" || number(t, out["total"], "total") != 1 {
 		t.Errorf("entries = %v, want the play at the far end of the period", got)
 	}
 	if !boolean(t, out["complete"], "complete") || out["note"] != nil {
@@ -700,7 +704,7 @@ func TestUserHistoryReadsItsItemsInBatches(t *testing.T) {
 func TestTheHistoryToolsSayWhenThePeriodIsCutShort(t *testing.T) {
 	t.Parallel()
 
-	const held = activityScanMax + 500
+	const held = embyfin.ActivityScanMax + 500
 	f, _ := zzyzxServer(t)
 	newest := time.Now().Add(-time.Hour)
 	f.mux.HandleFunc("GET /System/ActivityLog/Entries", activityLog(t, newest, held, func(i int) map[string]any {
@@ -712,14 +716,14 @@ func TestTheHistoryToolsSayWhenThePeriodIsCutShort(t *testing.T) {
 	f.mux.HandleFunc("GET /Items", itemsByID(t, map[string]string{"9": "Zzyzx", "8": "Xyzzy"}))
 	cs := session(t, f, Options{})
 
-	out := mustCall(t, cs, "item_watch_history", map[string]any{"id": "9"})
-	if got := texts(out["entries"]); len(got) != 0 {
+	out := mustCall(t, cs, "server_activity", map[string]any{"item": "9"})
+	if got := objects(t, out["entries"], "entries"); len(got) != 0 {
 		t.Errorf("entries = %v, want nothing from past the ceiling", got)
 	}
-	if reqs := f.requests("/System/ActivityLog/Entries"); len(reqs) != activityScanMax/activityPage {
-		t.Errorf("%d pages read, want %d", len(reqs), activityScanMax/activityPage)
+	if reqs := f.requests("/System/ActivityLog/Entries"); len(reqs) != embyfin.ActivityScanMax/embyfin.ActivityPage {
+		t.Errorf("%d pages read, want %d", len(reqs), embyfin.ActivityScanMax/embyfin.ActivityPage)
 	}
-	oldestRead := entryDate(newest, activityScanMax-1)
+	oldestRead := entryDate(newest, embyfin.ActivityScanMax-1)
 	note := text(out["note"])
 	if boolean(t, out["complete"], "complete") || !strings.Contains(note, fmt.Sprintf("holds %d entries", held)) || !strings.Contains(note, "newest 20000") || !strings.Contains(note, oldestRead) {
 		t.Errorf("complete = %v, note = %q, want it cut short at the entry of %s", out["complete"], note, oldestRead)
@@ -1439,7 +1443,7 @@ func TestACollectionNamedWithASlash(t *testing.T) {
 
 // A library scan's refresh of a collection saves the members it read, and
 // can put back an item taken out or drop one added once the change was seen
-// to hold (seen on Jellyfin 12.1: Dune back after collection_remove said it
+// to hold (seen on Jellyfin 12.1: Dune back after collection_edit remove_items said it
 // was gone, Alien gone that nobody took out). collection_create, _add and
 // _remove say when a scan was running, and change nothing when whether one
 // runs cannot be told.
@@ -1458,19 +1462,19 @@ func TestCollectionChangesDuringAScan(t *testing.T) {
 	if !strings.Contains(text(out["note"]), said) {
 		t.Errorf("collection_create during a scan = %v", out)
 	}
-	if out = mustCall(t, cs, "collection_add", map[string]any{"collection": id, "item_ids": []string{"11"}}); !strings.Contains(text(out["note"]), said) {
-		t.Errorf("collection_add during a scan = %v", out)
+	if out = mustCall(t, cs, "collection_edit", map[string]any{"collection": id, "add_items": []string{"11"}}); !strings.Contains(text(out["note"]), said) {
+		t.Errorf("collection_edit add_items during a scan = %v", out)
 	}
-	if out = mustCall(t, cs, "collection_remove", map[string]any{"collection": id, "item_ids": []string{"11"}}); !strings.Contains(text(out["note"]), said) {
-		t.Errorf("collection_remove during a scan = %v", out)
+	if out = mustCall(t, cs, "collection_edit", map[string]any{"collection": id, "remove_items": []string{"11"}}); !strings.Contains(text(out["note"]), said) {
+		t.Errorf("collection_edit remove_items during a scan = %v", out)
 	}
 
 	// with no scan running, no note
 	s.mu.Lock()
 	s.scan = "Idle"
 	s.mu.Unlock()
-	if out = mustCall(t, cs, "collection_add", map[string]any{"collection": id, "item_ids": []string{"11"}}); out["note"] != nil {
-		t.Errorf("collection_add with no scan running = %v", out)
+	if out = mustCall(t, cs, "collection_edit", map[string]any{"collection": id, "add_items": []string{"11"}}); out["note"] != nil {
+		t.Errorf("collection_edit with no scan running = %v", out)
 	}
 
 	// and when the task list cannot be read, nothing is sent
@@ -1484,8 +1488,8 @@ func TestCollectionChangesDuringAScan(t *testing.T) {
 		want string
 	}{
 		{"collection_create", map[string]any{"name": "Zzyzx Other", "item_ids": []string{"13"}}, "so none was made"},
-		{"collection_add", map[string]any{"collection": id, "item_ids": []string{"13"}}, "so nothing was added"},
-		{"collection_remove", map[string]any{"collection": id, "item_ids": []string{"11"}}, "so nothing was taken out"},
+		{"collection_edit", map[string]any{"collection": id, "add_items": []string{"13"}}, "so its members were not changed"},
+		{"collection_edit", map[string]any{"collection": id, "remove_items": []string{"11"}}, "so its members were not changed"},
 	} {
 		if msg := mustRefuse(t, cs, tc.tool, tc.args); !strings.Contains(msg, "could not tell whether a library scan was running, which can put back or drop a collection's members, "+tc.want) {
 			t.Errorf("%s with the task list failing: %s", tc.tool, msg)
@@ -1522,7 +1526,7 @@ func TestCollectionFamily(t *testing.T) {
 	if q := lastQuery(t, f, "/Collections"); q.Get("Name") != "Zzyzx Saga" || q.Get("Ids") != "9" {
 		t.Errorf("create query = %v", q)
 	}
-	if msg := mustRefuse(t, cs, "collection_create", map[string]any{"name": "zzyzx saga", "item_ids": []string{"11"}}); !strings.Contains(msg, "id c1") || !strings.Contains(msg, "collection_add") {
+	if msg := mustRefuse(t, cs, "collection_create", map[string]any{"name": "zzyzx saga", "item_ids": []string{"11"}}); !strings.Contains(msg, "id c1") || !strings.Contains(msg, "collection_edit add_items") {
 		t.Errorf("a taken name: %s", msg)
 	}
 	cols := objects(t, mustCall(t, cs, "collection_list", map[string]any{})["collections"], "collections")
@@ -1542,15 +1546,15 @@ func TestCollectionFamily(t *testing.T) {
 	}
 
 	f.reset()
-	out = mustCall(t, cs, "collection_add", map[string]any{"collection": "Zzyzx Saga", "item_ids": []string{"9", "11", "11"}})
-	if number(t, out["added"], "added") != 1 || number(t, out["already_held"], "already_held") != 2 || out["to"] != "Zzyzx Saga" {
+	out = mustCall(t, cs, "collection_edit", map[string]any{"collection": "Zzyzx Saga", "add_items": []string{"9", "11", "11"}})
+	if number(t, out["added"], "added") != 1 || number(t, out["already_held"], "already_held") != 2 || out["name"] != "Zzyzx Saga" {
 		t.Errorf("add = %v", out)
 	}
 	if q := lastQuery(t, f, "/Collections/c1/Items"); q.Get("Ids") != "11" {
 		t.Errorf("only the new item should be posted: %v", q)
 	}
 	f.reset()
-	if out = mustCall(t, cs, "collection_add", map[string]any{"collection": "c1", "item_ids": []string{"9"}}); number(t, out["added"], "added") != 0 {
+	if out = mustCall(t, cs, "collection_edit", map[string]any{"collection": "c1", "add_items": []string{"9"}}); out["added"] != nil {
 		t.Errorf("re-add = %v", out)
 	}
 	if reqs := f.requests("/Collections/c1/Items"); len(reqs) != 0 {
@@ -1559,8 +1563,8 @@ func TestCollectionFamily(t *testing.T) {
 
 	// removed is what left: the members are read before and after
 	f.reset()
-	out = mustCall(t, cs, "collection_remove", map[string]any{"collection": "c1", "item_ids": []string{"11"}})
-	if number(t, out["removed"], "removed") != 1 || out["from"] != "Zzyzx Saga" {
+	out = mustCall(t, cs, "collection_edit", map[string]any{"collection": "c1", "remove_items": []string{"11"}})
+	if number(t, out["removed"], "removed") != 1 || out["name"] != "Zzyzx Saga" || len(objects(t, out["removed_items"], "removed_items")) != 1 {
 		t.Errorf("remove = %v", out)
 	}
 	if reqs := f.requests("/Collections/c1/Items"); len(reqs) != 1 || reqs[0].Method != http.MethodDelete || reqs[0].Query != "Ids=11" {
@@ -1575,7 +1579,7 @@ func TestCollectionFamily(t *testing.T) {
 	if memberReads < 2 {
 		t.Errorf("the members were read %d times around the remove, want before and after", memberReads)
 	}
-	if msg := mustRefuse(t, cs, "collection_remove", map[string]any{"collection": "c1", "item_ids": []string{"11"}}); !strings.Contains(msg, "does not hold item 11") {
+	if msg := mustRefuse(t, cs, "collection_edit", map[string]any{"collection": "c1", "remove_items": []string{"11"}}); !strings.Contains(msg, "does not hold item 11") {
 		t.Errorf("remove of a stranger: %s", msg)
 	}
 
@@ -1816,7 +1820,7 @@ func TestPlaylistFamily(t *testing.T) {
 	// not given
 	f.reset()
 	for name, args := range map[string]map[string]any{
-		"playlist_add":    {"playlist": "pl1", "item_ids": []string{"13", "66"}, "user": "Plugh"},
+		"playlist_edit":   {"playlist": "pl1", "add_items": []string{"13", "66"}, "user": "Plugh"},
 		"playlist_create": {"name": "Zzyzx Late", "item_ids": []string{"66"}, "user": "Plugh"},
 	} {
 		if msg := mustRefuse(t, cs, name, args); !strings.Contains(msg, "Plugh cannot see 66") {
@@ -1834,8 +1838,8 @@ func TestPlaylistFamily(t *testing.T) {
 
 	// added is what the playlist gained: the entries are read before and after
 	f.reset()
-	out = mustCall(t, cs, "playlist_add", map[string]any{"playlist": "pl1", "item_ids": []string{"13"}})
-	if number(t, out["added"], "added") != 1 || out["to"] != "Zzyzx Night" {
+	out = mustCall(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "add_items": []string{"13"}})
+	if number(t, out["added"], "added") != 1 || out["name"] != "Zzyzx Night" || strings.Join(texts(out["changed"]), ",") != "added 1 entries" {
 		t.Errorf("add = %v", out)
 	}
 	var posted []request
@@ -1893,17 +1897,18 @@ func TestPlaylistFamily(t *testing.T) {
 
 	// the entries after the move are 13, 9, 11: entry 2 is 11, third
 	for _, args := range []map[string]any{
-		{"playlist": "Zzyzx Day", "entry_ids": []string{"2"}},
-		{"playlist": "Zzyzx Day", "entry_ids": []string{"2"}, "item_ids": []string{"11", "9"}},
-		{"playlist": "Zzyzx Day", "entry_ids": []string{}, "item_ids": []string{}},
+		{"playlist": "Zzyzx Day", "remove_entries": []map[string]any{{"entry_id": "2"}}},
+		{"playlist": "Zzyzx Day", "remove_entries": []map[string]any{{"item_id": "11"}}},
+		{"playlist": "Zzyzx Day", "remove_entries": []map[string]any{}},
+		{"playlist": "Zzyzx Day", "remove_entries": []map[string]any{{"entry_id": "2", "item_id": "11"}}, "move_entry_id": "3", "move_item_id": "13", "position": 1},
 	} {
-		if msg := mustRefuse(t, cs, "playlist_remove", args); !strings.Contains(msg, "item_ids") && !strings.Contains(msg, "nothing to remove") {
-			t.Errorf("remove %v = %s, want item_ids asked for", args, msg)
+		if msg := mustRefuse(t, cs, "playlist_edit", args); !strings.Contains(msg, "item_id") && !strings.Contains(msg, "entry_id") && !strings.Contains(msg, "nothing to change") && !strings.Contains(msg, "a move goes in a call of its own") {
+			t.Errorf("remove %v = %s, want the entry's item asked for", args, msg)
 		}
 	}
-	out = mustCall(t, cs, "playlist_remove", map[string]any{"playlist": "Zzyzx Day", "entry_ids": []string{"2"}, "item_ids": []string{"11"}})
-	gone := objects(t, out["items"], "items")
-	if number(t, out["removed"], "removed") != 1 || out["from"] != "Zzyzx Day" || len(gone) != 1 || gone[0]["id"] != "11" || gone[0]["name"] != "Film 11" || number(t, gone[0]["position"], "position") != 3 {
+	out = mustCall(t, cs, "playlist_edit", map[string]any{"playlist": "Zzyzx Day", "remove_entries": []map[string]any{{"entry_id": "2", "item_id": "11"}}})
+	gone := objects(t, out["removed_items"], "removed_items")
+	if number(t, out["removed"], "removed") != 1 || out["name"] != "Zzyzx Day" || len(gone) != 1 || gone[0]["id"] != "11" || gone[0]["name"] != "Film 11" || number(t, gone[0]["position"], "position") != 3 {
 		t.Errorf("remove = %v, want Film 11 named with where it was", out)
 	}
 	after := make([]string, 0, 2)
@@ -1922,7 +1927,7 @@ func TestPlaylistFamily(t *testing.T) {
 	if len(deletes) != 1 || deletes[0].Query != "EntryIds=2" {
 		t.Errorf("remove requests = %v", deletes)
 	}
-	if msg := mustRefuse(t, cs, "playlist_remove", map[string]any{"playlist": "pl1", "entry_ids": []string{"2"}, "item_ids": []string{"11"}}); !strings.Contains(msg, "no entry 2") || !strings.Contains(msg, "entry ids are 3, 1") || !strings.Contains(msg, "does not hold item 11, so nothing was changed") {
+	if msg := mustRefuse(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "remove_entries": []map[string]any{{"entry_id": "2", "item_id": "11"}}}); !strings.Contains(msg, "no entry 2") || !strings.Contains(msg, "entry ids are 3, 1") || !strings.Contains(msg, "does not hold item 11, so nothing was changed") {
 		t.Errorf("remove of a gone entry: %s", msg)
 	}
 
@@ -1932,10 +1937,10 @@ func TestPlaylistFamily(t *testing.T) {
 	s.mu.Lock()
 	s.renumber = true
 	s.mu.Unlock()
-	mustCall(t, cs, "playlist_add", map[string]any{"playlist": "pl1", "item_ids": []string{"11"}})
-	mustCall(t, cs, "playlist_remove", map[string]any{"playlist": "pl1", "entry_ids": []string{"1"}, "item_ids": []string{"13"}})
+	mustCall(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "add_items": []string{"11"}})
+	mustCall(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "remove_entries": []map[string]any{{"entry_id": "1", "item_id": "13"}}})
 	f.reset()
-	if msg := mustRefuse(t, cs, "playlist_remove", map[string]any{"playlist": "pl1", "entry_ids": []string{"1"}, "item_ids": []string{"13"}}); !strings.Contains(msg, "entry 1 holds Film 9 (9) now, not item 13; the playlist does not hold item 13, so nothing was changed") {
+	if msg := mustRefuse(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "remove_entries": []map[string]any{{"entry_id": "1", "item_id": "13"}}}); !strings.Contains(msg, "entry 1 holds Film 9 (9) now, not item 13; the playlist does not hold item 13, so nothing was changed") {
 		t.Errorf("the same removal again, after the entries were numbered again = %s", msg)
 	}
 	if msg := mustRefuse(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "move_entry_id": "2", "move_item_id": "9", "position": 1}); !strings.Contains(msg, "entry 2 holds Film 11 (11) now, not item 9; Film 9 (9) is entry 1 now, so nothing was changed") {
@@ -1952,20 +1957,20 @@ func TestPlaylistFamily(t *testing.T) {
 
 	// an item held twice: an entry of it is named with the playlist's
 	// fingerprint, which playlist_get and every change answer with
-	mustCall(t, cs, "playlist_add", map[string]any{"playlist": "pl1", "item_ids": []string{"9"}})
+	mustCall(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "add_items": []string{"9"}})
 	got := mustCall(t, cs, "playlist_get", map[string]any{"playlist": "pl1"})
 	fingerprint := text(got["fingerprint"])
 	if len(fingerprint) != 16 {
 		t.Fatalf("playlist_get's fingerprint = %q", fingerprint)
 	}
-	if msg := mustRefuse(t, cs, "playlist_remove", map[string]any{"playlist": "pl1", "entry_ids": []string{"3"}, "item_ids": []string{"9"}}); !strings.Contains(msg, "holds Film 9 (9) more than once (entries 1, 3)") {
+	if msg := mustRefuse(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "remove_entries": []map[string]any{{"entry_id": "3", "item_id": "9"}}}); !strings.Contains(msg, "holds Film 9 (9) more than once (entries 1, 3)") {
 		t.Errorf("removing one of two entries of 9 without the fingerprint: %s", msg)
 	}
-	out = mustCall(t, cs, "playlist_remove", map[string]any{"playlist": "pl1", "entry_ids": []string{"3"}, "item_ids": []string{"9"}, "fingerprint": fingerprint})
-	if gone := objects(t, out["items"], "items"); len(gone) != 1 || number(t, gone[0]["position"], "position") != 3 || text(out["fingerprint"]) == fingerprint || text(out["fingerprint"]) == "" {
+	out = mustCall(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "remove_entries": []map[string]any{{"entry_id": "3", "item_id": "9"}}, "fingerprint": fingerprint})
+	if gone := objects(t, out["removed_items"], "removed_items"); len(gone) != 1 || number(t, gone[0]["position"], "position") != 3 || text(out["fingerprint"]) == fingerprint || text(out["fingerprint"]) == "" {
 		t.Errorf("remove with the fingerprint = %v, want the third entry taken and a new fingerprint", out)
 	}
-	if msg := mustRefuse(t, cs, "playlist_remove", map[string]any{"playlist": "pl1", "entry_ids": []string{"1"}, "item_ids": []string{"9"}, "fingerprint": fingerprint}); !strings.Contains(msg, "the playlist changed since it was read") {
+	if msg := mustRefuse(t, cs, "playlist_edit", map[string]any{"playlist": "pl1", "remove_entries": []map[string]any{{"entry_id": "1", "item_id": "9"}}, "fingerprint": fingerprint}); !strings.Contains(msg, "the playlist changed since it was read") {
 		t.Errorf("a remove with the fingerprint from before: %s", msg)
 	}
 
@@ -2163,13 +2168,13 @@ func TestServerFamily(t *testing.T) {
 		t.Errorf("devices = %v", devices)
 	}
 
-	files := objects(t, mustCall(t, cs, "server_logs", map[string]any{})["files"], "files")
-	if len(files) != 2 || files[1]["name"] != "embyserver.txt" || number(t, files[1]["size"], "size") != 20 || files[1]["modified"] != "2026-09-20T00:00:00Z" {
-		t.Errorf("files = %v", files)
-	}
 	out = mustCall(t, cs, "server_log", map[string]any{"lines": 2})
 	if out["name"] != "embyserver.txt" || out["tail"] != "three\nfour" {
 		t.Errorf("log = %v, want the newest file's last two lines", out)
+	}
+	files := objects(t, out["files"], "files")
+	if len(files) != 2 || files[1]["name"] != "embyserver.txt" || number(t, files[1]["size"], "size") != 20 || files[1]["modified"] != "2026-09-20T00:00:00Z" {
+		t.Errorf("files = %v", files)
 	}
 	out = mustCall(t, cs, "server_log", map[string]any{"name": "old.txt"})
 	if out["name"] != "old.txt" || !strings.HasPrefix(text(out["tail"]), "old.txt one\n") {
@@ -2437,10 +2442,11 @@ func TestItemSimilarAndInstantMix(t *testing.T) {
 	}
 }
 
-// item_watch_history keeps the activity entries that name the item by id,
-// or by title when they carry no id, and drops another item's entry whose
-// title happens to contain this one's.
-func TestItemWatchHistory(t *testing.T) {
+// server_activity kept to an item keeps the entries that name it by id, or
+// by title when they carry no id, and drops another item's entry whose title
+// happens to contain this one's; kept to a user as well, the entries about
+// both.
+func TestServerActivityAboutAnItem(t *testing.T) {
 	t.Parallel()
 
 	f, _ := zzyzxServer(t)
@@ -2461,12 +2467,33 @@ func TestItemWatchHistory(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	out := mustCall(t, cs, "item_watch_history", map[string]any{"id": "9", "days": 30})
-	if out["item"] != "Zzyzx" {
-		t.Errorf("item = %v", out["item"])
+	out := mustCall(t, cs, "server_activity", map[string]any{"item": "9", "days": 30})
+	if out["item"] != "Zzyzx" || number(t, out["days"], "days") != 30 || number(t, out["total"], "total") != 2 || !boolean(t, out["complete"], "complete") {
+		t.Errorf("about Zzyzx = %v", out)
 	}
-	if got := texts(out["entries"]); !slices.Equal(got, []string{"2026-09-20T10:00:00Z Quux has finished playing Zzyzx", "2026-09-18T10:00:00Z Zzyzx was added"}) {
+	entries := objects(t, out["entries"], "entries")
+	got := make([]string, 0, len(entries))
+	for _, e := range entries {
+		got = append(got, text(e["date"])+" "+text(e["summary"]))
+	}
+	if !slices.Equal(got, []string{"2026-09-20T10:00:00Z Quux has finished playing Zzyzx", "2026-09-18T10:00:00Z Zzyzx was added"}) {
 		t.Errorf("entries = %v", got)
+	}
+	if e := entries[0]; e["item_id"] != "9" || e["type"] != "playback.stop" {
+		t.Errorf("the play's entry = %v, want its item id and type", e)
+	}
+	// paged like the rest
+	if page := mustCall(t, cs, "server_activity", map[string]any{"item": "9", "days": 30, "limit": 1, "offset": 1}); number(t, page["total"], "total") != 2 || number(t, page["offset"], "offset") != 1 || len(objects(t, page["entries"], "entries")) != 1 || objects(t, page["entries"], "entries")[0]["type"] != "library.new" {
+		t.Errorf("page 2 about Zzyzx = %v", page)
+	}
+	// and about a user: Quux's play of it, and not the library's adding it
+	out = mustCall(t, cs, "server_activity", map[string]any{"item": "9", "user": "Quux", "days": 30})
+	if out["user"] != "Quux" || number(t, out["total"], "total") != 1 || objects(t, out["entries"], "entries")[0]["type"] != "playback.stop" {
+		t.Errorf("about Zzyzx and Quux = %v", out)
+	}
+	out = mustCall(t, cs, "server_activity", map[string]any{"user": "Quux", "days": 30})
+	if number(t, out["total"], "total") != 2 || objects(t, out["entries"], "entries")[1]["type"] != "login" {
+		t.Errorf("about Quux = %v, want the play and the login", out)
 	}
 	q := lastQuery(t, f, "/System/ActivityLog/Entries")
 	if since, err := time.Parse(time.RFC3339, q.Get("MinDate")); err != nil || time.Since(since) < 29*24*time.Hour || time.Since(since) > 31*24*time.Hour {
@@ -2989,9 +3016,8 @@ func TestALibraryWithNoIDIsNeverTheWholeServer(t *testing.T) {
 	cs := session(t, f, Options{EnableDelete: true})
 
 	for name, args := range map[string]map[string]any{
-		"library_recent":         {"library": "Zzyzx New"},
 		"library_items":          {"library": "zzyzx new"},
-		"audit_missing_overview": {"library": "Zzyzx New"},
+		"audit_missing_metadata": {"library": "Zzyzx New"},
 		"metadata_rename":        {"library": "Zzyzx New", "field": "genres", "from": "Scifi", "to": "Science Fiction"},
 		"user_stats":             {"library": "Zzyzx New"},
 	} {
@@ -3004,9 +3030,9 @@ func TestALibraryWithNoIDIsNeverTheWholeServer(t *testing.T) {
 	}
 
 	// leaving a library out goes by its folders, which it has before its id
-	out := mustCall(t, cs, "audit_missing_metadata_provider", map[string]any{"ignore": []string{"Zzyzx New"}})
+	out := mustCall(t, cs, "audit_missing_metadata", map[string]any{"ignore": []string{"Zzyzx New"}})
 	if number(t, out["items_scanned"], "items_scanned") != 1 {
-		t.Errorf("audit_missing_metadata_provider ignoring the unscanned library = %v", out)
+		t.Errorf("audit_missing_metadata ignoring the unscanned library = %v", out)
 	}
 	f.reset()
 

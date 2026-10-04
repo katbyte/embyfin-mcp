@@ -201,11 +201,11 @@ func registerItemTools(r *registry) {
 			"The top-level facts are the file at path, on both servers; an item the server shows in several files lists every version in versions with its own id, path, runtime and facts (read warning before keeping one over another). warning says when a film's file names a title the item does not go by (none of its name, original title or sort name, nor with EMBYFIN_TMDB_TOKEN one TMDB lists for it, or its search finds it by under that title or one of TMDB's translations of it) or a year more than one off, with the versions' runtimes when they are far apart: 'probably not one film' (or, for a film in one file, 'probably a different film') when a year or TMDB says another film, 'may not be one film' when only the title is none the film goes by, which can be a title of it no list holds, or TMDB lists it as an entry of its own titled the film's and an edition's words (an edition, or another film), or TMDB could not be asked. A file whose words before its year are the film's, with more after, is asked of TMDB by its whole title in no year and against the films of the film's TMDB collection: another film when TMDB names one of another id by them - a film of its own whose title is the film's and a number alone ('Film: Part Two') or another film of its collection among them - and 'may' only when that film's title is the film's and an edition's words alone (an edition TMDB lists apart, or another film). A file whose title is the film's and whose year is two or more off is asked of TMDB by its title and year, as the file path audit asks it: this very film says the year the item holds is the one to check (no other film), another film says 'probably' - but another film of exactly the film's name 'may', as only the file can tell the two apart - and nothing either way - or no token - that it may be another film, or the item's year is wrong. A renamer's or a release's words after the year are no title: tags in brackets or braces, a trailing '-GROUP', quality, source, HDR, IMAX, 3D, language and dub words, a stacked file's part ('cd1', 'Disc 2') and an extra's word ('Sample', 'Trailer'), read across a hyphen or a plus ('Bluray-1080p', 'HDR10+', 'German-DL'); 'Part 2', the number set apart, is a title's. Runtimes far apart alone are no warning: a director's cut runs longer too.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getItemIn) (*mcp.CallToolResult, getItemOut, error) {
 		// a version's own id too, which item_get lists in versions
-		it, err := itemOrVersion(ctx, client, in.ID)
+		it, _, err := client.ItemByIDOrVersion(ctx, in.ID)
 		if err != nil {
 			return nil, getItemOut{}, err
 		}
-		versions, err := versionsOf(ctx, client, it)
+		versions, err := client.VersionsOf(ctx, it)
 		if err != nil {
 			return nil, getItemOut{}, err
 		}
@@ -288,7 +288,7 @@ func registerItemTools(r *registry) {
 		}
 		// both servers answer an id they do not hold with nothing similar; a
 		// version's own id is one they hold
-		if _, err := itemOrVersion(ctx, client, in.ID); err != nil {
+		if _, _, err := client.ItemByIDOrVersion(ctx, in.ID); err != nil {
 			return nil, similarOut{}, err
 		}
 
@@ -478,67 +478,6 @@ func registerItemTools(r *registry) {
 				ResumeS:    int(ud.PlaybackPositionTicks / ticksPerSecond),
 				NoAccess:   lost,
 			})
-		}
-
-		return nil, out, nil
-	})
-
-	type historyIn struct {
-		ID   string `json:"id"             jsonschema:"the library item id: a film, an episode or a track, or a series, a season or an album, whose episodes or tracks are read"`
-		Days int    `json:"days,omitempty" jsonschema:"how many days back to search, default 60 or as many as the server keeps if fewer"`
-	}
-	type historyOut struct {
-		Item     string   `json:"item"`
-		Days     int      `json:"days"             jsonschema:"the period read, in days back from now"`
-		Covers   *int     `json:"covers,omitempty" jsonschema:"for a series, a season or an album: how many of its episodes or tracks the log was read for, as the library holds them now"`
-		Entries  []string `json:"entries"          jsonschema:"activity log lines about this item, or about its episodes or tracks, newest first"`
-		Complete bool     `json:"complete"         jsonschema:"false when not all of the period could be read: it holds more activity than one call reads, or it reaches back past what the server keeps of its activity log. The answer then covers only the newest part of it, and note says how far back"`
-		Note     string   `json:"note,omitempty"   jsonschema:"what of the period could not be read, and why"`
-	}
-	add(r, readTool, &mcp.Tool{
-		Name: "item_watch_history",
-		Description: "Playback events for one item from the server activity log (who played it, when): the last 60 days, or as many as the server keeps if fewer (Jellyfin deletes activity older than its retention, 30 days out of the box). " +
-			"Plays are logged against what was played, so a series, a season or an album is read as its episodes or tracks, as the library holds them now: a play of one since deleted is not found. A collection, a playlist, an artist or a folder is refused rather than answered with no plays.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in historyIn) (*mcp.CallToolResult, historyOut, error) {
-		it, err := client.ItemByID(ctx, in.ID)
-		if err != nil {
-			return nil, historyOut{}, err
-		}
-		// what the log names a play of this by: the item itself, or what
-		// it holds. A series' id is in no entry, and it used to answer no
-		// plays at all, complete
-		held, err := playedAs(ctx, client, it)
-		if err != nil {
-			return nil, historyOut{}, err
-		}
-		played := map[string]bool{in.ID: true}
-		for _, id := range held {
-			played[id] = true
-		}
-
-		window, err := readWindow(ctx, client, in.Days)
-		if err != nil {
-			return nil, historyOut{}, err
-		}
-		activity, err := readActivity(ctx, client, window.cutoff)
-		if err != nil {
-			return nil, historyOut{}, err
-		}
-
-		out := historyOut{Item: it.Name, Days: window.days, Entries: []string{}, Complete: activity.complete && !window.short, Note: joinNotes(window.note, activity.note())}
-		if held != nil {
-			out.Covers = new(len(held))
-		}
-		for _, e := range activity.entries {
-			// by id when the entry names its item: a title is a substring of
-			// others ("Dune" of "Dune: Part Two")
-			match := played[e.ItemID]
-			if e.ItemID == "" {
-				match = strings.Contains(e.Name, it.Name) || strings.Contains(e.ShortOverview, it.Name)
-			}
-			if match {
-				out.Entries = append(out.Entries, e.Date+" "+e.Name)
-			}
 		}
 
 		return nil, out, nil

@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 )
 
 // The Music library is what the audio side of the tools has to work with:
@@ -18,18 +20,18 @@ import (
 // more (TestMusicTagDefects).
 
 func TestMusicLibrary(t *testing.T) {
-	out := call(t, "library_get", map[string]any{"library": "Music"})
-	if str(out["collection_type"]) != "music" {
+	out := suite.Call(t, "library_get", map[string]any{"library": "Music"})
+	if acc.Str(out["collection_type"]) != "music" {
 		t.Errorf("Music collection_type = %v", out["collection_type"])
 	}
 	counts, _ := out["type_counts"].(map[string]any)
-	if got := num(t, counts["MusicAlbum"], "type_counts.MusicAlbum"); got != musicAlbums() {
+	if got := acc.Num(t, counts["MusicAlbum"], "type_counts.MusicAlbum"); got != musicAlbums() {
 		t.Errorf("albums = %d, want %d (%v)", got, musicAlbums(), counts)
 	}
-	if got := num(t, counts["Audio"], "type_counts.Audio"); got != songs() {
+	if got := acc.Num(t, counts["Audio"], "type_counts.Audio"); got != songs() {
 		t.Errorf("songs = %d, want %d (%v)", got, songs(), counts)
 	}
-	if got := num(t, counts["MusicArtist"], "type_counts.MusicArtist"); got != artists() {
+	if got := acc.Num(t, counts["MusicArtist"], "type_counts.MusicArtist"); got != artists() {
 		t.Errorf("artists = %d, want %d (%v)", got, artists(), counts)
 	}
 }
@@ -38,16 +40,16 @@ func TestMusicLibrary(t *testing.T) {
 // where a movie library returns films, and the tags are what they are named
 // and dated by.
 func TestMusicItems(t *testing.T) {
-	out := call(t, "library_items", map[string]any{"library": "Music", "sort": "name", "limit": 50})
-	if got := num(t, out["total"], "total"); got != musicAlbums() {
+	out := suite.Call(t, "library_items", map[string]any{"library": "Music", "sort": "name", "limit": 50})
+	if got := acc.Num(t, out["total"], "total"); got != musicAlbums() {
 		t.Errorf("total = %d, want %d", got, musicAlbums())
 	}
 	years := map[string]int{}
-	for _, row := range rows(t, out["items"], "items") {
-		if got := str(row["type"]); got != "MusicAlbum" {
+	for _, row := range acc.Rows(t, out["items"], "items") {
+		if got := acc.Str(row["type"]); got != "MusicAlbum" {
 			t.Errorf("%v is a %s, want MusicAlbum", row["name"], got)
 		}
-		years[str(row["name"])] = num(t, row["year"], "year")
+		years[acc.Str(row["name"])] = acc.Num(t, row["year"], "year")
 	}
 	for _, a := range albums {
 		year, ok := years[a.Album]
@@ -61,13 +63,13 @@ func TestMusicItems(t *testing.T) {
 	}
 
 	// the tracks, by the titles their tags carry
-	out = call(t, "library_items", map[string]any{"library": "Music", "types": "Audio", "sort": "name", "limit": 50})
-	if got := num(t, out["total"], "total"); got != songs() {
+	out = suite.Call(t, "library_items", map[string]any{"library": "Music", "types": "Audio", "sort": "name", "limit": 50})
+	if got := acc.Num(t, out["total"], "total"); got != songs() {
 		t.Errorf("songs = %d, want %d", got, songs())
 	}
 	var got []string
-	for _, row := range rows(t, out["items"], "items") {
-		got = append(got, str(row["name"]))
+	for _, row := range acc.Rows(t, out["items"], "items") {
+		got = append(got, acc.Str(row["name"]))
 	}
 	var want []string
 	for _, a := range albums {
@@ -82,10 +84,10 @@ func TestMusicItems(t *testing.T) {
 
 // The vocabulary of a music library is its genres, which come off the tags.
 func TestMusicFilters(t *testing.T) {
-	out := call(t, "library_filters", map[string]any{"library": "Music", "types": "MusicAlbum"})
+	out := suite.Call(t, "library_filters", map[string]any{"library": "Music", "types": "MusicAlbum"})
 	got := map[string]int{}
-	for _, row := range rows(t, out["genres"], "genres") {
-		got[str(row["value"])] = num(t, row["items"], "items")
+	for _, row := range acc.Rows(t, out["genres"], "genres") {
+		got[acc.Str(row["value"])] = acc.Num(t, row["items"], "items")
 	}
 	want := map[string]int{}
 	for _, a := range albums {
@@ -107,9 +109,9 @@ func TestMusicFilters(t *testing.T) {
 // with tracks, no more of them than the limit.
 func TestMusicInstantMix(t *testing.T) {
 	var genre string
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Music", "types": "MusicGenre"})["items"], "items") {
-		if str(it["name"]) == "Electronic" {
-			genre = str(it["id"])
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Music", "types": "MusicGenre"})["items"], "items") {
+		if acc.Str(it["name"]) == "Electronic" {
+			genre = acc.Str(it["id"])
 		}
 	}
 	if genre == "" {
@@ -128,19 +130,19 @@ func TestMusicInstantMix(t *testing.T) {
 	}
 	for _, seed := range seeds {
 		t.Run(seed.kind, func(t *testing.T) {
-			out := call(t, "item_instant_mix", map[string]any{"id": seed.id, "limit": 10})
-			items := rows(t, out["items"], "items")
+			out := suite.Call(t, "item_instant_mix", map[string]any{"id": seed.id, "limit": 10})
+			items := acc.Rows(t, out["items"], "items")
 			if len(items) == 0 {
 				t.Fatalf("a mix seeded from the %s is empty", seed.kind)
 			}
 			for _, row := range items {
-				if got := str(row["type"]); got != "Audio" {
+				if got := acc.Str(row["type"]); got != "Audio" {
 					t.Errorf("mix holds a %s (%v), want only Audio", got, row["name"])
 				}
 			}
 			// a limit below what the mix would hold caps it
 			if len(items) > 2 {
-				if capped := rows(t, call(t, "item_instant_mix", map[string]any{"id": seed.id, "limit": 2})["items"], "items"); len(capped) != 2 {
+				if capped := acc.Rows(t, suite.Call(t, "item_instant_mix", map[string]any{"id": seed.id, "limit": 2})["items"], "items"); len(capped) != 2 {
 					t.Errorf("a mix seeded from the %s with limit 2 = %d tracks", seed.kind, len(capped))
 				}
 			}
@@ -153,7 +155,7 @@ func TestMusicInstantMix(t *testing.T) {
 func songPlaylist(t *testing.T) string {
 	t.Helper()
 
-	id := str(call(t, "playlist_create", map[string]any{
+	id := acc.Str(suite.Call(t, "playlist_create", map[string]any{
 		"name": "Zzyzx Mix Seed", "media_type": "Audio",
 		"item_ids": []any{findItem(t, "Music", "Audio", "Belgrade"), findItem(t, "Music", "Audio", "Time")},
 	})["id"])
@@ -172,7 +174,7 @@ func songPlaylist(t *testing.T) string {
 // reaches the songs, and only where the library's "Embedded Images" fetcher
 // is on, which a library created with the providers off has not got.
 func TestAuditMusicMissingPoster(t *testing.T) {
-	out := call(t, "audit_missing_poster", map[string]any{"library": "Music", "types": "MusicAlbum"})
+	out := missing(t, "poster", map[string]any{"library": "Music", "types": "MusicAlbum"})
 	var want []string
 	for _, a := range albums {
 		if !a.Cover || !isJellyfin() {
@@ -190,7 +192,7 @@ func TestAuditMusicMissingPoster(t *testing.T) {
 	if got := findings(t, out); !slices.Equal(got, want) {
 		t.Errorf("albums with no art = %v, want %v", got, want)
 	}
-	if got := num(t, out["items_scanned"], "items_scanned"); got != musicAlbums() {
+	if got := acc.Num(t, out["items_scanned"], "items_scanned"); got != musicAlbums() {
 		t.Errorf("scanned %d albums, want %d", got, musicAlbums())
 	}
 }
@@ -198,19 +200,19 @@ func TestAuditMusicMissingPoster(t *testing.T) {
 // The electronic acts are tagged "Electronic" but SirensCeol says
 // "Electronica", the kind of drift a tagger leaves behind.
 func TestAuditMusicSpelling(t *testing.T) {
-	out := call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum", "field": "genres"})
+	out := suite.Call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum", "field": "genres"})
 	var found bool
-	for _, g := range rows(t, out["groups"], "groups") {
+	for _, g := range acc.Rows(t, out["groups"], "groups") {
 		var spellings []string
-		for _, s := range rows(t, g["spellings"], "spellings") {
-			spellings = append(spellings, str(s["value"]))
+		for _, s := range acc.Rows(t, g["spellings"], "spellings") {
+			spellings = append(spellings, acc.Str(s["value"]))
 		}
 		if slices.Contains(spellings, "Electronic") && slices.Contains(spellings, "Electronica") {
 			found = true
-			if str(g["field"]) != "genres" {
+			if acc.Str(g["field"]) != "genres" {
 				t.Errorf("group field = %v, want genres", g["field"])
 			}
-			if str(g["keep"]) != "Electronic" {
+			if acc.Str(g["keep"]) != "Electronic" {
 				t.Errorf("keep = %v, want Electronic, the one on two albums", g["keep"])
 			}
 		}
@@ -224,31 +226,31 @@ func TestAuditMusicSpelling(t *testing.T) {
 // tags carry, and the MusicBrainz ids come through as provider ids.
 func TestMusicItemGet(t *testing.T) {
 	id := findItem(t, "Music", "Audio", "Valkyrie")
-	out := call(t, "item_get", map[string]any{"id": id})
-	if str(out["name"]) != "Valkyrie" || str(out["type"]) != "Audio" {
+	out := suite.Call(t, "item_get", map[string]any{"id": id})
+	if acc.Str(out["name"]) != "Valkyrie" || acc.Str(out["type"]) != "Audio" {
 		t.Errorf("item_get = %v", out)
 	}
-	if got := strings.ToLower(str(out["container"])); got != "mp3" {
+	if got := strings.ToLower(acc.Str(out["container"])); got != "mp3" {
 		t.Errorf("container = %v, want mp3", out["container"])
 	}
-	if genres := strs(t, out["genres"], "genres"); !slices.Equal(genres, []string{"Electronic"}) {
+	if genres := acc.Strs(t, out["genres"], "genres"); !slices.Equal(genres, []string{"Electronic"}) {
 		t.Errorf("genres = %v, want Electronic", genres)
 	}
 	// the MusicBrainz ids its tags carry, keyed as every provider id is
 	polygon := albums[0]
-	ids := object(t, out["metadata_provider_ids"], "metadata_provider_ids")
-	if str(ids["musicbrainzartist"]) != polygon.MBArtist || str(ids["musicbrainzalbum"]) != polygon.MBAlbum {
+	ids := acc.Object(t, out["metadata_provider_ids"], "metadata_provider_ids")
+	if acc.Str(ids["musicbrainzartist"]) != polygon.MBArtist || acc.Str(ids["musicbrainzalbum"]) != polygon.MBAlbum {
 		t.Errorf("provider ids = %v, want Battle Tapes' artist id %s and Polygon's release id %s", ids, polygon.MBArtist, polygon.MBAlbum)
 	}
 	// and on Emby the artist carries its own; Jellyfin gives an artist made
 	// from the tags none
-	artist := call(t, "item_get", map[string]any{"id": findItem(t, "Music", "MusicArtist", "Battle Tapes")})
+	artist := suite.Call(t, "item_get", map[string]any{"id": findItem(t, "Music", "MusicArtist", "Battle Tapes")})
 	artistIDs, _ := artist["metadata_provider_ids"].(map[string]any)
 	want := polygon.MBArtist
 	if isJellyfin() {
 		want = ""
 	}
-	if got := str(artistIDs["musicbrainzartist"]); got != want {
+	if got := acc.Str(artistIDs["musicbrainzartist"]); got != want {
 		t.Errorf("Battle Tapes' MusicBrainz id = %q, want %q", got, want)
 	}
 }
@@ -261,8 +263,8 @@ func TestMusicItemGet(t *testing.T) {
 func TestAMusicRenameSurvivesAScan(t *testing.T) {
 	carriers := func(genre string) []string {
 		var ids []string
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Music", "types": "MusicArtist,MusicAlbum,Audio", "genres": []any{genre}, "limit": 50})["items"], "items") {
-			ids = append(ids, str(it["id"]))
+		for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Music", "types": "MusicArtist,MusicAlbum,Audio", "genres": []any{genre}, "limit": 50})["items"], "items") {
+			ids = append(ids, acc.Str(it["id"]))
 		}
 		slices.Sort(ids)
 		return ids
@@ -279,14 +281,14 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for _, id := range sirens {
-			undo(t, "item_edit", map[string]any{"ids": []any{id}, "genres": []any{"Electronica"}})
+			suite.Undo(t, "item_edit", map[string]any{"ids": []any{id}, "genres": []any{"Electronica"}})
 		}
 	})
 	paired := func() bool {
-		for _, g := range rows(t, call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum", "field": "genres"})["groups"], "groups") {
+		for _, g := range acc.Rows(t, suite.Call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum", "field": "genres"})["groups"], "groups") {
 			var spellings []string
-			for _, s := range rows(t, g["spellings"], "spellings") {
-				spellings = append(spellings, str(s["value"]))
+			for _, s := range acc.Rows(t, g["spellings"], "spellings") {
+				spellings = append(spellings, acc.Str(s["value"]))
 			}
 			if slices.Contains(spellings, "Electronica") {
 				return true
@@ -298,15 +300,15 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 		t.Fatal("audit_spelling does not pair Electronica with Electronic to start with")
 	}
 
-	out := call(t, "metadata_rename", map[string]any{"field": "genre", "from": "Electronica", "to": "Electronic", "library": "Music"})
-	if num(t, out["updated"], "updated") != len(sirens) || str(out["field"]) != "genres" || out["still_listed"] != nil {
+	out := suite.Call(t, "metadata_rename", map[string]any{"field": "genre", "from": "Electronica", "to": "Electronic", "library": "Music"})
+	if acc.Num(t, out["updated"], "updated") != len(sirens) || acc.Str(out["field"]) != "genres" || out["still_listed"] != nil {
 		t.Errorf("metadata_rename = %v, want the %d items that carried it, none still shown with it", out, len(sirens))
 	}
 	// right after the answer, every item read on its own - the album too,
 	// whose genres Emby gives it from its tracks - has the new genre alone
 	for _, id := range sirens {
-		got := call(t, "item_get", map[string]any{"id": id})
-		if genres := strs(t, got["genres"], "genres"); slices.Contains(genres, "Electronica") {
+		got := suite.Call(t, "item_get", map[string]any{"id": id})
+		if genres := acc.Strs(t, got["genres"], "genres"); slices.Contains(genres, "Electronica") {
 			t.Errorf("right after the rename %s %s (%s) shows the genres %v", got["type"], got["name"], id, genres)
 		}
 	}
@@ -317,19 +319,19 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 		t.Error("after the rename audit_spelling still pairs Electronica")
 	}
 	electronic := func() int {
-		return valueCounts(t, call(t, "library_filters", map[string]any{"library": "Music", "types": "MusicAlbum"})["genres"], "genres")["Electronic"]
+		return valueCounts(t, suite.Call(t, "library_filters", map[string]any{"library": "Music", "types": "MusicAlbum"})["genres"], "genres")["Electronic"]
 	}
 	if n := electronic(); n != 3 {
 		t.Errorf("library_filters counts Electronic on %d albums, want the three electronic acts'", n)
 	}
 
-	if scan := call(t, "library_scan", map[string]any{"library": "Music"}); !boolOf(scan["started"]) {
+	if scan := suite.Call(t, "library_scan", map[string]any{"library": "Music"}); !acc.BoolOf(scan["started"]) {
 		t.Fatalf("library_scan = %v", scan)
 	}
-	if err := waitForScan(); err != nil {
+	if err := suite.WaitForScan(); err != nil {
 		t.Fatal(err)
 	}
-	if !holds(func() bool { return !paired() && electronic() == 3 }) {
+	if !acc.Holds(func() bool { return !paired() && electronic() == 3 }) {
 		t.Errorf("a scan undid the rename: Electronic on %d albums, the pair back %v", electronic(), paired())
 	}
 }
@@ -338,7 +340,7 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 // asked through its items' route with nothing, and the tool asks its
 // playlists' route instead.
 func TestInstantMixFromAPlaylist(t *testing.T) {
-	if items := rows(t, call(t, "item_instant_mix", map[string]any{"id": songPlaylist(t)})["items"], "items"); len(items) == 0 {
+	if items := acc.Rows(t, suite.Call(t, "item_instant_mix", map[string]any{"id": songPlaylist(t)})["items"], "items"); len(items) == 0 {
 		t.Error("a mix seeded from a playlist of two songs is empty")
 	}
 }
@@ -360,20 +362,20 @@ func TestInstantMixFromAPlaylist(t *testing.T) {
 func TestMusicTagDefects(t *testing.T) {
 	namesOf := func(kind string) map[string]map[string]any {
 		out := map[string]map[string]any{}
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Music", "types": kind, "limit": 100})["items"], "items") {
-			out[str(it["name"])] = it
+		for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Music", "types": kind, "limit": 100})["items"], "items") {
+			out[acc.Str(it["name"])] = it
 		}
 
 		return out
 	}
 	albumNames := namesOf("MusicAlbum")
 	if _, split := albumNames[misspeltAlbum]; split == isJellyfin() || len(albumNames) != musicAlbums() {
-		t.Errorf("albums = %v, want %d, the misspelt one among them only on Emby", sorted(slices.Collect(maps.Keys(albumNames))), musicAlbums())
+		t.Errorf("albums = %v, want %d, the misspelt one among them only on Emby", acc.Sorted(slices.Collect(maps.Keys(albumNames))), musicAlbums())
 	}
 	artistNames := namesOf("MusicArtist")
 	for _, name := range []string{variousArtists, pinkFloydAgain, "Pink Floyd", "Battle Tapes"} {
 		if artistNames[name] == nil {
-			t.Errorf("no artist %q among %v", name, sorted(slices.Collect(maps.Keys(artistNames))))
+			t.Errorf("no artist %q among %v", name, acc.Sorted(slices.Collect(maps.Keys(artistNames))))
 		}
 	}
 	if len(artistNames) != artists() {
@@ -383,14 +385,14 @@ func TestMusicTagDefects(t *testing.T) {
 	// track's tag on Emby, and on Jellyfin from MusicBrainz itself, which it
 	// asks about an artist with no folder of its own whatever the library's
 	// fetchers say; neither joins it to Pink Floyd by that id
-	again := call(t, "item_get", map[string]any{"id": str(artistNames[pinkFloydAgain]["id"])})
-	if ids, _ := again["metadata_provider_ids"].(map[string]any); str(ids["musicbrainzartist"]) != albums[2].MBArtist {
+	again := suite.Call(t, "item_get", map[string]any{"id": acc.Str(artistNames[pinkFloydAgain]["id"])})
+	if ids, _ := again["metadata_provider_ids"].(map[string]any); acc.Str(ids["musicbrainzartist"]) != albums[2].MBArtist {
 		t.Errorf("%s's ids = %v, want Pink Floyd's MusicBrainz id", pinkFloydAgain, again["metadata_provider_ids"])
 	}
 
 	track := func(title string) map[string]any {
 		t.Helper()
-		return call(t, "item_get", map[string]any{"id": findItem(t, "Music", "Audio", title)})
+		return suite.Call(t, "item_get", map[string]any{"id": findItem(t, "Music", "Audio", title)})
 	}
 	// the numbers as tagged: a track numbered twice and one not numbered,
 	// and the second disc's tracks numbered from one again
@@ -403,49 +405,49 @@ func TestMusicTagDefects(t *testing.T) {
 	if ids := track("Diving At Night")["metadata_provider_ids"]; ids != nil {
 		t.Errorf("Thundercolor's track carries %v, want no ids", ids)
 	}
-	if ids := call(t, "item_get", map[string]any{"id": str(albumNames["Thundercolor"]["id"])})["metadata_provider_ids"]; ids != nil {
+	if ids := suite.Call(t, "item_get", map[string]any{"id": acc.Str(albumNames["Thundercolor"]["id"])})["metadata_provider_ids"]; ids != nil {
 		t.Errorf("Thundercolor carries %v, want no ids", ids)
 	}
 	// and two discs are one album holding both
 	var discs []string
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Music", "types": "Audio", "limit": 100})["items"], "items") {
-		if path := str(it["path"]); strings.Contains(path, "/The Dark Side of the Moon (1973)/") {
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Music", "types": "Audio", "limit": 100})["items"], "items") {
+		if path := acc.Str(it["path"]); strings.Contains(path, "/The Dark Side of the Moon (1973)/") {
 			discs = append(discs, path[strings.Index(path, "(1973)/")+7:])
 		}
 	}
-	if want := []string{"Disc 1/01 - Speak to Me.mp3", "Disc 1/02 - Breathe.mp3", "Disc 2/01 - On the Run.mp3", "Disc 2/02 - Time.mp3"}; !slices.Equal(sorted(discs), want) {
-		t.Errorf("The Dark Side of the Moon's tracks = %v, want %v", sorted(discs), want)
+	if want := []string{"Disc 1/01 - Speak to Me.mp3", "Disc 1/02 - Breathe.mp3", "Disc 2/01 - On the Run.mp3", "Disc 2/02 - Time.mp3"}; !slices.Equal(acc.Sorted(discs), want) {
+		t.Errorf("The Dark Side of the Moon's tracks = %v, want %v", acc.Sorted(discs), want)
 	}
 
 	// what audit_spelling reads in a music library: the genre spelled two
 	// ways, the album spelled two ways under Pink Floyd - three tracks
 	// against one - and Pink Floyd written with "The" on one track of eight
-	spelling := call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum"})
+	spelling := suite.Call(t, "audit_spelling", map[string]any{"library": "Music", "types": "MusicAlbum"})
 	groups := map[string]map[string]any{}
-	for _, g := range rows(t, spelling["groups"], "groups") {
-		groups[str(g["field"])] = g
+	for _, g := range acc.Rows(t, spelling["groups"], "groups") {
+		groups[acc.Str(g["field"])] = g
 	}
-	if len(groups) != 3 || num(t, spelling["total_findings"], "total_findings") != 3 || groups["genres"] == nil {
+	if len(groups) != 3 || acc.Num(t, spelling["total_findings"], "total_findings") != 3 || groups["genres"] == nil {
 		t.Errorf("audit_spelling over Music = %v, want the Electronica pair, the album and the artist", spelling["groups"])
 	}
 	counted := func(g map[string]any) string {
 		var out []string
-		for _, sp := range rows(t, g["spellings"], "spellings") {
-			out = append(out, fmt.Sprintf("%s %d", str(sp["value"]), num(t, sp["items"], "items")))
+		for _, sp := range acc.Rows(t, g["spellings"], "spellings") {
+			out = append(out, fmt.Sprintf("%s %d", acc.Str(sp["value"]), acc.Num(t, sp["items"], "items")))
 		}
 		return strings.Join(out, ", ")
 	}
-	if g := groups["albums"]; g == nil || str(g["kind"]) != "near" || str(g["album_artist"]) != "Pink Floyd" || counted(g) != "Wish You Were Here 3, "+misspeltAlbum+" 1" {
+	if g := groups["albums"]; g == nil || acc.Str(g["kind"]) != "near" || acc.Str(g["album_artist"]) != "Pink Floyd" || counted(g) != "Wish You Were Here 3, "+misspeltAlbum+" 1" {
 		t.Errorf("the album group = %v", g)
 	}
-	if g := groups["artists"]; g == nil || str(g["kind"]) != "spelling" || counted(g) != "Pink Floyd 8, "+pinkFloydAgain+" 1" {
+	if g := groups["artists"]; g == nil || acc.Str(g["kind"]) != "spelling" || counted(g) != "Pink Floyd 8, "+pinkFloydAgain+" 1" {
 		t.Errorf("the artist group = %v", g)
 	}
-	if n := num(t, spelling["tracks_scanned"], "tracks_scanned"); n != 20 || spelling["albums_note"] != nil {
+	if n := acc.Num(t, spelling["tracks_scanned"], "tracks_scanned"); n != 20 || spelling["albums_note"] != nil {
 		t.Errorf("tracks_scanned %d, albums_note %v: want the 20 tracks read, each with its album", n, spelling["albums_note"])
 	}
 	// and the names are the files' to correct, not the server's
-	if msg := callErr(t, "metadata_rename", map[string]any{"field": "artists", "from": pinkFloydAgain, "to": "Pink Floyd"}); !strings.Contains(msg, "names in the tracks' own tags") {
+	if msg := suite.CallErr(t, "metadata_rename", map[string]any{"field": "artists", "from": pinkFloydAgain, "to": "Pink Floyd"}); !strings.Contains(msg, "names in the tracks' own tags") {
 		t.Errorf("metadata_rename of an artist = %s", msg)
 	}
 }

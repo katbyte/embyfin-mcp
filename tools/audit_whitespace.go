@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -373,9 +374,9 @@ type whitespaceSweep struct {
 	rows      []whitespaceRow
 	shared    map[string]int // a value or folder already reported -> its row
 	want      map[string]bool
-	libraries []libraryPath // the libraries' own folders, whose names are no item's
-	person    string        // the fix for a person's name, on this server
-	versioned []string      // items held in several files, whose other files are read after
+	libraries []embyfin.LibraryPath // the libraries' own folders, whose names are no item's
+	person    string                // the fix for a person's name, on this server
+	versioned []string              // items held in several files, whose other files are read after
 	// how well the item named on a folder row stands for the folder: 2 held
 	// at the folder itself, 1 its file in it, 0 anything else under it
 	named   map[int]int
@@ -384,7 +385,7 @@ type whitespaceSweep struct {
 	reads   []embyfin.ReadResult // what each read saw of the library changing
 }
 
-func newWhitespaceSweep(want map[string]bool, libraries []libraryPath, backend embyfin.Backend) *whitespaceSweep {
+func newWhitespaceSweep(want map[string]bool, libraries []embyfin.LibraryPath, backend embyfin.Backend) *whitespaceSweep {
 	return &whitespaceSweep{
 		shared: map[string]int{}, want: want, libraries: libraries, person: personFix(backend), named: map[int]int{}, backend: backend,
 	}
@@ -504,7 +505,7 @@ func (w *whitespaceSweep) peopleOf(ctx context.Context, client *embyfin.Client, 
 // other files of an item held in several (Jellyfin's versions), so the item
 // is counted once in a folder they share.
 func (w *whitespaceSweep) path(it *embyfin.Item, p string, own bool) {
-	if p == "" || !onDisk(p) {
+	if p == "" || !mediapath.OnDisk(p) {
 		return
 	}
 	// one separator, for a server on Windows; of the same length, so the
@@ -513,7 +514,7 @@ func (w *whitespaceSweep) path(it *embyfin.Item, p string, own bool) {
 	start := 0
 	if lib, ok := inLibrary(p, w.libraries); ok {
 		// a library at a filesystem's top ("/") ends in its separator
-		start = len(strings.TrimRight(trimSep(lib.path), `/\`))
+		start = len(strings.TrimRight(mediapath.Trim(lib.Path), `/\`))
 	}
 	file := !slices.Contains(folderItems, it.Type) && mediaFile.MatchString(slashed)
 	end := len(slashed)
@@ -544,9 +545,9 @@ func (w *whitespaceSweep) folder(it *embyfin.Item, name, full string, own bool) 
 	}
 	rank := 0
 	switch {
-	case trimSep(it.Path) == trimSep(full):
+	case mediapath.Trim(it.Path) == mediapath.Trim(full):
 		rank = 2
-	case parentDir(it.Path) == full:
+	case mediapath.Dir(it.Path) == full:
 		rank = 1
 	}
 	for _, problem := range whitespaceProblems(name, spaceName) {
@@ -697,11 +698,11 @@ func auditWhitespace(ctx context.Context, client *embyfin.Client, in whitespaceI
 	if err != nil {
 		return whitespaceOut{}, err
 	}
-	folder, err := resolveLibrary(ctx, client, in.Library)
+	folder, err := client.ResolveLibrary(ctx, in.Library)
 	if err != nil {
 		return whitespaceOut{}, err
 	}
-	libraries, err := libraryPaths(ctx, client)
+	libraries, err := client.LibraryPaths(ctx)
 	if err != nil {
 		return whitespaceOut{}, err
 	}

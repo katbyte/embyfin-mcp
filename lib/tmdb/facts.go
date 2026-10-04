@@ -14,7 +14,8 @@ import (
 
 // Facts is what the audits ask TMDB, through the generated Client, with each
 // answer kept for factsTTL: a film's runtime and ids, a series' episodes,
-// what another provider's id is at TMDB. A sweep over a library asks each
+// what another provider's id is at TMDB, and the titles a film or a series
+// goes by and its search finds (titles.go). A sweep over a library asks each
 // question once.
 type Facts struct {
 	api *Client
@@ -26,6 +27,13 @@ type Facts struct {
 	guides   map[string]kept[guide]     // tmdb series id -> its seasons and episodes
 	specials map[string]kept[[]Episode] // tmdb series id -> its season 0
 	found    map[string]kept[Found]     // "<source>:<id>" -> what TMDB holds under it
+	// the titles (titles.go)
+	alternatives map[string]kept[[]string] // "movie:ID" or "tv:ID" -> the titles TMDB lists for it
+	translations map[string]kept[[]string] // "movie:ID" or "tv:ID" -> its titles in TMDB's translations
+	collected    map[string]kept[[]Hit]    // movie ID -> the films of the TMDB collection it is in
+	collections  map[string]kept[[]Hit]    // collection ID -> its films
+	searched     map[string]kept[[]Hit]    // "movie:title:year" -> what the search found
+	unanswered   map[string]bool           // "movie:title:year" -> the search failed, and has not answered since
 }
 
 // factsTTL is how long an answer is kept. TMDB changes under a running
@@ -59,7 +67,11 @@ func NewFacts(token string, rt http.RoundTripper) (*Facts, error) {
 	}
 	api.Client.HTTPClient = HTTPClient(rt)
 
-	return &Facts{api: api, movies: map[string]kept[Movie]{}, guides: map[string]kept[guide]{}, specials: map[string]kept[[]Episode]{}, found: map[string]kept[Found]{}}, nil
+	return &Facts{
+		api: api, movies: map[string]kept[Movie]{}, guides: map[string]kept[guide]{}, specials: map[string]kept[[]Episode]{}, found: map[string]kept[Found]{},
+		alternatives: map[string]kept[[]string]{}, translations: map[string]kept[[]string]{},
+		collected: map[string]kept[[]Hit]{}, collections: map[string]kept[[]Hit]{}, searched: map[string]kept[[]Hit]{}, unanswered: map[string]bool{},
+	}, nil
 }
 
 func (f *Facts) clock() time.Time {
@@ -97,9 +109,16 @@ func (f *Facts) Clear() int {
 		clear(f.guides)
 		clear(f.specials)
 		clear(f.found)
+		clear(f.alternatives)
+		clear(f.translations)
+		clear(f.collected)
+		clear(f.collections)
+		clear(f.searched)
+		clear(f.unanswered)
 	}()
 
-	return len(f.movies) + len(f.guides) + len(f.specials) + len(f.found)
+	return len(f.movies) + len(f.guides) + len(f.specials) + len(f.found) +
+		len(f.alternatives) + len(f.translations) + len(f.collected) + len(f.collections) + len(f.searched) + len(f.unanswered)
 }
 
 // keep stores an answer as read now.

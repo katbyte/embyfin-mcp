@@ -970,3 +970,41 @@ func fromMap(m map[string]any, dto any) error {
 
 	return nil
 }
+
+// ResolveByType finds an item of the given type by id or by name
+// (case-insensitive) — used for playlists and collections. Names need not be
+// unique, so a name several share is an error that lists their ids.
+func (c *Client) ResolveByType(ctx context.Context, itemType, nameOrID string) (*Item, error) {
+	items, _, err := c.Search(ctx, SearchOptions{IncludeItemTypes: itemType, Fields: FieldsLean})
+	if err != nil {
+		return nil, err
+	}
+
+	kind := strings.ToLower(itemType)
+	if itemType == "BoxSet" {
+		kind = "collection"
+	}
+	names := make([]string, 0, len(items))
+	var named []*Item
+	for i := range items {
+		if items[i].ID == nameOrID {
+			return &items[i], nil
+		}
+		if strings.EqualFold(items[i].Name, nameOrID) {
+			named = append(named, &items[i])
+		}
+		names = append(names, items[i].Name)
+	}
+	switch len(named) {
+	case 1:
+		return named[0], nil
+	case 0:
+		return nil, fmt.Errorf("no %s named %q (have: %s)", kind, nameOrID, strings.Join(names, ", "))
+	}
+	ids := make([]string, 0, len(named))
+	for _, it := range named {
+		ids = append(ids, it.ID)
+	}
+
+	return nil, fmt.Errorf("%d %ss are named %q (ids %s): pass an id", len(named), kind, nameOrID, strings.Join(ids, ", "))
+}

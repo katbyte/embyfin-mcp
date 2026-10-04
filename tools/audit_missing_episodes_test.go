@@ -326,7 +326,7 @@ func TestAuditMissingEpisodesKeepsAnimeWithOtherAniDBIDsApart(t *testing.T) {
 
 // Two folders of one show a space and a letter's case apart, neither with an
 // id - the pair a rename leaves - are judged as one show by
-// audit_duplicate_series' folder rule: the E02 one folder lacks is the
+// audit_duplicates' folder rule: the E02 one folder lacks is the
 // other's file. The gap after both is the show's, and the warning says the
 // folders joined it. Folders told apart by a year are two shows.
 func TestAuditMissingEpisodesJoinsTwinFolders(t *testing.T) {
@@ -356,7 +356,7 @@ func TestAuditMissingEpisodesJoinsTwinFolders(t *testing.T) {
 	}
 	if row := got["k1"]; row == nil || text(row["detail"]) != "missing between the episodes on disk: S01E04" ||
 		!strings.Contains(text(row["warning"]), `under 2 entries in folders named alike beside each other (also id k2 at /media/shows/Zzyzx  knight (2026))`) ||
-		!strings.Contains(text(row["warning"]), "audit_duplicate_series lists every pair of folders named alike") {
+		!strings.Contains(text(row["warning"]), "audit_duplicates lists every pair of folders named alike in folder_groups") {
 		t.Errorf("the pair = %v, want S01E04 alone and the folders named", row)
 	}
 	if row := got["o1"]; row == nil || text(row["detail"]) != "missing between the episodes on disk: S01E02" || strings.Contains(text(row["warning"]), "entries") {

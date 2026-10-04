@@ -87,7 +87,7 @@ func TestRegisterAllKinds(t *testing.T) {
 	}
 }
 
-// The surface is 88 tools, 61 of them reads and 5 deletes, and the essential
+// The surface is 78 tools, 55 of them reads and 5 deletes, and the essential
 // preset is enough to find things, read them and keep watch state in sync. A
 // tool added, merged, removed or moved between kinds changes these on
 // purpose, and this is where that is said.
@@ -102,10 +102,15 @@ func TestSurfaceSize(t *testing.T) {
 	for _, ti := range list {
 		kinds[ti.Kind]++
 	}
-	if len(list) != 89 || kinds["read"] != 62 || kinds["write"] != 22 || kinds["delete"] != 5 {
-		t.Errorf("surface = %d tools: %v, want 89 with 62 read, 22 write, 5 delete", len(list), kinds)
+	if len(list) != 78 || kinds["read"] != 55 || kinds["write"] != 18 || kinds["delete"] != 5 {
+		t.Errorf("surface = %d tools: %v, want 78 with 55 read, 18 write, 5 delete", len(list), kinds)
 	}
-	for _, gone := range []string{"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids", "user_in_progress", "show_episodes"} {
+	for _, gone := range []string{
+		"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids", "user_in_progress", "show_episodes",
+		// folded 2026-10: members go in and out through one edit tool, a listing's window and facets are its own, and an audit of three problems is one audit
+		"collection_add", "collection_remove", "playlist_add", "playlist_remove", "library_recent", "library_genres", "server_logs",
+		"audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview", "audit_duplicate_series", "item_watch_history",
+	} {
 		if slices.ContainsFunc(list, func(ti ToolInfo) bool { return ti.Name == gone }) {
 			t.Errorf("%s is still registered; its work moved elsewhere", gone)
 		}
@@ -560,14 +565,13 @@ func TestAuditChecks(t *testing.T) {
 		return &embyfin.Item{Path: path, ProductionYear: year, ProviderIDs: ids}
 	}
 
-	unmatched := auditCheckByName("audit_missing_metadata_provider")
-	if _, bad := unmatched.check(item("/m/Princess Mononoke (1997)", 1997, nil)); !bad {
+	if _, bad := noProviderID(item("/m/Princess Mononoke (1997)", 1997, nil)); !bad {
 		t.Error("unmatched: no ids not flagged")
 	}
-	if _, bad := unmatched.check(item("/m/Princess Mononoke (1997)", 1997, map[string]string{"Tmdb": "128"})); bad {
+	if _, bad := noProviderID(item("/m/Princess Mononoke (1997)", 1997, map[string]string{"Tmdb": "128"})); bad {
 		t.Error("unmatched: a tmdb id flagged")
 	}
-	if _, bad := unmatched.check(item("/m/Princess Mononoke (1997)", 1997, map[string]string{"Tmdb": "", "Imdb": "tt1"})); bad {
+	if _, bad := noProviderID(item("/m/Princess Mononoke (1997)", 1997, map[string]string{"Tmdb": "", "Imdb": "tt1"})); bad {
 		t.Error("unmatched: an imdb id flagged")
 	}
 
@@ -590,19 +594,26 @@ func TestAuditChecks(t *testing.T) {
 		}
 	}
 
-	overview := auditCheckByName("audit_missing_overview")
-	if _, bad := overview.check(&embyfin.Item{Overview: "  "}); !bad {
+	if _, bad := noOverview(&embyfin.Item{Overview: "  "}); !bad {
 		t.Error("overview: blank not flagged")
 	}
-	poster := auditCheckByName("audit_missing_poster")
-	if _, bad := poster.check(&embyfin.Item{ImageTags: map[string]string{"Primary": "abc"}}); bad {
+	if _, bad := noPoster(&embyfin.Item{ImageTags: map[string]string{"Primary": "abc"}}); bad {
 		t.Error("poster: a primary image flagged")
 	}
-	if detail, bad := poster.check(&embyfin.Item{ImageTags: map[string]string{"Backdrop": "def"}}); !bad || !strings.Contains(detail, "no primary image") {
+	if detail, bad := noPoster(&embyfin.Item{ImageTags: map[string]string{"Backdrop": "def"}}); !bad || !strings.Contains(detail, "no primary image") {
 		t.Errorf("poster: no primary image not flagged: %q %v", detail, bad)
 	}
-	if _, bad := poster.check(&embyfin.Item{}); !bad {
+	if _, bad := noPoster(&embyfin.Item{}); !bad {
 		t.Error("poster: an item with no images at all not flagged")
+	}
+	// the problems asked for, in the audit's order, and all of them by default
+	for in, want := range map[string][]string{"": {"provider_id", "poster", "overview"}, "overview, Poster": {"poster", "overview"}, "provider_id": {"provider_id"}} {
+		if got, err := parseProblems(in); err != nil || !slices.Equal(got, want) {
+			t.Errorf("parseProblems(%q) = %v, %v, want %v", in, got, err, want)
+		}
+	}
+	if _, err := parseProblems("plot"); err == nil || !strings.Contains(err.Error(), `unknown problem "plot"`) {
+		t.Errorf("parseProblems(plot) = %v, want a refusal", err)
 	}
 	versions := auditCheckByName("audit_multiple_versions")
 	detail, bad := versions.check(&embyfin.Item{MediaSources: []embyfin.MediaSource{{Path: "/m/a - 1080p.mp4"}, {Path: "/m/a - 2160p.mp4"}}})

@@ -323,7 +323,7 @@ func TestVersionFilesAreHeldToTheirCount(t *testing.T) {
 	client := f.client(t)
 	for count, want := range map[int]string{2: "", 3: "the server counts 3 files for Zzyzx (id f1), and reading them back found 2"} {
 		items := []embyfin.Item{{ID: "f1", Name: "Zzyzx", MediaSourceCount: count}}
-		err := withVersionFiles(t.Context(), client, items)
+		err := client.WithVersionFiles(t.Context(), items)
 		switch {
 		case want == "" && (err != nil || len(items[0].MediaSources) != 2):
 			t.Errorf("%d counted: %v, %d files", count, err, len(items[0].MediaSources))

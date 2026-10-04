@@ -46,10 +46,11 @@ func TestFolderKeyKeepsEveryScript(t *testing.T) {
 	}
 }
 
-// audit_duplicate_series against folders named in other scripts, and ones a
-// server on Windows reports with backslashes: unrelated shows are not one
-// show held twice, a real pair is still found, and a folder name that folds
-// to nothing is left out rather than colliding with every other such name.
+// audit_duplicates' folder rule against folders named in other scripts, and
+// ones a server on Windows reports with backslashes: unrelated shows are not
+// one show held twice, a real pair is still found, and a folder name that
+// folds to nothing is left out rather than colliding with every other such
+// name.
 func TestAuditDuplicateSeriesAcrossScriptsAndSeparators(t *testing.T) {
 	t.Parallel()
 
@@ -64,10 +65,12 @@ func TestAuditDuplicateSeriesAcrossScriptsAndSeparators(t *testing.T) {
 		{id: "w1", name: "Zzyzx Show", path: `D:\TV\Zzyzx Show`},
 		{id: "w2", name: "Zzyzx Show", path: `D:\TV\zzyzx  show`},
 	}
-	out := mustCall(t, session(t, tvServer(t, shows...), Options{}), "audit_duplicate_series", map[string]any{})
-	groups := objects(t, out["groups"], "groups")
-	if len(groups) != 1 || number(t, out["total_findings"], "total_findings") != 1 {
-		t.Fatalf("groups = %v, want only the Windows pair", groups)
+	f := tvServer(t, shows...)
+	adminView(t, f)
+	out := mustCall(t, session(t, f, Options{}), "audit_duplicates", map[string]any{})
+	groups := objects(t, out["folder_groups"], "folder_groups")
+	if len(groups) != 1 || number(t, out["total_findings"], "total_findings") != 1 || len(objects(t, out["groups"], "groups")) != 0 {
+		t.Fatalf("folder_groups = %v, want only the Windows pair, and no groups sharing an id", groups)
 	}
 	series := objects(t, groups[0]["series"], "series")
 	ids, folders := make([]string, 0, len(series)), make([]string, 0, len(series))

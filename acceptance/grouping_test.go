@@ -7,6 +7,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // The duplicate audits claim only what they can show: a pair of episodes is
@@ -62,15 +66,15 @@ func TestAuditDuplicateEpisodesByTheFiles(t *testing.T) {
 		title, confidence string
 	}
 	groups := map[group]map[string]any{}
-	for _, g := range rows(t, call(t, "audit_duplicate_episodes", map[string]any{"library": "Messy Shows"})["groups"], "groups") {
-		if str(g["series"]) == ".hack//Liminality" {
-			groups[group{num(t, g["season"], "season"), str(g["title"]), str(g["confidence"])}] = g
+	for _, g := range acc.Rows(t, suite.Call(t, "audit_duplicate_episodes", map[string]any{"library": "Messy Shows"})["groups"], "groups") {
+		if acc.Str(g["series"]) == ".hack//Liminality" {
+			groups[group{acc.Num(t, g["season"], "season"), acc.Str(g["title"]), acc.Str(g["confidence"])}] = g
 		}
 	}
 	episodes := func(g map[string]any) []int {
 		var out []int
-		for _, e := range rows(t, g["episodes"], "episodes") {
-			out = append(out, num(t, e["episode"], "episode"))
+		for _, e := range acc.Rows(t, g["episodes"], "episodes") {
+			out = append(out, acc.Num(t, e["episode"], "episode"))
 		}
 		return out
 	}
@@ -78,7 +82,7 @@ func TestAuditDuplicateEpisodesByTheFiles(t *testing.T) {
 		if g["evidence"] == nil {
 			return nil
 		}
-		return strs(t, g["evidence"], "evidence")
+		return acc.Strs(t, g["evidence"], "evidence")
 	}
 	for key, want := range map[group]struct {
 		episodes []int
@@ -97,7 +101,7 @@ func TestAuditDuplicateEpisodesByTheFiles(t *testing.T) {
 	if len(groups) != 4 {
 		t.Errorf(".hack//Liminality's groups = %v, want the four above", groups)
 	}
-	if lead := groups[group{1, "In the Case of Yuki Aihara", "lead"}]; lead != nil && decimal(t, lead["runtime_gap"], "runtime_gap") != 0.1 {
+	if lead := groups[group{1, "In the Case of Yuki Aihara", "lead"}]; lead != nil && acc.Decimal(t, lead["runtime_gap"], "runtime_gap") != 0.1 {
 		t.Errorf("the lead's runtime_gap = %v, want 0.1", lead["runtime_gap"])
 	}
 }
@@ -124,7 +128,7 @@ func readOffTheirFiles(t *testing.T, series string, episodes [][2]int) {
 
 		return size > 0 && len(streams) > 0
 	}
-	if !eventuallyWithin(scanPatience, func() bool {
+	if !acc.EventuallyWithin(acc.ScanPatience, func() bool {
 		return !slices.ContainsFunc(ids, func(id string) bool { return !read(fullItem(t, id)) })
 	}) {
 		t.Fatalf("%s's staged episodes %v were never read off their files", series, episodes)
@@ -152,15 +156,15 @@ func TestAuditDuplicatesSaysWhichAniDBEntriesDiffer(t *testing.T) {
 
 	warnings := map[string]string{}
 	groups := 0
-	all, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Shows", "types": "Series"})["groups"].([]any)
+	all, _ := suite.Call(t, "audit_duplicates", map[string]any{"library": "Messy Shows", "types": "Series"})["groups"].([]any)
 	for _, g := range all {
-		members := rows(t, g, "group")
-		if !slices.ContainsFunc(members, func(it map[string]any) bool { return strings.Contains(str(it["path"]), "Dragon Ball Z") }) {
+		members := acc.Rows(t, g, "group")
+		if !slices.ContainsFunc(members, func(it map[string]any) bool { return strings.Contains(acc.Str(it["path"]), "Dragon Ball Z") }) {
 			continue
 		}
 		groups++
 		for _, it := range members {
-			warnings[strings.TrimPrefix(str(it["path"]), "/media/messy-shows/")] = str(it["warning"])
+			warnings[strings.TrimPrefix(acc.Str(it["path"]), "/media/messy-shows/")] = acc.Str(it["warning"])
 		}
 	}
 	if groups != 1 || len(warnings) != 3 {
@@ -185,18 +189,18 @@ func TestAuditSpellingKeepsCompaniesApart(t *testing.T) {
 	studios := map[string]string{"Memento": "Paramount", "Interstellar": "Paramount Pictures", "Arrival": "Paramount Television"}
 	for film, studio := range studios {
 		id := findItem(t, "Messy Movies", "Movie", film)
-		putBack(t, "item_edit", map[string]any{"ids": []any{id}, "remove_studios": []any{studio}})
-		call(t, "item_edit", map[string]any{"ids": []any{id}, "add_studios": []any{studio}})
+		suite.PutBack(t, "item_edit", map[string]any{"ids": []any{id}, "remove_studios": []any{studio}})
+		suite.Call(t, "item_edit", map[string]any{"ids": []any{id}, "add_studios": []any{studio}})
 	}
 
 	var pairs [][]string
-	for _, g := range rows(t, call(t, "audit_spelling", map[string]any{"library": "Messy Movies", "field": "studios"})["groups"], "groups") {
+	for _, g := range acc.Rows(t, suite.Call(t, "audit_spelling", map[string]any{"library": "Messy Movies", "field": "studios"})["groups"], "groups") {
 		var names []string
-		for _, s := range rows(t, g["spellings"], "spellings") {
-			names = append(names, str(s["value"]))
+		for _, s := range acc.Rows(t, g["spellings"], "spellings") {
+			names = append(names, acc.Str(s["value"]))
 		}
 		slices.Sort(names)
-		if str(g["kind"]) != "contains" || !strings.Contains(str(g["note"]), "may name their parent company") {
+		if acc.Str(g["kind"]) != "contains" || !strings.Contains(acc.Str(g["note"]), "may name their parent company") {
 			t.Errorf("group %v, want a pair to check with a note", g)
 		}
 		pairs = append(pairs, names)
@@ -213,7 +217,7 @@ func TestAuditSpellingKeepsCompaniesApart(t *testing.T) {
 // the note said at least two of three were the wrong film.
 func TestAuditDiscFoldersCountsOneFilmOnce(t *testing.T) {
 	const name = "Pi (1998)"
-	dir := filepath.Join(dataDir(), "messy-movies", name)
+	dir := filepath.Join(testenv.DataDir(), "messy-movies", name)
 	streams := map[string][]byte{
 		"00000.m2ts": fixtureVideo(t, "disc-src", "00000.m2ts"),
 		"00001.m2ts": fixtureVideo(t, "disc-src", "00001.m2ts"),
@@ -226,33 +230,33 @@ func TestAuditDiscFoldersCountsOneFilmOnce(t *testing.T) {
 	stage(t, plus(3, 0, 0), files, "messy-movies/"+name)
 
 	var ids []string
-	for _, e := range rows(t, discFolder(t, "/media/messy-movies/"+name)["entries"], "entries") {
-		ids = append(ids, str(e["id"]))
+	for _, e := range acc.Rows(t, discFolder(t, "/media/messy-movies/"+name)["entries"], "entries") {
+		ids = append(ids, acc.Str(e["id"]))
 	}
 	if len(ids) != 3 {
 		t.Fatalf("the staged disc's entries = %v", ids)
 	}
 	nfos := map[string][]byte{"00000.nfo": movieNfo("Pi", 1998, "473", "tt0138704"), "00001.nfo": movieNfo("Arrival", 2016, "329865", "tt2543164"), "00002.nfo": movieNfo("Pi", 1998, "473", "")}
 	for file, raw := range nfos {
-		mediaWrite(t, filepath.Join(dir, file), raw)
+		acc.MediaWrite(t, filepath.Join(dir, file), raw)
 	}
 	// the staged folder's removal takes them when the test ends
 	for _, id := range ids {
-		call(t, "item_refresh", map[string]any{"id": id})
+		suite.Call(t, "item_refresh", map[string]any{"id": id})
 	}
 	matched := func() []string {
 		var out []string
-		for _, e := range rows(t, discFolder(t, "/media/messy-movies/"+name)["entries"], "entries") {
-			out = append(out, str(e["matched_to"]))
+		for _, e := range acc.Rows(t, discFolder(t, "/media/messy-movies/"+name)["entries"], "entries") {
+			out = append(out, acc.Str(e["matched_to"]))
 		}
 		return out
 	}
-	if !eventually(func() bool {
+	if !acc.Eventually(func() bool {
 		return slices.Equal(matched(), []string{"imdb:tt0138704 tmdb:473", "imdb:tt2543164 tmdb:329865", "tmdb:473"})
 	}) {
 		t.Fatalf("the streams are matched to %v, want Pi's ids, Arrival's and Pi's TMDB id alone", matched())
 	}
-	if note := str(discFolder(t, "/media/messy-movies/"+name)["note"]); note != "matched to 2 different titles, so at least 1 of these are the wrong film" {
+	if note := acc.Str(discFolder(t, "/media/messy-movies/"+name)["note"]); note != "matched to 2 different titles, so at least 1 of these are the wrong film" {
 		t.Errorf("note = %q, want Pi counted once", note)
 	}
 }
@@ -261,8 +265,8 @@ func TestAuditDiscFoldersCountsOneFilmOnce(t *testing.T) {
 func discFolder(t *testing.T, folder string) map[string]any {
 	t.Helper()
 
-	for _, f := range rows(t, call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})["folders"], "folders") {
-		if str(f["folder"]) == folder {
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})["folders"], "folders") {
+		if acc.Str(f["folder"]) == folder {
 			return f
 		}
 	}
@@ -294,15 +298,15 @@ func TestCopiesNamedAsTheFileAuditReadsThem(t *testing.T) {
 	copied := func(path string) bool {
 		return strings.Contains(path, "Csillagok") || strings.Contains(path, "Interstellar Collection")
 	}
-	if found := rows(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title,year"})["findings"], "findings"); slices.ContainsFunc(found, func(f map[string]any) bool { return copied(str(f["path"])) }) {
+	if found := acc.Rows(t, suite.Call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title,year"})["findings"], "findings"); slices.ContainsFunc(found, func(f map[string]any) bool { return copied(acc.Str(f["path"])) }) {
 		t.Fatalf("audit_file_path reports a copy: %v", found)
 	}
 
 	var interstellar []map[string]any
 	if isJellyfin() {
-		all, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})["groups"].([]any)
+		all, _ := suite.Call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})["groups"].([]any)
 		for _, g := range all {
-			if members := rows(t, g, "group"); title(str(members[0]["name"])) == "Interstellar" {
+			if members := acc.Rows(t, g, "group"); title(acc.Str(members[0]["name"])) == "Interstellar" {
 				interstellar = members
 			}
 		}
@@ -311,25 +315,25 @@ func TestCopiesNamedAsTheFileAuditReadsThem(t *testing.T) {
 		}
 		// and each copy's own read says the same
 		for _, m := range interstellar {
-			if w := str(call(t, "item_get", map[string]any{"id": str(m["id"])})["warning"]); w != "" {
+			if w := acc.Str(suite.Call(t, "item_get", map[string]any{"id": acc.Str(m["id"])})["warning"]); w != "" {
 				t.Errorf("item_get %s warns: %s", m["path"], w)
 			}
 		}
 	} else {
-		for _, f := range rows(t, call(t, "audit_multiple_versions", map[string]any{"library": "Messy Movies"})["findings"], "findings") {
-			if title(str(f["name"])) == "Interstellar" {
+		for _, f := range acc.Rows(t, suite.Call(t, "audit_multiple_versions", map[string]any{"library": "Messy Movies"})["findings"], "findings") {
+			if title(acc.Str(f["name"])) == "Interstellar" {
 				interstellar = append(interstellar, f)
 			}
 		}
-		if len(interstellar) != 1 || !strings.HasPrefix(str(interstellar[0]["detail"]), "3 versions: ") {
+		if len(interstellar) != 1 || !strings.HasPrefix(acc.Str(interstellar[0]["detail"]), "3 versions: ") {
 			t.Fatalf("Interstellar's versions = %v, want the film and its two copies", interstellar)
 		}
-		if w := str(call(t, "item_get", map[string]any{"id": str(interstellar[0]["id"])})["warning"]); w != "" {
+		if w := acc.Str(suite.Call(t, "item_get", map[string]any{"id": acc.Str(interstellar[0]["id"])})["warning"]); w != "" {
 			t.Errorf("item_get of Interstellar warns: %s", w)
 		}
 	}
 	for _, m := range interstellar {
-		if w := str(m["warning"]); w != "" {
+		if w := acc.Str(m["warning"]); w != "" {
 			t.Errorf("%v warns: %s", m["path"], w)
 		}
 	}
@@ -359,8 +363,8 @@ func TestAFileNamingAnotherFilmAfterItsYear(t *testing.T) {
 		"Dune (2021) Part Two":  {`"Dune (2021) Part Two.mp4" names "Dune Part Two": TMDB lists 693134 Dune: Part Two (2024), numbered Two, as a film of its own, not Dune`, "693134 Dune: Part Two (2024)", "438631"},
 	}
 	staged := map[string]string{}
-	for _, f := range rows(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title,year"})["findings"], "findings") {
-		path := str(f["path"])
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title,year"})["findings"], "findings") {
+		path := acc.Str(f["path"])
 		if strings.Contains(path, messyAlienCut) {
 			t.Errorf("the Directors Cut was reported: %v", f)
 		}
@@ -368,8 +372,8 @@ func TestAFileNamingAnotherFilmAfterItsYear(t *testing.T) {
 			if !strings.Contains(path, "/"+folder+"/") {
 				continue
 			}
-			staged[folder] = str(f["id"])
-			if ps := strs(t, f["problems"], "problems"); len(ps) != 1 || ps[0] != "title: "+w.names+": another film matched to this one's ids" || str(f["path_tmdb"]) != w.pathTMDB || str(f["item_tmdb"]) != w.itemTMDB {
+			staged[folder] = acc.Str(f["id"])
+			if ps := acc.Strs(t, f["problems"], "problems"); len(ps) != 1 || ps[0] != "title: "+w.names+": another film matched to this one's ids" || acc.Str(f["path_tmdb"]) != w.pathTMDB || acc.Str(f["item_tmdb"]) != w.itemTMDB {
 				t.Errorf("audit_file_path's row for %s = %v", folder, f)
 			}
 		}
@@ -381,7 +385,7 @@ func TestAFileNamingAnotherFilmAfterItsYear(t *testing.T) {
 
 			continue
 		}
-		if got := str(call(t, "item_get", map[string]any{"id": id})["warning"]); !strings.HasPrefix(got, "probably") || !strings.Contains(got, w.names) {
+		if got := acc.Str(suite.Call(t, "item_get", map[string]any{"id": id})["warning"]); !strings.HasPrefix(got, "probably") || !strings.Contains(got, w.names) {
 			t.Errorf("item_get of %s warns %q, want probably another film: %s", folder, got, w.names)
 		}
 	}
@@ -389,12 +393,12 @@ func TestAFileNamingAnotherFilmAfterItsYear(t *testing.T) {
 		return
 	}
 	var versions []map[string]any
-	for _, f := range rows(t, call(t, "audit_multiple_versions", map[string]any{"library": "Messy Movies"})["findings"], "findings") {
-		if strings.Contains(str(f["detail"]), "Alien (1979) - Aliens.mp4") {
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_multiple_versions", map[string]any{"library": "Messy Movies"})["findings"], "findings") {
+		if strings.Contains(acc.Str(f["detail"]), "Alien (1979) - Aliens.mp4") {
 			versions = append(versions, f)
 		}
 	}
-	if len(versions) != 1 || !strings.HasPrefix(str(versions[0]["warning"]), "probably not one film: "+want["Alien (1979) - Aliens"].names) {
+	if len(versions) != 1 || !strings.HasPrefix(acc.Str(versions[0]["warning"]), "probably not one film: "+want["Alien (1979) - Aliens"].names) {
 		t.Errorf("the messy Alien's versions = %v, want the copy warned of as Aliens", versions)
 	}
 }
@@ -407,16 +411,16 @@ func TestAFileNamingAnotherFilmAfterItsYear(t *testing.T) {
 // row. Items shown in more than one file are left out: their warning speaks
 // for every file at once.
 func TestItemGetAndTheFilePathAuditAgree(t *testing.T) {
-	found := rows(t, call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title,year"})["findings"], "findings")
+	found := acc.Rows(t, suite.Call(t, "audit_file_path", map[string]any{"library": "Messy Movies", "checks": "title,year"})["findings"], "findings")
 	checked := 0
 	for _, f := range found {
-		got := call(t, "item_get", map[string]any{"id": str(f["id"])})
-		if got["versions"] != nil && len(rows(t, got["versions"], "versions")) > 1 {
+		got := suite.Call(t, "item_get", map[string]any{"id": acc.Str(f["id"])})
+		if got["versions"] != nil && len(acc.Rows(t, got["versions"], "versions")) > 1 {
 			continue
 		}
 		checked++
-		said := strings.Join(append(strs(t, f["problems"], "problems"), str(f["diagnosis"])), " | ")
-		warning := str(got["warning"])
+		said := strings.Join(append(acc.Strs(t, f["problems"], "problems"), acc.Str(f["diagnosis"])), " | ")
+		warning := acc.Str(got["warning"])
 		another := strings.Contains(said, "matched to another film than the one on disk") || strings.Contains(said, "another film matched to this one's ids")
 		if another != strings.HasPrefix(warning, "probably") {
 			t.Errorf("%s: audit_file_path says %q, item_get warns %q", f["path"], said, warning)
@@ -444,17 +448,17 @@ func TestAuditDuplicatesByRuntimeAndKind(t *testing.T) {
 	}, folder)
 
 	warnings := map[string]string{}
-	all, _ := call(t, "audit_duplicates", nil)["groups"].([]any)
+	all, _ := suite.Call(t, "audit_duplicates", nil)["groups"].([]any)
 	for _, g := range all {
 		var names []string
 		warning := ""
-		for _, m := range rows(t, g, "group") {
-			names = append(names, str(m["type"])+" "+title(str(m["name"])))
-			if w := str(m["warning"]); w != "" {
+		for _, m := range acc.Rows(t, g, "group") {
+			names = append(names, acc.Str(m["type"])+" "+title(acc.Str(m["name"])))
+			if w := acc.Str(m["warning"]); w != "" {
 				warning = w
 			}
 		}
-		warnings[strings.Join(sorted(names), " + ")] = warning
+		warnings[strings.Join(acc.Sorted(names), " + ")] = warning
 	}
 	shorter := func(runs string) string {
 		return "probably not copies of one film: the entries run " + runs + ", more than twice as long, which no two cuts of one film are: one file is cut short or a sample, or one of the ids is wrong - compare the files before keeping either"

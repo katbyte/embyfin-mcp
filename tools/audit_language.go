@@ -216,7 +216,7 @@ func auditLanguage(ctx context.Context, client *embyfin.Client, in languageIn) (
 	// as people are shown it, every version together: on Emby each version
 	// is stored as an item of its own, and one read alone lacked what
 	// another version has
-	items, note, placing, err := shownItems(ctx, client, opts)
+	items, note, placing, err := client.Shown(ctx, opts)
 	if err != nil {
 		return languageOut{}, err
 	}

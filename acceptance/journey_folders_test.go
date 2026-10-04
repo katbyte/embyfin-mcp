@@ -8,6 +8,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // Journeys through folders moved on disk: a film's folder renamed, and a
@@ -20,9 +24,9 @@ func itemsUnder(t *testing.T, library, folder string) map[string]map[string]any 
 	t.Helper()
 
 	out := map[string]map[string]any{}
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": library, "types": "Movie", "limit": 200})["items"], "items") {
-		if strings.HasPrefix(str(it["path"]), folder+"/") {
-			out[str(it["path"])] = it
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": library, "types": "Movie", "limit": 200})["items"], "items") {
+		if strings.HasPrefix(acc.Str(it["path"]), folder+"/") {
+			out[acc.Str(it["path"])] = it
 		}
 	}
 
@@ -37,7 +41,7 @@ func itemsUnder(t *testing.T, library, folder string) map[string]map[string]any 
 // lost. Nothing is left behind as an orphan, and the library holds as many
 // films as it did.
 func TestRenamingAFilmsFolder(t *testing.T) {
-	messy := filepath.Join(dataDir(), "messy-movies")
+	messy := filepath.Join(testenv.DataDir(), "messy-movies")
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	const (
@@ -45,7 +49,7 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 		known = "The Thirteenth Floor (1999)"                 // the clean copy's nfo and ids
 	)
 	renamed := func(name string) string { return name + " [1080p]" }
-	have := movieCount(t, "Messy Movies")
+	have := typeCount(t, "Messy Movies", "Movie")
 	t.Cleanup(func() {
 		for _, name := range []string{bare, known, renamed(bare), renamed(known)} {
 			if err := os.RemoveAll(filepath.Join(messy, name)); err != nil {
@@ -56,16 +60,16 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	mediaMkdir(t, filepath.Join(messy, bare))
-	mediaWrite(t, filepath.Join(messy, bare, bare+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
-	copyFixture(t, filepath.Join(dataDir(), "movies", known), filepath.Join(messy, known))
+	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(messy, bare))
+	acc.MediaWrite(t, filepath.Join(messy, bare, bare+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
+	copyFixture(t, filepath.Join(testenv.DataDir(), "movies", known), filepath.Join(messy, known))
 	if err := scanUntil("Messy Movies", have+2); err != nil {
 		t.Fatal(err)
 	}
 	find := func(name string) (string, map[string]any) {
 		for path, it := range itemsUnder(t, "Messy Movies", "/media/messy-movies/"+name) {
 			if strings.HasPrefix(path, "/media/messy-movies/"+name+"/") {
-				return str(it["id"]), it
+				return acc.Str(it["id"]), it
 			}
 		}
 		return "", nil
@@ -80,15 +84,15 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 	// film that stays
 	unmarkLater(t, "alice", findItem(t, "Movies", "Movie", "The Thirteenth Floor"))
 	for _, id := range []string{bareID, knownID} {
-		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false, "favourite": false})
-		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true, "favourite": true})
+		suite.Call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false, "favourite": false})
+		suite.Call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true, "favourite": true})
 		if w, f := stateOf(t, id, "alice"); !w || !f {
 			t.Fatalf("before the rename %s for alice: watched %v favourite %v", id, w, f)
 		}
 	}
-	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Renamed", "item_ids": []any{dune, bareID, knownID}, "media_type": "Video"})["id"])
+	pl := acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": "Zzyzx Renamed", "item_ids": []any{dune, bareID, knownID}, "media_type": "Video"})["id"])
 	deleteLater(t, "playlist_delete", "playlist", pl)
-	col := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Renamed", "item_ids": []any{arrival, bareID, knownID}})["id"])
+	col := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Renamed", "item_ids": []any{arrival, bareID, knownID}})["id"])
 	deleteLater(t, "collection_delete", "collection", col)
 	if n := collectionSize(t, col, 3); n != 3 {
 		t.Fatalf("the collection holds %d, want 3", n)
@@ -114,11 +118,11 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 		t.FailNow()
 	}
 
-	if n := movieCount(t, "Messy Movies"); n != have+2 {
+	if n := typeCount(t, "Messy Movies", "Movie"); n != have+2 {
 		t.Errorf("after the rename the library holds %d films, want %d", n, have+2)
 	}
 	for _, old := range []string{bareID, knownID} {
-		if _, err := invoke("item_get", map[string]any{"id": old}); err == nil {
+		if _, err := suite.Invoke("item_get", map[string]any{"id": old}); err == nil {
 			t.Errorf("the item at the old path, %s, is still there", old)
 		}
 	}
@@ -127,7 +131,7 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 	// cleared at the end: Jellyfin names an item by its path, and would hand
 	// what is left on these ids to the next run's films at the same paths
 	unmarkLater(t, "alice", newBare, newKnown)
-	if ids, _ := knownRow["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "1090" {
+	if ids, _ := knownRow["metadata_provider_ids"].(map[string]any); acc.Str(ids["tmdb"]) != "1090" {
 		t.Errorf("the renamed film with an nfo holds %v, want tmdb 1090", ids)
 	}
 	if ids, _ := bareRow["metadata_provider_ids"].(map[string]any); len(ids) != 0 {
@@ -139,13 +143,13 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 	if w, f := stateOf(t, newBare, "alice"); w || f {
 		t.Errorf("the film without ids, renamed, for alice: watched %v favourite %v, want both lost", w, f)
 	}
-	if got := names(t, call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries"); !slices.Equal(got, []string{"Dune"}) {
+	if got := names(t, suite.Call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries"); !slices.Equal(got, []string{"Dune"}) {
 		t.Errorf("after the rename the playlist is %v, want [Dune]", got)
 	}
-	if got := names(t, call(t, "collection_get", map[string]any{"collection": col})["items"], "items"); !slices.Equal(got, []string{"Arrival"}) {
+	if got := names(t, suite.Call(t, "collection_get", map[string]any{"collection": col})["items"], "items"); !slices.Equal(got, []string{"Arrival"}) {
 		t.Errorf("after the rename the collection holds %v, want [Arrival]", got)
 	}
-	if n := num(t, call(t, "audit_orphans", nil)["total_findings"], "total_findings"); n != 0 {
+	if n := acc.Num(t, suite.Call(t, "audit_orphans", nil)["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("after the rename audit_orphans finds %d", n)
 	}
 }
@@ -157,14 +161,14 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 // on the one without, as with a folder renamed inside a library.
 func TestSwappingALibrarysFolder(t *testing.T) {
 	const library = "Zzyzx Swap"
-	from, to := filepath.Join(dataDir(), "swap-a"), filepath.Join(dataDir(), "swap-b")
+	from, to := filepath.Join(testenv.DataDir(), "swap-a"), filepath.Join(testenv.DataDir(), "swap-b")
 	const (
 		bare  = "The Lord of the Rings The Fellowship of the Ring (2001)" // no nfo, no ids
 		known = messyInterstellar                                         // its nfo and ids
 	)
-	mediaMkdir(t, filepath.Join(from, bare))
-	mediaWrite(t, filepath.Join(from, bare, bare+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
-	copyFixture(t, filepath.Join(dataDir(), "messy-movies", known), filepath.Join(from, known))
+	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(from, bare))
+	acc.MediaWrite(t, filepath.Join(from, bare, bare+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
+	copyFixture(t, filepath.Join(testenv.DataDir(), "messy-movies", known), filepath.Join(from, known))
 	t.Cleanup(func() {
 		for _, dir := range []string{from, to} {
 			if err := os.RemoveAll(dir); err != nil {
@@ -174,46 +178,46 @@ func TestSwappingALibrarysFolder(t *testing.T) {
 	})
 	t.Cleanup(func() {
 		removeLibrary(t, library)
-		if err := waitForExpectedScan(); err != nil {
+		if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
 			t.Error(err)
 		}
 	})
 	// Emby keeps state by provider id across every copy of a film, the
 	// messy Interstellar's too, which is cleared at the end through it
 	unmarkLater(t, "alice", findItem(t, "Messy Movies", "Movie", "Interstellar"))
-	call(t, "library_create", map[string]any{"name": library, "type": "movies", "paths": []any{"/media/swap-a"}, "scan": true, "save_nfo": false})
+	suite.Call(t, "library_create", map[string]any{"name": library, "type": "movies", "paths": []any{"/media/swap-a"}, "scan": true, "save_nfo": false})
 	holding := func(folder string) (bareID, knownID string) {
-		out, err := invoke("library_items", map[string]any{"library": library, "types": "Movie"})
+		out, err := suite.Invoke("library_items", map[string]any{"library": library, "types": "Movie"})
 		if err != nil {
 			return "", ""
 		}
-		for _, it := range rowsOf(out["items"]) {
-			switch path := str(it["path"]); {
+		for _, it := range acc.RowsOf(out["items"]) {
+			switch path := acc.Str(it["path"]); {
 			case strings.HasPrefix(path, folder+"/"+bare+"/"):
-				bareID = str(it["id"])
+				bareID = acc.Str(it["id"])
 			case strings.HasPrefix(path, folder+"/"+known+"/"):
-				knownID = str(it["id"])
+				knownID = acc.Str(it["id"])
 			}
 		}
 		return bareID, knownID
 	}
 	var bareID, knownID string
-	if !eventuallyWithin(scanPatience, func() bool { bareID, knownID = holding("/media/swap-a"); return bareID != "" && knownID != "" }) {
+	if !acc.EventuallyWithin(acc.ScanPatience, func() bool { bareID, knownID = holding("/media/swap-a"); return bareID != "" && knownID != "" }) {
 		t.Fatal("the library never held its two films")
 	}
-	if err := waitForExpectedScan(); err != nil {
+	if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
 		t.Fatal(err)
 	}
 	for _, id := range []string{bareID, knownID} {
-		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false, "favourite": false})
-		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true, "favourite": true})
+		suite.Call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false, "favourite": false})
+		suite.Call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true, "favourite": true})
 	}
 
 	if err := os.Rename(from, to); err != nil {
 		t.Fatal(err)
 	}
-	out := call(t, "library_edit", map[string]any{"library": library, "add_paths": []any{"/media/swap-b"}, "remove_paths": []any{"/media/swap-a"}})
-	if locs := strs(t, out["locations"], "locations"); !slices.Equal(locs, []string{"/media/swap-b"}) {
+	out := suite.Call(t, "library_edit", map[string]any{"library": library, "add_paths": []any{"/media/swap-b"}, "remove_paths": []any{"/media/swap-a"}})
+	if locs := acc.Strs(t, out["locations"], "locations"); !slices.Equal(locs, []string{"/media/swap-b"}) {
 		t.Fatalf("library_edit locations = %v", locs)
 	}
 	var newBare, newKnown string

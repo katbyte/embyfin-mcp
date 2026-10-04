@@ -630,7 +630,7 @@ func TestHDRFormatSaysWhenItDoesNotKnow(t *testing.T) {
 		{"emby HDR10", embyfin.MediaStream{VideoRange: "HDR 10", ExtendedVideoType: "Hdr10", ExtendedVideoSubType: "Hdr10", ColourTransfer: "smpte2084"}, "hdr10"},
 		{"emby's none leaves it to the broad reading", embyfin.MediaStream{VideoRange: "SDR", ExtendedVideoType: "None", ExtendedVideoSubType: "None"}, "sdr"},
 	} {
-		if got := hdrFormat(&tc.stream); got != tc.want {
+		if got := tc.stream.HDR(); got != tc.want {
 			t.Errorf("%s: hdr = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -791,8 +791,10 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 // C17: a rename that changes only spacing, case or an accent leaves the old
 // folder behind, and the server builds a second series from it. The episodes
 // are then split across two entries, each answering "no" to half the
-// questions. audit_duplicates misses these because the second entry usually
-// carries no provider id - nothing matched it.
+// questions. Sharing an id misses these because the second entry usually
+// carries no provider id - nothing matched it - so audit_duplicates finds
+// them by their folder names, as folder_groups, counted in total_findings;
+// asked for films alone it does not read series for them.
 func TestAuditDuplicateSeries(t *testing.T) {
 	t.Parallel()
 
@@ -813,12 +815,14 @@ func TestAuditDuplicateSeries(t *testing.T) {
 	}
 	shows[0].path = "/media/shows/Law & Order (1999) - Special Victims Unit"
 	shows[1].path = "/media/shows/Law & Order (1999)  - Special Victims Unit"
-	cs := session(t, tvServer(t, shows...), Options{})
+	f := tvServer(t, shows...)
+	adminView(t, f)
+	cs := session(t, f, Options{})
 
-	out := mustCall(t, cs, "audit_duplicate_series", map[string]any{})
-	groups := objects(t, out["groups"], "groups")
-	if len(groups) != 1 {
-		t.Fatalf("groups = %v", groups)
+	out := mustCall(t, cs, "audit_duplicates", map[string]any{})
+	groups := objects(t, out["folder_groups"], "folder_groups")
+	if len(groups) != 1 || number(t, out["total_findings"], "total_findings") != 1 || len(objects(t, out["groups"], "groups")) != 0 {
+		t.Fatalf("folder_groups = %v, total %v, groups %v; want the one pair counted", groups, out["total_findings"], out["groups"])
 	}
 	series := objects(t, groups[0]["series"], "series")
 	if len(series) != 2 {
@@ -832,6 +836,16 @@ func TestAuditDuplicateSeries(t *testing.T) {
 	// the answer says what they collapse to, so a caller can see why
 	if text(groups[0]["key"]) == "" {
 		t.Errorf("no key on the group: %v", groups[0])
+	}
+	// films alone: the folder rule is series', and reads nothing
+	if out := mustCall(t, cs, "audit_duplicates", map[string]any{"types": "Movie"}); number(t, out["total_findings"], "total_findings") != 0 || len(objects(t, out["folder_groups"], "folder_groups")) != 0 {
+		t.Errorf("audit_duplicates over films = %v, want no folder groups", out)
+	}
+	// audit_all counts the pair on its duplicates row and says so
+	for _, row := range objects(t, mustCall(t, cs, "audit_all", map[string]any{})["audits"], "audits") {
+		if text(row["audit"]) == "audit_duplicates" && (number(t, row["findings"], "findings") != 1 || !strings.Contains(text(row["note"]), "two folders of one name (1, its folder_groups)")) {
+			t.Errorf("audit_all's duplicates row = %v, want the folder pair counted and named", row)
+		}
 	}
 }
 

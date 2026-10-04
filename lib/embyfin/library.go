@@ -12,6 +12,7 @@ import (
 	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 )
 
 type VirtualFolder struct {
@@ -541,4 +542,94 @@ func (c *Client) ListFolder(ctx context.Context, path string) (entries []FolderE
 	}
 
 	return nil, false, nil
+}
+
+// ResolveLibrary finds the library a tool reads or filters by, by id or name
+// (see FindLibrary); empty input returns nil meaning "all libraries".
+//
+// It refuses a library the server lists without an id - which Jellyfin 12.1
+// and Emby never do, giving a library its id when it is made, but an older
+// Jellyfin did until a library's first scan - because every caller narrows
+// to a library by its id, and an
+// empty id narrows to nothing: the tool would quietly answer for, or change,
+// every library on the server instead of the one named. The tools that act on
+// the library itself (library_get, library_scan, library_edit,
+// library_delete) use FindLibrary, which takes it as it is.
+func (c *Client) ResolveLibrary(ctx context.Context, nameOrID string) (*VirtualFolder, error) {
+	folder, err := c.FindLibrary(ctx, nameOrID)
+	if err != nil || folder == nil {
+		return folder, err
+	}
+	if folder.ItemID == "" {
+		return nil, fmt.Errorf("the server lists the %s library without an id, so there is nothing to narrow to; run library_scan, which gives it one", folder.Name)
+	}
+
+	return folder, nil
+}
+
+// FindLibrary finds a library by id or name, id or not; empty input returns
+// nil meaning "all libraries". An exact name wins, then a name that differs
+// only in case, but only when one library has it: Jellyfin on Linux can hold
+// both "Movies" and "movies", and taking whichever is listed first would
+// point a delete at the wrong one.
+func (c *Client) FindLibrary(ctx context.Context, nameOrID string) (*VirtualFolder, error) {
+	if nameOrID == "" {
+		return nil, nil //nolint:nilnil // nil folder means all libraries by design
+	}
+
+	folders, err := c.VirtualFolders(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(folders))
+	var folded []*VirtualFolder
+	for i := range folders {
+		if folders[i].ItemID == nameOrID || folders[i].Name == nameOrID {
+			return &folders[i], nil
+		}
+		if strings.EqualFold(folders[i].Name, nameOrID) {
+			folded = append(folded, &folders[i])
+		}
+		names = append(names, folders[i].Name)
+	}
+	switch len(folded) {
+	case 0:
+		return nil, fmt.Errorf("no library named %q (have: %s)", nameOrID, strings.Join(names, ", "))
+	case 1:
+		return folded[0], nil
+	}
+	candidates := make([]string, 0, len(folded))
+	for _, f := range folded {
+		id := "no id yet"
+		if f.ItemID != "" {
+			id = "id " + f.ItemID
+		}
+		candidates = append(candidates, fmt.Sprintf("%q (%s)", f.Name, id))
+	}
+
+	return nil, fmt.Errorf("%d libraries are named %q apart from case: %s; pass the exact name or an id", len(folded), nameOrID, strings.Join(candidates, ", "))
+}
+
+// LibraryPath is one folder a library reads from.
+type LibraryPath struct{ Library, Path string }
+
+// LibraryPaths are the folders every library reads from, trailing separators
+// off, empty ones left out.
+func (c *Client) LibraryPaths(ctx context.Context) ([]LibraryPath, error) {
+	folders, err := c.VirtualFolders(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []LibraryPath
+	for _, f := range folders {
+		for _, loc := range f.Locations {
+			if loc = mediapath.Trim(loc); loc != "" {
+				out = append(out, LibraryPath{Library: f.Name, Path: loc})
+			}
+		}
+	}
+
+	return out, nil
 }

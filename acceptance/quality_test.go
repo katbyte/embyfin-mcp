@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 )
 
 // quality_compare against two copies of one film read off the server rather
@@ -17,80 +19,80 @@ func TestQualityCompare(t *testing.T) {
 	clean := findItem(t, "Movies", "Movie", "Arrival")
 	rip := findItem(t, "Messy Movies", "Movie", "Arrival")
 
-	out := call(t, "quality_compare", map[string]any{
+	out := suite.Call(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": rip},
 		"b": map[string]any{"item_id": clean},
 	})
-	if str(out["verdict"]) != "b_better" || str(out["decided_by"]) != "resolution" {
+	if acc.Str(out["verdict"]) != "b_better" || acc.Str(out["decided_by"]) != "resolution" {
 		t.Errorf("the rip against the clean copy: verdict %v decided by %v (%v)", out["verdict"], out["decided_by"], out["reasons"])
 	}
-	if margin := decimal(t, out["margin"], "margin"); margin != 2 {
+	if margin := acc.Decimal(t, out["margin"], "margin"); margin != 2 {
 		t.Errorf("margin = %v, want 2: 720 lines against 360", margin)
 	}
 
-	sides := map[string]map[string]any{"a": object(t, out["a"], "a"), "b": object(t, out["b"], "b")}
+	sides := map[string]map[string]any{"a": acc.Object(t, out["a"], "a"), "b": acc.Object(t, out["b"], "b")}
 	for side, class := range map[string]int{"a": 360, "b": 720} {
 		facts := sides[side]
-		if got := num(t, facts["resolution_class"], "resolution_class"); got != class {
+		if got := acc.Num(t, facts["resolution_class"], "resolution_class"); got != class {
 			t.Errorf("%s: resolution_class = %d, want %d: %v", side, got, class, facts)
 		}
 		// the fixtures are encoded at 5 frames a second, so a 5 here is the
 		// server's own reading reaching the tool, not a default
-		if fps := decimal(t, facts["frame_rate"], "frame_rate"); fps < 4.9 || fps > 5.1 {
+		if fps := acc.Decimal(t, facts["frame_rate"], "frame_rate"); fps < 4.9 || fps > 5.1 {
 			t.Errorf("%s: frame_rate = %v, want the fixture's 5", side, fps)
 		}
-		if str(facts["audio_codec"]) != "aac" || num(t, facts["audio_channels"], "audio_channels") != 1 {
+		if acc.Str(facts["audio_codec"]) != "aac" || acc.Num(t, facts["audio_channels"], "audio_channels") != 1 {
 			t.Errorf("%s: best audio track = %v %v, want the fixture's mono aac", side, facts["audio_codec"], facts["audio_channels"])
 		}
-		if !strings.Contains(str(facts["source"]), "item") {
+		if !strings.Contains(acc.Str(facts["source"]), "item") {
 			t.Errorf("%s: source = %v, want the item it was read from", side, facts["source"])
 		}
 		// a 16:9 frame the file says is 16:9, and SDR
-		if decimal(t, facts["aspect"], "aspect") != 1.78 || str(facts["aspect_from"]) != "stated" || str(facts["hdr"]) != "sdr" {
+		if acc.Decimal(t, facts["aspect"], "aspect") != 1.78 || acc.Str(facts["aspect_from"]) != "stated" || acc.Str(facts["hdr"]) != "sdr" {
 			t.Errorf("%s: aspect %v from %v, hdr %v", side, facts["aspect"], facts["aspect_from"], facts["hdr"])
 		}
 	}
-	if margin := decimal(t, object(t, out["policy_used"], "policy_used")["upgrade_margin"], "upgrade_margin"); margin != 1.6 {
+	if margin := acc.Decimal(t, acc.Object(t, out["policy_used"], "policy_used")["upgrade_margin"], "upgrade_margin"); margin != 1.6 {
 		t.Errorf("policy_used.upgrade_margin = %v, want the 1.6 default", margin)
 	}
 	// the clean copy's video rate, read off the server, is what the numbers
 	// below are made against
-	rate := num(t, sides["b"]["bitrate"], "bitrate")
-	if rate <= 0 || str(sides["b"]["bitrate_from"]) != "the video stream, as the library read it" {
+	rate := acc.Num(t, sides["b"]["bitrate"], "bitrate")
+	if rate <= 0 || acc.Str(sides["b"]["bitrate_from"]) != "the video stream, as the library read it" {
 		t.Fatalf("the clean copy's bitrate = %v from %v", sides["b"]["bitrate"], sides["b"]["bitrate_from"])
 	}
 
 	// a side given as numbers against one read off the server: a 60fps copy
 	// is bigger on every number and the answer still says what it is
-	given := call(t, "quality_compare", map[string]any{
+	given := suite.Call(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": clean},
 		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 5000000, "frame_rate": 60},
 	})
-	if str(given["verdict"]) != "b_better" {
+	if acc.Str(given["verdict"]) != "b_better" {
 		t.Errorf("720p against 1080p: %v", given["verdict"])
 	}
-	if !strings.Contains(strings.Join(strs(t, given["caveats"], "caveats"), " "), "interpolated") {
+	if !strings.Contains(strings.Join(acc.Strs(t, given["caveats"], "caveats"), " "), "interpolated") {
 		t.Errorf("60fps against the fixture's 5 went unremarked: %v", given["caveats"])
 	}
 
 	// the audio bitrate arrives from the server too: the fixture's mono aac
 	// against a 448k ac3 of the same channel count is the case a codec name
 	// gets wrong, and it can only be called without the rate on both sides
-	sound := call(t, "quality_compare", map[string]any{
+	sound := suite.Call(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": clean},
 		"b": map[string]any{
 			"width": 1280, "height": 720, "video_codec": "h264", "bitrate": 1000000,
 			"audio": []map[string]any{{"language": "eng", "codec": "ac3", "channels": 1, "bitrate": 448000}},
 		},
 	})
-	a := object(t, sound["a"], "a")
-	if num(t, a["audio_bitrate"], "audio_bitrate") <= 0 {
+	a := acc.Object(t, sound["a"], "a")
+	if acc.Num(t, a["audio_bitrate"], "audio_bitrate") <= 0 {
 		t.Errorf("the server's audio bitrate did not arrive: %v", a)
 	}
-	if note := str(object(t, sound["audio"], "audio")["parity"]); !strings.Contains(note, "not a quality claim") {
+	if note := acc.Str(acc.Object(t, sound["audio"], "audio")["parity"]); !strings.Contains(note, "not a quality claim") {
 		t.Errorf("a low-rate aac against a 448k ac3 said nothing: %v", sound["audio"])
 	}
-	if msg := callErr(t, "quality_compare", map[string]any{
+	if msg := suite.CallErr(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": rip}, "b": map[string]any{"item_id": clean},
 		"policy": map[string]any{"upgrade_margin": 0.5},
 	}); !strings.Contains(msg, "below 1") {
@@ -99,14 +101,14 @@ func TestQualityCompare(t *testing.T) {
 
 	// a series holds episodes rather than a file, and is refused as one
 	series := findItem(t, "Shows", "Series", "Severance")
-	if msg := callErr(t, "quality_compare", map[string]any{
+	if msg := suite.CallErr(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": series},
 		"b": map[string]any{"item_id": clean},
 	}); !strings.Contains(msg, `copy a: "Severance" is a series, which has no frame of its own`) {
 		t.Errorf("a series as a copy said: %s", msg)
 	}
 	// and a side with neither an item nor a frame is no copy at all
-	if msg := callErr(t, "quality_compare", map[string]any{
+	if msg := suite.CallErr(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": clean},
 		"b": map[string]any{"video_codec": "h264", "bitrate": 1000000},
 	}); !strings.Contains(msg, "copy b: each copy needs either an item_id or a frame size") {
@@ -119,7 +121,7 @@ func TestQualityCompare(t *testing.T) {
 // codec prices are the ones used, and come back with the answer.
 func TestQualityComparePolicy(t *testing.T) {
 	clean := findItem(t, "Movies", "Movie", "Arrival")
-	rate := num(t, object(t, call(t, "quality_compare", map[string]any{
+	rate := acc.Num(t, acc.Object(t, suite.Call(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": clean}, "b": map[string]any{"item_id": clean},
 	})["a"], "a")["bitrate"], "bitrate")
 	copyAt := func(codec string, bitrate int) map[string]any {
@@ -131,31 +133,31 @@ func TestQualityComparePolicy(t *testing.T) {
 			args["policy"] = policy
 		}
 
-		return call(t, "quality_compare", args)
+		return suite.Call(t, "quality_compare", args)
 	}
 	verdict := func(out map[string]any) string {
-		return str(out["verdict"]) + " by " + str(out["decided_by"])
+		return acc.Str(out["verdict"]) + " by " + acc.Str(out["decided_by"])
 	}
 
 	// a fifth more of the same codec: the same copy under the 1.6 default,
 	// and better once any difference counts
 	fifth := copyAt("h264", rate*6/5)
 	out := compare(fifth, nil)
-	if verdict(out) != "comparable by nothing" || decimal(t, out["margin"], "margin") != 1.2 || str(out["bitrate_basis"]) != "video" || decimal(t, out["bitrate_ratio"], "bitrate_ratio") != 0.83 {
+	if verdict(out) != "comparable by nothing" || acc.Decimal(t, out["margin"], "margin") != 1.2 || acc.Str(out["bitrate_basis"]) != "video" || acc.Decimal(t, out["bitrate_ratio"], "bitrate_ratio") != 0.83 {
 		t.Errorf("a fifth more = %s, margin %v, basis %v, ratio %v (%v)", verdict(out), out["margin"], out["bitrate_basis"], out["bitrate_ratio"], out["reasons"])
 	}
 	out = compare(fifth, map[string]any{"upgrade_margin": 1})
-	if verdict(out) != "b_better by bitrate" || decimal(t, out["margin"], "margin") != 1.2 {
+	if verdict(out) != "b_better by bitrate" || acc.Decimal(t, out["margin"], "margin") != 1.2 {
 		t.Errorf("a fifth more with a margin of 1 = %s, margin %v", verdict(out), out["margin"])
 	}
-	if used := object(t, out["policy_used"], "policy_used"); decimal(t, used["upgrade_margin"], "upgrade_margin") != 1 {
+	if used := acc.Object(t, out["policy_used"], "policy_used"); acc.Decimal(t, used["upgrade_margin"], "upgrade_margin") != 1 {
 		t.Errorf("policy_used = %v, want the margin of 1 given", used)
 	}
 	// twice the rate is better under the default, either way round
-	if out := compare(copyAt("h264", rate*2), nil); verdict(out) != "b_better by bitrate" || decimal(t, out["margin"], "margin") != 2 {
+	if out := compare(copyAt("h264", rate*2), nil); verdict(out) != "b_better by bitrate" || acc.Decimal(t, out["margin"], "margin") != 2 {
 		t.Errorf("twice the rate = %s, margin %v", verdict(out), out["margin"])
 	}
-	if out := compare(copyAt("h264", rate/2), nil); verdict(out) != "a_better by bitrate" || decimal(t, out["margin"], "margin") != 2 {
+	if out := compare(copyAt("h264", rate/2), nil); verdict(out) != "a_better by bitrate" || acc.Decimal(t, out["margin"], "margin") != 2 {
 		t.Errorf("half the rate = %s, margin %v", verdict(out), out["margin"])
 	}
 
@@ -163,15 +165,15 @@ func TestQualityComparePolicy(t *testing.T) {
 	// clears the margin; priced at 1 by the caller, it is the same copy
 	hevc := copyAt("hevc", rate)
 	out = compare(hevc, nil)
-	if effective := num(t, object(t, out["b"], "b")["effective_bitrate"], "effective_bitrate"); verdict(out) != "b_better by bitrate" || effective < rate*17/10-1 || effective > rate*17/10+1 {
+	if effective := acc.Num(t, acc.Object(t, out["b"], "b")["effective_bitrate"], "effective_bitrate"); verdict(out) != "b_better by bitrate" || effective < rate*17/10-1 || effective > rate*17/10+1 {
 		t.Errorf("HEVC at the same rate = %s, b %v", verdict(out), out["b"])
 	}
 	out = compare(hevc, map[string]any{"codec_efficiency": map[string]any{"HEVC": 1}})
 	if verdict(out) != "comparable by nothing" {
 		t.Errorf("HEVC priced as h264 = %s (%v)", verdict(out), out["reasons"])
 	}
-	prices := object(t, object(t, out["policy_used"], "policy_used")["codec_efficiency"], "codec_efficiency")
-	if decimal(t, prices["hevc"], "hevc") != 1 || decimal(t, prices["av1"], "av1") != 2.2 || decimal(t, prices["h264"], "h264") != 1 {
+	prices := acc.Object(t, acc.Object(t, out["policy_used"], "policy_used")["codec_efficiency"], "codec_efficiency")
+	if acc.Decimal(t, prices["hevc"], "hevc") != 1 || acc.Decimal(t, prices["av1"], "av1") != 2.2 || acc.Decimal(t, prices["h264"], "h264") != 1 {
 		t.Errorf("codec_efficiency used = %v, want hevc at the 1 given and the rest their defaults", prices)
 	}
 }
@@ -186,7 +188,7 @@ func TestQualityCompareCaveats(t *testing.T) {
 		raw, _ := out["caveats"].([]any)
 		var all []string
 		for _, c := range raw {
-			all = append(all, str(c))
+			all = append(all, acc.Str(c))
 		}
 
 		return strings.Join(all, " | ")
@@ -200,33 +202,33 @@ func TestQualityCompareCaveats(t *testing.T) {
 		return out
 	}
 	compare := func(a, b map[string]any) map[string]any {
-		return call(t, "quality_compare", map[string]any{"a": a, "b": b})
+		return suite.Call(t, "quality_compare", map[string]any{"a": a, "b": b})
 	}
 	item := map[string]any{"item_id": clean}
-	rate := num(t, object(t, compare(item, item)["a"], "a")["bitrate"], "bitrate")
+	rate := acc.Num(t, acc.Object(t, compare(item, item)["a"], "a")["bitrate"], "bitrate")
 
 	// a frame and nothing to measure it by
 	out := compare(item, given(nil))
-	if str(out["verdict"]) != "unknown" || out["decided_by"] != nil || out["margin"] != nil ||
-		!strings.Contains(strings.Join(strs(t, out["reasons"], "reasons"), " "), "one copy has no bitrate and no size and runtime to work one out from") {
+	if acc.Str(out["verdict"]) != "unknown" || out["decided_by"] != nil || out["margin"] != nil ||
+		!strings.Contains(strings.Join(acc.Strs(t, out["reasons"], "reasons"), " "), "one copy has no bitrate and no size and runtime to work one out from") {
 		t.Errorf("a copy with no rate = %v", out)
 	}
 	// one side's video against the other's whole file, and no audio rates
 	// to take out of it
 	out = compare(given(map[string]any{"bitrate": 1000000}), given(map[string]any{"size": 250000, "runtime_s": 1}))
-	if str(out["verdict"]) != "unknown" || out["bitrate_basis"] != nil || !strings.Contains(caveats(out), "the two measure different things, so bitrate cannot settle this") {
+	if acc.Str(out["verdict"]) != "unknown" || out["bitrate_basis"] != nil || !strings.Contains(caveats(out), "the two measure different things, so bitrate cannot settle this") {
 		t.Errorf("video against a whole file = %v", out)
 	}
 	// with every audio rate given, the whole file less its sound is its
 	// video, and the two are on one footing
 	out = compare(given(map[string]any{"bitrate": 1000000}), given(map[string]any{"size": 250000, "runtime_s": 1, "audio": []map[string]any{{"codec": "aac", "channels": 2, "bitrate": 128000}}}))
-	if b := object(t, out["b"], "b"); str(out["bitrate_basis"]) != "video" || num(t, b["bitrate"], "bitrate") != 2000000-128000 || str(b["bitrate_from"]) != "the whole file less its audio tracks" || str(out["verdict"]) == "unknown" {
+	if b := acc.Object(t, out["b"], "b"); acc.Str(out["bitrate_basis"]) != "video" || acc.Num(t, b["bitrate"], "bitrate") != 2000000-128000 || acc.Str(b["bitrate_from"]) != "the whole file less its audio tracks" || acc.Str(out["verdict"]) == "unknown" {
 		t.Errorf("a whole file with its audio rates = %v, b %v", out["verdict"], b)
 	}
 	// both whole files: compared so, and the sound one of them does not
 	// describe is said to be in the gap
 	out = compare(given(map[string]any{"size": 250000, "runtime_s": 1}), given(map[string]any{"size": 500000, "runtime_s": 1}))
-	if str(out["verdict"]) != "b_better" || str(out["decided_by"]) != "bitrate" || str(out["bitrate_basis"]) != "whole_file" || !strings.Contains(caveats(out), "one copy's audio was not given") {
+	if acc.Str(out["verdict"]) != "b_better" || acc.Str(out["decided_by"]) != "bitrate" || acc.Str(out["bitrate_basis"]) != "whole_file" || !strings.Contains(caveats(out), "one copy's audio was not given") {
 		t.Errorf("two whole files = %v", out)
 	}
 	out = compare(
@@ -238,7 +240,7 @@ func TestQualityCompareCaveats(t *testing.T) {
 	}
 	// the Japanese track only b has is reported beside the verdict, never
 	// in it
-	if audio := object(t, out["audio"], "audio"); !strings.Contains(str(audio["note"]), "only the b copy carries jpn") {
+	if audio := acc.Object(t, out["audio"], "audio"); !strings.Contains(acc.Str(audio["note"]), "only the b copy carries jpn") {
 		t.Errorf("audio = %v", audio)
 	}
 
@@ -250,7 +252,7 @@ func TestQualityCompareCaveats(t *testing.T) {
 	// a 4:3 frame is not a smaller 16:9 one: the same class by its height,
 	// and a different shape
 	out = compare(item, map[string]any{"width": 960, "height": 720, "aspect_ratio": "4:3", "video_codec": "h264", "bitrate": rate})
-	if b := object(t, out["b"], "b"); num(t, b["resolution_class"], "resolution_class") != 720 || decimal(t, b["aspect"], "aspect") != 1.33 ||
+	if b := acc.Object(t, out["b"], "b"); acc.Num(t, b["resolution_class"], "resolution_class") != 720 || acc.Decimal(t, b["aspect"], "aspect") != 1.33 ||
 		!strings.Contains(caveats(out), "the frames are different shapes (1.78 against 1.33)") {
 		t.Errorf("4:3 against 16:9 = %v, b %v", caveats(out), b)
 	}
@@ -259,7 +261,7 @@ func TestQualityCompareCaveats(t *testing.T) {
 	// still frame runs a few kilobits a second, and bits per pixel rounded
 	// to two places once read it and a fifth of it both as 0
 	out = compare(item, map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": rate / 5})
-	if str(out["verdict"]) != "b_better" || str(out["decided_by"]) != "resolution" || !strings.Contains(caveats(out), "the larger frame is the more thinly encoded one") {
+	if acc.Str(out["verdict"]) != "b_better" || acc.Str(out["decided_by"]) != "resolution" || !strings.Contains(caveats(out), "the larger frame is the more thinly encoded one") {
 		t.Errorf("a starved 1080p = %v by %v: %v", out["verdict"], out["decided_by"], caveats(out))
 	}
 	// and two copies alike in every way carry no caveat at all
@@ -274,7 +276,7 @@ func TestQualityCompareCaveats(t *testing.T) {
 // copy's rate it is the same copy.
 func TestQualityCompareGivenInFull(t *testing.T) {
 	clean := findItem(t, "Movies", "Movie", "Arrival")
-	described := call(t, "quality_compare", map[string]any{
+	described := suite.Call(t, "quality_compare", map[string]any{
 		"a": map[string]any{"item_id": clean},
 		"b": map[string]any{
 			"width": 1280, "height": 720, "aspect_ratio": "16:9", "video_codec": "h264", "frame_rate": 5, "hdr": "SDR",
@@ -282,10 +284,10 @@ func TestQualityCompareGivenInFull(t *testing.T) {
 			"audio": []map[string]any{{"language": "eng", "codec": "aac", "channels": 1, "bitrate": 64000}},
 		},
 	})
-	if v, by := str(described["verdict"]), str(described["decided_by"]); v == "unknown" || (by != "bitrate" && by != "nothing") {
+	if v, by := acc.Str(described["verdict"]), acc.Str(described["decided_by"]); v == "unknown" || (by != "bitrate" && by != "nothing") {
 		t.Errorf("a copy described in full = %s decided by %q (%v)", v, by, described["reasons"])
 	}
-	b := object(t, described["b"], "b")
+	b := acc.Object(t, described["b"], "b")
 	for field, want := range map[string]any{
 		"source": "given", "resolution_class": 720.0, "aspect": 1.78, "aspect_from": "stated", "video_codec": "h264", "frame_rate": 5.0,
 		"hdr": "sdr", "size": 125000.0, "runtime_s": 1.0, "bitrate": 1000000.0, "bitrate_from": "the video stream, as given",
@@ -295,7 +297,7 @@ func TestQualityCompareGivenInFull(t *testing.T) {
 			t.Errorf("b's %s = %v, want %v as given", field, b[field], want)
 		}
 	}
-	if langs := strs(t, b["audio_languages"], "audio_languages"); len(langs) != 1 || langs[0] != "eng" {
+	if langs := acc.Strs(t, b["audio_languages"], "audio_languages"); len(langs) != 1 || langs[0] != "eng" {
 		t.Errorf("b's audio_languages = %v", langs)
 	}
 }
@@ -309,8 +311,8 @@ func TestQualityCompareGivenInFull(t *testing.T) {
 func TestAnAIUpscaleBesideItsSource(t *testing.T) {
 	id := itemsTitled(t, "Messy Movies", "Movie", "Blade Runner")[0]
 	versions := map[int]map[string]any{}
-	for _, v := range rows(t, call(t, "item_get", map[string]any{"id": id})["versions"], "versions") {
-		versions[num(t, v["height"], "height")] = v
+	for _, v := range acc.Rows(t, suite.Call(t, "item_get", map[string]any{"id": id})["versions"], "versions") {
+		versions[acc.Num(t, v["height"], "height")] = v
 	}
 	upscale, source := versions[2160], versions[1080]
 	if upscale == nil || source == nil {
@@ -323,20 +325,20 @@ func TestAnAIUpscaleBesideItsSource(t *testing.T) {
 		fps   float64
 		hdr   string
 	}{{"the upscale", upscale, "hevc", 60, "hdr10"}, {"its source", source, "h264", 24, "sdr"}} {
-		if str(c.v["video_codec"]) != c.codec || decimal(t, c.v["frame_rate"], "frame_rate") != c.fps || str(c.v["hdr"]) != c.hdr {
+		if acc.Str(c.v["video_codec"]) != c.codec || acc.Decimal(t, c.v["frame_rate"], "frame_rate") != c.fps || acc.Str(c.v["hdr"]) != c.hdr {
 			t.Errorf("%s = %v at %v fps, %v; want %s at %v fps, %s", c.name, c.v["video_codec"], c.v["frame_rate"], c.v["hdr"], c.codec, c.fps, c.hdr)
 		}
 	}
 
-	out := call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": str(upscale["id"])}, "b": map[string]any{"item_id": str(source["id"])}})
-	a, b := object(t, out["a"], "a"), object(t, out["b"], "b")
-	if num(t, a["resolution_class"], "resolution_class") != 2160 || num(t, b["resolution_class"], "resolution_class") != 1080 || decimal(t, a["frame_rate"], "frame_rate") != 60 || str(a["hdr"]) != "hdr10" {
+	out := suite.Call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": acc.Str(upscale["id"])}, "b": map[string]any{"item_id": acc.Str(source["id"])}})
+	a, b := acc.Object(t, out["a"], "a"), acc.Object(t, out["b"], "b")
+	if acc.Num(t, a["resolution_class"], "resolution_class") != 2160 || acc.Num(t, b["resolution_class"], "resolution_class") != 1080 || acc.Decimal(t, a["frame_rate"], "frame_rate") != 60 || acc.Str(a["hdr"]) != "hdr10" {
 		t.Fatalf("the sides read = %v against %v: want the upscale's facts against the source's", a, b)
 	}
-	if str(out["verdict"]) != "a_better" || str(out["decided_by"]) != "resolution" {
+	if acc.Str(out["verdict"]) != "a_better" || acc.Str(out["decided_by"]) != "resolution" {
 		t.Errorf("verdict = %v by %v, want the upscale bigger by its frame", out["verdict"], out["decided_by"])
 	}
-	caveats := strings.Join(strs(t, out["caveats"], "caveats"), " | ")
+	caveats := strings.Join(acc.Strs(t, out["caveats"], "caveats"), " | ")
 	for _, want := range []string{
 		"one copy runs at 60 fps and the other at 24",
 		"the 60 fps copy was most likely interpolated from it",
@@ -361,11 +363,11 @@ func TestAnAIUpscaleBesideItsSource(t *testing.T) {
 func TestAnAnamorphicDVDRip(t *testing.T) {
 	messy := findItem(t, "Messy Shows", "Series", "Severance")
 	byEpisode := map[int]map[string]any{}
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
-		byEpisode[num(t, e["episode"], "episode")] = e
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+		byEpisode[acc.Num(t, e["episode"], "episode")] = e
 	}
 	rip := byEpisode[2]
-	if rip == nil || num(t, rip["width"], "width") != 720 || num(t, rip["height"], "height") != 480 || str(rip["aspect_ratio"]) != "16:9" || num(t, rip["display_width"], "display_width") != 853 {
+	if rip == nil || acc.Num(t, rip["width"], "width") != 720 || acc.Num(t, rip["height"], "height") != 480 || acc.Str(rip["aspect_ratio"]) != "16:9" || acc.Num(t, rip["display_width"], "display_width") != 853 {
 		t.Fatalf("S01E02 = %v, want 720x480 stated 16:9 and shown 853 wide", rip)
 	}
 	// a frame of its own shape shows at its own width
@@ -373,39 +375,28 @@ func TestAnAnamorphicDVDRip(t *testing.T) {
 		t.Errorf("S01E01 = %v, want no display width for a 16:9 frame stated 16:9", first)
 	}
 
-	out := call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": str(rip["id"])}, "b": map[string]any{"item_id": str(byEpisode[1]["id"])}})
-	a := object(t, out["a"], "a")
-	if decimal(t, a["aspect"], "aspect") != 1.78 || str(a["aspect_from"]) != "stated" || num(t, a["resolution_class"], "resolution_class") != 480 {
+	out := suite.Call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": acc.Str(rip["id"])}, "b": map[string]any{"item_id": acc.Str(byEpisode[1]["id"])}})
+	a := acc.Object(t, out["a"], "a")
+	if acc.Decimal(t, a["aspect"], "aspect") != 1.78 || acc.Str(a["aspect_from"]) != "stated" || acc.Num(t, a["resolution_class"], "resolution_class") != 480 {
 		t.Errorf("the rip reads as %v from %v, class %v; want 1.78 as stated and 480", a["aspect"], a["aspect_from"], a["resolution_class"])
 	}
-	if caveats := strings.Join(texts(out["caveats"]), " | "); strings.Contains(caveats, "different shapes") {
+	if caveats := strings.Join(acc.Texts(out["caveats"]), " | "); strings.Contains(caveats, "different shapes") {
 		t.Errorf("the rip against a 16:9 episode = %s: the same shape once the stated ratio is read", caveats)
 	}
-	if str(out["verdict"]) != "a_better" || str(out["decided_by"]) != "resolution" {
+	if acc.Str(out["verdict"]) != "a_better" || acc.Str(out["decided_by"]) != "resolution" {
 		t.Errorf("480 lines against 360 = %v by %v", out["verdict"], out["decided_by"])
 	}
 
-	fourThree := call(t, "quality_compare", map[string]any{
-		"a": map[string]any{"item_id": str(rip["id"])},
-		"b": map[string]any{"width": 720, "height": 480, "aspect_ratio": "4:3", "video_codec": "h264", "bitrate": num(t, a["bitrate"], "bitrate")},
+	fourThree := suite.Call(t, "quality_compare", map[string]any{
+		"a": map[string]any{"item_id": acc.Str(rip["id"])},
+		"b": map[string]any{"width": 720, "height": 480, "aspect_ratio": "4:3", "video_codec": "h264", "bitrate": acc.Num(t, a["bitrate"], "bitrate")},
 	})
-	if caveats := strings.Join(texts(fourThree["caveats"]), " | "); !strings.Contains(caveats, "the frames are different shapes (1.78 against 1.33)") {
+	if caveats := strings.Join(acc.Texts(fourThree["caveats"]), " | "); !strings.Contains(caveats, "the frames are different shapes (1.78 against 1.33)") {
 		t.Errorf("the rip against a 4:3 DVD of the same frame = %s, want the shapes told apart", caveats)
 	}
-	if str(fourThree["decided_by"]) == "resolution" {
+	if acc.Str(fourThree["decided_by"]) == "resolution" {
 		t.Errorf("one frame size against itself decided by resolution: %v", fourThree["reasons"])
 	}
-}
-
-// texts reads a list of strings that may be absent.
-func texts(v any) []string {
-	raw, _ := v.([]any)
-	out := make([]string, 0, len(raw))
-	for _, e := range raw {
-		out = append(out, str(e))
-	}
-
-	return out
 }
 
 // A picture's class is read by its width as much as its height: a scope
@@ -430,13 +421,13 @@ func TestResolutionClassesByWidth(t *testing.T) {
 
 	messy := findItem(t, "Messy Shows", "Series", "Severance")
 	staged := map[int]map[string]any{}
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 2})["episodes"], "episodes") {
-		staged[num(t, e["episode"], "episode")] = e
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": messy, "season": 2})["episodes"], "episodes") {
+		staged[acc.Num(t, e["episode"], "episode")] = e
 	}
 	var flagged []string
-	for _, f := range rows(t, call(t, "audit_quality", map[string]any{"library": "Messy Shows"})["findings"], "findings") {
-		if strings.Contains(str(f["path"]), "/Season 02/") {
-			flagged = append(flagged, str(f["name"])+": "+str(f["detail"]))
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_quality", map[string]any{"library": "Messy Shows"})["findings"], "findings") {
+		if strings.Contains(acc.Str(f["path"]), "/Season 02/") {
+			flagged = append(flagged, acc.Str(f["name"])+": "+acc.Str(f["detail"]))
 		}
 	}
 	if want := []string{"Severance S02E04 Woe's Hollow: h264 720x304: 405p, below 720p"}; !slices.Equal(flagged, want) {
@@ -444,32 +435,32 @@ func TestResolutionClassesByWidth(t *testing.T) {
 	}
 	for i, f := range frames {
 		e := staged[i+1]
-		if e == nil || fmt.Sprintf("%dx%d", num(t, e["width"], "width"), num(t, e["height"], "height")) != f.size {
+		if e == nil || fmt.Sprintf("%dx%d", acc.Num(t, e["width"], "width"), acc.Num(t, e["height"], "height")) != f.size {
 			t.Errorf("S02E%02d = %v, want %s", i+1, e, f.size)
 			continue
 		}
 		// read back from the item, the class is the width's where it is more
-		b := object(t, call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": str(e["id"])}, "b": map[string]any{"item_id": str(e["id"])}})["a"], "a")
-		if num(t, b["resolution_class"], "resolution_class") != f.class {
+		b := acc.Object(t, suite.Call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": acc.Str(e["id"])}, "b": map[string]any{"item_id": acc.Str(e["id"])}})["a"], "a")
+		if acc.Num(t, b["resolution_class"], "resolution_class") != f.class {
 			t.Errorf("%s reads as class %v, want %d", f.size, b["resolution_class"], f.class)
 		}
 	}
 
 	// a scope 720p against a 4:3 one: one class, and the shapes said to differ
-	out := call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": str(staged[2]["id"])}, "b": map[string]any{"item_id": str(staged[3]["id"])}})
-	if caveats := strings.Join(texts(out["caveats"]), " | "); !strings.Contains(caveats, "the frames are different shapes") || str(out["decided_by"]) == "resolution" {
+	out := suite.Call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": acc.Str(staged[2]["id"])}, "b": map[string]any{"item_id": acc.Str(staged[3]["id"])}})
+	if caveats := strings.Join(acc.Texts(out["caveats"]), " | "); !strings.Contains(caveats, "the frames are different shapes") || acc.Str(out["decided_by"]) == "resolution" {
 		t.Errorf("1280x536 against 960x720 = %v by %v, caveats %s: want one class and the shapes told apart", out["verdict"], out["decided_by"], caveats)
 	}
 	// and the anamorphic DVD rip in season one against the 4:3 picture: its
 	// stated 16:9 against 4:3, and 480 lines against 720
 	var rip string
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
-		if num(t, e["episode"], "episode") == 2 {
-			rip = str(e["id"])
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+		if acc.Num(t, e["episode"], "episode") == 2 {
+			rip = acc.Str(e["id"])
 		}
 	}
-	out = call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": rip}, "b": map[string]any{"item_id": str(staged[3]["id"])}})
-	if caveats := strings.Join(texts(out["caveats"]), " | "); !strings.Contains(caveats, "the frames are different shapes (1.78 against 1.33)") || str(out["verdict"]) != "b_better" {
+	out = suite.Call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": rip}, "b": map[string]any{"item_id": acc.Str(staged[3]["id"])}})
+	if caveats := strings.Join(acc.Texts(out["caveats"]), " | "); !strings.Contains(caveats, "the frames are different shapes (1.78 against 1.33)") || acc.Str(out["verdict"]) != "b_better" {
 		t.Errorf("the anamorphic rip against the 4:3 720p = %v, caveats %s", out["verdict"], caveats)
 	}
 }

@@ -11,6 +11,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // What the read tools could not know, said rather than answered as if known:
@@ -22,48 +26,48 @@ import (
 // on the disk and in no item. plan_check asked the library alone and read
 // its path as free, and the next write replaced it: the disk is read too.
 func TestPlanCheckSeesWhatNoScanHasReached(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	episode := "shows/Severance/Season 01/Severance S01E05.mp4"
-	stageFile(t, filepath.Join(dataDir(), episode), fixture(t, "shows/Severance/Season 01/Severance S01E01.mp4"))
+	stageFile(t, filepath.Join(testenv.DataDir(), episode), fixture(t, "shows/Severance/Season 01/Severance S01E01.mp4"))
 	film := "movies/Arrival (2016)/Arrival (2016) - 1080p.mp4"
-	stageFile(t, filepath.Join(dataDir(), film), fixture(t, "movies/Arrival (2016)/Arrival (2016).mp4"))
+	stageFile(t, filepath.Join(testenv.DataDir(), film), fixture(t, "movies/Arrival (2016)/Arrival (2016).mp4"))
 
-	out := call(t, "plan_check", map[string]any{"entries": []map[string]any{
+	out := suite.Call(t, "plan_check", map[string]any{"entries": []map[string]any{
 		{"path": "/media/" + episode},
 		{"path": "/media/" + film},
 		{"path": "/media/shows/Severance/Season 01/Severance S01E06.mp4"},
 		{"path": "/media/shows/Severance/Season 01/Severance S01E01.mp4"},
 	}})
-	entries := rows(t, out["entries"], "entries")
+	entries := acc.Rows(t, out["entries"], "entries")
 	if len(entries) != 4 {
 		t.Fatalf("entries = %v", entries)
 	}
 	// written into a season and never scanned: replaced all the same
-	if e := entries[0]; !isBool(e["exists"], true) || !isBool(e["in_library"], false) || !isBool(e["on_disk"], true) || e["current"] != nil || !strings.Contains(str(e["note"]), "no item holds") {
+	if e := entries[0]; !acc.IsBool(e["exists"], true) || !acc.IsBool(e["in_library"], false) || !acc.IsBool(e["on_disk"], true) || e["current"] != nil || !strings.Contains(acc.Str(e["note"]), "no item holds") {
 		t.Errorf("an episode no scan has reached = %v", e)
 	}
 	// a second file beside a film: Emby asks its library by the path and
 	// holds nothing there; Jellyfin cannot ask, and the disk alone answers
 	e := entries[1]
-	if !isBool(e["exists"], true) || !isBool(e["on_disk"], true) {
+	if !acc.IsBool(e["exists"], true) || !acc.IsBool(e["on_disk"], true) {
 		t.Errorf("a film's file no scan has reached = %v", e)
 	}
-	if isJellyfin() && (e["in_library"] != nil || !isBool(e["checked"], false)) || !isJellyfin() && !isBool(e["in_library"], false) {
+	if isJellyfin() && (e["in_library"] != nil || !acc.IsBool(e["checked"], false)) || !isJellyfin() && !acc.IsBool(e["in_library"], false) {
 		t.Errorf("a film's file no scan has reached: checked %v, in_library %v", e["checked"], e["in_library"])
 	}
-	if e := entries[2]; !isBool(e["exists"], false) || !isBool(e["on_disk"], false) || !isBool(e["in_library"], false) {
+	if e := entries[2]; !acc.IsBool(e["exists"], false) || !acc.IsBool(e["on_disk"], false) || !acc.IsBool(e["in_library"], false) {
 		t.Errorf("a free path = %v", e)
 	}
-	if e := entries[3]; !isBool(e["exists"], true) || !isBool(e["on_disk"], true) || !isBool(e["in_library"], true) || e["current"] == nil {
+	if e := entries[3]; !acc.IsBool(e["exists"], true) || !acc.IsBool(e["on_disk"], true) || !acc.IsBool(e["in_library"], true) || e["current"] == nil {
 		t.Errorf("a file the library holds = %v", e)
 	}
 	notScanned := 2
 	if isJellyfin() {
 		notScanned = 1
 	}
-	if num(t, out["existing"], "existing") != 3 || num(t, out["not_scanned"], "not_scanned") != notScanned {
+	if acc.Num(t, out["existing"], "existing") != 3 || acc.Num(t, out["not_scanned"], "not_scanned") != notScanned {
 		t.Errorf("existing %v, not_scanned %v, want 3 and %d", out["existing"], out["not_scanned"], notScanned)
 	}
 
@@ -71,13 +75,13 @@ func TestPlanCheckSeesWhatNoScanHasReached(t *testing.T) {
 	// case, which the host's own disk says (the server reads it through the
 	// same mount), and another on one that does not
 	cased := "shows/Severance/Season 01/severance s01e01.mp4"
-	_, err := os.Stat(filepath.Join(dataDir(), cased))
+	_, err := os.Stat(filepath.Join(testenv.DataDir(), cased))
 	ignores := err == nil
-	row := rows(t, call(t, "plan_check", map[string]any{"entries": []map[string]any{{"path": "/media/" + cased}}})["entries"], "entries")[0]
+	row := acc.Rows(t, suite.Call(t, "plan_check", map[string]any{"entries": []map[string]any{{"path": "/media/" + cased}}})["entries"], "entries")[0]
 	switch {
-	case ignores && (!isBool(row["exists"], true) || !isBool(row["in_library"], true) || !strings.Contains(str(row["note"]), "ignores case")):
+	case ignores && (!acc.IsBool(row["exists"], true) || !acc.IsBool(row["in_library"], true) || !strings.Contains(acc.Str(row["note"]), "ignores case")):
 		t.Errorf("on a disk that ignores case, the held file spelled otherwise = %v", row)
-	case !ignores && (!isBool(row["exists"], false) || !strings.Contains(str(row["note"]), "differing only in case")):
+	case !ignores && (!acc.IsBool(row["exists"], false) || !strings.Contains(acc.Str(row["note"]), "differing only in case")):
 		t.Errorf("on a disk that tells case apart, a path differing only in case = %v", row)
 	}
 }
@@ -88,17 +92,17 @@ func TestPlanCheckSeesWhatNoScanHasReached(t *testing.T) {
 // both servers to keep a resume point.
 func TestUnwatchedListsWhatIsStarted(t *testing.T) {
 	film := findItem(t, "Movies", "Movie", "Limitless")
-	putBack(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
+	suite.PutBack(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
 	_, token := signInPlayer(t)
 	where := func() (finding, started map[string]any) {
-		out := call(t, "audit_unwatched", map[string]any{"library": "Movies"})
-		for _, f := range rows(t, out["findings"], "findings") {
-			if str(f["id"]) == film {
+		out := suite.Call(t, "audit_unwatched", map[string]any{"library": "Movies"})
+		for _, f := range acc.Rows(t, out["findings"], "findings") {
+			if acc.Str(f["id"]) == film {
 				finding = f
 			}
 		}
-		for _, s := range rows(t, out["started"], "started") {
-			if str(s["id"]) == film {
+		for _, s := range acc.Rows(t, out["started"], "started") {
+			if acc.Str(s["id"]) == film {
 				started = s
 			}
 		}
@@ -111,26 +115,26 @@ func TestUnwatchedListsWhatIsStarted(t *testing.T) {
 
 	playTo(t, token, film, 10*60*10_000_000) // ten minutes in
 	var f, s map[string]any
-	if !eventually(func() bool { f, s = where(); return s != nil }) {
+	if !acc.Eventually(func() bool { f, s = where(); return s != nil }) {
 		t.Fatalf("stopped ten minutes in, Limitless = %v: want it started", f)
 	}
-	if f != nil || !strings.HasPrefix(str(s["detail"]), "started and never finished, by alice (9%); added ") {
+	if f != nil || !strings.HasPrefix(acc.Str(s["detail"]), "started and never finished, by alice (9%); added ") {
 		t.Errorf("stopped ten minutes in, Limitless = %v, started %v", f, s)
 	}
 
 	// marked unwatched, it is never watched again
-	call(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
-	if !eventually(func() bool { f, s = where(); return f != nil && s == nil }) {
+	suite.Call(t, "item_set_state", map[string]any{"id": film, "user": "alice", "watched": false})
+	if !acc.Eventually(func() bool { f, s = where(); return f != nil && s == nil }) {
 		t.Fatalf("marked unwatched, Limitless = %v, started %v", f, s)
 	}
 
 	// begun and stopped a minute in, below where either server keeps a
 	// resume point: a play counted and dated, and no position
 	playTo(t, token, film, 60*10_000_000)
-	if !eventually(func() bool { f, s = where(); return s != nil }) {
+	if !acc.Eventually(func() bool { f, s = where(); return s != nil }) {
 		t.Fatalf("stopped a minute in, Limitless = %v: want it started", f)
 	}
-	if f != nil || !strings.HasPrefix(str(s["detail"]), "started and never finished, by alice; added ") {
+	if f != nil || !strings.HasPrefix(acc.Str(s["detail"]), "started and never finished, by alice; added ") {
 		t.Errorf("stopped a minute in, Limitless = %v, started %v", f, s)
 	}
 
@@ -179,23 +183,23 @@ func TestUnwatchedNamesAViewWithABlock(t *testing.T) {
 	// state by provider id, so a watch marks each copy, and a copy the block
 	// does not hide would be read as her watch (seen on 4.10)
 	var copies []any
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"query": "Arrival", "types": "Movie", "limit": 50})["items"], "items") {
-		if str(it["name"]) == "Arrival" {
-			copies = append(copies, str(it["id"]))
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"query": "Arrival", "types": "Movie", "limit": 50})["items"], "items") {
+		if acc.Str(it["name"]) == "Arrival" {
+			copies = append(copies, acc.Str(it["id"]))
 		}
 	}
 	if len(copies) < 2 {
 		t.Fatalf("Arrival's copies = %v, want the clean library's and the messy one's", copies)
 	}
-	call(t, "item_edit", map[string]any{"ids": copies, "add_tags": []any{tag}})
-	putBack(t, "item_edit", map[string]any{"ids": copies, "remove_tags": []any{tag}})
-	call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": true})
-	putBack(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
+	suite.Call(t, "item_edit", map[string]any{"ids": copies, "add_tags": []any{tag}})
+	suite.PutBack(t, "item_edit", map[string]any{"ids": copies, "remove_tags": []any{tag}})
+	suite.Call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": true})
+	suite.PutBack(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
 
 	unwatched := func() ([]string, []string) {
-		out := call(t, "audit_unwatched", map[string]any{"library": "Movies"})
+		out := suite.Call(t, "audit_unwatched", map[string]any{"library": "Movies"})
 
-		return findings(t, out), strs(t, orEmptyList(out["views_limited"]), "views_limited")
+		return findings(t, out), acc.Strs(t, acc.OrEmptyList(out["views_limited"]), "views_limited")
 	}
 	if got, limited := unwatched(); slices.Contains(got, "Arrival") || len(limited) != 0 {
 		t.Fatalf("before the block: unwatched %v, views_limited %v: want Arrival watched and no view limited", got, limited)
@@ -268,9 +272,9 @@ func TestAuditRuntimeSeasonMostlyShort(t *testing.T) {
 	stage(t, plus(0, 0, len(files)), files, g)
 
 	var got []string
-	for _, f := range rows(t, call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})["findings"], "findings") {
-		if strings.Contains(str(f["path"]), "/hack Liminality (2002)/Season 03/") {
-			got = append(got, filepath.Base(str(f["path"]))+": "+str(f["detail"]))
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})["findings"], "findings") {
+		if strings.Contains(acc.Str(f["path"]), "/hack Liminality (2002)/Season 03/") {
+			got = append(got, filepath.Base(acc.Str(f["path"]))+": "+acc.Str(f["detail"]))
 		}
 	}
 	slices.Sort(got)
@@ -325,8 +329,8 @@ func TestARatingLimitOfZeroIsALimit(t *testing.T) {
 	if isJellyfin() && (stored.Policy.MaxParentalRating == nil || *stored.Policy.MaxParentalRating != 0) {
 		t.Fatalf("Jellyfin stored alice's limit as %v, want 0", stored.Policy.MaxParentalRating)
 	}
-	limit := call(t, "user_get", map[string]any{"user": "alice"})["max_parental_rating"]
-	limited := strs(t, orEmptyList(call(t, "audit_unwatched", map[string]any{"library": "Movies"})["views_limited"]), "views_limited")
+	limit := suite.Call(t, "user_get", map[string]any{"user": "alice"})["max_parental_rating"]
+	limited := acc.Strs(t, acc.OrEmptyList(suite.Call(t, "audit_unwatched", map[string]any{"library": "Movies"})["views_limited"]), "views_limited")
 	switch stored.Policy.MaxParentalRating {
 	case nil:
 		// a server that keeps no limit of 0 says so, and so do the tools
@@ -343,59 +347,42 @@ func TestARatingLimitOfZeroIsALimit(t *testing.T) {
 	}
 }
 
-// isBool says whether a decoded field holds exactly the boolean want: an
-// absent field, or one of another type, is neither true nor false.
-func isBool(v any, want bool) bool {
-	b, ok := v.(bool)
-
-	return ok && b == want
-}
-
-// orEmptyList is a JSON list, or an empty one when the field is absent.
-func orEmptyList(v any) any {
-	if v == nil {
-		return []any{}
-	}
-
-	return v
-}
-
-// Plays are logged against the episode played, so item_watch_history on a
-// series answered no plays, complete; and Jellyfin deletes the activity it
-// logged more than its retention ago (30 days out of the box), which a read
-// of 60 days reached the end of and called complete.
+// Plays are logged against the episode played, so the history of a series
+// answered no plays, complete; and Jellyfin deletes the activity it logged
+// more than its retention ago (30 days out of the box), which a read of 60
+// days reached the end of and called complete.
 func TestHistoryOfASeriesAndWhatTheServerKeeps(t *testing.T) {
 	sev := findItem(t, "Shows", "Series", "Severance")
 	var first string
-	episodes := rows(t, call(t, "library_episodes", map[string]any{"series_id": sev})["episodes"], "episodes")
+	episodes := acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": sev})["episodes"], "episodes")
 	for _, e := range episodes {
-		if num(t, e["season"], "season") == 1 && num(t, e["episode"], "episode") == 1 {
-			first = str(e["id"])
+		if acc.Num(t, e["season"], "season") == 1 && acc.Num(t, e["episode"], "episode") == 1 {
+			first = acc.Str(e["id"])
 		}
 	}
 	if first == "" {
 		t.Fatal("Severance holds no S01E01")
 	}
-	putBack(t, "item_set_state", map[string]any{"id": first, "user": "alice", "watched": false})
+	suite.PutBack(t, "item_set_state", map[string]any{"id": first, "user": "alice", "watched": false})
 	_, token := signInPlayer(t)
 	playThrough(t, token, first)
 
 	mentions := func(id string) (map[string]any, bool) {
-		out := call(t, "item_watch_history", map[string]any{"id": id, "days": 7})
+		out := suite.Call(t, "server_activity", map[string]any{"item": id, "days": 7})
 
-		return out, slices.ContainsFunc(strs(t, out["entries"], "entries"), func(e string) bool { return strings.Contains(e, "alice") })
+		return out, slices.ContainsFunc(summaries(t, out), func(e string) bool { return strings.Contains(e, "alice") })
 	}
 	var out map[string]any
-	if !eventually(func() bool { var ok bool; out, ok = mentions(sev); return ok }) {
+	if !acc.Eventually(func() bool { var ok bool; out, ok = mentions(sev); return ok }) {
 		t.Fatalf("the series' history = %v, want alice's play of its first episode", out)
 	}
-	if num(t, out["covers"], "covers") != len(episodes) {
+	if acc.Num(t, out["covers"], "covers") != len(episodes) {
 		t.Errorf("the series' history covers %v, want its %d episodes", out["covers"], len(episodes))
 	}
 	var season string
-	for _, s := range rows(t, call(t, "show_seasons", map[string]any{"series_id": sev})["seasons"], "seasons") {
-		if num(t, s["season"], "season") == 1 {
-			season = str(s["id"])
+	for _, s := range acc.Rows(t, suite.Call(t, "show_seasons", map[string]any{"series_id": sev})["seasons"], "seasons") {
+		if acc.Num(t, s["season"], "season") == 1 {
+			season = acc.Str(s["id"])
 		}
 	}
 	if seasonOut, ok := mentions(season); !ok {
@@ -406,27 +393,27 @@ func TestHistoryOfASeriesAndWhatTheServerKeeps(t *testing.T) {
 	}
 
 	// the period read by default: what Jellyfin keeps, or Emby's 60 days
-	out = call(t, "user_history", map[string]any{"user": "alice"})
+	out = suite.Call(t, "user_history", map[string]any{"user": "alice"})
 	switch {
-	case isJellyfin() && (num(t, out["days"], "days") != 30 || !isBool(out["complete"], true) || !strings.Contains(str(out["note"]), "the server keeps 30 days of activity")):
+	case isJellyfin() && (acc.Num(t, out["days"], "days") != 30 || !acc.IsBool(out["complete"], true) || !strings.Contains(acc.Str(out["note"]), "the server keeps 30 days of activity")):
 		t.Errorf("Jellyfin's default history = days %v, complete %v, note %q: want the 30 days it keeps", out["days"], out["complete"], out["note"])
-	case !isJellyfin() && (num(t, out["days"], "days") != 60 || !isBool(out["complete"], true) || out["note"] != nil):
+	case !isJellyfin() && (acc.Num(t, out["days"], "days") != 60 || !acc.IsBool(out["complete"], true) || out["note"] != nil):
 		t.Errorf("Emby's default history = days %v, complete %v, note %q: want 60 days, whole", out["days"], out["complete"], out["note"])
 	}
 	// and sixty asked for is more than Jellyfin keeps
-	out = call(t, "item_watch_history", map[string]any{"id": first, "days": 60})
-	if complete := isBool(out["complete"], true); complete == isJellyfin() {
+	out = suite.Call(t, "server_activity", map[string]any{"item": first, "days": 60})
+	if complete := acc.IsBool(out["complete"], true); complete == isJellyfin() {
 		t.Errorf("sixty days of history = complete %v, note %q: want it short of the period on Jellyfin alone", out["complete"], out["note"])
 	}
 
 	// a library holds no plays of its own and is refused, not answered none
 	var library string
-	for _, l := range rows(t, call(t, "library_list", nil)["libraries"], "libraries") {
-		if str(l["name"]) == "Movies" {
-			library = str(l["id"])
+	for _, l := range acc.Rows(t, suite.Call(t, "library_list", nil)["libraries"], "libraries") {
+		if acc.Str(l["name"]) == "Movies" {
+			library = acc.Str(l["id"])
 		}
 	}
-	if msg := callErr(t, "item_watch_history", map[string]any{"id": library}); !strings.Contains(msg, "is a library") || !strings.Contains(msg, "a series, a season or an album") {
+	if msg := suite.CallErr(t, "server_activity", map[string]any{"item": library}); !strings.Contains(msg, "is a library") || !strings.Contains(msg, "a series, a season or an album") {
 		t.Errorf("a library's history = %s", msg)
 	}
 }
@@ -439,7 +426,7 @@ func TestAuditsReadTheirIDsFirst(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	sev := findItem(t, "Shows", "Series", "Severance")
 	for _, tool := range []string{"audit_provider", "audit_file_path"} {
-		if msg := callErr(t, tool, map[string]any{"ids": []any{unknownID()}}); !strings.Contains(msg, "no item has the id "+unknownID()) {
+		if msg := suite.CallErr(t, tool, map[string]any{"ids": []any{unknownID()}}); !strings.Contains(msg, "no item has the id "+unknownID()) {
 			t.Errorf("%s on an id no item has = %s", tool, msg)
 		}
 		// an id that is no id at all: Jellyfin drops the filter and answers
@@ -448,18 +435,18 @@ func TestAuditsReadTheirIDsFirst(t *testing.T) {
 		if isJellyfin() {
 			want = "no item has the id x" + arrival + ": the server answered with other items instead"
 		}
-		if msg := callErr(t, tool, map[string]any{"ids": []any{"x" + arrival}}); !strings.Contains(msg, want) {
+		if msg := suite.CallErr(t, tool, map[string]any{"ids": []any{"x" + arrival}}); !strings.Contains(msg, want) {
 			t.Errorf("%s on an id the server cannot read = %s, want %q", tool, msg, want)
 		}
 		// and 0, which both take for no filter at all
-		if msg := callErr(t, tool, map[string]any{"ids": []any{"0"}}); !strings.Contains(msg, "no item has the id 0: the server answered with other items instead") {
+		if msg := suite.CallErr(t, tool, map[string]any{"ids": []any{"0"}}); !strings.Contains(msg, "no item has the id 0: the server answered with other items instead") {
 			t.Errorf("%s on the id 0 = %s", tool, msg)
 		}
 	}
-	if msg := callErr(t, "audit_provider", map[string]any{"ids": []any{sev}}); !strings.Contains(msg, sev+` is a series, "Severance"`) {
+	if msg := suite.CallErr(t, "audit_provider", map[string]any{"ids": []any{sev}}); !strings.Contains(msg, sev+` is a series, "Severance"`) {
 		t.Errorf("audit_provider on a series = %s", msg)
 	}
-	if out := call(t, "audit_file_path", map[string]any{"ids": []any{arrival, sev}}); num(t, out["items_scanned"], "items_scanned") != 2 {
+	if out := suite.Call(t, "audit_file_path", map[string]any{"ids": []any{arrival, sev}}); acc.Num(t, out["items_scanned"], "items_scanned") != 2 {
 		t.Errorf("audit_file_path on a film and a series = %v, want both read", out)
 	}
 }

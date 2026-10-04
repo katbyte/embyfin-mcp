@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 )
 
 // The library's series, read once and matched against in process.
@@ -64,7 +66,7 @@ type seriesIndex struct {
 	byID       map[string]int
 	byWord     map[string][]int
 	byProvider map[string][]int
-	// byFolder is the series by the folder rule audit_duplicate_series
+	// byFolder is the series by the folder rule audit_duplicates' folder_groups
 	// groups by (twinFolderKey): two folders of one show beside each other
 	byFolder map[string][]int
 	read     time.Time
@@ -185,8 +187,8 @@ func readSeriesIndex(ctx context.Context, client *embyfin.Client, parent string)
 	for i := range idx.items {
 		it := &idx.items[i]
 		idx.byID[it.ID] = i
-		words := strings.Fields(normaliseTitle(it.Name))
-		words = append(words, strings.Fields(normaliseTitle(it.OriginalTitle))...)
+		words := strings.Fields(naming.Normalise(it.Name))
+		words = append(words, strings.Fields(naming.Normalise(it.OriginalTitle))...)
 		for _, w := range words {
 			if list := idx.byWord[w]; len(list) == 0 || list[len(list)-1] != i {
 				idx.byWord[w] = append(list, i)
@@ -208,19 +210,19 @@ func readSeriesIndex(ctx context.Context, client *embyfin.Client, parent string)
 
 // twinFolderKey is what two folders of one show have in common when a rename
 // changed only spacing, case, an accent or punctuation, by the rule
-// audit_duplicate_series groups by: the folder above, and the folder's own
+// audit_duplicates' folder_groups group by: the folder above, and the folder's own
 // name, each folded (folderKey). "" for a path with no name to compare: one
 // that folds to nothing ("???") would otherwise meet every other like it.
 func twinFolderKey(path string) string {
 	if path == "" {
 		return ""
 	}
-	name := folderKey(baseName(path))
+	name := folderKey(mediapath.Base(path))
 	if name == "" {
 		return ""
 	}
 
-	return folderKey(parentDir(path)) + "/" + name
+	return folderKey(mediapath.Dir(path)) + "/" + name
 }
 
 // sameAnime says whether two entries could be one show by their AniDB ids:
@@ -239,8 +241,8 @@ func sameAnime(a, b *embyfin.Item) bool {
 // sharing a word with the name are scored: across a library of thousands that
 // is the difference between scoring a handful and scoring all of them, and a
 // series sharing no word with a name does not score above nothing anyway.
-func (idx *seriesIndex) rank(rel release) []seriesCandidate {
-	words := strings.Fields(normaliseTitle(rel.Title))
+func (idx *seriesIndex) rank(rel naming.Release) []seriesCandidate {
+	words := strings.Fields(naming.Normalise(rel.Title))
 
 	gather := func(capped bool) []int {
 		var out []int
@@ -278,7 +280,7 @@ func (idx *seriesIndex) rank(rel release) []seriesCandidate {
 // shares no whole word with anything and only a substring search finds. It
 // also returns every series it looked at, for the caller that has to tell a
 // search that found one thing from a search that found a hundred.
-func (r *registry) matchSeries(ctx context.Context, rel release, parent string) ([]seriesCandidate, []embyfin.Item, error) {
+func (r *registry) matchSeries(ctx context.Context, rel naming.Release, parent string) ([]seriesCandidate, []embyfin.Item, error) {
 	idx, err := r.seriesCache().get(ctx, r.client, parent)
 	if err != nil {
 		return nil, nil, err

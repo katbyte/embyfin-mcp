@@ -175,9 +175,7 @@ func TestAuditSchemasStateTheirRealDefaults(t *testing.T) {
 	for _, tc := range []struct{ tool, types, limit string }{
 		{"audit_duplicates", "Movie,Series,Episode", "default 50"},
 		{"audit_multiple_versions", "Movie,Episode", "default 100"},
-		{"audit_missing_poster", "Movie,Series", "default 100"},
-		{"audit_missing_overview", "Movie,Series", "default 100"},
-		{"audit_missing_metadata_provider", "Movie,Series", "default 100"},
+		{"audit_missing_metadata", "Movie,Series", "default 100"},
 	} {
 		s, ok := schemas[tc.tool]
 		if !ok {
@@ -224,11 +222,19 @@ func TestAuditAllReadsAMusicLibrary(t *testing.T) {
 	adminView(t, f)
 	cs := session(t, f, Options{})
 
+	// audit_missing_metadata is a row a problem, named by problems
+	rowName := func(row map[string]any) string {
+		if p := text(row["problems"]); p != "" {
+			return text(row["audit"]) + ":" + p
+		}
+
+		return text(row["audit"])
+	}
 	rows := map[string]map[string]any{}
 	for _, row := range objects(t, mustCall(t, cs, "audit_all", map[string]any{"library": "Tunes"})["audits"], "audits") {
-		rows[text(row["audit"])] = row
+		rows[rowName(row)] = row
 	}
-	for audit, want := range map[string]int{"audit_missing_poster": 1, "audit_spelling": 1} {
+	for audit, want := range map[string]int{"audit_missing_metadata:poster": 1, "audit_spelling": 1} {
 		row := rows[audit]
 		if row == nil || row["skipped"] != nil || number(t, row["findings"], "findings") != want || number(t, row["items_scanned"], "items_scanned") != 3 || text(row["types"]) != "MusicAlbum" {
 			t.Errorf("%s over the music library = %v, want %d of the 3 albums, read as MusicAlbum", audit, row, want)
@@ -239,19 +245,24 @@ func TestAuditAllReadsAMusicLibrary(t *testing.T) {
 		t.Errorf("audit_whitespace over the music library = %v, want the 3 albums read", row)
 	}
 	for audit, row := range rows {
-		if audit != "audit_missing_poster" && audit != "audit_spelling" && audit != "audit_whitespace" && row["skipped"] == nil {
+		if audit != "audit_missing_metadata:poster" && audit != "audit_spelling" && audit != "audit_whitespace" && row["skipped"] == nil {
 			t.Errorf("%s ran over a music library: %v", audit, row)
+		}
+	}
+	for _, problem := range []string{"provider_id", "overview"} {
+		if row := rows["audit_missing_metadata:"+problem]; row == nil || row["skipped"] == nil {
+			t.Errorf("audit_missing_metadata's %s row over the music library = %v, want it skipped with its problem named", problem, row)
 		}
 	}
 
 	// over every library the two read albums beside films and series
 	for _, row := range objects(t, mustCall(t, cs, "audit_all", map[string]any{})["audits"], "audits") {
-		switch text(row["audit"]) {
-		case "audit_missing_poster", "audit_spelling":
+		switch rowName(row) {
+		case "audit_missing_metadata:poster", "audit_spelling":
 			if types := text(row["types"]); !strings.HasSuffix(types, ",MusicAlbum") || number(t, row["findings"], "findings") != 1 {
 				t.Errorf("over every library %v, want the album counted and MusicAlbum among its types", row)
 			}
-		case "audit_missing_overview":
+		case "audit_missing_metadata:overview":
 			if row["types"] != nil {
 				t.Errorf("an audit with nothing to say about music names types over every library: %v", row)
 			}
@@ -297,9 +308,9 @@ func TestAuditAllSaysWhatItDidNotCheck(t *testing.T) {
 	// over a library of home videos, every audit has a row, and every row
 	// says it was not checked
 	clipRows := objects(t, mustCall(t, cs, "audit_all", map[string]any{"library": "Clips"})["audits"], "audits")
-	clipNames := make([]string, 0, len(clipRows))
+	clipNames := make([]auditAllKey, 0, len(clipRows))
 	for _, row := range clipRows {
-		clipNames = append(clipNames, text(row["audit"]))
+		clipNames = append(clipNames, auditAllKey{audit: text(row["audit"]), problems: text(row["problems"])})
 		want := "not checked for this library type: a homevideos library"
 		if text(row["audit"]) == "audit_orphans" {
 			want = "server-wide"
@@ -308,8 +319,8 @@ func TestAuditAllSaysWhatItDidNotCheck(t *testing.T) {
 			t.Errorf("over home videos %v, want it skipped: %q", row, want)
 		}
 	}
-	if !slices.Equal(clipNames, auditAllNames()) {
-		t.Errorf("over home videos the rows are %v, want one for every audit: %v", clipNames, auditAllNames())
+	if !slices.Equal(clipNames, auditAllRows()) {
+		t.Errorf("over home videos the rows are %v, want one for every audit: %v", clipNames, auditAllRows())
 	}
 
 	// and the list those rows are made from is every row a real run makes,
@@ -318,22 +329,22 @@ func TestAuditAllSaysWhatItDidNotCheck(t *testing.T) {
 	if got := texts(out["libraries_not_checked"]); !slices.Equal(got, []string{"Clips (homevideos)"}) {
 		t.Errorf("libraries_not_checked = %v", got)
 	}
-	names := func(out map[string]any) ([]string, map[string]map[string]any) {
+	names := func(out map[string]any) ([]auditAllKey, map[string]map[string]any) {
 		audits := objects(t, out["audits"], "audits")
-		names, byName := make([]string, 0, len(audits)), map[string]map[string]any{}
+		names, byName := make([]auditAllKey, 0, len(audits)), map[string]map[string]any{}
 		for _, row := range audits {
 			byName[text(row["audit"])] = row
-			names = append(names, text(row["audit"]))
+			names = append(names, auditAllKey{audit: text(row["audit"]), problems: text(row["problems"])})
 		}
 
 		return names, byName
 	}
 	got, rows := names(out)
-	if !slices.Equal(got, auditAllNames()) {
-		t.Errorf("audit_all over every library has rows %v, want auditAllNames %v", got, auditAllNames())
+	if !slices.Equal(got, auditAllRows()) {
+		t.Errorf("audit_all over every library has rows %v, want auditAllRows %v", got, auditAllRows())
 	}
-	if showNames, _ := names(mustCall(t, cs, "audit_all", map[string]any{"library": "Shows"})); !slices.Equal(showNames, auditAllNames()) {
-		t.Errorf("audit_all over one library has rows %v, want auditAllNames %v", showNames, auditAllNames())
+	if showNames, _ := names(mustCall(t, cs, "audit_all", map[string]any{"library": "Shows"})); !slices.Equal(showNames, auditAllRows()) {
+		t.Errorf("audit_all over one library has rows %v, want auditAllRows %v", showNames, auditAllRows())
 	}
 	if row := rows["audit_missing_episodes"]; number(t, row["findings"], "findings") != 1 || !boolean(t, row["partial"], "partial") || !strings.Contains(text(row["note"]), "runs not known: 1 of the 1 shows") {
 		t.Errorf("audit_missing_episodes row = %v, want the gap counted and the run said to be unknown", row)

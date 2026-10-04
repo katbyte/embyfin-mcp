@@ -10,6 +10,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // The provider tools ask the server to ask TMDB, which the proxy answers
@@ -18,26 +22,26 @@ import (
 
 func TestItemIdentify(t *testing.T) {
 	id := findItem(t, "Movies", "Movie", "Dune")
-	out := call(t, "item_identify", map[string]any{"id": id, "kind": "movie"})
-	if str(out["item"]) != "Dune" {
+	out := suite.Call(t, "item_identify", map[string]any{"id": id, "kind": "movie"})
+	if acc.Str(out["item"]) != "Dune" {
 		t.Errorf("item = %v", out["item"])
 	}
-	cands := rows(t, out["candidates"], "candidates")
+	cands := acc.Rows(t, out["candidates"], "candidates")
 	if len(cands) < 2 {
 		t.Fatalf("candidates = %v", cands)
 	}
 	// the 2021 film first, with its ids, then the 1984 one somewhere
 	first := cands[0]
 	ids, _ := first["metadata_provider_ids"].(map[string]any)
-	if str(first["name"]) != "Dune" || num(t, first["year"], "year") != 2021 || str(ids["tmdb"]) != "438631" || num(t, first["index"], "index") != 0 {
+	if acc.Str(first["name"]) != "Dune" || acc.Num(t, first["year"], "year") != 2021 || acc.Str(ids["tmdb"]) != "438631" || acc.Num(t, first["index"], "index") != 0 {
 		t.Errorf("first candidate = %v", first)
 	}
-	if str(first["search_provider"]) == "" {
+	if acc.Str(first["search_provider"]) == "" {
 		t.Errorf("no search provider on %v", first)
 	}
 	var lynch bool
 	for _, c := range cands {
-		if num(t, c["year"], "year") == 1984 {
+		if acc.Num(t, c["year"], "year") == 1984 {
 			lynch = true
 		}
 	}
@@ -46,17 +50,17 @@ func TestItemIdentify(t *testing.T) {
 	}
 
 	// with a name and year override, and as a series
-	out = call(t, "item_identify", map[string]any{"id": id, "kind": "movie", "name": "Dune", "year": 1984})
-	if cands = rows(t, out["candidates"], "candidates"); len(cands) == 0 || num(t, cands[0]["year"], "year") != 1984 {
+	out = suite.Call(t, "item_identify", map[string]any{"id": id, "kind": "movie", "name": "Dune", "year": 1984})
+	if cands = acc.Rows(t, out["candidates"], "candidates"); len(cands) == 0 || acc.Num(t, cands[0]["year"], "year") != 1984 {
 		t.Errorf("year override = %v", cands)
 	}
 	sev := findItem(t, "Shows", "Series", "Severance")
-	out = call(t, "item_identify", map[string]any{"id": sev, "kind": "series"})
-	if cands = rows(t, out["candidates"], "candidates"); len(cands) == 0 || str(cands[0]["name"]) != "Severance" {
+	out = suite.Call(t, "item_identify", map[string]any{"id": sev, "kind": "series"})
+	if cands = acc.Rows(t, out["candidates"], "candidates"); len(cands) == 0 || acc.Str(cands[0]["name"]) != "Severance" {
 		t.Errorf("series candidates = %v", cands)
 	}
 
-	if msg := callErr(t, "item_identify", map[string]any{"id": id, "kind": "podcast"}); !strings.Contains(msg, `unsupported identify kind "podcast"`) {
+	if msg := suite.CallErr(t, "item_identify", map[string]any{"id": id, "kind": "podcast"}); !strings.Contains(msg, `unsupported identify kind "podcast"`) {
 		t.Errorf("an unsupported kind: %s", msg)
 	}
 }
@@ -68,7 +72,7 @@ func TestItemIdentify(t *testing.T) {
 // cleanup puts back: the apply takes TMDB's over it.)
 func TestItemIdentifyApply(t *testing.T) {
 	id := findItem(t, "Movies", "Movie", "Princess Mononoke")
-	plot := str(call(t, "item_get", map[string]any{"id": id})["overview"])
+	plot := acc.Str(suite.Call(t, "item_get", map[string]any{"id": id})["overview"])
 	if plot == "" {
 		t.Fatal("the clean Princess Mononoke has no plot")
 	}
@@ -79,63 +83,63 @@ func TestItemIdentifyApply(t *testing.T) {
 	keepFiles(t, itemFolder(t, id))
 	restoreLater(t, id)
 	const edited = "Not the plot of any film: an edit for the apply to replace."
-	call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": edited})
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": edited})
 
-	out := call(t, "item_identify", map[string]any{"id": id, "kind": "movie", "year": 1997})
-	cands := rows(t, out["candidates"], "candidates")
+	out := suite.Call(t, "item_identify", map[string]any{"id": id, "kind": "movie", "year": 1997})
+	cands := acc.Rows(t, out["candidates"], "candidates")
 	idx := slices.IndexFunc(cands, func(c map[string]any) bool {
 		ids, _ := c["metadata_provider_ids"].(map[string]any)
-		return str(ids["tmdb"]) == "128"
+		return acc.Str(ids["tmdb"]) == "128"
 	})
 	if idx < 0 {
 		t.Fatalf("Princess Mononoke (tmdb 128) is not among the candidates: %v", cands)
 	}
 
-	applied := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": id, "kind": "movie", "candidate": idx, "year": 1997}))
+	applied := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": id, "kind": "movie", "candidate": idx, "year": 1997}))
 	// the one thing to note is on Emby, whose match deletes the poster beside
 	// the film (keepFiles puts it back), and where a library saves nfos -
 	// Jellyfin's does - that the nfo written over in place is not seen
-	full := str(applied["note"])
+	full := acc.Str(applied["note"])
 	noted := beyondNfoUnseen(full)
 	if isJellyfin() && noted != "" || !isJellyfin() && (!strings.HasSuffix(noted, "/poster.jpg from beside the media") || !posterNamed(applied["removed_beside_media"])) {
 		t.Errorf("applied = %v, want a note only on Emby, of the poster it deleted", applied)
 	}
-	saves := boolOf(call(t, "library_get", map[string]any{"library": "Movies"})["saves_nfo"])
+	saves := acc.BoolOf(suite.Call(t, "library_get", map[string]any{"library": "Movies"})["saves_nfo"])
 	if said := full != noted; said != saves {
 		t.Errorf("the match's note speaks of the nfo written over: %v, want %v (the library saves nfos: %v): %q", said, saves, saves, full)
 	}
-	if !strings.HasPrefix(str(applied["applied"]), "Princess Mononoke (1997)") {
+	if !strings.HasPrefix(acc.Str(applied["applied"]), "Princess Mononoke (1997)") {
 		t.Errorf("applied = %v", applied)
 	}
 	ids, _ := applied["metadata_provider_ids"].(map[string]any)
-	if str(ids["tmdb"]) != "128" || str(ids["imdb"]) != "tt0119698" {
+	if acc.Str(ids["tmdb"]) != "128" || acc.Str(ids["imdb"]) != "tt0119698" {
 		t.Errorf("applied ids = %v", ids)
 	}
-	if err := waitForScan(); err != nil {
+	if err := suite.WaitForScan(); err != nil {
 		t.Fatal(err)
 	}
 	var got map[string]any
-	if !eventually(func() bool {
-		got = call(t, "item_get", map[string]any{"id": id})
-		return str(got["overview"]) != edited && strings.HasPrefix(str(got["overview"]), "Ashitaka, a prince")
+	if !acc.Eventually(func() bool {
+		got = suite.Call(t, "item_get", map[string]any{"id": id})
+		return acc.Str(got["overview"]) != edited && strings.HasPrefix(acc.Str(got["overview"]), "Ashitaka, a prince")
 	}) {
 		t.Errorf("after the apply the plot is %q, want the provider's in place of the edit", got["overview"])
 	}
 	gotIDs, _ := got["metadata_provider_ids"].(map[string]any)
-	if str(got["name"]) != "Princess Mononoke" || str(gotIDs["tmdb"]) != "128" || num(t, got["year"], "year") != 1997 {
+	if acc.Str(got["name"]) != "Princess Mononoke" || acc.Str(gotIDs["tmdb"]) != "128" || acc.Num(t, got["year"], "year") != 1997 {
 		t.Errorf("after apply = %v", got)
 	}
 
 	// a candidate the search no longer offers, and a kind that is not the
 	// film's: refused, nothing applied
-	if msg := callErr(t, "item_identify_apply", map[string]any{"id": id, "kind": "movie", "candidate": 99, "year": 1997, "candidate_ids": map[string]any{"tmdb": "999999999"}}); !strings.Contains(msg, "no candidate the search offers now carries") || !strings.Contains(msg, "nothing was changed") {
+	if msg := suite.CallErr(t, "item_identify_apply", map[string]any{"id": id, "kind": "movie", "candidate": 99, "year": 1997, "candidate_ids": map[string]any{"tmdb": "999999999"}}); !strings.Contains(msg, "no candidate the search offers now carries") || !strings.Contains(msg, "nothing was changed") {
 		t.Errorf("a candidate no longer offered: %s", msg)
 	}
-	if msg := callErr(t, "item_identify_apply", map[string]any{"id": id, "kind": "series", "candidate": 0, "candidate_ids": map[string]any{"tmdb": "128"}}); !strings.Contains(msg, "is a Movie, and kind series identifies a Series") {
+	if msg := suite.CallErr(t, "item_identify_apply", map[string]any{"id": id, "kind": "series", "candidate": 0, "candidate_ids": map[string]any{"tmdb": "128"}}); !strings.Contains(msg, "is a Movie, and kind series identifies a Series") {
 		t.Errorf("a kind that is not the film's: %s", msg)
 	}
 	// and the answer carries what the film was, to put it back by
-	if was, _ := applied["was"].(map[string]any); str(was["name"]) != "Princess Mononoke" {
+	if was, _ := applied["was"].(map[string]any); acc.Str(was["name"]) != "Princess Mononoke" {
 		t.Errorf("was = %v", applied["was"])
 	}
 }
@@ -149,9 +153,9 @@ func TestItemIdentifyApply(t *testing.T) {
 func TestItemArtwork(t *testing.T) {
 	id := findItem(t, "Movies", "Movie", "Blade Runner")
 	primary := func(item string) (w, h int, ok bool) {
-		for _, img := range rows(t, call(t, "item_artwork", map[string]any{"id": item, "limit": 1})["current"], "current") {
-			if str(img["ImageType"]) == "Primary" {
-				return numOr0(img["Width"]), numOr0(img["Height"]), true
+		for _, img := range acc.Rows(t, suite.Call(t, "item_artwork", map[string]any{"id": item, "limit": 1})["current"], "current") {
+			if acc.Str(img["ImageType"]) == "Primary" {
+				return acc.NumOr0(img["Width"]), acc.NumOr0(img["Height"]), true
 			}
 		}
 		return 0, 0, false
@@ -163,18 +167,18 @@ func TestItemArtwork(t *testing.T) {
 	// TestThePosterBesideAFilm), so it is laid out again first: every
 	// fixture poster is the one test pattern
 	// (scripts/testenv.sh), and the messy copy's is never replaced.
-	poster := filepath.Join(dataDir(), "movies", "Blade Runner (1982)", "poster.jpg")
+	poster := filepath.Join(testenv.DataDir(), "movies", "Blade Runner (1982)", "poster.jpg")
 	fixturePoster := fixture(t, "messy-movies/Blade Runner (1982)/poster.jpg")
 	putBack := func() {
-		mediaWrite(t, poster, fixturePoster)
-		if _, err := invoke("item_refresh", map[string]any{"id": id}); err != nil {
+		acc.MediaWrite(t, poster, fixturePoster)
+		if _, err := suite.Invoke("item_refresh", map[string]any{"id": id}); err != nil {
 			t.Errorf("refreshing Blade Runner: %v", err)
 		}
-		if !eventually(func() bool { w, h, ok := primary(id); return ok && w == 200 && h == 300 }) {
+		if !acc.Eventually(func() bool { w, h, ok := primary(id); return ok && w == 200 && h == 300 }) {
 			w, h, _ := primary(id)
 			t.Errorf("Blade Runner's poster is %dx%d, want the fixture's 200x300", w, h)
 		}
-		settleScan(t, waitForScan)
+		settleScan(t, suite.WaitForScan)
 	}
 	if w, h, ok := primary(id); !ok || w != 200 || h != 300 {
 		t.Logf("Blade Runner's poster is %dx%d (held: %v): putting the fixture's back first", w, h, ok)
@@ -183,13 +187,13 @@ func TestItemArtwork(t *testing.T) {
 	if w, h, ok := primary(id); !ok || w != 200 || h != 300 {
 		t.Fatalf("Blade Runner's poster is %dx%d (held: %v), want the fixture's 200x300", w, h, ok)
 	}
-	out := call(t, "item_artwork", map[string]any{"id": id, "type": "Primary", "limit": 3})
-	cands := rows(t, out["candidates"], "candidates")
+	out := suite.Call(t, "item_artwork", map[string]any{"id": id, "type": "Primary", "limit": 3})
+	cands := acc.Rows(t, out["candidates"], "candidates")
 	if len(cands) == 0 || len(cands) > 3 {
 		t.Fatalf("candidates = %v", cands)
 	}
 	for _, c := range cands {
-		if !strings.HasPrefix(str(c["url"]), "http") || str(c["provider"]) == "" {
+		if !strings.HasPrefix(acc.Str(c["url"]), "http") || acc.Str(c["provider"]) == "" {
 			t.Errorf("candidate = %v", c)
 		}
 	}
@@ -204,11 +208,11 @@ func TestItemArtwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	set := call(t, "item_artwork_set", map[string]any{"id": id, "url": str(cands[0]["url"]), "type": "Primary"})
+	set := suite.Call(t, "item_artwork_set", map[string]any{"id": id, "url": acc.Str(cands[0]["url"]), "type": "Primary"})
 	if nfoAfter, err := os.ReadFile(nfo); err != nil || !bytes.Equal(nfoAfter, nfoBefore) { //nolint:gosec // same
 		t.Errorf("after item_artwork_set the nfo beside the film changed (%v)", err)
 	}
-	if str(set["set"]) != "Primary" {
+	if acc.Str(set["set"]) != "Primary" {
 		t.Errorf("item_artwork_set = %v", set)
 	}
 	_, statErr := os.Stat(poster)
@@ -216,28 +220,28 @@ func TestItemArtwork(t *testing.T) {
 		if now, err := os.ReadFile(poster); statErr != nil || err != nil || !bytes.Equal(now, fixturePoster) || set["removed"] != nil || set["replaced"] != nil { //nolint:gosec // same
 			t.Errorf("on Jellyfin the poster file beside the film: %v %v, and the answer = %v; want it kept as it was, and neither removed nor written over", statErr, err, set)
 		}
-	} else if !os.IsNotExist(statErr) || str(set["removed"]) != "/media/movies/Blade Runner (1982)/poster.jpg" || !strings.Contains(str(set["note"]), "deleted") {
+	} else if !os.IsNotExist(statErr) || acc.Str(set["removed"]) != "/media/movies/Blade Runner (1982)/poster.jpg" || !strings.Contains(acc.Str(set["note"]), "deleted") {
 		t.Errorf("on Emby the poster file beside the film: %v, and the answer = %v; want it gone and named", statErr, set)
 	}
-	if !recording() && !eventually(func() bool { w, h, ok := primary(id); return ok && w == 2 && h == 2 }) {
+	if !testenv.Recording() && !acc.Eventually(func() bool { w, h, ok := primary(id); return ok && w == 2 && h == 2 }) {
 		w, h, _ := primary(id)
 		t.Errorf("after item_artwork_set the poster is %dx%d, want the replayed 2x2", w, h)
 	}
 
 	// and a type the item had none of: the messy copy, its fetchers off, has
 	// only its poster.jpg, and takes the clean copy's backdrop
-	backdrops := rows(t, call(t, "item_artwork", map[string]any{"id": id, "type": "Backdrop", "limit": 2})["candidates"], "candidates")
+	backdrops := acc.Rows(t, suite.Call(t, "item_artwork", map[string]any{"id": id, "type": "Backdrop", "limit": 2})["candidates"], "candidates")
 	if len(backdrops) == 0 {
 		t.Fatal("no backdrop candidates")
 	}
 	var messy string
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Blade Runner"})["items"], "items") {
-		messy = str(it["id"]) // either of Emby's two will do
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Blade Runner"})["items"], "items") {
+		messy = acc.Str(it["id"]) // either of Emby's two will do
 	}
 	types := func() []string {
 		var out []string
-		for _, img := range rows(t, call(t, "item_artwork", map[string]any{"id": messy, "limit": 1})["current"], "current") {
-			out = append(out, str(img["ImageType"]))
+		for _, img := range acc.Rows(t, suite.Call(t, "item_artwork", map[string]any{"id": messy, "limit": 1})["current"], "current") {
+			out = append(out, acc.Str(img["ImageType"]))
 		}
 		return out
 	}
@@ -249,10 +253,10 @@ func TestItemArtwork(t *testing.T) {
 			t.Errorf("removing the backdrop: HTTP %d: %s", status, raw)
 		}
 	})
-	if set := call(t, "item_artwork_set", map[string]any{"id": messy, "url": str(backdrops[0]["url"]), "type": "Backdrop"}); str(set["set"]) != "Backdrop" {
+	if set := suite.Call(t, "item_artwork_set", map[string]any{"id": messy, "url": acc.Str(backdrops[0]["url"]), "type": "Backdrop"}); acc.Str(set["set"]) != "Backdrop" {
 		t.Errorf("item_artwork_set type Backdrop = %v", set)
 	}
-	if !eventually(func() bool { return slices.Contains(types(), "Backdrop") }) {
+	if !acc.Eventually(func() bool { return slices.Contains(types(), "Backdrop") }) {
 		t.Errorf("after item_artwork_set the messy copy's images are %v, want a Backdrop", types())
 	}
 }
@@ -263,14 +267,14 @@ func TestItemArtwork(t *testing.T) {
 func TestSubtitles(t *testing.T) {
 	id := findItem(t, "Movies", "Movie", "Dune")
 	for _, args := range []map[string]any{{"id": id, "language": "eng"}, {"id": id}} {
-		if out := call(t, "item_subtitle_search", args); len(rows(t, out["candidates"], "candidates")) != 0 {
+		if out := suite.Call(t, "item_subtitle_search", args); len(acc.Rows(t, out["candidates"], "candidates")) != 0 {
 			t.Errorf("item_subtitle_search %v = %v, want nothing with no provider", args, out["candidates"])
 		}
 	}
 	// a download of a subtitle no provider offered: Emby refuses it with a
 	// 500, and Jellyfin answers 204 having downloaded nothing, which the tool
 	// reads back for and refuses too
-	msg := callErr(t, "item_subtitle_download", map[string]any{"id": id, "subtitle_id": "nope_nope"})
+	msg := suite.CallErr(t, "item_subtitle_download", map[string]any{"id": id, "subtitle_id": "nope_nope"})
 	want := "HTTP 500"
 	if isJellyfin() {
 		want = "no new subtitle file appeared beside Dune and no new subtitle reached it within ten seconds"

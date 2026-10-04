@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -213,144 +212,6 @@ type audioTrack struct {
 	Bitrate  int64  `json:"bitrate,omitempty"  jsonschema:"bits per second, when known"`
 }
 
-// The dynamic range a file carries, or that nobody has established.
-const (
-	hdrUnknown = "unknown"
-	hdrSDR     = "sdr"
-	// hdrAny is HDR of a kind the server did not narrow down: a claim of
-	// HDR, and no more
-	hdrAny          = "hdr"
-	hdr10           = "hdr10"
-	hdr10Plus       = "hdr10plus"
-	hdrHLG          = "hlg"
-	hdrDOVI         = "dovi"
-	hdrDOVI10       = "dovi_hdr10"
-	hdrDOVI10Plus   = "dovi_hdr10plus"
-	hdrDOVIHLG      = "dovi_hlg"
-	hdrDOVISDR      = "dovi_sdr"
-	hdrDOVIEL       = "dovi_el"
-	hdrDOVIEL10Plus = "dovi_el_hdr10plus"
-	hdrDOVIInvalid  = "dovi_invalid"
-)
-
-// jellyfinRanges are Jellyfin's narrow readings (VideoRangeType), by the
-// names the hdr field gives them.
-var jellyfinRanges = map[string]string{
-	"sdr": hdrSDR, "hdr10": hdr10, "hdr10plus": hdr10Plus, "hlg": hdrHLG,
-	"dovi": hdrDOVI, "doviwithhdr10": hdrDOVI10, "doviwithhdr10plus": hdrDOVI10Plus, "doviwithhlg": hdrDOVIHLG,
-	"doviwithsdr": hdrDOVISDR, "doviwithel": hdrDOVIEL, "doviwithelhdr10plus": hdrDOVIEL10Plus, "doviinvalid": hdrDOVIInvalid,
-}
-
-// embyRanges are Emby's narrow readings (ExtendedVideoType) other than Dolby
-// Vision, which embyDolbyVision reads by its profile.
-var embyRanges = map[string]string{
-	"none": "", "hdr10": hdr10, "hdr10plus": hdr10Plus, "hyperloggamma": hdrHLG,
-}
-
-// embyDolbyVision are Emby's Dolby Vision profiles (ExtendedVideoSubType,
-// DoviProfile and the profile's two digits: 81 is 8.1) by the base layer a
-// player without Dolby Vision is left with: 8.1 an HDR10 one, 8.4 HLG, 8.2
-// and 9.2 SDR, 5.0 none, and 7.6 and 6.1 an enhancement layer over HDR10.
-// A profile not named here is Dolby Vision whose fallback is not known.
-var embyDolbyVision = map[string]string{
-	"doviprofile81": hdrDOVI10, "doviprofile84": hdrDOVIHLG, "doviprofile82": hdrDOVISDR, "doviprofile92": hdrDOVISDR,
-	"doviprofile42": hdrDOVISDR, "doviprofile50": hdrDOVI, "doviprofile76": hdrDOVIEL, "doviprofile61": hdrDOVIEL,
-}
-
-// sdrTransfers are the transfer functions of a picture that is not HDR:
-// BT.709 and the older broadcast curves, sRGB, and BT.2020's own SDR ones.
-var sdrTransfers = []string{
-	"bt709", "bt470m", "bt470bg", "smpte170m", "smpte240m", "linear", "log100", "log316",
-	"iec61966-2-4", "bt1361e", "iec61966-2-1", "bt2020-10", "bt2020-12", "gamma22", "gamma28",
-}
-
-// hdrFormat reads the servers' narrow readings first (Jellyfin's
-// VideoRangeType, Emby's ExtendedVideoType and the Dolby Vision profile),
-// then the broad one both answer (VideoRange), then the colour transfer, and
-// says "unknown" when none of them settles it.
-//
-// This field used to be absent for three different reasons - the file is SDR,
-// the server never probed it, or the server does not expose what it found -
-// and a caller could not tell them apart. One did not: reading an absent
-// field as "no HDR10, therefore Dolby Vision" put files in the wrong
-// bucket. Two files of one release, one answering "pq" and the next
-// answering nothing, is inconsistent metadata rather than two formats, and
-// only an explicit unknown can say so. Nor is a Dolby Vision file HDR10
-// because its base layer is: Jellyfin's DOVIWithEL read as hdr10, and so
-// did every Dolby Vision file on Emby, whose broad reading says only "HDR 10".
-func hdrFormat(st *embyfin.MediaStream) string {
-	if format, ok := jellyfinRanges[strings.ToLower(st.VideoRangeType)]; ok {
-		return format
-	}
-	switch kind := strings.ToLower(st.ExtendedVideoType); kind {
-	case "dolbyvision":
-		if format, ok := embyDolbyVision[strings.ToLower(st.ExtendedVideoSubType)]; ok {
-			return format
-		}
-
-		return hdrDOVI
-	default:
-		if format := embyRanges[kind]; format != "" {
-			return format
-		}
-	}
-
-	// then the broad reading both servers answer: Jellyfin says SDR or HDR,
-	// and Emby 4.10 the same or, for a file tagged with HDR10's colours,
-	// "HDR 10"
-	switch strings.ToLower(st.VideoRange) {
-	case "sdr":
-		return hdrSDR
-	case "hdr 10", "hdr10":
-		return hdr10
-	case "hdr 10+", "hdr10+":
-		return hdr10Plus
-	case "hlg":
-		return hdrHLG
-	case "dolby vision":
-		return hdrDOVI
-	case "hdr":
-		if format := hdrFromTransfer(st.ColourTransfer); format != "" {
-			return format
-		}
-
-		// HDR, and nothing to say which: not HDR10 for want of saying
-		return hdrAny
-	}
-
-	// and last the transfer function, which a file can carry without the
-	// server having formed an opinion about it
-	if format := hdrFromTransfer(st.ColourTransfer); format != "" {
-		return format
-	}
-	if slices.Contains(sdrTransfers, strings.ToLower(st.ColourTransfer)) {
-		// an SDR transfer is itself a statement
-		return hdrSDR
-	}
-
-	return hdrUnknown
-}
-
-// specificHDR says whether a format names one kind of picture, which two
-// copies can disagree on: unknown names nothing, and hdr names only that it
-// is HDR of some kind.
-func specificHDR(format string) bool {
-	format = strings.ToLower(format)
-
-	return format != "" && format != hdrUnknown && format != hdrAny
-}
-
-func hdrFromTransfer(transfer string) string {
-	switch strings.ToLower(transfer) {
-	case "smpte2084", "smpte-st-2084", "pq":
-		return hdr10
-	case "arib-std-b67", "hlg":
-		return hdrHLG
-	}
-
-	return ""
-}
-
 // factNames are the facts a caller can ask for by name, so a reconcile that
 // compares on resolution and bitrate does not also pay for a subtitle list.
 // On a series dubbed into thirty languages the subtitle and audio lists are
@@ -437,26 +298,9 @@ func (q *qualityFacts) keepOnly(keep map[string]bool) {
 	}
 }
 
-// ownSource is the file an item's own path names, which is the file a row
-// naming that path must answer for: a row whose path is one file and whose
-// facts are another's (a 2160p version's height beside a 1080p path) reads
-// as the path being 2160p. An item with one file answers with it whatever
-// its path says (a disc kept whole is held at its folder); one with several,
-// none of them at its path, with none.
-func ownSource(it *embyfin.Item) *embyfin.MediaSource {
-	if src := sourceAt(it, it.Path); src != nil {
-		return src
-	}
-	if len(it.MediaSources) == 1 {
-		return &it.MediaSources[0]
-	}
-
-	return nil
-}
-
 // pathQuality reads the facts off the file an item's path names.
 func pathQuality(it *embyfin.Item) qualityFacts {
-	if src := ownSource(it); src != nil {
+	if src := it.OwnSource(); src != nil {
 		return sourceQuality(src)
 	}
 
@@ -494,7 +338,7 @@ func versionRows(it *embyfin.Item, keep map[string]bool) []versionRow {
 // beside a DVD rip is what the library can play, the same rule audit_quality
 // judges by. An item the server holds no file for has none of them.
 func qualityOf(it *embyfin.Item) qualityFacts {
-	best := bestSource(it)
+	best := it.BestSource()
 	if best == nil {
 		return qualityFacts{}
 	}
@@ -502,47 +346,11 @@ func qualityOf(it *embyfin.Item) qualityFacts {
 	return sourceQuality(best)
 }
 
-// bestSource is the file that speaks for an item: the tallest of its
-// versions, or nil when it has none.
-func bestSource(it *embyfin.Item) *embyfin.MediaSource {
-	if len(it.MediaSources) == 0 {
-		return nil
-	}
-
-	best := &it.MediaSources[0]
-	bestHeight := -1
-	for i := range it.MediaSources {
-		h := 0
-		if v := videoOf(&it.MediaSources[i]); v != nil {
-			h = v.Height
-		}
-		if h > bestHeight {
-			best, bestHeight = &it.MediaSources[i], h
-		}
-	}
-
-	return best
-}
-
-// sourceAt is the version of an item held at one path, or nil when none of
-// them is. A server that finds two files of one episode in a folder merges
-// them into one item, so a path can be the second version of something whose
-// own path is the first.
-func sourceAt(it *embyfin.Item, path string) *embyfin.MediaSource {
-	for i := range it.MediaSources {
-		if src := &it.MediaSources[i]; src.Path != "" && filepath.Clean(src.Path) == filepath.Clean(path) {
-			return src
-		}
-	}
-
-	return nil
-}
-
 // qualityAt reads the facts off the file at a path rather than off the best
 // of an item's versions: what writing to that path would replace. An item
 // whose versions do not list the path falls back to its best file.
 func qualityAt(it *embyfin.Item, path string) qualityFacts {
-	if src := sourceAt(it, path); src != nil {
+	if src := it.SourceAt(path); src != nil {
 		return sourceQuality(src)
 	}
 
@@ -559,7 +367,7 @@ func sourceQuality(best *embyfin.MediaSource) qualityFacts {
 				q.Width, q.Height, q.VideoCodec = st.Width, st.Height, st.Codec
 				q.AspectRatio, q.DisplayWidth = st.AspectRatio, st.DisplayWidth()
 				q.FrameRate = math.Round(float64(st.FrameRate)*1000) / 1000
-				q.HDR = hdrFormat(&st)
+				q.HDR = st.HDR()
 				if st.BitRate > 0 {
 					q.Bitrate = st.BitRate
 				}
@@ -700,7 +508,7 @@ func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, 
 	held = map[[2]int][]*embyfin.Item{}
 	seen := map[string]bool{}
 	for _, season := range queries {
-		opts := embyfin.EpisodeOptions{Fields: fields + "," + versionCountField}
+		opts := embyfin.EpisodeOptions{Fields: fields + "," + embyfin.FieldVersionCount}
 		if len(queries) > 1 || season > 0 {
 			opts.Season = &season
 		} else {
@@ -710,7 +518,7 @@ func episodesHeld(ctx context.Context, client *embyfin.Client, seriesID string, 
 		if err != nil {
 			return nil, nil, false, err
 		}
-		if err := withVersionFiles(ctx, client, episodes); err != nil {
+		if err := client.WithVersionFiles(ctx, episodes); err != nil {
 			return nil, nil, false, err
 		}
 		for i := range episodes {
@@ -815,7 +623,7 @@ func otherFiles(answer *embyfin.Item, others []*embyfin.Item, quality bool, keep
 		if len(e.MediaSources) < 2 {
 			return
 		}
-		own := ownSource(e)
+		own := e.OwnSource()
 		for i := range e.MediaSources {
 			if src := &e.MediaSources[i]; src != own {
 				add(heldCopy{ID: src.ItemID, SeriesID: e.SeriesID, Path: src.Path, VersionOf: e.ID}, src)
@@ -824,7 +632,7 @@ func otherFiles(answer *embyfin.Item, others []*embyfin.Item, quality bool, keep
 	}
 	folded(answer)
 	for _, o := range others {
-		add(heldCopy{ID: o.ID, SeriesID: o.SeriesID, Path: o.Path}, ownSource(o))
+		add(heldCopy{ID: o.ID, SeriesID: o.SeriesID, Path: o.Path}, o.OwnSource())
 		folded(o)
 	}
 
@@ -1079,7 +887,7 @@ func registerEpisodeTools(r *registry) {
 		if !quality || !needsMediaSources(keep) {
 			// how many files an item is held in, so the paths of the ones
 			// folded into it are read back even when no fact is asked for
-			opts.Fields = "Path,DateCreated,DateModified," + versionCountField
+			opts.Fields = "Path,DateCreated,DateModified," + embyfin.FieldVersionCount
 		}
 
 		var series *embyfin.Item
@@ -1103,7 +911,7 @@ func registerEpisodeTools(r *registry) {
 		case in.Season != nil:
 			return nil, exportOut{}, errors.New("season needs series or series_id: a season number means nothing across a library")
 		default:
-			folder, ferr := resolveLibrary(ctx, client, in.Library)
+			folder, ferr := client.ResolveLibrary(ctx, in.Library)
 			if ferr != nil {
 				return nil, exportOut{}, ferr
 			}
@@ -1117,7 +925,7 @@ func registerEpisodeTools(r *registry) {
 			return nil, exportOut{}, serr
 		}
 		if quality {
-			if verr := withVersionFiles(ctx, client, items); verr != nil {
+			if verr := client.WithVersionFiles(ctx, items); verr != nil {
 				return nil, exportOut{}, verr
 			}
 		}

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -87,7 +88,7 @@ func sweepOptions(ctx context.Context, client *embyfin.Client, library, types, d
 		types = def
 	}
 	opts := embyfin.SearchOptions{IncludeItemTypes: types, Fields: fields}
-	folder, err := resolveLibrary(ctx, client, library)
+	folder, err := client.ResolveLibrary(ctx, library)
 	if err != nil {
 		return opts, err
 	}
@@ -281,6 +282,64 @@ func searchMatches(ctx context.Context, client *embyfin.Client, opts embyfin.Sea
 	return items, false, note, nil
 }
 
+// sinceTime reads a time a caller gives as a date (2006-01-02) or a time
+// with or without its zone, the way saved_since is read.
+func sinceTime(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", time.DateOnly} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("%q is not a date (2026-01-02) or a time (2026-01-02T15:04:05Z)", s)
+}
+
+// addedSince reads the items added at or after cutoff, newest first, a page
+// at a time until one older comes - which the order puts after every newer
+// one - or searchSortMax have been read, when more says the rest were not.
+func addedSince(ctx context.Context, client *embyfin.Client, opts embyfin.SearchOptions, cutoff time.Time) (items []embyfin.Item, more bool, note string, err error) {
+	opts.SortBy, opts.SortOrder, opts.StartIndex, opts.Limit = itemSorts["added"], sortDescending, 0, episodePageMax
+	for len(items) <= searchSortMax {
+		page, total, err := client.Search(ctx, opts)
+		if err != nil {
+			return nil, false, "", err
+		}
+		for i := range page {
+			after, err := afterCutoff(&page[i], cutoff)
+			if err != nil {
+				return nil, false, "", err
+			}
+			if !after {
+				return items, false, "", nil
+			}
+			items = append(items, page[i])
+		}
+		opts.StartIndex += len(page)
+		if len(page) == 0 || opts.StartIndex >= total {
+			return items, false, "", nil
+		}
+	}
+
+	return items[:searchSortMax], true, fmt.Sprintf("more than %d items were added since %s, too many to count: these are the newest %d, and no page past them can be given; ask from a later time", searchSortMax, cutoff.Format(time.RFC3339), searchSortMax), nil
+}
+
+// addedAfter keeps the items added at or after cutoff.
+func addedAfter(items []embyfin.Item, cutoff time.Time) ([]embyfin.Item, error) {
+	kept := make([]embyfin.Item, 0, len(items))
+	for i := range items {
+		after, err := afterCutoff(&items[i], cutoff)
+		if err != nil {
+			return nil, err
+		}
+		if after {
+			kept = append(kept, items[i])
+		}
+	}
+
+	return kept, nil
+}
+
 func registerLibraryBrowseTools(r *registry) {
 	client := r.client
 
@@ -297,20 +356,21 @@ func registerLibraryBrowseTools(r *registry) {
 		Watched         string   `json:"watched,omitempty"          jsonschema:"watched, unwatched, in_progress or favourite, in user's view"`
 		User            string   `json:"user,omitempty"             jsonschema:"whose watch state watched and sort=played read, by name or id; defaults to the first administrator"`
 		SavedSince      string   `json:"saved_since,omitempty"      jsonschema:"only items the server last SAVED at or after this time: a date such as 2026-01-02, or a time such as 2026-01-02T15:04:05Z: the closest either server offers to 'what changed'. A file written over an existing path is re-read and saved, but so is an item somebody edited, and neither server can sort by it"`
+		AddedSince      string   `json:"added_since,omitempty"      jsonschema:"only items added to the library at or after this time: a date such as 2026-01-02, or a time such as 2026-01-02T15:04:05Z. Read newest first, so sort is added or left out; total counts them all when at most 2000 were added since, and is null past that"`
 		Sort            string   `json:"sort,omitempty"             jsonschema:"name (default; relevance when there is a query), added, premiered, year, runtime, rating, played (needs a user) or random"`
 		Desc            bool     `json:"desc,omitempty"             jsonschema:"sort descending"`
 		Limit           int      `json:"limit,omitempty"            jsonschema:"page size, default 25, max 1000"`
 		Offset          int      `json:"offset,omitempty"           jsonschema:"skip this many items, to page"`
 	}
 	type itemsOut struct {
-		Total  *int          `json:"total"          jsonschema:"matches across every page, as the server stores them: on Emby each file of a film held in several is an item of its own, on Jellyfin one item with the rest in its versions. Read in a user's view (user, watched or sort played given), Emby shows a film held in several files once, counts it once, and lists that item's own file alone. A title search is counted here, neither server counting one; null when more than 2000 items match it, too many to count, or when its read stopped short, the library changing too much to follow"`
+		Total  *int          `json:"total"          jsonschema:"matches across every page, as the server stores them: on Emby each file of a film held in several is an item of its own, on Jellyfin one item with the rest in its versions. Read in a user's view (user, watched or sort played given), Emby shows a film held in several files once, counts it once, and lists that item's own file alone. A title search is counted here, neither server counting one; null when more than 2000 items match it, too many to count, when its read stopped short, the library changing too much to follow, or when more than 2000 items were added since added_since"`
 		Offset int           `json:"offset"`
 		Items  []itemSummary `json:"items"`
 		Note   string        `json:"note,omitempty" jsonschema:"a title search reads every match, to count, page and sort them: set when more than 2000 match, and when the library was seen to change while it was read, so matches added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "library_items",
-		Description: "Find and browse library items: a title search, a structured filter, or both, sorted and paged: 'alien', 'every unwatched horror film, newest first', 'what is rated TV-MA', 'what came from A24', 'what has Sigourney Weaver in it'. Filters combine (an item must pass each one given); within one, any value matches. Returns trimmed summaries with metadata provider ids, runtime and stream quality facts of the file at each item's path, and every file in versions when an item is held in several. " +
+		Description: "Find and browse library items: a title search, a structured filter, or both, sorted and paged: 'alien', 'every unwatched horror film, newest first', 'what is rated TV-MA', 'what came from A24', 'what has Sigourney Weaver in it', 'what was added since Monday' (added_since). Filters combine (an item must pass each one given); within one, any value matches. Returns trimmed summaries with metadata provider ids, runtime and stream quality facts of the file at each item's path, and every file in versions when an item is held in several. " +
 			"On Emby a read in a user's view (user, watched, or sort played) shows people's view: a film held in several files is one item listing its own file alone, so leave those out to see every file.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in itemsIn) (*mcp.CallToolResult, itemsOut, error) {
 		// capped as library_episodes is: every summary carries its files'
@@ -324,6 +384,17 @@ func registerLibraryBrowseTools(r *registry) {
 		offset := max(in.Offset, 0)
 
 		sort := strings.ToLower(strings.TrimSpace(in.Sort))
+		var added time.Time
+		if in.AddedSince != "" {
+			cutoff, err := sinceTime(in.AddedSince)
+			if err != nil {
+				return nil, itemsOut{}, fmt.Errorf("added_since: %w", err)
+			}
+			if sort != "" && sort != "added" {
+				return nil, itemsOut{}, fmt.Errorf("sort %q with added_since: the items added since a time are read newest first, so sort is added or left out", in.Sort)
+			}
+			added, sort, in.Desc = cutoff, "added", true
+		}
 		var sortBy string
 		switch {
 		case sort == "" && strings.TrimSpace(in.Query) != "":
@@ -369,7 +440,7 @@ func registerLibraryBrowseTools(r *registry) {
 			}
 			opts.Filters = filter
 		}
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, itemsOut{}, err
 		}
@@ -403,10 +474,24 @@ func registerLibraryBrowseTools(r *registry) {
 		// first); neither counts one, Emby answering 0 and Jellyfin at most
 		// three times the limit, and Jellyfin lists nothing past that. So a
 		// search's matches are read whole, and counted, paged and sorted here
-		if opts.SearchTerm != "" {
-			matches, more, note, merr := searchMatches(ctx, client, opts, sort, in.Desc)
-			if merr != nil {
-				return nil, itemsOut{}, merr
+		if opts.SearchTerm != "" || !added.IsZero() {
+			var matches []embyfin.Item
+			var more bool
+			var note string
+			if opts.SearchTerm != "" {
+				matches, more, note, err = searchMatches(ctx, client, opts, sort, in.Desc)
+			} else {
+				matches, more, note, err = addedSince(ctx, client, opts, added)
+			}
+			if err != nil {
+				return nil, itemsOut{}, err
+			}
+			if !added.IsZero() && opts.SearchTerm != "" {
+				// a search's matches, read whole and sorted newest first: the
+				// ones added since the time
+				if matches, err = addedAfter(matches, added); err != nil {
+					return nil, itemsOut{}, err
+				}
 			}
 			page := matches[min(offset, len(matches)):min(offset+limit, len(matches))]
 			out := itemsOut{Offset: offset, Items: summariseAll(page), Note: note}

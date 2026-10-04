@@ -12,23 +12,19 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"slices"
-	"strconv"
 	"strings"
-	"sync"
 	"testing"
-	"time"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
-	"github.com/katbyte/embyfin-mcp/lib/providerproxy"
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 	"github.com/katbyte/embyfin-mcp/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -194,7 +190,7 @@ type albumFixture struct {
 	Genre  string
 	Tracks []string
 	// Cover is false for the one album with no art, which is what
-	// audit_missing_poster looks for in a music library.
+	// audit_missing_metadata's poster problem looks for in a music library.
 	Cover bool
 	// the MusicBrainz ids the tracks' tags carry, which come through as
 	// their provider ids; none on the rip nothing was looked up for
@@ -303,38 +299,12 @@ var messyShows = []messyShowFixture{
 var (
 	ctx     context.Context
 	session *mcp.ClientSession
-	ready   bool
-	proxy   *providerproxy.Proxy
+	proxy   *testenv.Proxy
 	backend embyfin.Backend
+	// suite drives the tools through session; until start connects it, every
+	// call skips
+	suite = &acc.Suite{NotReady: "EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN are not set; run: eval \"$(EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh up)\""}
 )
-
-// recording reports whether this run may call the real providers.
-// EMBYFIN_TEST_RECORD=1 fills in only the answers a cassette lacks, replaying
-// the rest as recorded; EMBYFIN_TEST_RECORD=all fetches every answer afresh
-// (make record). Either needs a TMDB token.
-func recording() bool { return os.Getenv("EMBYFIN_TEST_RECORD") != "" }
-
-// verifying reports whether to check the cassettes against the live providers
-// without rewriting them.
-func verifying() bool { return os.Getenv("EMBYFIN_TEST_VERIFY") != "" }
-
-// configured reports whether the container environment is present.
-func configured() bool {
-	return os.Getenv("EMBYFIN_SERVER") != "" && os.Getenv("EMBYFIN_TOKEN") != "" && os.Getenv("EMBYFIN_BACKEND") != ""
-}
-
-// dataDir is the host path the container's /media is bind-mounted from, so a
-// test can add or remove files and rescan. It is "" when EMBYFIN_TEST_DATA is
-// not set, which every test that lays files out skips on: joined onto
-// nothing, the path was ./media, and those tests wrote into the checkout.
-func dataDir() string {
-	env := os.Getenv("EMBYFIN_TEST_DATA")
-	if env == "" {
-		return ""
-	}
-
-	return filepath.Join(env, "media")
-}
 
 // isJellyfin lets a test say where the two servers legitimately differ;
 // everything else is asserted the same way for both.
@@ -342,31 +312,31 @@ func isJellyfin() bool { return backend == embyfin.Jellyfin }
 
 // testMain connects, starts the provider proxy, seeds the fixtures, and runs.
 func testMain(m *testing.M) {
-	if !configured() {
+	if !testenv.Configured() {
 		os.Exit(m.Run()) // every test skips
 	}
-	backend = embyfin.Backend(os.Getenv("EMBYFIN_BACKEND"))
-	if err := startProxy(); err != nil {
+	backend = embyfin.Backend(testenv.Backend())
+	p, err := testenv.StartProxy(context.Background(), testenv.CassetteDir(string(backend)))
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "provider proxy:", err)
 		os.Exit(1)
 	}
+	proxy = p
 	if err := start(); err != nil {
-		stopProxy()
+		_ = proxy.Stop()
 		fmt.Fprintln(os.Stderr, "acceptance setup:", err)
 		os.Exit(1)
 	}
 
 	code := m.Run()
-	stopProxy()
+	if err := proxy.Stop(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 
-	// a replay miss means a test ran against a 502 rather than a recording, so
-	// say so loudly even when the assertions happened to survive it
-	if misses := proxyMisses; len(misses) > 0 {
-		fmt.Fprintf(os.Stderr, "\nprovider proxy: %d request(s) had no recording:\n", len(misses))
-		for _, m := range misses {
-			fmt.Fprintln(os.Stderr, "  "+m)
-		}
-		fmt.Fprintln(os.Stderr, "run `make record` to capture them")
+	// a replay miss, or an answer that changed shape, is said loudly even
+	// when the assertions happened to survive it
+	if report := proxy.Report(); report != "" {
+		fmt.Fprint(os.Stderr, report)
 		if code == 0 {
 			code = 1
 		}
@@ -376,7 +346,7 @@ func testMain(m *testing.M) {
 	// refused it. Only a whole-suite run can say that, so a -run filter skips
 	// the check.
 	if f := flag.Lookup("test.run"); f == nil || f.Value.String() == "" {
-		never, onlyRefused, err := uncovered()
+		never, onlyRefused, err := suite.Uncovered()
 		switch {
 		case err != nil:
 			fmt.Fprintln(os.Stderr, "\ntool coverage: could not list tools:", err)
@@ -391,7 +361,7 @@ func testMain(m *testing.M) {
 			if len(onlyRefused) > 0 {
 				fmt.Fprintf(os.Stderr, "\n%d registered tool(s) only ever failed in this suite, so nothing shows they work:\n", len(onlyRefused))
 				for _, name := range onlyRefused {
-					fmt.Fprintf(os.Stderr, "  %s (%d failed calls)\n", name, calls(name).failed)
+					fmt.Fprintf(os.Stderr, "  %s (%d failed calls)\n", name, suite.Calls(name).Failed)
 				}
 			}
 			fmt.Fprintln(os.Stderr, "every tool needs a test that it answers; add one or remove the tool")
@@ -399,156 +369,14 @@ func testMain(m *testing.M) {
 		}
 	}
 
-	// drift is only collected under EMBYFIN_TEST_VERIFY: the providers still
-	// answer, but no longer in the shape the server decodes
-	if drifts := proxyDrifts; len(drifts) > 0 {
-		fmt.Fprintf(os.Stderr, "\nprovider proxy: %d response(s) changed shape since recording:\n", len(drifts))
-		for _, d := range drifts {
-			fmt.Fprintln(os.Stderr, "  "+d.String())
-		}
-		fmt.Fprintln(os.Stderr, "\nreview the changes, then run `make record` to accept them")
-		if code == 0 {
-			code = 1
-		}
-	}
-
 	os.Exit(code)
 }
 
-var (
-	proxyMisses []string
-	proxyDrifts []providerproxy.Drift
-)
-
-// toolCalls is how a tool's calls through invoke went: the ones that
-// answered, and the ones that failed - a refusal the test asked for, or an
-// error it did not.
-type toolCalls struct {
-	answered, failed int
-}
-
-var (
-	calledMu sync.Mutex
-	called   = map[string]toolCalls{}
-)
-
-// calls is how a tool's calls have gone so far.
-func calls(name string) toolCalls {
-	calledMu.Lock()
-	defer calledMu.Unlock()
-
-	return called[name]
-}
-
 // cannotAnswer are the tools a throwaway server gives nothing to answer
-// with, so a call that fails is the only one a test can make, and why.
+// with, so a call that fails is the only one a test can make, and why (see
+// acc.Suite.Uncovered).
 var cannotAnswer = map[string]string{
 	"item_subtitle_download": "no subtitle provider is installed on a test server, so nothing is ever offered to download",
-}
-
-// uncovered names the registered tools no test has seen answer: those never
-// called at all, and those whose every call failed. A tool that is only
-// listed is not tested, and nor is one only ever refused - that proves it
-// checks what it is given, not that it does its job - so adding a tool
-// without a test of it working fails the suite rather than quietly widening
-// the untested surface. The few that cannot answer here (cannotAnswer) need
-// a call all the same.
-func uncovered() (never, onlyFailed []string, err error) {
-	res, err := session.ListTools(ctx, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	calledMu.Lock()
-	defer calledMu.Unlock()
-
-	for _, tool := range res.Tools {
-		c := called[tool.Name]
-		switch {
-		case c.answered > 0:
-		case c.failed > 0 && cannotAnswer[tool.Name] != "":
-		case c.failed > 0:
-			onlyFailed = append(onlyFailed, tool.Name)
-		default:
-			never = append(never, tool.Name)
-		}
-	}
-	slices.Sort(never)
-	slices.Sort(onlyFailed)
-
-	return never, onlyFailed, nil
-}
-
-// cassetteDir is where this backend's recordings live: Emby and Jellyfin ask
-// the providers different questions, so each has its own set.
-func cassetteDir() string {
-	return filepath.Join("testdata", "cassettes", string(backend))
-}
-
-// startProxy brings up the record/replay proxy the container's HTTPS_PROXY
-// already points at, signing with the CA scripts/testenv.sh minted and
-// mounted into the container.
-func startProxy() error {
-	port := 18080
-	if v := os.Getenv("EMBYFIN_TEST_PROXY_PORT"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return fmt.Errorf("EMBYFIN_TEST_PROXY_PORT=%q: %w", v, err)
-		}
-		port = n
-	}
-
-	mode := providerproxy.Replay
-	switch {
-	case recording():
-		mode = providerproxy.Record
-	case verifying():
-		mode = providerproxy.Verify
-	}
-
-	opts := providerproxy.Options{
-		Mode:        mode,
-		CassetteDir: cassetteDir(),
-		// every interface and both stacks: the container reaches this through
-		// host.docker.internal, which docker maps to the host gateway, and a
-		// runner that hands the container an IPv6 route as well would find
-		// nothing listening on an IPv4-only socket
-		Addr: ":" + strconv.Itoa(port),
-		// no API key may decide a cassette match or be committed with it:
-		// an operator's own (TMDB's api_key) or the one a media server
-		// carries for a provider (OMDb's apikey, which is Emby's and
-		// Jellyfin's to rotate, not ours to publish)
-		RedactQuery: []string{"api_key", "apikey"},
-		// a provider's login answers with a bearer token for the media
-		// server's own account; replay never needs one
-		RedactBodyFields: []string{"token"},
-		// the media server reaching itself is not provider traffic
-		// Emby asks ipify, then its own service, for its public address on
-		// startup, which is nobody's business and not part of any recording
-		IgnoreHosts: append(containerAddresses(), "api.ipify.org", "api64.ipify.org", "connect.emby.media"),
-	}
-	if ca := os.Getenv("EMBYFIN_TEST_PROXY_CA"); ca != "" {
-		opts.CACert, opts.CAKey = filepath.Join(ca, "ca.pem"), filepath.Join(ca, "ca.key")
-	}
-	p, err := providerproxy.New(opts)
-	if err != nil {
-		return err
-	}
-	proxy = p
-
-	return checkProxyReachable(port)
-}
-
-func stopProxy() {
-	if proxy == nil {
-		return
-	}
-	proxyMisses = proxy.Misses()
-	proxyDrifts = proxy.Drifts()
-	if err := proxy.Close(); err != nil {
-		fmt.Fprintln(os.Stderr, "provider proxy close:", err)
-	}
-	proxy = nil
 }
 
 // providerTransport routes embyfin-mcp's own provider calls (TMDB, which
@@ -615,7 +443,7 @@ func start() error {
 	if session, err = mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil).Connect(ctx, ct, nil); err != nil {
 		return err
 	}
-	ready = true
+	suite.Ctx, suite.Session, suite.Ready, suite.CannotAnswer = ctx, session, true, cannotAnswer
 
 	return seed()
 }
@@ -624,12 +452,12 @@ func start() error {
 // already exists is left alone, so a suite can be re-run against a container
 // that is still up.
 func seed() error {
-	existing, err := invoke("library_list", nil)
+	existing, err := suite.Invoke("library_list", nil)
 	if err != nil {
 		return err
 	}
 	have := map[string]bool{}
-	for _, row := range rowsOf(existing["libraries"]) {
+	for _, row := range acc.RowsOf(existing["libraries"]) {
 		if name, ok := row["name"].(string); ok {
 			have[name] = true
 		}
@@ -641,7 +469,7 @@ func seed() error {
 			continue
 		}
 		args := map[string]any{"name": l.Name, "type": l.Type, "paths": []any{l.Folder}, "providers": l.Providers}
-		if _, err := invoke("library_create", args); err != nil {
+		if _, err := suite.Invoke("library_create", args); err != nil {
 			return err
 		}
 		created = true
@@ -650,7 +478,7 @@ func seed() error {
 		return nil // already seeded
 	}
 
-	if _, err := invoke("library_scan", nil); err != nil {
+	if _, err := suite.Invoke("library_scan", nil); err != nil {
 		return err
 	}
 	for _, l := range libraries {
@@ -659,7 +487,7 @@ func seed() error {
 		}
 	}
 
-	return waitForScan()
+	return suite.WaitForScan()
 }
 
 // primaryType is the item type a library is counted by.
@@ -679,321 +507,16 @@ func primaryType(library string) string {
 	return "Movie"
 }
 
-// rowsOf pulls a list of objects out of a decoded JSON field, tolerating a
-// missing one.
-func rowsOf(v any) []map[string]any {
-	raw, _ := v.([]any)
-	out := make([]map[string]any, 0, len(raw))
-	for _, e := range raw {
-		if row, ok := e.(map[string]any); ok {
-			out = append(out, row)
-		}
-	}
-
-	return out
-}
-
-// scanPatience is how long a library scan is given: quick on a quiet
-// machine, and not always quick on a runner sharing itself with three other
-// suites. Every wait on a scan uses it, so none gives up before the scan
-// can have finished and leaks the scan into the next test.
-const scanPatience = 6 * time.Minute
-
 // waitForItems polls library_get until a scan has settled on want items of
 // the library's primary type (see primaryType).
 func waitForItems(library string, want int) error {
-	return waitForItemsFor(library, want, scanPatience)
-}
-
-// waitForItemsFor is waitForItems with its own patience.
-func waitForItemsFor(library string, want int, patience time.Duration) error {
-	kind := primaryType(library)
-	var last string
-	for range int(patience / (2 * time.Second)) {
-		out, err := invoke("library_get", map[string]any{"library": library})
-		switch {
-		case err != nil:
-			last = err.Error()
-		default:
-			counts, _ := out["type_counts"].(map[string]any)
-			n, _ := counts[kind].(float64)
-			if int(n) == want {
-				return nil
-			}
-			last = fmt.Sprintf("at %d %s items", int(n), kind)
-		}
-		time.Sleep(2 * time.Second)
-	}
-
-	return fmt.Errorf("library %s never reached %d %s items (%s)", library, want, kind, last)
+	return suite.WaitForItems(library, primaryType(library), want, acc.ScanPatience)
 }
 
 // scanUntil asks for a library scan and waits for the library to hold want
-// items of its kind, asking again whenever the scan goes idle short of the
-// count. A scan already running when the ask comes passes folders written
-// since it started, on both servers, and the ask itself is dropped by
-// Jellyfin, so one ask is not enough on a busy server (CI's runners are).
+// items of its kind (acc.Suite.ScanUntil).
 func scanUntil(library string, want int) error {
-	deadline := time.Now().Add(scanPatience)
-	for {
-		// idle before asking, so the ask starts a scan rather than joining one
-		if err := waitForScan(); err != nil {
-			return err
-		}
-		if _, err := invoke("library_scan", nil); err != nil {
-			return err
-		}
-		if err := waitForItemsFor(library, want, 45*time.Second); err == nil {
-			return waitForScan()
-		} else if time.Now().After(deadline) {
-			return err
-		}
-	}
-}
-
-// waitForScan waits for the library scan task to go idle, so the provider
-// lookups the scan triggers have finished before a test looks at their
-// results. A task_list that fails once (a server busy with the scan) is
-// asked again rather than ending the wait.
-func waitForScan() error {
-	failures := 0
-	for range int(scanPatience / (2 * time.Second)) {
-		idle, err := scanIdle()
-		switch {
-		case err != nil:
-			if failures++; failures > 5 {
-				return err
-			}
-		case idle:
-			return nil
-		}
-		time.Sleep(2 * time.Second)
-	}
-
-	return errors.New("the library scan never went idle")
-}
-
-// scanIdle says whether the library scan task is idle.
-func scanIdle() (bool, error) {
-	out, err := invoke("task_list", nil)
-	if err != nil {
-		return false, err
-	}
-	for _, row := range rowsOf(out["tasks"]) {
-		name, _ := row["name"].(string)
-		state, _ := row["state"].(string)
-		if strings.Contains(strings.ToLower(name), "scan media library") && state != "Idle" {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-// waitForExpectedScan is waitForScan for a scan a change should have
-// started: a library made, deleted or given a folder on Jellyfin. It gives
-// the scan a moment to show up in the task list (Jellyfin starts the task
-// off the request thread) and, if it never does, starts one itself, so a
-// dropped scan costs a wait rather than a test. Emby's scans start on the
-// request, so there it is a plain waitForScan.
-func waitForExpectedScan() error {
-	if !isJellyfin() {
-		return waitForScan()
-	}
-	started := false
-	for range 10 {
-		idle, err := scanIdle()
-		if err == nil && !idle {
-			started = true
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if !started {
-		if _, err := invoke("task_run", map[string]any{"task": "scan media library"}); err != nil {
-			return fmt.Errorf("the change started no scan, and starting one failed: %w", err)
-		}
-	}
-
-	return waitForScan()
-}
-
-// invoke calls a tool and returns its structured result. Every tool call in
-// the suite comes through here, so this is also where coverage is recorded:
-// an answer and a failure are counted apart (see uncovered).
-func invoke(name string, args map[string]any) (map[string]any, error) {
-	out, err := invokeTool(name, args)
-
-	calledMu.Lock()
-	c := called[name]
-	if err != nil {
-		c.failed++
-	} else {
-		c.answered++
-	}
-	called[name] = c
-	calledMu.Unlock()
-
-	return out, err
-}
-
-func invokeTool(name string, args map[string]any) (map[string]any, error) {
-	if args == nil {
-		args = map[string]any{}
-	}
-	res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
-	}
-	if res.IsError {
-		var msgs []string
-		for _, c := range res.Content {
-			if tc, ok := c.(*mcp.TextContent); ok {
-				msgs = append(msgs, tc.Text)
-			}
-		}
-		return nil, fmt.Errorf("%s: %s", name, strings.Join(msgs, "; "))
-	}
-	out, ok := res.StructuredContent.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s: structured content is %T", name, res.StructuredContent)
-	}
-
-	return out, nil
-}
-
-// call invokes a tool, skipping the test when the container is not configured
-// and failing it when the tool errors.
-func call(t *testing.T, name string, args map[string]any) map[string]any {
-	t.Helper()
-
-	if !ready {
-		t.Skip("EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN are not set; run: eval \"$(EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh up)\"")
-	}
-	out, err := invoke(name, args)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return out
-}
-
-// callErr invokes a tool expecting it to fail, and returns the error message.
-func callErr(t *testing.T, name string, args map[string]any) string {
-	t.Helper()
-
-	if !ready {
-		t.Skip("EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN are not set")
-	}
-	out, err := invoke(name, args)
-	if err == nil {
-		t.Fatalf("%s unexpectedly succeeded: %v", name, out)
-	}
-
-	return err.Error()
-}
-
-// toolNames lists every tool the server registered, so a test can assert that
-// a family is complete rather than only that the tools it knows about work.
-func toolNames(t *testing.T) []string {
-	t.Helper()
-
-	if !ready {
-		t.Skip("EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN are not set")
-	}
-	res, err := session.ListTools(ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := make([]string, 0, len(res.Tools))
-	for _, tool := range res.Tools {
-		out = append(out, tool.Name)
-	}
-
-	return out
-}
-
-// strs pulls a []string out of a decoded JSON field.
-func strs(t *testing.T, v any, field string) []string {
-	t.Helper()
-
-	raw, ok := v.([]any)
-	if !ok {
-		t.Fatalf("%s is %T, want a list", field, v)
-	}
-	out := make([]string, 0, len(raw))
-	for _, e := range raw {
-		s, ok := e.(string)
-		if !ok {
-			t.Fatalf("%s contains %T, want strings", field, e)
-		}
-		out = append(out, s)
-	}
-
-	return out
-}
-
-// rows pulls a list of objects out of a decoded JSON field.
-func rows(t *testing.T, v any, field string) []map[string]any {
-	t.Helper()
-
-	raw, ok := v.([]any)
-	if !ok {
-		t.Fatalf("%s is %T, want a list", field, v)
-	}
-	out := make([]map[string]any, 0, len(raw))
-	for _, e := range raw {
-		row, ok := e.(map[string]any)
-		if !ok {
-			t.Fatalf("%s contains %T, want objects", field, e)
-		}
-		out = append(out, row)
-	}
-
-	return out
-}
-
-// num pulls a JSON number out of a decoded field.
-// decimal reads a fractional number: a ratio, a margin or a frame rate, where
-// rounding to an int would pass a check that should fail.
-func decimal(t *testing.T, v any, field string) float64 {
-	t.Helper()
-
-	f, ok := v.(float64)
-	if !ok {
-		t.Fatalf("%s is %T (%v), want a number", field, v, v)
-	}
-
-	return f
-}
-
-// object reads a nested object.
-func object(t *testing.T, v any, field string) map[string]any {
-	t.Helper()
-
-	m, ok := v.(map[string]any)
-	if !ok {
-		t.Fatalf("%s is %T (%v), want an object", field, v, v)
-	}
-
-	return m
-}
-
-func num(t *testing.T, v any, field string) int {
-	t.Helper()
-
-	f, ok := v.(float64)
-	if !ok {
-		t.Fatalf("%s is %T, want a number", field, v)
-	}
-
-	return int(f)
-}
-
-// str pulls a string out of a decoded field, "" when absent.
-func str(v any) string {
-	s, _ := v.(string)
-	return s
+	return suite.ScanUntil(library, primaryType(library), want)
 }
 
 // findItem searches a library for a title and returns its id, failing when
@@ -1001,12 +524,12 @@ func str(v any) string {
 func findItem(t *testing.T, library, types, title string) string {
 	t.Helper()
 
-	out := call(t, "library_items", map[string]any{"library": library, "types": types, "query": title, "limit": 50})
+	out := suite.Call(t, "library_items", map[string]any{"library": library, "types": types, "query": title, "limit": 50})
 	var ids []string
-	for _, row := range rows(t, out["items"], "items") {
+	for _, row := range acc.Rows(t, out["items"], "items") {
 		// an unmatched film keeps its "(2001)" on Jellyfin and loses it on Emby
-		if strings.EqualFold(yearSuffix.ReplaceAllString(str(row["name"]), ""), title) {
-			ids = append(ids, str(row["id"]))
+		if strings.EqualFold(yearSuffix.ReplaceAllString(acc.Str(row["name"]), ""), title) {
+			ids = append(ids, acc.Str(row["id"]))
 		}
 	}
 	if len(ids) != 1 {
@@ -1014,102 +537,4 @@ func findItem(t *testing.T, library, types, title string) string {
 	}
 
 	return ids[0]
-}
-
-// movieCount is how many films a library holds right now.
-func movieCount(t *testing.T, library string) int {
-	t.Helper()
-
-	out := call(t, "library_get", map[string]any{"library": library})
-	counts, _ := out["type_counts"].(map[string]any)
-	n, _ := counts["Movie"].(float64)
-
-	return int(n)
-}
-
-// numOr0 pulls a JSON number out of a decoded field, 0 when it was omitted.
-func numOr0(v any) int {
-	f, _ := v.(float64)
-	return int(f)
-}
-
-// mediaMkdir makes a directory under the bind-mounted media tree that the
-// media server's own user can write in, and mediaWrite writes a file there.
-// The mode asked of MkdirAll and WriteFile is filtered by the process umask,
-// which on Linux leaves a directory nobody but the test can write to - so the
-// server (uid 2 in Emby's image, root in Jellyfin's) cannot delete a file the
-// test laid out, and item_delete fails. chmod is not filtered by the umask,
-// so the mode asked for is the mode applied. Docker Desktop hides this by
-// mapping every file to the container's user, which is why it only bites in
-// CI.
-func mediaMkdir(t *testing.T, dir string) {
-	t.Helper()
-
-	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
-	root := dataDir()
-	for p := dir; strings.HasPrefix(p, root) && p != root; p = filepath.Dir(p) {
-		if err := os.Chmod(p, 0o777); err != nil { //nolint:gosec // same
-			t.Fatal(err)
-		}
-	}
-}
-
-func mediaWrite(t *testing.T, path string, data []byte) {
-	t.Helper()
-
-	if err := os.WriteFile(path, data, 0o666); err != nil { //nolint:gosec // the container reads it as another user
-		t.Fatal(err)
-	}
-	if err := os.Chmod(path, 0o666); err != nil { //nolint:gosec // same
-		t.Fatal(err)
-	}
-}
-
-// containerAddresses are the addresses the media server reaches itself on:
-// Emby pings its own container address at startup, which goes through the
-// proxy because NO_PROXY is set before docker hands the container an address.
-// The proxy answers those without a cassette (Options.IgnoreHosts).
-func containerAddresses() []string {
-	name := os.Getenv("EMBYFIN_TEST_CONTAINER")
-	if name == "" {
-		return nil
-	}
-	out, err := exec.Command("docker", "inspect", "-f",
-		"{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}{{.Config.Hostname}}", name).Output()
-	if err != nil {
-		return nil // not our container to ask about
-	}
-
-	return strings.Fields(string(out))
-}
-
-// checkProxyReachable proves, from inside the container, that the media server
-// can reach the provider proxy. A server that cannot fails every provider
-// lookup with a timeout of its own, which reads as dozens of unrelated
-// assertion failures rather than the one plumbing problem it is - so say it
-// plainly, once, before the suite runs.
-func checkProxyReachable(port int) error {
-	name := os.Getenv("EMBYFIN_TEST_CONTAINER")
-	if name == "" {
-		return nil // not a container this suite started
-	}
-	// exit 3 says the image has no probe tool, which is not a failure. The
-	// hosts entries come too: a container handed an IPv6 route to the host
-	// gateway can reach the proxy with one address and not the other.
-	script := fmt.Sprintf(
-		"grep -i host.docker.internal /etc/hosts; echo \"proxy env: ${HTTPS_PROXY:-unset}\"; "+
-			"command -v nc >/dev/null || exit 3; nc -z -w 5 host.docker.internal %d", port)
-	out, err := exec.Command("docker", "exec", name, "sh", "-c", script).CombinedOutput()
-	fmt.Fprintf(os.Stderr, "container network: %s\n", strings.TrimSpace(string(out)))
-	switch {
-	case err == nil:
-		return nil
-	case strings.Contains(err.Error(), "exit status 3"):
-		return nil
-	default:
-		return fmt.Errorf("%s cannot reach the provider proxy on host.docker.internal:%d, so every provider lookup will time out: %w: %s",
-			name, port, err, out)
-	}
 }

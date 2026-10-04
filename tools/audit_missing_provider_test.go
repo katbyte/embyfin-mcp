@@ -129,12 +129,17 @@ func TestAuditMissingMetadataProviderMissing(t *testing.T) {
 
 	found := func(args map[string]any) map[string]string {
 		t.Helper()
-		out := mustCall(t, cs, "audit_missing_metadata_provider", args)
+		args["problems"] = "provider_id"
+		out := mustCall(t, cs, "audit_missing_metadata", args)
 		got := map[string]string{}
 		for _, f := range objects(t, out["findings"], "findings") {
 			got[text(f["id"])] = text(f["detail"])
+			if !slices.Equal(texts(f["problems"]), []string{"provider_id"}) {
+				t.Errorf("%v: finding %v names problems %v, want provider_id alone", args, f["id"], f["problems"])
+			}
 		}
-		if number(t, out["total_findings"], "total_findings") != len(got) || number(t, out["items_scanned"], "items_scanned") != len(rows) {
+		byProblem := object(t, out["by_problem"], "by_problem")
+		if number(t, out["total_findings"], "total_findings") != len(got) || number(t, out["items_scanned"], "items_scanned") != len(rows) || number(t, byProblem["provider_id"], "provider_id") != len(got) || len(byProblem) != 1 {
 			t.Errorf("%v: out = %v", args, out)
 		}
 
@@ -166,8 +171,11 @@ func TestAuditMissingMetadataProviderMissing(t *testing.T) {
 		}
 	}
 
-	if _, msg := callTool(t, cs, "audit_missing_metadata_provider", map[string]any{"missing": "tmbd"}); !strings.Contains(msg, `unknown provider "tmbd"`) {
+	if _, msg := callTool(t, cs, "audit_missing_metadata", map[string]any{"missing": "tmbd"}); !strings.Contains(msg, `unknown provider "tmbd"`) {
 		t.Errorf("a misspelled provider was not refused: %q", msg)
+	}
+	if _, msg := callTool(t, cs, "audit_missing_metadata", map[string]any{"problems": "poster,plot"}); !strings.Contains(msg, `unknown problem "plot"; choose from: provider_id, poster, overview`) {
+		t.Errorf("a misspelled problem was not refused: %q", msg)
 	}
 }
 
@@ -202,7 +210,8 @@ func TestAuditMissingMetadataProviderIgnore(t *testing.T) {
 		{"ignore": []any{"lib2"}},    // by id
 		{"ignore": []any{"YouTube"}, "missing": "tmdb"},
 	} {
-		out := mustCall(t, cs, "audit_missing_metadata_provider", args)
+		args["problems"] = "provider_id"
+		out := mustCall(t, cs, "audit_missing_metadata", args)
 		var ids []string
 		for _, f := range objects(t, out["findings"], "findings") {
 			ids = append(ids, text(f["id"]))
@@ -214,7 +223,7 @@ func TestAuditMissingMetadataProviderIgnore(t *testing.T) {
 
 	// a library that does not exist is refused, rather than leaving out
 	// nothing and reporting what was meant to be left out
-	if _, msg := callTool(t, cs, "audit_missing_metadata_provider", map[string]any{"ignore": []any{"YuoTube"}}); !strings.Contains(msg, `no library named "YuoTube"`) {
+	if _, msg := callTool(t, cs, "audit_missing_metadata", map[string]any{"ignore": []any{"YuoTube"}}); !strings.Contains(msg, `no library named "YuoTube"`) {
 		t.Errorf("an unknown library was not refused: %q", msg)
 	}
 }

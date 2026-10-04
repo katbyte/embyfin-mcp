@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 )
 
 // The path arithmetic the orphan tools stand on. The near miss is the shape a
@@ -19,48 +21,7 @@ import (
 func TestOrphanPaths(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		path, root string
-		want       bool
-	}{
-		{"/data/doc/A (2020)/A (2020).mkv", "/data/doc", true},
-		{"/data/doc", "/data/doc", true},
-		{"/data/doc", "/data/doc/", true},
-		{"/data/docs/A (2020)/A (2020).mkv", "/data/doc", false},
-		{"/data/doc2/A.mkv", "/data/doc", false},
-		{"/data/do", "/data/doc", false},
-		{"/anything", "/", true},
-		{`D:\Video\Docs\A.mkv`, `D:\Video\Docs`, true},
-		{`D:\Video\Docs2\A.mkv`, `D:\Video\Docs`, false},
-		{`\\nas\video\docs\A.mkv`, `\\nas\video`, true},
-		{"/data/films", "", false},
-	} {
-		if got := within(tc.path, tc.root); got != tc.want {
-			t.Errorf("within(%q, %q) = %v, want %v", tc.path, tc.root, got, tc.want)
-		}
-	}
-
-	for _, tc := range []struct{ path, want string }{
-		{"/data/doc/", "/data"},
-		{"/mnt", "/"},
-		{"/", ""},
-		{`C:\Video`, `C:\`},
-		{`C:\`, ""},
-		{`\\nas\video\docs`, `\\nas\video`},
-		{`\\nas\video`, ""},
-	} {
-		if got := parentDir(tc.path); got != tc.want {
-			t.Errorf("parentDir(%q) = %q, want %q", tc.path, got, tc.want)
-		}
-	}
-
-	for p, want := range map[string]bool{"/data/a.mkv": true, `C:\a.mkv`: true, `\\nas\a.mkv`: true, "https://example.org/t.mp4": false, "": false, "a.mkv": false} {
-		if onDisk(p) != want {
-			t.Errorf("onDisk(%q) = %v", p, !want)
-		}
-	}
-
-	libs := []libraryPath{{"Movies", "/data/films"}, {"Documentaries", "/data/docs"}}
+	libs := []embyfin.LibraryPath{{Library: "Movies", Path: "/data/films"}, {Library: "Documentaries", Path: "/data/docs"}}
 	for _, tc := range []struct{ path, want string }{
 		// up to the folder beside the libraries, which is where the renamed one was
 		{"/data/doc/A (2020)/A (2020).mkv", "/data/doc"},

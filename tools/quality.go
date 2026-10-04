@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -31,36 +32,6 @@ import (
 // to whoever owns them: a copy that cannot be replaced and one that can be
 // fetched again have a different answer to the same ratio than two copies of
 // equal standing. The verdict is guidance, not a ruling.
-
-// resolutionClass is the line a copy belongs on, in 16:9-equivalent lines:
-// 1080 for a 1080p frame, and 405 for a scope DVD cropped to 720x400, which
-// is what that frame honestly holds. Frames do not all land on the standard
-// lines, so this does not pretend they do - sameClass decides what counts as
-// the same.
-//
-// max(height, width scaled to 16:9) rather than either on its own, because
-// both are wrong alone and in opposite directions. Height alone reads a
-// 3840x1920 cinematic 4K as 1440p. Width alone reads a 4:3 960x720 as 480p.
-//
-// Taking the larger of the two is also what makes this survive black bars,
-// which is the case that catches people out: bars sit on the axis they sit
-// on and leave the other one alone. A 2.35:1 film letterboxed into 1920x1080
-// has a 1920x816 picture and still classes 1080 on its width; a 4:3 episode
-// pillarboxed into 1920x1080 has a 1436x1080 picture and still classes 1080
-// on its height. A copy of that same episode cropped to 1436x1080 classes
-// 1080 too, which is the point: they hold the same picture and neither is
-// "bigger".
-//
-// This is why nothing here compares raw pixel counts. 1920x1080 with bars
-// baked in has more pixels than 1436x1080 without them and not one more pixel
-// of picture.
-func resolutionClass(width, height int) int {
-	if width <= 0 && height <= 0 {
-		return 0
-	}
-
-	return max(height, int(math.Round(float64(width)*9/16)))
-}
 
 // classTolerance is how close two classes have to be to be the same class.
 // Frames do not land on the standard lines: a scope DVD cropped to its
@@ -309,7 +280,7 @@ func notOneFilm(a, b *embyfin.Item) string {
 		best := -1.0
 		for _, ka := range knownTitles(a) {
 			for _, kb := range knownTitles(b) {
-				if s, _ := titleScore(ka.title, kb.title); s > best {
+				if s, _ := naming.Score(ka.Title, kb.Title); s > best {
 					best = s
 				}
 			}
@@ -378,7 +349,7 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		// the item's one bitrate is its video stream's when the server read
 		// one, and the container's - the whole file - when it did not, so
 		// the two are kept apart rather than read as one number
-		if v := videoOf(src); v != nil && v.BitRate > 0 {
+		if v := src.Video(); v != nil && v.BitRate > 0 {
 			facts.video, facts.videoFrom = v.BitRate, fromItemVideo
 		}
 		if src.Bitrate > 0 {
@@ -418,7 +389,7 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		facts.Bitrate, facts.BitrateFrom = facts.file, facts.fileFrom
 	}
 
-	facts.ResolutionClass = resolutionClass(facts.Width, facts.Height)
+	facts.ResolutionClass = embyfin.ResolutionClass(facts.Width, facts.Height)
 	if facts.Height > 0 {
 		facts.Aspect = math.Round(float64(facts.Width)/float64(facts.Height)*100) / 100
 		facts.AspectFrom = "frame"
@@ -445,30 +416,24 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 // own file that speaks, or the two versions of one film could never be told
 // apart.
 func copyItem(ctx context.Context, client *embyfin.Client, id string) (*embyfin.Item, *embyfin.MediaSource, error) {
-	item, err := client.ItemByID(ctx, id)
-	var none *embyfin.NoItemError
-	switch {
-	case err == nil:
-		if src := bestSource(item); src != nil {
+	item, version, err := client.ItemByIDOrVersion(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !version {
+		if src := item.BestSource(); src != nil {
 			return item, src, nil
 		}
 
 		return item, &embyfin.MediaSource{}, nil
-	case !errors.As(err, &none):
-		// the lookup failed, which says nothing of the id
-		return nil, nil, err
 	}
-	version, err := versionByID(ctx, client, id, none)
-	if err != nil {
-		return nil, nil, err
-	}
-	for i := range version.MediaSources {
-		if version.MediaSources[i].ItemID == id {
-			return version, &version.MediaSources[i], nil
+	for i := range item.MediaSources {
+		if item.MediaSources[i].ItemID == id {
+			return item, &item.MediaSources[i], nil
 		}
 	}
 
-	return nil, nil, none
+	return nil, nil, &embyfin.NoItemError{ID: id}
 }
 
 // decide weighs the two sides and says which is better, by how much, and on
@@ -512,9 +477,9 @@ func decide(out *compareOut) (verdict string, margin float64, decidedBy string) 
 	// unknown is not a claim, so it cannot disagree with one
 	// and hdr, HDR of no named kind, cannot disagree with one either - only
 	// with sdr
-	unnamed := strings.EqualFold(a.HDR, hdrAny) && specificHDR(b.HDR) && !strings.EqualFold(b.HDR, hdrSDR) ||
-		strings.EqualFold(b.HDR, hdrAny) && specificHDR(a.HDR) && !strings.EqualFold(a.HDR, hdrSDR)
-	if a.HDR != "" && b.HDR != "" && !strings.EqualFold(a.HDR, hdrUnknown) && !strings.EqualFold(b.HDR, hdrUnknown) && !strings.EqualFold(a.HDR, b.HDR) && !unnamed {
+	unnamed := strings.EqualFold(a.HDR, embyfin.HDRAny) && embyfin.SpecificHDR(b.HDR) && !strings.EqualFold(b.HDR, embyfin.HDRSDR) ||
+		strings.EqualFold(b.HDR, embyfin.HDRAny) && embyfin.SpecificHDR(a.HDR) && !strings.EqualFold(a.HDR, embyfin.HDRSDR)
+	if a.HDR != "" && b.HDR != "" && !strings.EqualFold(a.HDR, embyfin.HDRUnknown) && !strings.EqualFold(b.HDR, embyfin.HDRUnknown) && !strings.EqualFold(a.HDR, b.HDR) && !unnamed {
 		out.Caveats = append(out.Caveats, fmt.Sprintf("the copies claim different HDR formats (%s against %s)", a.HDR, b.HDR))
 	}
 

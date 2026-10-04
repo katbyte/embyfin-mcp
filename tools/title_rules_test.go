@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 )
 
@@ -15,154 +16,154 @@ import (
 // whole table, the title check and the episode lookup alike.
 var titleRules = []struct {
 	a, b string
-	want titleVerdict
+	want naming.Verdict
 }{
 	// written another way: spacing, articles, numbers in words, a vowel
-	{"Zzyzx Q.X's Return", "Zzyzx Q.X.'s Return", titlesSame},
-	{"Zzyzx - A New Dawn", "Zzyzx: The New Dawn", titlesSame},
-	{"The Half Loop", "Half Loop", titlesSame},
-	{"9 Zzyzx Lives", "The Nine Zzyzx Lives", titlesSame},
-	{"Zzyzx in the Grey Coat", "Zzyzx in the Gray Coat", titlesSame},
-	{"Grey Zzyzx Coat", "Gray Zzyzx Coat", titlesSame},
-	{"12 Zzyzx Men", "Twelve Zzyzx Men", titlesSame},
-	{"1200 A.M.-100 A.M.", "12:00 A.M.-1:00 A.M.", titlesSame},
-	{"Zzyzx Special Victims Unit", "Zzyzx SVU", titlesSame},
+	{"Zzyzx Q.X's Return", "Zzyzx Q.X.'s Return", naming.Same},
+	{"Zzyzx - A New Dawn", "Zzyzx: The New Dawn", naming.Same},
+	{"The Half Loop", "Half Loop", naming.Same},
+	{"9 Zzyzx Lives", "The Nine Zzyzx Lives", naming.Same},
+	{"Zzyzx in the Grey Coat", "Zzyzx in the Gray Coat", naming.Same},
+	{"Grey Zzyzx Coat", "Gray Zzyzx Coat", naming.Same},
+	{"12 Zzyzx Men", "Twelve Zzyzx Men", naming.Same},
+	{"1200 A.M.-100 A.M.", "12:00 A.M.-1:00 A.M.", naming.Same},
+	{"Zzyzx Special Victims Unit", "Zzyzx SVU", naming.Same},
 	// a part written another way is the same part: Part and Pt, Vol and
 	// Volume, Ep and Episode, Ch and Chapter, a bracketed number, a closing
 	// numeral, a number in words
-	{"Dune: Part Two", "Dune Part 2", titlesSame},
-	{"Zzyzx Saga II", "Zzyzx Saga 2", titlesSame},
-	{"Zzyzx Saga: Part Two", "Zzyzx Saga Pt. 2", titlesSame},
-	{"Zzyzx Search (1)", "Zzyzx Search, Part 1", titlesSame},
-	{"Zzyzx Search (1)", "Zzyzx Search (Part One)", titlesSame},
-	{"Zzyzx Search (1)", "Zzyzx Search Pt. I", titlesSame},
-	{"The Zzyzx of Both Worlds (1)", "The Zzyzx of Both Worlds, Part I", titlesSame},
-	{"Part One", "Part 1", titlesSame},
-	{"Part I", "Part 1", titlesSame},
-	{"Part Two", "Part II", titlesSame},
-	{"Chapter One", "Chapter 1", titlesSame},
-	{"Zzyzx Chapter I", "Zzyzx Chapter 1", titlesSame},
-	{"Episode 1", "Episode One", titlesSame},
-	{"Book 1", "Book One", titlesSame},
-	{"Zzyzx Bill: Vol. 1", "Zzyzx Bill Volume 1", titlesSame},
-	{"Zzyzx Ep. 3", "Zzyzx Episode 3", titlesSame},
-	{"Zzyzx Ch. 2", "Zzyzx Chapter 2", titlesSame},
+	{"Dune: Part Two", "Dune Part 2", naming.Same},
+	{"Zzyzx Saga II", "Zzyzx Saga 2", naming.Same},
+	{"Zzyzx Saga: Part Two", "Zzyzx Saga Pt. 2", naming.Same},
+	{"Zzyzx Search (1)", "Zzyzx Search, Part 1", naming.Same},
+	{"Zzyzx Search (1)", "Zzyzx Search (Part One)", naming.Same},
+	{"Zzyzx Search (1)", "Zzyzx Search Pt. I", naming.Same},
+	{"The Zzyzx of Both Worlds (1)", "The Zzyzx of Both Worlds, Part I", naming.Same},
+	{"Part One", "Part 1", naming.Same},
+	{"Part I", "Part 1", naming.Same},
+	{"Part Two", "Part II", naming.Same},
+	{"Chapter One", "Chapter 1", naming.Same},
+	{"Zzyzx Chapter I", "Zzyzx Chapter 1", naming.Same},
+	{"Episode 1", "Episode One", naming.Same},
+	{"Book 1", "Book One", naming.Same},
+	{"Zzyzx Bill: Vol. 1", "Zzyzx Bill Volume 1", naming.Same},
+	{"Zzyzx Ep. 3", "Zzyzx Episode 3", naming.Same},
+	{"Zzyzx Ch. 2", "Zzyzx Chapter 2", naming.Same},
 	// a marked part 1 on one side alone is the first part of what the
 	// other names without one
-	{"Dune", "Dune: Part One", titlesSame},
-	{"Zzyzx Dune", "Zzyzx Dune: Part One", titlesSame},
-	{"Zzyzx It", "Zzyzx It Chapter One", titlesSame},
-	{"Pilot (1)", "Pilot", titlesSame},
-	{"Zzyzx Search", "Zzyzx Search (1)", titlesSame},
-	{"Zzyzx Hallows", "Zzyzx Hallows Part 1", titlesSame},
+	{"Dune", "Dune: Part One", naming.Same},
+	{"Zzyzx Dune", "Zzyzx Dune: Part One", naming.Same},
+	{"Zzyzx It", "Zzyzx It Chapter One", naming.Same},
+	{"Pilot (1)", "Pilot", naming.Same},
+	{"Zzyzx Search", "Zzyzx Search (1)", naming.Same},
+	{"Zzyzx Hallows", "Zzyzx Hallows Part 1", naming.Same},
 	// but different part words are different: a book is not a volume
-	{"Zzyzx Book One", "Zzyzx Volume One", titlesDifferent},
-	{"Zzyzx Part 1", "Zzyzx Chapter 1", titlesDifferent},
+	{"Zzyzx Book One", "Zzyzx Volume One", naming.Different},
+	{"Zzyzx Part 1", "Zzyzx Chapter 1", naming.Different},
 	// a number on one side and not the other, or another on each, is
 	// another title: a part, a sequel, or a 1 that is part of the name
-	{"Dune", "Dune Part Two", titlesNumberedApart},
-	{"Zzyzx and the Deathly Hallows", "Zzyzx and the Deathly Hallows: Part 2", titlesNumberedApart},
-	{"Zzyzx Games Mockingjay", "Zzyzx Games Mockingjay - Part 2", titlesNumberedApart},
-	{"Zzyzx Saga", "Zzyzx Saga II", titlesNumberedApart},
-	{"Zzyzx Search (1)", "Zzyzx Search, Part 2", titlesNumberedApart},
-	{"Zzyzx Search", "Zzyzx Search (2)", titlesNumberedApart},
-	{"Zzyzx Race 2000", "Zzyzx Race 2050", titlesNumberedApart},
-	{"Blade Runner 2049", "Blade Runner 2048", titlesNumberedApart},
-	{"Zzyzx Fantasy VIII", "Zzyzx Fantasy XIII", titlesNumberedApart},
-	{"Zzyzx the 13th Part VIII", "Zzyzx the 13th Part XIII", titlesNumberedApart},
-	{"Zzyzx One Two", "Zzyzx Twelve", titlesNumberedApart},
-	{"Zzyzx Force One", "Zzyzx Force", titlesNumberedApart},
-	{"Zzyzx Player One", "Zzyzx Player", titlesNumberedApart},
-	{"Zzyzx Rogue One", "Zzyzx Rogue", titlesNumberedApart},
-	{"Zzyzx Apollo 1", "Zzyzx Apollo", titlesNumberedApart},
-	{"Zzyzx Number One", "Zzyzx Number", titlesNumberedApart},
-	{"Zzyzx X", "Zzyzx 10", titlesCantTell},
+	{"Dune", "Dune Part Two", naming.NumberedApart},
+	{"Zzyzx and the Deathly Hallows", "Zzyzx and the Deathly Hallows: Part 2", naming.NumberedApart},
+	{"Zzyzx Games Mockingjay", "Zzyzx Games Mockingjay - Part 2", naming.NumberedApart},
+	{"Zzyzx Saga", "Zzyzx Saga II", naming.NumberedApart},
+	{"Zzyzx Search (1)", "Zzyzx Search, Part 2", naming.NumberedApart},
+	{"Zzyzx Search", "Zzyzx Search (2)", naming.NumberedApart},
+	{"Zzyzx Race 2000", "Zzyzx Race 2050", naming.NumberedApart},
+	{"Blade Runner 2049", "Blade Runner 2048", naming.NumberedApart},
+	{"Zzyzx Fantasy VIII", "Zzyzx Fantasy XIII", naming.NumberedApart},
+	{"Zzyzx the 13th Part VIII", "Zzyzx the 13th Part XIII", naming.NumberedApart},
+	{"Zzyzx One Two", "Zzyzx Twelve", naming.NumberedApart},
+	{"Zzyzx Force One", "Zzyzx Force", naming.NumberedApart},
+	{"Zzyzx Player One", "Zzyzx Player", naming.NumberedApart},
+	{"Zzyzx Rogue One", "Zzyzx Rogue", naming.NumberedApart},
+	{"Zzyzx Apollo 1", "Zzyzx Apollo", naming.NumberedApart},
+	{"Zzyzx Number One", "Zzyzx Number", naming.NumberedApart},
+	{"Zzyzx X", "Zzyzx 10", naming.CantTell},
 	// a closing letter one side has and the other lacks: a numeral or a
 	// name, and can't tell which
-	{"Zzyzx Henry", "Zzyzx Henry V", titlesCantTell},
-	{"Zzyzx Malcolm X", "Zzyzx Malcolm", titlesCantTell},
+	{"Zzyzx Henry", "Zzyzx Henry V", naming.CantTell},
+	{"Zzyzx Malcolm X", "Zzyzx Malcolm", naming.CantTell},
 	// round 5: written another way
-	{"Zzyzx Nightwatch", "Zzyzx Night Watch", titlesSame},
-	{"Zzyzx's Eleven", "Zzyzx's 11", titlesSame},
-	{"Zzyzx Wars Episode 1 The Menace", "Zzyzx Wars: Episode I - The Menace", titlesSame},
-	{"Summer of 84", "Summer of '84", titlesSame},
-	{"Zzyzx 9", "Zzyzx Nine", titlesSame},
-	{"#1 Zzyzx Fan", "1 Zzyzx Fan", titlesSame},
-	{"Plugh - The Return", "Plugh: The Return", titlesSame},
-	{"Zzyzx Vol 1", "Zzyzx Volume 1", titlesSame},
-	{"Zzyzx Book 1", "Zzyzx Book I", titlesSame},
-	{"Zzyzx (Part 1)", "Zzyzx", titlesSame},
-	{"Zzyzx [Part 1]", "Zzyzx", titlesSame},
-	{"Chapter One: Zzyzx", "Chapter 1: Zzyzx", titlesSame},
+	{"Zzyzx Nightwatch", "Zzyzx Night Watch", naming.Same},
+	{"Zzyzx's Eleven", "Zzyzx's 11", naming.Same},
+	{"Zzyzx Wars Episode 1 The Menace", "Zzyzx Wars: Episode I - The Menace", naming.Same},
+	{"Summer of 84", "Summer of '84", naming.Same},
+	{"Zzyzx 9", "Zzyzx Nine", naming.Same},
+	{"#1 Zzyzx Fan", "1 Zzyzx Fan", naming.Same},
+	{"Plugh - The Return", "Plugh: The Return", naming.Same},
+	{"Zzyzx Vol 1", "Zzyzx Volume 1", naming.Same},
+	{"Zzyzx Book 1", "Zzyzx Book I", naming.Same},
+	{"Zzyzx (Part 1)", "Zzyzx", naming.Same},
+	{"Zzyzx [Part 1]", "Zzyzx", naming.Same},
+	{"Chapter One: Zzyzx", "Chapter 1: Zzyzx", naming.Same},
 	// a country or a year on one side only is the same title; another
 	// country on each side may be the other country's version
-	{"The Zzyzx (US)", "The Zzyzx", titlesSame},
-	{"Zzyzx Shameless (US)", "Zzyzx Shameless", titlesSame},
-	{"Zzyzx of Cards (US)", "Zzyzx of Cards", titlesSame},
-	{"The Zzyzx (UK)", "The Zzyzx (2001)", titlesSame},
-	{"The Zzyzx (2005)", "The Zzyzx", titlesSame},
-	{"The Zzyzx (US)", "The Zzyzx (UK)", titlesCantTell},
-	{"The Zzyzx (GB)", "The Zzyzx", titlesSame},
-	{"Zzyzx (JP)", "Zzyzx (KR)", titlesCantTell},
+	{"The Zzyzx (US)", "The Zzyzx", naming.Same},
+	{"Zzyzx Shameless (US)", "Zzyzx Shameless", naming.Same},
+	{"Zzyzx of Cards (US)", "Zzyzx of Cards", naming.Same},
+	{"The Zzyzx (UK)", "The Zzyzx (2001)", naming.Same},
+	{"The Zzyzx (2005)", "The Zzyzx", naming.Same},
+	{"The Zzyzx (US)", "The Zzyzx (UK)", naming.CantTell},
+	{"The Zzyzx (GB)", "The Zzyzx", naming.Same},
+	{"Zzyzx (JP)", "Zzyzx (KR)", naming.CantTell},
 	// a year each side, one apart, is the same title as a path's year one
 	// either side of the item's is; two apart, numbered apart
-	{"Zzyzx (2003)", "Zzyzx (2004)", titlesSame},
-	{"Zzyzx (2003)", "Zzyzx (2005)", titlesNumberedApart},
+	{"Zzyzx (2003)", "Zzyzx (2004)", naming.Same},
+	{"Zzyzx (2003)", "Zzyzx (2005)", naming.NumberedApart},
 	// capitals in brackets that are no country are words of the title: an
 	// OVA, a TV cut, a director's cut
-	{"Zzyzx (OVA)", "Zzyzx", titlesDifferent},
-	{"Zzyzx (ONA)", "Zzyzx", titlesDifferent},
-	{"Zzyzx (TV)", "Zzyzx", titlesDifferent},
-	{"Zzyzx (DC)", "Zzyzx", titlesDifferent},
-	{"The Zzyzx Files", "Zzyzx", titlesDifferent},
+	{"Zzyzx (OVA)", "Zzyzx", naming.Different},
+	{"Zzyzx (ONA)", "Zzyzx", naming.Different},
+	{"Zzyzx (TV)", "Zzyzx", naming.Different},
+	{"Zzyzx (DC)", "Zzyzx", naming.Different},
+	{"The Zzyzx Files", "Zzyzx", naming.Different},
 	// a 3D or a 4K is an edition's word, not a number
-	{"Zzyzx 3D", "Zzyzx", titlesDifferent},
-	{"Zzyzx (3D)", "Zzyzx", titlesDifferent},
-	{"Zzyzx 4K", "Zzyzx", titlesDifferent},
-	{"Zzyzx 4K Nature", "Zzyzx Nature", titlesDifferent},
+	{"Zzyzx 3D", "Zzyzx", naming.Different},
+	{"Zzyzx (3D)", "Zzyzx", naming.Different},
+	{"Zzyzx 4K", "Zzyzx", naming.Different},
+	{"Zzyzx 4K Nature", "Zzyzx Nature", naming.Different},
 	// a country's code that is also the title's one word may be part of
 	// the name: can't tell
-	{"It (IT)", "It", titlesCantTell},
-	{"No (NO)", "No", titlesCantTell},
-	{"In (IN)", "In", titlesCantTell},
-	{"Zzyzx (IT)", "Zzyzx", titlesSame},
+	{"It (IT)", "It", naming.CantTell},
+	{"No (NO)", "No", naming.CantTell},
+	{"In (IN)", "In", naming.CantTell},
+	{"Zzyzx (IT)", "Zzyzx", naming.Same},
 	// round 5: numbered apart
-	{"Zzyzx Rocky IV", "Zzyzx Rocky IX", titlesNumberedApart},
-	{"Zzyzx Trek II", "Zzyzx Trek VI", titlesNumberedApart},
-	{"Zzyzx Story", "Zzyzx Story 2", titlesNumberedApart},
-	{"2014", "2015", titlesNumberedApart},
-	{"1001 Zzyzx Nights", "1002 Zzyzx Nights", titlesNumberedApart},
-	{"Zzyzx Pelham 123", "Zzyzx Pelham One Two Three", titlesNumberedApart},
-	{"Zzyzx Taken 1", "Zzyzx Taken", titlesNumberedApart},
-	{"Zzyzx Super 8", "Zzyzx Super", titlesNumberedApart},
-	{"Zzyzx Part 1", "Zzyzx Part 2", titlesNumberedApart},
-	{"Zzyzx (1)", "Zzyzx (2)", titlesNumberedApart},
+	{"Zzyzx Rocky IV", "Zzyzx Rocky IX", naming.NumberedApart},
+	{"Zzyzx Trek II", "Zzyzx Trek VI", naming.NumberedApart},
+	{"Zzyzx Story", "Zzyzx Story 2", naming.NumberedApart},
+	{"2014", "2015", naming.NumberedApart},
+	{"1001 Zzyzx Nights", "1002 Zzyzx Nights", naming.NumberedApart},
+	{"Zzyzx Pelham 123", "Zzyzx Pelham One Two Three", naming.NumberedApart},
+	{"Zzyzx Taken 1", "Zzyzx Taken", naming.NumberedApart},
+	{"Zzyzx Super 8", "Zzyzx Super", naming.NumberedApart},
+	{"Zzyzx Part 1", "Zzyzx Part 2", naming.NumberedApart},
+	{"Zzyzx (1)", "Zzyzx (2)", naming.NumberedApart},
 	// round 5: other titles, words added among them
-	{"Look Who's Zzyzx", "Look Who's Zzyzx Too", titlesDifferent},
-	{"Look Who's Zzyzx Two", "Look Who's Zzyzx Too", titlesDifferent},
-	{"Pride & Zzyzx", "Pride", titlesDifferent},
-	{"Meet Zzyzx Li", "Meet Zzyzx", titlesDifferent},
-	{"Zzyzx Episode 1", "Zzyzx Part 1", titlesDifferent},
-	{"Mister Zzyzx", "Mr. Zzyzx", titlesDifferent},
-	{"2 Zzyzx 2 Furious", "Too Zzyzx Too Furious", titlesDifferent},
-	{"Se7en", "Seven", titlesDifferent},
-	{"Alien", "Alien Directors Cut", titlesDifferent},
-	{"Zzyzx Runner", "Zzyzx Runner The Final Cut", titlesDifferent},
-	{"Mononoke-hime - Zzyzx Mononoke", "Zzyzx Mononoke", titlesDifferent},
-	{"Pilot (Superfan Cut)", "Pilot", titlesDifferent},
-	{"Rose Remastered", "Rose", titlesDifferent},
-	{"Zzyzx Wars", "Zzyzx Wars Episode IV A New Hope", titlesDifferent},
+	{"Look Who's Zzyzx", "Look Who's Zzyzx Too", naming.Different},
+	{"Look Who's Zzyzx Two", "Look Who's Zzyzx Too", naming.Different},
+	{"Pride & Zzyzx", "Pride", naming.Different},
+	{"Meet Zzyzx Li", "Meet Zzyzx", naming.Different},
+	{"Zzyzx Episode 1", "Zzyzx Part 1", naming.Different},
+	{"Mister Zzyzx", "Mr. Zzyzx", naming.Different},
+	{"2 Zzyzx 2 Furious", "Too Zzyzx Too Furious", naming.Different},
+	{"Se7en", "Seven", naming.Different},
+	{"Alien", "Alien Directors Cut", naming.Different},
+	{"Zzyzx Runner", "Zzyzx Runner The Final Cut", naming.Different},
+	{"Mononoke-hime - Zzyzx Mononoke", "Zzyzx Mononoke", naming.Different},
+	{"Pilot (Superfan Cut)", "Pilot", naming.Different},
+	{"Rose Remastered", "Rose", naming.Different},
+	{"Zzyzx Wars", "Zzyzx Wars Episode IV A New Hope", naming.Different},
 	// round 5: can't tell
-	{"Zzyzx Rocky I", "Zzyzx Rocky", titlesCantTell},
-	{"Zzyzx I", "Zzyzx 1", titlesCantTell},
-	{"Zzyzx V", "Zzyzx 5", titlesCantTell},
+	{"Zzyzx Rocky I", "Zzyzx Rocky", naming.CantTell},
+	{"Zzyzx I", "Zzyzx 1", naming.CantTell},
+	{"Zzyzx V", "Zzyzx 5", naming.CantTell},
 	// other titles
-	{"Aliens", "Alien", titlesDifferent},
-	{"Zzyzx Cars", "Zzyzx Bars", titlesDifferent},
-	{"Bride of Zzyzx", "Pride of Zzyzx", titlesDifferent},
-	{"Zzyzx Plan A", "Zzyzx Plan", titlesDifferent},
-	{"Ten", "10", titlesDifferent},
-	{"Zzyzx Size XL", "Zzyzx Size 40", titlesDifferent},
+	{"Aliens", "Alien", naming.Different},
+	{"Zzyzx Cars", "Zzyzx Bars", naming.Different},
+	{"Bride of Zzyzx", "Pride of Zzyzx", naming.Different},
+	{"Zzyzx Plan A", "Zzyzx Plan", naming.Different},
+	{"Ten", "10", naming.Different},
+	{"Zzyzx Size XL", "Zzyzx Size 40", naming.Different},
 }
 
 // The title check and the episode lookup say the same of every pair, both
@@ -173,15 +174,15 @@ func TestTitleRules(t *testing.T) {
 
 	for _, tc := range titleRules {
 		for _, pair := range [][2]string{{tc.a, tc.b}, {tc.b, tc.a}} {
-			if got := judgeTitles(formOf(pair[0]), formOf(pair[1])); got != tc.want {
+			if got := naming.Judge(naming.FormOf(pair[0]), naming.FormOf(pair[1])); got != tc.want {
 				t.Errorf("%q against %q: %v, want %v", pair[0], pair[1], got, tc.want)
 			}
-			if got := sameTitle(pair[0], pair[1]); got != (tc.want == titlesSame) {
-				t.Errorf("sameTitle(%q, %q) = %v, want %v", pair[0], pair[1], got, tc.want == titlesSame)
+			if got := naming.SameTitle(pair[0], pair[1]); got != (tc.want == naming.Same) {
+				t.Errorf("sameTitle(%q, %q) = %v, want %v", pair[0], pair[1], got, tc.want == naming.Same)
 			}
 			ep, score, _ := indexEpisodes([]tmdb.Episode{{Season: 1, Episode: 1, Name: pair[1]}}).best(pair[0])
-			if found := score >= seriesConfident && ep.Name == pair[1]; found != (tc.want == titlesSame) {
-				t.Errorf("the lookup of %q among %q: found %v at %v, want %v", pair[0], pair[1], found, score, tc.want == titlesSame)
+			if found := score >= seriesConfident && ep.Name == pair[1]; found != (tc.want == naming.Same) {
+				t.Errorf("the lookup of %q among %q: found %v at %v, want %v", pair[0], pair[1], found, score, tc.want == naming.Same)
 			}
 		}
 	}
@@ -202,7 +203,7 @@ func TestSeriesNameRules(t *testing.T) {
 		{"Zzyzx Street", "Zzyzx Streets", false},
 		{"Kyojin no Zzyzx", "Kyojin no Zzyzx", true},
 	} {
-		if got := sameName(tc.a, tc.b); got != tc.same {
+		if got := naming.SameName(tc.a, tc.b); got != tc.same {
 			t.Errorf("sameName(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.same)
 		}
 	}
@@ -319,7 +320,7 @@ func TestFilmFolderRules(t *testing.T) {
 		{"Series", "Zzyzx of Cards", 2013, "/tv/Zzyzx of Cards Revisited", `the path's title is the item's with "Revisited" added: an edition, a subtitle, or another series - can't tell from the names`, ""},
 		{"Series", "Zzyzx Other", 2013, "/tv/Quux Plugh", "the wrong match, or another series", ""},
 	} {
-		row, _ := checkPath(&embyfin.Item{Type: tc.typ, Name: tc.name, ProductionYear: tc.year, Path: tc.path}, want)
+		row, _ := checkPath(&embyfin.Item{Type: tc.typ, Name: tc.name, ProductionYear: tc.year, Path: tc.path}, want, embyfin.Emby)
 		var title, year string
 		for _, p := range row.Problems {
 			switch {
@@ -350,7 +351,7 @@ func TestFilmFolderRules(t *testing.T) {
 	}
 	// a scene name's bare year is read against every title the item goes
 	// by: its original title here, where its name holds a number in words
-	if row, _ := checkPath(&embyfin.Item{Type: typeMovie, Name: "Seven Zzyzx", OriginalTitle: "Shichinin no Zzyzx", ProductionYear: 1954, Path: "/m/Shichinin.no.Zzyzx.1956.1080p.mkv"}, want); !slices.Contains(row.Problems, "year: path says 1956, metadata says 1954") {
+	if row, _ := checkPath(&embyfin.Item{Type: typeMovie, Name: "Seven Zzyzx", OriginalTitle: "Shichinin no Zzyzx", ProductionYear: 1954, Path: "/m/Shichinin.no.Zzyzx.1956.1080p.mkv"}, want, embyfin.Emby); !slices.Contains(row.Problems, "year: path says 1956, metadata says 1954") {
 		t.Errorf("a scene name dated by its original title = %v, want the year row", row.Problems)
 	}
 	// an original or sort title that is the plain title does not settle
@@ -360,7 +361,7 @@ func TestFilmFolderRules(t *testing.T) {
 		{Type: typeMovie, Name: "Zzyzx Hallows: Part 1", OriginalTitle: "Zzyzx Hallows", ProductionYear: 2010, Path: "/m/Zzyzx Hallows (2011)"},
 		{Type: typeMovie, Name: "Zzyzx Hallows: Part 1", SortName: "Zzyzx Hallows", ProductionYear: 2010, Path: "/m/Zzyzx Hallows (2011)"},
 	} {
-		if row, _ := checkPath(it, want); !row.partOneYearOff || len(row.Problems) == 0 || !strings.Contains(row.Problems[0], "can't tell") {
+		if row, _ := checkPath(it, want, embyfin.Emby); !row.partOneYearOff || len(row.Problems) == 0 || !strings.Contains(row.Problems[0], "can't tell") {
 			t.Errorf("part 1 with original %q, sort %q, a year off = %v (marked %v), want it can't tell", it.OriginalTitle, it.SortName, row.Problems, row.partOneYearOff)
 		}
 	}
@@ -371,7 +372,7 @@ func TestFilmFolderRules(t *testing.T) {
 		{Type: typeMovie, Name: "Zzyzx 1984", OriginalTitle: "Zzyzx", ProductionYear: 1956, Path: "/m/Zzyzx.1984.1080p.mkv"},
 		{Type: typeMovie, Name: "Zzyzx 2012", SortName: "Zzyzx", ProductionYear: 2009, Path: "/m/Zzyzx.2012.1080p.mkv"},
 	} {
-		if row, _ := checkPath(it, want); slices.ContainsFunc(row.Problems, func(p string) bool { return strings.HasPrefix(p, "year:") }) {
+		if row, _ := checkPath(it, want, embyfin.Emby); slices.ContainsFunc(row.Problems, func(p string) bool { return strings.HasPrefix(p, "year:") }) {
 			t.Errorf("%q (%d) at %s: %v, want no year row", it.Name, it.ProductionYear, it.Path, row.Problems)
 		}
 	}
@@ -381,7 +382,7 @@ func TestFilmFolderRules(t *testing.T) {
 		{"The Zzyzx (US)", "/tv/The Zzyzx", "name: the same title with (US) on one side alone"},
 		{"The Zzyzx", "/tv/The Zzyzx (UK)", "name: the same title with (UK) on one side alone"},
 	} {
-		row, _ := checkPath(&embyfin.Item{Type: "Series", Name: tc.name, ProductionYear: 2005, Path: tc.path}, want)
+		row, _ := checkPath(&embyfin.Item{Type: "Series", Name: tc.name, ProductionYear: 2005, Path: tc.path}, want, embyfin.Emby)
 		if len(row.Problems) != 0 || row.TitleMatched != tc.want {
 			t.Errorf("%q at %s: problems %v, title_matched %q, want %q", tc.name, tc.path, row.Problems, row.TitleMatched, tc.want)
 		}
@@ -396,7 +397,7 @@ func TestFilmFolderRules(t *testing.T) {
 		{"Rose Remastered", "/s/Zzyzx - 01x01 - Rose.mkv", `the server's title is the file's with "Remastered" added`},
 	} {
 		it := &embyfin.Item{Type: typeEpisode, Name: tc.name, SeriesName: "Zzyzx", ParentIndexNumber: new(1), IndexNumber: new(1), Path: tc.path}
-		row, _ := checkPath(it, map[string]bool{"title": true})
+		row, _ := checkPath(it, map[string]bool{"title": true}, embyfin.Emby)
 		got := strings.Join(row.Problems, " | ")
 		switch {
 		case tc.says == "" && got != "":

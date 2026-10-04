@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -30,6 +32,9 @@ type auditFinding struct {
 	Year   int    `json:"year,omitempty"`
 	Path   string `json:"path,omitempty"`
 	Detail string `json:"detail,omitempty"`
+	// Problems are the problems an item has, for an audit that checks
+	// several (audit_missing_metadata)
+	Problems []string `json:"problems,omitempty" jsonschema:"audit_missing_metadata: which of the problems asked about the item has, of provider_id, poster and overview"`
 	// what makes the finding something other than it looks: two films on
 	// one id shown as one film's versions
 	Warning string `json:"warning,omitempty"`
@@ -67,7 +72,7 @@ func runAuditOver(ctx context.Context, client *embyfin.Client, in auditIn, field
 
 	opts := embyfin.SearchOptions{IncludeItemTypes: types, Fields: fields}
 
-	folder, err := resolveLibrary(ctx, client, in.Library)
+	folder, err := client.ResolveLibrary(ctx, in.Library)
 	if err != nil {
 		return auditOut{}, err
 	}
@@ -105,7 +110,7 @@ func runAuditOver(ctx context.Context, client *embyfin.Client, in auditIn, field
 		return true
 	}
 	if shown {
-		items, note, placing, serr := shownItems(ctx, client, opts)
+		items, note, placing, serr := client.Shown(ctx, opts)
 		if serr != nil {
 			return auditOut{}, serr
 		}
@@ -148,37 +153,6 @@ type auditCheck struct {
 // auditChecks are the per-item audits, in the order audit_all reports them.
 var auditChecks = []auditCheck{
 	{
-		name: "audit_missing_metadata_provider",
-		description: "Sweep the library for items with no metadata provider id of any kind (a link to its website or social pages is not one): unmatched items that need identification (item_identify). " +
-			"missing drills down to the providers named, so missing=tmdb also finds items matched elsewhere but not on TMDB; each finding lists the ids the item does have.",
-		fields: embyfin.FieldsLean,
-		check:  noProviderID,
-		tool:   registerProviderAudit,
-	},
-	{
-		name:        "audit_missing_poster",
-		description: "Sweep the library for items with no primary poster image (item_artwork_set fixes them).",
-		fields:      embyfin.FieldsLean + ",ImageTags",
-		music:       musicAlbum,
-		check: func(it *embyfin.Item) (string, bool) {
-			if it.ImageTags["Primary"] == "" {
-				return "no primary image", true
-			}
-			return "", false
-		},
-	},
-	{
-		name:        "audit_missing_overview",
-		description: "Sweep the library for items with no overview/plot text, usually a sign of a failed metadata match (item_refresh or item_identify fixes them where the library's metadata fetchers are on; item_edit sets one by hand).",
-		fields:      embyfin.FieldsLean,
-		check: func(it *embyfin.Item) (string, bool) {
-			if strings.TrimSpace(it.Overview) == "" {
-				return "no overview", true
-			}
-			return "", false
-		},
-	},
-	{
 		name: "audit_multiple_versions",
 		description: "Sweep the library for items the server shows as one title with several versions (more than one media file, e.g. a 4K and a 1080p copy). Jellyfin merges the files of one film in one folder when it scans; Emby merges those, and copies in other folders sharing a provider id, in what it shows people - so on Emby this reads the library as the first administrator is shown it. Separate entries for the same title show up in audit_duplicates instead. Defaults to Movie,Episode. " +
 			"A finding with a warning may not be one film at all: a version's file names another title than any the film goes by, or a year more than one off, so another film matched to its ids may have been merged in - identify the wrong one rather than keep the better copy. A file is read as audit_file_path reads a path: against the film's name, original title and sort name, and with EMBYFIN_TMDB_TOKEN every title TMDB lists for it, or one TMDB's search finds it by under a title like the file's; a file named 'Franchise (Year) Subtitle' is asked by its whole title, not the word before the year, and a title in one of TMDB's translations of the film counts when the search finds the film by it. 'probably not one film' when a year or TMDB says another film; 'may not be one film' when the file only names a title the film does not go by - a title no list holds, or with no token one TMDB was not asked about - or one TMDB lists as an entry of its own titled the film's and an edition's words (an edition, or another film), or its year alone disagrees and nothing says which is right, or TMDB could not be asked, and the warning says which; a file TMDB finds as this very film by its title and year says the year held is the one to check instead. A file whose title is the film's and whose year is two or more off is asked of TMDB by its title and year, as audit_file_path asks it: this very film says the year the item holds is the one to check (no other film), another film says 'probably', and nothing either way - or no token - that it may be another film, or the item's year is wrong. A renamer's or a release's words after the year are no title: tags in brackets or braces, a trailing '-GROUP', quality, source, HDR, IMAX, 3D, language and dub words, a stacked file's part ('cd1', 'Disc 2') and an extra's word ('Sample', 'Trailer'), read across a hyphen or a plus ('Bluray-1080p', 'HDR10+', 'German-DL'); 'Part 2', the number set apart, is a title's. A file whose words before its year are the film's own title and whose words after are more ('Dune (2021) Part Two' held as Dune) is, with EMBYFIN_TMDB_TOKEN, asked of TMDB by its whole title in no year, and its words after the year held against the films of the film's TMDB collection ('Alien (1979) - Aliens'): another film when TMDB names one of another id by them - a film of its own whose title is the film's and a number alone ('Film: Part Two', 'Film 2', 'Film II') or another film of its TMDB collection among them - 'may' only when that film's title is the film's and an edition's words alone ('Film: Ultimate Edition', 'Film: The Director's Cut'), which may be an edition TMDB lists apart, and said to be unchecked when TMDB cannot be asked. Words after the year that are an edition's alone ('Film (1982) - Final Cut') are asked nothing and stay quiet: the film's own title and year beside them can only be the film, or an edition TMDB lists apart; without a token a label and a title after the year cannot be told apart, and neither is warned. The words before the year, asked when the whole title finds nothing, count only as the same title ('Alien' is not 'Alien 2').",
@@ -192,7 +166,7 @@ var auditChecks = []auditCheck{
 			names := make([]string, 0, len(it.MediaSources))
 			for _, s := range it.MediaSources {
 				// the server's path, which on Windows is split by backslashes
-				names = append(names, baseName(s.Path))
+				names = append(names, mediapath.Base(s.Path))
 			}
 			return strconv.Itoa(len(it.MediaSources)) + " versions: " + strings.Join(names, ", "), true
 		},
@@ -320,6 +294,7 @@ func auditCheckByName(name string) *auditCheck {
 
 func registerAuditTools(r *registry) {
 	client := r.client
+	registerMissingAudit(r)
 	for i := range auditChecks {
 		c := auditChecks[i]
 		if c.tool != nil {
@@ -342,10 +317,12 @@ func registerAuditTools(r *registry) {
 
 	check := r.newTitleCheck()
 	type dupOut struct {
-		Scanned     int             `json:"items_scanned"`
-		TotalGroups int             `json:"total_findings"`
-		Groups      [][]itemSummary `json:"groups"         jsonschema:"each group shares one metadata provider id; capped at limit, total_findings is the real count"`
-		Note        string          `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read. On Emby, an audit of what people are shown also says how the items shown only as versions of others were placed: by the key Emby merges them by, with a sample checked against a read of each, or by a read of each"`
+		Scanned      int             `json:"items_scanned"`
+		TotalGroups  int             `json:"total_findings"      jsonschema:"groups and folder_groups together, before the limit"`
+		Groups       [][]itemSummary `json:"groups"              jsonschema:"each group shares one metadata provider id; capped at limit, total_findings is the real count"`
+		TotalFolders int             `json:"total_folder_groups" jsonschema:"folder_groups before the limit; counted in total_findings too"`
+		FolderGroups []folderGroup   `json:"folder_groups"       jsonschema:"series the server holds twice because two folders beside each other name the same show, their names apart only in spacing, case, an accent or punctuation: a rename that left the old folder behind. Found by the folder names alone, so a second entry with no provider id, which is usual, is found here when groups cannot see it. Capped at limit"`
+		Note         string          `json:"note,omitempty"      jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read. On Emby, an audit of what people are shown also says how the items shown only as versions of others were placed: by the key Emby merges them by, with a sample checked against a read of each, or by a read of each"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_duplicates",
@@ -353,6 +330,7 @@ func registerAuditTools(r *registry) {
 			"A tmdb or tvdb id only joins entries of one kind, a film to a film and a series to a series, because both providers number films and TV apart; an imdb id joins any. " +
 			"Episodes are grouped by provider id AND series name AND season and episode number, because a library can carry one shared id across unrelated episodes. " +
 			"Items the server shows as one title's versions are not entries of their own (Emby merges them only in what it shows people, so on Emby this reads the library as the first administrator is shown it): audit_multiple_versions lists those. " +
+			"folder_groups are the shows held twice because two folders name the same series: a rename that changed only spacing, case, an accent or punctuation leaves the old folder behind and a second entry is built from it, and the episodes are then split across both entries, so each answers 'no' to half the questions asked of it. Sharing an id cannot see these when the second entry carries no provider id, which is usual, so they are found by their folder names; left out when types leaves Series out. " +
 			"Entries whose AniDB ids differ are grouped and each is warned: an anime's special or sequel kept as its own entry often carries its parent's TVDB or TMDB id, and is a different work, not a copy; only entries of one AniDB id can be copies, and one with none could copy any. Whatever else is wrong among the entries of one AniDB id is said as well, and an entry with none is held against the entries of each AniDB id in turn. A placeholder id (0, tt0000000) groups nothing. " +
 			"A group whose members carry a warning may not be copies at all. 'probably not copies' when a year says so - a file's or folder's year more than one off the entry's, or the entries' own years more than one apart - or TMDB gives the file's title to another film; 'may not be copies' when a file or folder only names a title the entry does not go by - a title no list holds, or with no token one TMDB was not asked about - or one TMDB lists as an entry of its own titled the film's and an edition's words (an edition, or another film), or its year alone disagrees and nothing says which is right, or TMDB could not be asked, and the warning says which; a file TMDB finds as this very film by its title and year says the year held is the one to check instead. A file whose title is the film's and whose year is two or more off is asked of TMDB by its title and year, as audit_file_path asks it: this very film says the year the item holds is the one to check (no other film), another film says 'probably', and nothing either way - or no token - that it may be another film, or the item's year is wrong. A renamer's or a release's words after the year are no title: tags in brackets or braces, a trailing '-GROUP', quality, source, HDR, IMAX, 3D, language and dub words, a stacked file's part ('cd1', 'Disc 2') and an extra's word ('Sample', 'Trailer'), read across a hyphen or a plus ('Bluray-1080p', 'HDR10+', 'German-DL'); 'Part 2', the number set apart, is a title's. Paths are read as audit_file_path reads them: with EMBYFIN_TMDB_TOKEN a title TMDB lists for the film or series, or finds it by under that title, is one it goes by, as is its title in one of TMDB's translations when the search finds it by that. A file whose words before its year are the film's own title and whose words after are more ('Dune (2021) Part Two' held as Dune) is, with EMBYFIN_TMDB_TOKEN, asked of TMDB by its whole title in no year, and its words after the year held against the films of the film's TMDB collection ('Alien (1979) - Aliens'): another film when TMDB names one of another id by them - a film of its own whose title is the film's and a number alone ('Film: Part Two', 'Film 2', 'Film II') or another film of its TMDB collection among them - 'may' only when that film's title is the film's and an edition's words alone ('Film: Ultimate Edition', 'Film: The Director's Cut'), which may be an edition TMDB lists apart, and said to be unchecked when TMDB cannot be asked. Words after the year that are an edition's alone ('Film (1982) - Final Cut') are asked nothing and stay quiet: the film's own title and year beside them can only be the film, or an edition TMDB lists apart; without a token a label and a title after the year cannot be told apart, and neither is warned. The words before the year, asked when the whole title finds nothing, count only as the same title ('Alien' is not 'Alien 2'). " +
 			"Runtimes are held against each other too, whatever the paths name: films or episodes more than twice as long as each other are 'probably not copies' of one cut - one file is cut short, a sample or holds more than one episode, or an id is wrong - and more than 15% apart (a PAL copy's 4% allowed for) are two cuts, a file cut short, or a wrong id: compare the files. Default limit 50 groups.",
@@ -365,8 +343,12 @@ func registerAuditTools(r *registry) {
 		if err != nil {
 			return nil, dupOut{}, err
 		}
+		folders, err := duplicateFolders(ctx, client, in.Library, in.Types, limit)
+		if err != nil {
+			return nil, dupOut{}, err
+		}
 
-		out := dupOut{Scanned: scanned, TotalGroups: len(groups), Note: joinWarnings(note, placing)}
+		out := dupOut{Scanned: scanned, TotalGroups: len(groups) + folders.Found, TotalFolders: folders.Found, FolderGroups: folders.Groups, Note: joinWarnings(joinWarnings(note, placing), folders.Note)}
 		if len(groups) > limit {
 			groups = groups[:limit]
 		}
@@ -385,46 +367,158 @@ func registerAuditTools(r *registry) {
 	registerAuditAll(r)
 }
 
-// registerProviderAudit adds audit_missing_metadata_provider, which takes the
-// providers to look for, and the libraries to leave out, on top of the
-// options every audit shares.
-func registerProviderAudit(r *registry, c auditCheck) {
-	client := r.client
+// The problems audit_missing_metadata looks for, in the order a finding
+// lists them.
+const (
+	missingProviderID = "provider_id"
+	missingPoster     = "poster"
+	missingOverview   = "overview"
+)
 
-	type providerIn struct {
-		auditIn
-		Missing string   `json:"missing,omitempty" jsonschema:"comma-separated providers the item has none of: tmdb, imdb, tvdb, anidb, myanimelist. Default: no provider id of any kind"`
-		Ignore  []string `json:"ignore,omitempty"  jsonschema:"libraries to leave out, by name or id: ones whose items never carry an id, such as a YouTube library"`
+var missingProblems = []string{missingProviderID, missingPoster, missingOverview}
+
+// parseProblems reads the problems a caller named, comma-separated and in
+// any case, in missingProblems' order; none named is all of them.
+func parseProblems(s string) ([]string, error) {
+	named := map[string]bool{}
+	for p := range strings.SplitSeq(s, ",") {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p == "" {
+			continue
+		}
+		if !slices.Contains(missingProblems, p) {
+			return nil, fmt.Errorf("unknown problem %q; choose from: %s", p, strings.Join(missingProblems, ", "))
+		}
+		named[p] = true
+	}
+	if len(named) == 0 {
+		return missingProblems, nil
 	}
 
-	add(r, readTool, &mcp.Tool{
-		Name:        c.name,
-		Description: c.description,
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in providerIn) (*mcp.CallToolResult, auditOut, error) {
-		missing, err := parseProviders(in.Missing)
-		if err != nil {
-			return nil, auditOut{}, err
-		}
-		ignored, err := libraryFolders(ctx, client, in.Ignore)
-		if err != nil {
-			return nil, auditOut{}, err
-		}
-		var skip func(*embyfin.Item) bool
-		if len(ignored) > 0 {
-			skip = func(it *embyfin.Item) bool {
-				_, under := inLibrary(it.Path, ignored)
+	return slices.DeleteFunc(slices.Clone(missingProblems), func(p string) bool { return !named[p] }), nil
+}
 
-				return under
+// noPoster flags an item with no primary image.
+func noPoster(it *embyfin.Item) (string, bool) {
+	if it.ImageTags["Primary"] == "" {
+		return "no primary image", true
+	}
+
+	return "", false
+}
+
+// noOverview flags an item with no overview, or one of nothing but spaces:
+// Jellyfin keeps one as it was sent, Emby keeps none.
+func noOverview(it *embyfin.Item) (string, bool) {
+	if strings.TrimSpace(it.Overview) == "" {
+		return "no overview", true
+	}
+
+	return "", false
+}
+
+// metadataIn is audit_missing_metadata's input: the shared options, the
+// problems to look for, the providers provider_id asks after, and the
+// libraries to leave out.
+type metadataIn struct {
+	Library  string   `json:"library,omitempty"  jsonschema:"restrict to one library by name or id"`
+	Types    string   `json:"types,omitempty"    jsonschema:"comma-separated item types to audit; defaults to Movie,Series"`
+	Problems string   `json:"problems,omitempty" jsonschema:"comma-separated problems to look for: provider_id (no metadata provider id of any kind - a link to its website or social pages is not one - so unmatched, and item_identify finds it), poster (no primary image: item_artwork_set fixes it), overview (no overview or plot text: item_refresh or item_identify where the library's metadata fetchers are on, item_edit sets one by hand). Default all three"`
+	Missing  string   `json:"missing,omitempty"  jsonschema:"provider_id: comma-separated providers the item has none of: tmdb, imdb, tvdb, anidb, myanimelist, so missing=tmdb also finds items matched elsewhere but not on TMDB. Default: no provider id of any kind"`
+	Ignore   []string `json:"ignore,omitempty"   jsonschema:"libraries to leave out, by name or id: ones whose items never carry an id, such as a YouTube library"`
+	Limit    int      `json:"limit,omitempty"    jsonschema:"maximum findings to return, default 100"`
+}
+
+// metadataOut is audit_missing_metadata's worklist: one finding an item,
+// naming each of its problems, and how many items have each.
+type metadataOut struct {
+	Scanned   int            `json:"items_scanned"`
+	Found     int            `json:"total_findings" jsonschema:"items with any of the problems asked about"`
+	ByProblem map[string]int `json:"by_problem"     jsonschema:"items with each problem, provider_id, poster and overview; an item with two counts under both"`
+	Findings  []auditFinding `json:"findings"       jsonschema:"one an item, its problems listed; capped at limit, total_findings is the real count"`
+	Note      string         `json:"note,omitempty" jsonschema:"set when the library was seen to change while it was read: items added or removed meanwhile may be missing, or listed though gone. It also says when the read stopped short, the library changing too much to follow, or whether it changed could not be checked. Empty when no item was seen to come or go from the read's first page to its last, and an item changed meanwhile is answered as it was read"`
+	changed   string
+}
+
+// auditMissing sweeps the library for the items missing what a matched,
+// finished item has: a provider id, a poster, an overview.
+func auditMissing(ctx context.Context, client *embyfin.Client, in metadataIn) (metadataOut, error) {
+	problems, err := parseProblems(in.Problems)
+	if err != nil {
+		return metadataOut{}, err
+	}
+	missing, err := parseProviders(in.Missing)
+	if err != nil {
+		return metadataOut{}, err
+	}
+	ignored, err := libraryFolders(ctx, client, in.Ignore)
+	if err != nil {
+		return metadataOut{}, err
+	}
+	checks := map[string]func(*embyfin.Item) (string, bool){missingProviderID: noProviderID, missingPoster: noPoster, missingOverview: noOverview}
+	if len(missing) > 0 {
+		checks[missingProviderID] = missingProviders(missing)
+	}
+	limit := in.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	opts := embyfin.SearchOptions{IncludeItemTypes: cmp.Or(in.Types, "Movie,Series"), Fields: embyfin.FieldsLean + ",ImageTags"}
+	folder, err := client.ResolveLibrary(ctx, in.Library)
+	if err != nil {
+		return metadataOut{}, err
+	}
+	if folder != nil {
+		opts.ParentID = folder.ItemID
+	}
+
+	out := metadataOut{ByProblem: map[string]int{}, Findings: []auditFinding{}}
+	for _, p := range problems {
+		out.ByProblem[p] = 0
+	}
+	read, err := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
+		for i := range items {
+			it := &items[i]
+			if _, under := inLibrary(it.Path, ignored); len(ignored) > 0 && under {
+				continue
+			}
+			out.Scanned++
+			var has, details []string
+			for _, p := range problems {
+				if detail, bad := checks[p](it); bad {
+					has, details = append(has, p), append(details, detail)
+					out.ByProblem[p]++
+				}
+			}
+			if len(has) == 0 {
+				continue
+			}
+			out.Found++
+			if len(out.Findings) < limit {
+				out.Findings = append(out.Findings, auditFinding{ID: it.ID, Name: it.Name, Year: it.ProductionYear, Path: it.Path, Detail: strings.Join(details, "; "), Problems: has})
 			}
 		}
-		if in.Types == "" {
-			in.Types = c.types
-		}
-		check := c.check
-		if len(missing) > 0 {
-			check = missingProviders(missing)
-		}
-		out, err := runAudit(ctx, client, in.auditIn, c.fields, skip, check)
+
+		return true
+	})
+	if err != nil {
+		return metadataOut{}, err
+	}
+	out.changed = read.Changed()
+	out.Note = out.changed
+
+	return out, nil
+}
+
+// registerMissingAudit adds audit_missing_metadata.
+func registerMissingAudit(r *registry) {
+	client := r.client
+	add(r, readTool, &mcp.Tool{
+		Name: "audit_missing_metadata",
+		Description: "Sweep the library for items missing what a matched, finished item has: a metadata provider id of any kind (a link to its website or social pages is not one), so unmatched items that need identification (item_identify); a primary poster image (item_artwork_set fixes them); an overview or plot text, usually a sign of a failed metadata match (item_refresh or item_identify fixes them where the library's metadata fetchers are on; item_edit sets one by hand). " +
+			"problems picks which to look for, and each finding lists the problems its item has; by_problem counts the items with each. missing drills provider_id down to the providers named, so missing=tmdb also finds items matched elsewhere but not on TMDB; each such finding lists the ids the item does have. ignore leaves whole libraries out by their folders.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in metadataIn) (*mcp.CallToolResult, metadataOut, error) {
+		out, err := auditMissing(ctx, client, in)
 
 		return nil, out, err
 	})
@@ -433,21 +527,21 @@ func registerProviderAudit(r *registry, c auditCheck) {
 // libraryFolders are the folders of the libraries named, by name or id. A
 // name that matches no library is refused: leaving out nothing, when the
 // caller meant to leave something out, reads as a finding.
-func libraryFolders(ctx context.Context, client *embyfin.Client, names []string) ([]libraryPath, error) {
-	var folders []libraryPath
+func libraryFolders(ctx context.Context, client *embyfin.Client, names []string) ([]embyfin.LibraryPath, error) {
+	var folders []embyfin.LibraryPath
 	for _, name := range names {
 		if name = strings.TrimSpace(name); name == "" {
 			continue
 		}
 		// by its folders, not its id, so a library listed without one can be
 		// left out too
-		folder, err := findLibrary(ctx, client, name)
+		folder, err := client.FindLibrary(ctx, name)
 		if err != nil {
 			return nil, err
 		}
 		for _, loc := range folder.Locations {
-			if loc = trimSep(loc); loc != "" {
-				folders = append(folders, libraryPath{library: folder.Name, path: loc})
+			if loc = mediapath.Trim(loc); loc != "" {
+				folders = append(folders, embyfin.LibraryPath{Library: folder.Name, Path: loc})
 			}
 		}
 	}
@@ -484,7 +578,7 @@ func duplicateGroups(ctx context.Context, client *embyfin.Client, library, types
 	}
 	opts := embyfin.SearchOptions{IncludeItemTypes: types}
 
-	folder, err := resolveLibrary(ctx, client, library)
+	folder, err := client.ResolveLibrary(ctx, library)
 	if err != nil {
 		return nil, 0, "", "", err
 	}
@@ -495,7 +589,7 @@ func duplicateGroups(ctx context.Context, client *embyfin.Client, library, types
 	// as the server shows them: two files Emby shows as one film's versions
 	// are versions (audit_multiple_versions), not two entries
 	opts.Fields = embyfin.FieldsDefault + ",SortName"
-	all, note, placing, err := shownItems(ctx, client, opts)
+	all, note, placing, err := client.Shown(ctx, opts)
 	if err != nil {
 		return nil, 0, "", "", err
 	}
@@ -719,7 +813,7 @@ func runtimeWarning(kind string, group []embyfin.Item) string {
 	run := ""
 	for i := range group {
 		if it := &group[i]; it.Type == typeEpisode && it.IndexNumber != nil && it.IndexNumberEnd > *it.IndexNumber {
-			run = fmt.Sprintf("; %s is held as episodes %d to %d, and may hold them all", baseName(it.Path), *it.IndexNumber, it.IndexNumberEnd)
+			run = fmt.Sprintf("; %s is held as episodes %d to %d, and may hold them all", mediapath.Base(it.Path), *it.IndexNumber, it.IndexNumberEnd)
 
 			break
 		}
@@ -743,16 +837,16 @@ func runtimeWarning(kind string, group []embyfin.Item) string {
 // than one off the entry's, or a title unlike every name it goes by, with
 // what the folder claims. A folder with no year claims too little to hold
 // against it.
-func seriesClaim(it *embyfin.Item) (why string, c pathClaim, other bool) {
+func seriesClaim(it *embyfin.Item) (why string, c naming.Claim, other bool) {
 	if it.Path == "" {
-		return "", pathClaim{}, false
+		return "", naming.Claim{}, false
 	}
-	c, ok := claimOf(it.Path, heldTitles(it))
-	if !ok || baseName(it.Path) != c.segment {
+	c, ok := naming.ClaimOf(it.Path, heldTitles(it))
+	if !ok || mediapath.Base(it.Path) != c.Segment {
 		return "", c, false
 	}
-	titleOff := c.title != "" && c.score < seriesConfident
-	yearOff := it.ProductionYear > 0 && abs(c.year-it.ProductionYear) > 1
+	titleOff := c.Title != "" && c.Score < seriesConfident
+	yearOff := it.ProductionYear > 0 && abs(c.Year-it.ProductionYear) > 1
 	if !titleOff && !yearOff {
 		return "", c, false
 	}
@@ -760,12 +854,12 @@ func seriesClaim(it *embyfin.Item) (why string, c pathClaim, other bool) {
 	if it.ProductionYear > 0 {
 		held = fmt.Sprintf("%s (%d)", it.Name, it.ProductionYear)
 	}
-	named := cmp.Or(c.title, c.segment)
+	named := cmp.Or(c.Title, c.Segment)
 	if titleOff {
-		named = c.named(heldTitles(it))
+		named = c.Named(heldTitles(it))
 	}
 
-	return fmt.Sprintf("%q is named for %q (%d), not %s", c.segment, named, c.year, held), c, true
+	return fmt.Sprintf("%q is named for %q (%d), not %s", c.Segment, named, c.Year, held), c, true
 }
 
 // yearsOf is the earliest and the latest year a group's entries are dated,
@@ -912,11 +1006,12 @@ type auditAllRow struct {
 	Audit    string `json:"audit"`
 	Findings int    `json:"findings"`
 	Scanned  int    `json:"items_scanned"`
-	Types    string `json:"types,omitempty"   jsonschema:"the item types the row counted, when they are not the audit's own default: pass them to the audit as types for the worklist behind the count"`
-	Where    string `json:"where,omitempty"   jsonschema:"audit_whitespace: the places the row counted, every one but the file names: pass them to it as where for the worklist behind the count"`
-	Skipped  bool   `json:"skipped,omitempty" jsonschema:"true when the audit was not run here, or its read stopped short and it has no count; note says why"`
-	Partial  bool   `json:"partial,omitempty" jsonschema:"true when the count covers only part of what the audit checks - episodes with no runtime to judge, shows whose run is not known - so a small count is not a clean result; note says what was left out"`
-	Note     string `json:"note,omitempty"    jsonschema:"why an audit was skipped, or what its count means, and what its read saw when the library was seen to change under it"`
+	Types    string `json:"types,omitempty"    jsonschema:"the item types the row counted, when they are not the audit's own default: pass them to the audit as types for the worklist behind the count"`
+	Where    string `json:"where,omitempty"    jsonschema:"audit_whitespace: the places the row counted, every one but the file names: pass them to it as where for the worklist behind the count"`
+	Problems string `json:"problems,omitempty" jsonschema:"audit_missing_metadata: the one problem the row counted, provider_id, poster or overview, one row each: pass it to the audit as problems for the worklist behind the count"`
+	Skipped  bool   `json:"skipped,omitempty"  jsonschema:"true when the audit was not run here, or its read stopped short and it has no count; note says why"`
+	Partial  bool   `json:"partial,omitempty"  jsonschema:"true when the count covers only part of what the audit checks - episodes with no runtime to judge, shows whose run is not known - so a small count is not a clean result; note says what was left out"`
+	Note     string `json:"note,omitempty"     jsonschema:"why an audit was skipped, or what its count means, and what its read saw when the library was seen to change under it"`
 	// an audit that failed is a row of its own, not the end of the call
 	Failed bool     `json:"failed,omitempty" jsonschema:"true when the audit ran and failed: findings and items_scanned are then not counts, error says what failed, and the audit can be run on its own"`
 	Error  string   `json:"error,omitempty"  jsonschema:"what failed, when failed is set"`
@@ -926,15 +1021,29 @@ type auditAllRow struct {
 	changed string
 }
 
-// auditAllNames is every audit audit_all has a row for, in its order.
-func auditAllNames() []string {
-	names := make([]string, 0, len(auditChecks)+15)
+// auditAllKey names one of audit_all's rows: an audit, and for
+// audit_missing_metadata the one problem the row counts.
+type auditAllKey struct {
+	audit, problems string
+}
+
+// auditAllRows is every row audit_all makes, in its order.
+func auditAllRows() []auditAllKey {
+	rows := make([]auditAllKey, 0, len(auditChecks)+17)
+	for _, problem := range missingProblems {
+		rows = append(rows, auditAllKey{audit: "audit_missing_metadata", problems: problem})
+	}
 	for i := range auditChecks {
-		names = append(names, auditChecks[i].name)
+		rows = append(rows, auditAllKey{audit: auditChecks[i].name})
+	}
+	for _, audit := range []string{
+		"audit_file_path", "audit_duplicates", "audit_duplicate_episodes", "audit_disc_folders", "audit_runtime", "audit_quality", "audit_missing_episodes",
+		"audit_spelling", "audit_whitespace", "audit_unwatched", "audit_orphans", "audit_language", "audit_provider", "audit_anime_ids",
+	} {
+		rows = append(rows, auditAllKey{audit: audit})
 	}
 
-	return append(names, "audit_file_path", "audit_duplicates", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_runtime", "audit_quality", "audit_missing_episodes",
-		"audit_spelling", "audit_whitespace", "audit_unwatched", "audit_orphans", "audit_language", "audit_provider", "audit_anime_ids")
+	return rows
 }
 
 // auditedKind says whether the audits read anything in a library of a kind:
@@ -983,8 +1092,10 @@ type auditAllOut struct {
 // or one skipped here and why.
 type auditAllStep struct {
 	audit string
-	skip  string // why the audit is not run here; "" runs it
-	row   func() (auditAllRow, error)
+	// problems is the one problem an audit_missing_metadata row counts
+	problems string
+	skip     string // why the audit is not run here; "" runs it
+	row      func() (auditAllRow, error)
 	// uncounted leaves a row out of total_findings: audit_unwatched's, which
 	// is about viewing rather than a fault
 	uncounted bool
@@ -1003,7 +1114,7 @@ func runAuditAll(ctx context.Context, steps []auditAllStep) (auditAllOut, error)
 	var changed, cut []string
 	for _, s := range steps {
 		if s.skip != "" {
-			out.Audits = append(out.Audits, auditAllRow{Audit: s.audit, Skipped: true, Note: s.skip})
+			out.Audits = append(out.Audits, auditAllRow{Audit: s.audit, Problems: s.problems, Skipped: true, Note: s.skip})
 
 			continue
 		}
@@ -1025,7 +1136,7 @@ func runAuditAll(ctx context.Context, steps []auditAllStep) (auditAllOut, error)
 
 			continue
 		}
-		row.Audit = s.audit
+		row.Audit, row.Problems = s.audit, s.problems
 		if row.changed != "" {
 			row.Note = joinWarnings(row.Note, row.changed)
 			changed = append(changed, s.audit)
@@ -1061,7 +1172,7 @@ func registerAuditAll(r *registry) {
 			"A row marked partial counted only part of what its audit checks - files with no media facts, shows whose run is not known (the missing-episodes row does not ask TMDB, so it sees only gaps between files unless the server keeps records) - and its note says what was left out: a small count there is not a clean result. " +
 			"Every row that ran says how long it took (took_s). An audit that fails does not end the call: its row says failed with the error, the others still count, and failed lists them - total_findings is then short by whatever they would have found, so run a failed one on its own.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in auditAllIn) (*mcp.CallToolResult, auditAllOut, error) {
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, auditAllOut{}, err
 		}
@@ -1071,12 +1182,12 @@ func registerAuditAll(r *registry) {
 		if folder != nil && !auditedKind(folder.CollectionType) {
 			notKind := fmt.Sprintf("not checked for this library type: a %s library holds none of the films, series, episodes or albums the audits read", folder.CollectionType)
 			out := auditAllOut{Audits: []auditAllRow{}}
-			for _, audit := range auditAllNames() {
+			for _, row := range auditAllRows() {
 				note := notKind
-				if audit == "audit_orphans" {
+				if row.audit == "audit_orphans" {
 					note = "server-wide: run it without a library"
 				}
-				out.Audits = append(out.Audits, auditAllRow{Audit: audit, Skipped: true, Note: note})
+				out.Audits = append(out.Audits, auditAllRow{Audit: row.audit, Problems: row.problems, Skipped: true, Note: note})
 			}
 
 			return nil, out, nil
@@ -1119,6 +1230,26 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 	music := folder != nil && folder.CollectionType == "music"
 	const notMusic = "reads films, series or episodes, and a music library has none"
 
+	// a row a problem of the missing-metadata audit: the poster one reads
+	// albums too, where there are any, and the others have nothing to say
+	// about music
+	for _, problem := range missingProblems {
+		music := ""
+		if problem == missingPoster {
+			music = musicAlbum
+		}
+		types, applies := auditAllTypes(folder, "Movie,Series", music)
+		if !applies {
+			steps = append(steps, auditAllStep{audit: "audit_missing_metadata", problems: problem, skip: notMusic})
+
+			continue
+		}
+		steps = append(steps, auditAllStep{audit: "audit_missing_metadata", problems: problem, row: func() (auditAllRow, error) {
+			res, err := auditMissing(ctx, client, metadataIn{Library: library, Types: types, Problems: problem, Limit: 1})
+
+			return auditAllRow{Findings: res.ByProblem[problem], Scanned: res.Scanned, Types: types, changed: res.changed}, err
+		}})
+	}
 	for i := range auditChecks {
 		c := &auditChecks[i]
 		types, applies := auditAllTypes(folder, cmp.Or(c.types, "Movie,Series"), c.music)
@@ -1142,7 +1273,7 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 	if music {
 		// the rest read films, series and episodes alone, but for the
 		// spellings of the genres, tags and studios an album carries
-		for _, audit := range []string{"audit_file_path", "audit_duplicates", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_runtime", "audit_quality", "audit_missing_episodes"} {
+		for _, audit := range []string{"audit_file_path", "audit_duplicates", "audit_duplicate_episodes", "audit_disc_folders", "audit_runtime", "audit_quality", "audit_missing_episodes"} {
 			skip(audit, notMusic)
 		}
 		run("audit_spelling", spelling)
@@ -1155,7 +1286,7 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 	}
 
 	run("audit_file_path", func() (auditAllRow, error) {
-		paths, err := auditFilePath(ctx, client, nil, nil, pathIn{Library: library, Limit: 1})
+		paths, err := auditFilePath(ctx, client, nil, pathIn{Library: library, Limit: 1})
 
 		return auditAllRow{Findings: paths.Found, Scanned: paths.Scanned, Note: "items whose path disagrees with their metadata - title, year, series, season or episode - or whose name has a letter that only looks Latin; TMDB is not asked here, so a path named by a title only TMDB lists for the item is still counted", changed: paths.changed}, err
 	})
@@ -1166,18 +1297,20 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 		// how Emby's versions were placed is said by audit_duplicates itself,
 		// and is not the library changing
 		groups, scanned, note, _, err := duplicateGroups(ctx, client, library, "")
+		if err != nil {
+			return auditAllRow{}, err
+		}
+		folders, err := duplicateFolders(ctx, client, library, "", 1)
+		if err != nil {
+			return auditAllRow{}, err
+		}
 
-		return auditAllRow{Findings: len(groups), Scanned: scanned, Note: "groups of entries sharing a provider id, films series and episodes", changed: note}, err
+		return auditAllRow{Findings: len(groups) + folders.Found, Scanned: scanned, Note: fmt.Sprintf("groups of entries sharing a provider id, films series and episodes (%d), and series held twice from two folders of one name (%d, its folder_groups)", len(groups), folders.Found), changed: joinWarnings(note, folders.Note)}, nil
 	})
 	run("audit_duplicate_episodes", func() (auditAllRow, error) {
 		titles, err := auditDuplicateEpisodes(ctx, client, dupTitlesIn{Library: library, Limit: 1})
 
 		return auditAllRow{Findings: titles.Found, Scanned: titles.Scanned, Note: "groups of one season's entries sharing a title: near certain, leads, and titles whose entries run more than 15% apart (far_apart)", changed: titles.changed}, err
-	})
-	run("audit_duplicate_series", func() (auditAllRow, error) {
-		folders, err := auditDuplicateSeries(ctx, client, folderIn{Library: library, Limit: 1})
-
-		return auditAllRow{Findings: folders.Found, Scanned: folders.Scanned, Note: "series held twice from two folders of one name; items_scanned is series", changed: folders.Note}, err
 	})
 	run("audit_disc_folders", func() (auditAllRow, error) {
 		discs, err := auditDiscFolders(ctx, client, discIn{Library: library, Limit: 1})
@@ -1317,7 +1450,7 @@ func registerRuntimeAudit(r *registry) {
 			in.Limit = 100
 		}
 
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, runtimeOut{}, err
 		}

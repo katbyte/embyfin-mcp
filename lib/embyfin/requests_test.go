@@ -1154,7 +1154,7 @@ func TestRemoveFromCollection(t *testing.T) {
 
 // A scan's refresh of a collection can save the members it read before a
 // removal and put an item back after the removal was answered and seen to
-// land (seen on Jellyfin 12.1: Dune held again after collection_remove said
+// land (seen on Jellyfin 12.1: Dune held again after collection_edit remove_items said
 // it was gone). The collection is read again a moment after the removal
 // lands, and an item asked for that came back is sent again, alone; one
 // that keeps coming back is an error saying so.

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -88,11 +87,11 @@ func registerUserTools(r *registry) {
 		// Emby's list endpoints omit LastPlayedDate from UserData (only the single-item
 		// endpoint has it), so recent history comes from the activity log's playback
 		// events, each put down to the user who played it (see playedBy).
-		window, err := readWindow(ctx, client, in.Days)
+		window, err := client.ActivityWindow(ctx, in.Days)
 		if err != nil {
 			return nil, historyOut{}, err
 		}
-		activity, err := readActivity(ctx, client, window.cutoff)
+		activity, err := client.ReadActivity(ctx, window.Cutoff)
 		if err != nil {
 			return nil, historyOut{}, err
 		}
@@ -100,8 +99,8 @@ func registerUserTools(r *registry) {
 		jellyfin := client.Backend() == embyfin.Jellyfin
 		lastEvent := map[string]embyfin.ActivityEntry{}
 		var ids []string
-		for i := range activity.entries { // newest first
-			e := activity.entries[i]
+		for i := range activity.Entries { // newest first
+			e := activity.Entries[i]
 			if _, ok := playbackEvent(e.Type); !ok || e.ItemID == "" || playedBy(&e, users, jellyfin) != user.ID {
 				continue
 			}
@@ -114,8 +113,8 @@ func registerUserTools(r *registry) {
 
 		offset := max(in.Offset, 0)
 		out := historyOut{
-			User: user.Name, Days: window.days, Total: len(ids), Offset: offset, Items: []historyRow{},
-			Complete: activity.complete && !window.short, Note: joinNotes(window.note, activity.note()),
+			User: user.Name, Days: window.Days, Total: len(ids), Offset: offset, Items: []historyRow{},
+			Complete: activity.Complete && !window.Short, Note: joinNotes(window.Note, activity.Note()),
 		}
 		if offset >= len(ids) {
 			return nil, out, nil
@@ -319,96 +318,4 @@ func playedAs(ctx context.Context, client *embyfin.Client, it *embyfin.Item) ([]
 	}
 
 	return ids, nil
-}
-
-// defaultHistoryDays is the period a history tool reads when none is asked
-// for.
-const defaultHistoryDays = 60
-
-// historyWindow is the period a history tool reads.
-type historyWindow struct {
-	days   int
-	cutoff time.Time
-	// short is set when the days asked for reach back past what the server
-	// keeps: reading to the end of the log is then not reading the period
-	short bool
-	note  string
-}
-
-// readWindow settles the period a history tool reads: the days asked for, or
-// defaultHistoryDays, held against what the server keeps of its activity log.
-// Jellyfin deletes what is older than its retention (30 days out of the box),
-// so a read of 60 days reached the end of what was kept and said complete: a
-// film played 40 days ago was "never played". Asked for nothing, the period
-// is what the server keeps, whole; asked for more than it keeps, the answer
-// is short of the period and says so.
-func readWindow(ctx context.Context, client *embyfin.Client, asked int) (historyWindow, error) {
-	w := historyWindow{days: asked}
-	if w.days <= 0 {
-		w.days = defaultHistoryDays
-	}
-	keeps, limited, err := client.ActivityRetention(ctx)
-	if err != nil {
-		return historyWindow{}, fmt.Errorf("reading how long the server keeps its activity log: %w", err)
-	}
-	// a retention of 0 deletes everything before the task's daily run, so
-	// the log holds a day at most
-	keeps = max(keeps, 1)
-	if limited && w.days > keeps {
-		if asked <= 0 {
-			w.days = keeps
-			w.note = fmt.Sprintf("the server keeps %d days of activity (its activity log retention) and deletes what is older, so the last %d days were read rather than %d", keeps, keeps, defaultHistoryDays)
-		} else {
-			w.short = true
-			w.note = fmt.Sprintf("the server keeps %d days of activity (its activity log retention) and deletes what is older, so of the %d days asked for only the last %d can be read: nothing before %s is seen", keeps, w.days, keeps, time.Now().AddDate(0, 0, -keeps).Format(time.DateOnly))
-		}
-	}
-	w.cutoff = time.Now().AddDate(0, 0, -w.days)
-
-	return w, nil
-}
-
-// activityRead is the activity log over a period, newest first.
-type activityRead struct {
-	entries []embyfin.ActivityEntry
-	// total is how many entries the log holds in the period
-	total int
-	// complete is false when the read stopped short of the period's start:
-	// at activityScanMax, or where the server's pages ran out before its
-	// count did
-	complete bool
-}
-
-// readActivity reads the activity log since cutoff, a page at a time, until
-// it has every entry the server holds in the period or activityScanMax of
-// them. One page used to be all a history tool read: a thousand entries is a
-// few days of a busy server, so a film played a month ago was reported as
-// never played inside the default 60 days.
-func readActivity(ctx context.Context, client *embyfin.Client, cutoff time.Time) (activityRead, error) {
-	var out activityRead
-	for len(out.entries) < activityScanMax {
-		entries, total, err := client.ActivityLog(ctx, cutoff, min(activityPage, activityScanMax-len(out.entries)), len(out.entries))
-		if err != nil {
-			return activityRead{}, err
-		}
-		out.entries = append(out.entries, entries...)
-		out.total = total
-		if len(entries) == 0 || len(out.entries) >= total {
-			out.complete = len(out.entries) >= total
-
-			return out, nil
-		}
-	}
-
-	return out, nil
-}
-
-// note says how far back a read cut short got, and nothing for a whole one.
-func (a activityRead) note() string {
-	if a.complete || len(a.entries) == 0 {
-		return ""
-	}
-
-	return fmt.Sprintf("the activity log holds %d entries in the period and the newest %d were read, back to %s: nothing older was seen, so ask for fewer days to see all of a shorter period",
-		a.total, len(a.entries), a.entries[len(a.entries)-1].Date)
 }

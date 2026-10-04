@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -38,11 +40,6 @@ var discPatterns = []struct {
 	{"flattened dvd", regexp.MustCompile(`(?i)/vts_\d+_\d+\.vob$`)},
 }
 
-// discStructures are the folders a server holds a whole disc as, which is the
-// arrangement that works: an item inside one is the server reaching past the
-// disc into its parts.
-var discStructures = []string{"BDMV", "VIDEO_TS", "AUDIO_TS"}
-
 // camcorderFolder is where a camcorder writes its footage, in a BDMV folder
 // of its own: PRIVATE/AVCHD/BDMV/STREAM/00000.MTS. That is the shape of a
 // disc, and it is a card of home videos; advice to remux the feature and
@@ -61,13 +58,13 @@ func discRoot(path string) (root, kind string, isDisc bool) {
 		return "", "", false
 	}
 	for i, seg := range folders {
-		if slices.ContainsFunc(discStructures, func(s string) bool { return strings.EqualFold(seg, s) }) {
-			return trimSep(strings.Join(parts[:i], "/")), "inside a disc structure", true
+		if slices.ContainsFunc(naming.DiscStructures, func(s string) bool { return strings.EqualFold(seg, s) }) {
+			return mediapath.Trim(strings.Join(parts[:i], "/")), "inside a disc structure", true
 		}
 	}
 	for _, p := range discPatterns {
 		if p.re.MatchString(slashed) {
-			return parentDir(path), p.kind, true
+			return mediapath.Dir(path), p.kind, true
 		}
 	}
 
@@ -180,7 +177,7 @@ func auditDiscFolders(ctx context.Context, client *embyfin.Client, in discIn) (d
 				g.matches = append(g.matches, keys)
 			}
 			g.entries = append(g.entries, discRow{
-				ID: it.ID, Name: it.Name, File: baseName(it.Path),
+				ID: it.ID, Name: it.Name, File: mediapath.Base(it.Path),
 				RuntimeS: int(it.RunTimeTicks / ticksPerSecond),
 				Size:     qualityOf(it).Size, MatchedTo: matched,
 			})

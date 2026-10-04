@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -176,58 +176,6 @@ func TestNotOneFilm(t *testing.T) {
 		if (tc.want == "" && c != "") || !strings.Contains(c, tc.want) {
 			t.Errorf("%s = %q, want %q", tc.name, c, tc.want)
 		}
-	}
-}
-
-// A letter of another script that only looks Latin, inside a Latin title, is
-// named with the plain spelling; a title written in that script, or a Greek
-// letter used as a symbol, is left alone.
-func TestLookalikeLetters(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		title, plain string
-		letters      []string
-	}{
-		{"\u0410rrival", "Arrival", []string{"the Cyrillic \u0410 (U+0410) in place of the Latin A"}},
-		{"S\u0435verance", "Severance", []string{"the Cyrillic \u0435 (U+0435) in place of the Latin e"}},
-		{"\u0421ub\u0435", "Cube", []string{"the Cyrillic \u0421 (U+0421) in place of the Latin C", "the Cyrillic \u0435 (U+0435) in place of the Latin e"}},
-		{"\u0391lien", "Alien", []string{"the Greek \u0391 (U+0391) in place of the Latin A"}},
-		// Latin letters only
-		{"Arrival", "Arrival", nil},
-		// no Latin letter at all: written in that script
-		{"もののけ姫", "もののけ姫", nil},
-		{"\u0414\u044E\u043D\u0430", "\u0414\u044E\u043D\u0430", nil},
-		// Dune's title in Russian, and a title in both scripts whose Cyrillic
-		// is its own: its De (U+0414) and Yu (U+044E) look like no Latin letter
-		{"\u0414\u044E\u043D\u0430 (Dune)", "\u0414\u044E\u043D\u0430 (Dune)", nil},
-		// a Greek letter used as a symbol makes the Greek its own
-		{"Arrival \u0394", "Arrival \u0394", nil},
-	} {
-		letters, plain := lookalikeLetters(tc.title)
-		if plain != tc.plain || strings.Join(letters, "|") != strings.Join(tc.letters, "|") {
-			t.Errorf("%q = %q %v, want %q %v", tc.title, plain, letters, tc.plain, tc.letters)
-		}
-	}
-}
-
-// The titles an item goes by, each saying which, the year a server leaves on
-// an unmatched film's name taken off, and a lookalike name spelled plainly.
-func TestKnownTitles(t *testing.T) {
-	t.Parallel()
-
-	got := knownTitles(&embyfin.Item{Name: "\u0421ube (1997)", OriginalTitle: "Cube", SortName: "Cube"})
-	want := []knownTitle{{"Cube", titleAsName}, {"Cube", titleAsOriginal}, {"Cube", titleAsSort}}
-	if len(got) != len(want) {
-		t.Fatalf("known titles = %v", got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("title %d = %v, want %v", i, got[i], want[i])
-		}
-	}
-	if got := knownTitles(&embyfin.Item{Name: "Alien"}); len(got) != 1 {
-		t.Errorf("an item with a name alone = %v", got)
 	}
 }
 
@@ -441,42 +389,6 @@ func TestAuditFilePathReadsEveryJellyfinVersion(t *testing.T) {
 	}
 }
 
-// TMDB's titles, collections and searches are kept an hour, as its facts
-// are: kept for the life of the process, a title put right at TMDB went
-// unseen until a restart. Clear forgets them at once, and says how many.
-func TestProviderTitlesAreKeptAnHour(t *testing.T) {
-	t.Parallel()
-
-	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
-	p := &providerTitles{now: func() time.Time { return now }}
-	p.reset()
-	put := func() {
-		p.lock()
-		p.searched["movie:zzyzx:1999"] = []titleHit{{ID: 1, Title: "Zzyzx"}}
-		p.alternative["movie:1"] = []string{"Zzyzx Again"}
-		p.mu.Unlock()
-	}
-	held := func() int {
-		p.lock()
-		defer p.mu.Unlock()
-
-		return len(p.searched) + len(p.alternative)
-	}
-	put()
-	now = now.Add(59 * time.Minute)
-	if n := held(); n != 2 {
-		t.Errorf("after 59 minutes %d answers are kept, want both", n)
-	}
-	now = now.Add(2 * time.Minute)
-	if n := held(); n != 0 {
-		t.Errorf("after an hour %d answers are kept, want none", n)
-	}
-	put()
-	if n := p.Clear(); n != 2 || held() != 0 {
-		t.Errorf("Clear forgot %d, and %d are kept: want 2 forgotten and none kept", n, held())
-	}
-}
-
 // provider_cache_clear reaches every cache the tools made, and says plainly
 // when there is none because no TMDB token is set.
 func TestProviderCacheClear(t *testing.T) {
@@ -489,23 +401,24 @@ func TestProviderCacheClear(t *testing.T) {
 
 	f := newFakeServer(t)
 	srv := mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
-	r := &registry{server: srv, client: f.client(t), opts: Options{Toolsets: []string{"all"}, TMDBKey: "k"}}
+	r := &registry{server: srv, client: f.client(t), opts: Options{Toolsets: []string{"all"}, TMDBKey: "k", ProviderTransport: titlesTMDB(t)}}
 	queueTools(r)
 	if len(r.providerCaches) == 0 {
 		t.Fatal("no TMDB cache was kept for provider_cache_clear")
 	}
-	var titles *providerTitles
+	var titles *tmdb.Facts
 	for _, c := range r.providerCaches {
-		if p, ok := c.(*providerTitles); ok {
+		if p, ok := c.(*tmdb.Facts); ok {
 			titles = p
 		}
 	}
 	if titles == nil {
-		t.Fatal("no title cache among the caches kept")
+		t.Fatal("no TMDB facts among the caches kept")
 	}
-	titles.lock()
-	titles.searched["movie:zzyzx:1999"] = []titleHit{{ID: 1}}
-	titles.mu.Unlock()
+	// one answer planted, through the canned TMDB
+	if _, err := titles.Search(t.Context(), "movie", "Dune", 2021); err != nil {
+		t.Fatal(err)
+	}
 	cs := hostRegistry(t, r)
 	out = mustCall(t, cs, "provider_cache_clear", map[string]any{})
 	if number(t, out["cleared"], "cleared") != 1 || text(out["note"]) != "forgot 1 answers from TMDB; the next read of each asks TMDB again" {

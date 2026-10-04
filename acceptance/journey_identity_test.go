@@ -11,6 +11,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // Journeys through an identity changed: what a user's watch state does when
@@ -27,8 +31,8 @@ func stateOf(t *testing.T, id, user string) (watched, favourite bool) {
 	t.Helper()
 
 	listed := func(state string) bool {
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"user": user, "watched": state, "types": "Movie,Series,Episode", "limit": 100})["items"], "items") {
-			if str(it["id"]) == id {
+		for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"user": user, "watched": state, "types": "Movie,Series,Episode", "limit": 100})["items"], "items") {
+			if acc.Str(it["id"]) == id {
 				return true
 			}
 		}
@@ -38,9 +42,9 @@ func stateOf(t *testing.T, id, user string) (watched, favourite bool) {
 	if isJellyfin() {
 		return listed("watched"), listed("favourite")
 	}
-	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": id})["users"], "users") {
-		if str(u["user"]) == user {
-			watched = boolOf(u["played"])
+	for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": id})["users"], "users") {
+		if acc.Str(u["user"]) == user {
+			watched = acc.BoolOf(u["played"])
 		}
 	}
 
@@ -53,11 +57,11 @@ func stateOf(t *testing.T, id, user string) (watched, favourite bool) {
 func candidateFor(t *testing.T, args map[string]any, ids ...string) int {
 	t.Helper()
 
-	cands := rows(t, call(t, "item_identify", args)["candidates"], "candidates")
+	cands := acc.Rows(t, suite.Call(t, "item_identify", args)["candidates"], "candidates")
 	for i, c := range cands {
 		held, _ := c["metadata_provider_ids"].(map[string]any)
 		for _, v := range held {
-			if slices.Contains(ids, str(v)) {
+			if slices.Contains(ids, acc.Str(v)) {
 				return i
 			}
 		}
@@ -80,7 +84,7 @@ func withCandidateIDs(t *testing.T, args map[string]any) map[string]any {
 			search[k] = v
 		}
 	}
-	cands := rows(t, call(t, "item_identify", search)["candidates"], "candidates")
+	cands := acc.Rows(t, suite.Call(t, "item_identify", search)["candidates"], "candidates")
 	idx, ok := args["candidate"].(int)
 	if !ok || idx < 0 || idx >= len(cands) {
 		t.Fatalf("candidate %v is not among the %d item_identify offers", args["candidate"], len(cands))
@@ -107,36 +111,36 @@ func TestReidentifyingMovesWatchState(t *testing.T) {
 	unmarkLater(t, "alice", messy, clean)
 	before := restoreLater(t, messy)
 	for _, id := range []string{messy, clean} {
-		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false, "favourite": false})
+		suite.Call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false, "favourite": false})
 	}
-	stats := call(t, "user_stats", map[string]any{"user": "alice"})
+	stats := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
 
 	// alice watched Lynch's film and likes it, and likes the 2021 one unseen
-	call(t, "item_set_state", map[string]any{"id": messy, "user": "alice", "watched": true, "favourite": true})
-	call(t, "item_set_state", map[string]any{"id": clean, "user": "alice", "favourite": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": messy, "user": "alice", "watched": true, "favourite": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": clean, "user": "alice", "favourite": true})
 	if w, f := stateOf(t, messy, "alice"); !w || !f {
 		t.Fatalf("the messy Dune for alice: watched %v favourite %v, want both", w, f)
 	}
 	if w, f := stateOf(t, clean, "alice"); w || !f {
 		t.Fatalf("the clean Dune for alice: watched %v favourite %v, want a favourite unwatched", w, f)
 	}
-	marked := call(t, "user_stats", map[string]any{"user": "alice"})
-	if num(t, marked["movies_watched"], "movies_watched") != num(t, stats["movies_watched"], "movies_watched")+1 || num(t, marked["favourites"], "favourites") != num(t, stats["favourites"], "favourites")+2 {
+	marked := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
+	if acc.Num(t, marked["movies_watched"], "movies_watched") != acc.Num(t, stats["movies_watched"], "movies_watched")+1 || acc.Num(t, marked["favourites"], "favourites") != acc.Num(t, stats["favourites"], "favourites")+2 {
 		t.Fatalf("alice's counts went from %v to %v, want one more watched and two more favourites", stats, marked)
 	}
 
 	idx := candidateFor(t, map[string]any{"id": messy, "kind": "movie", "year": 2021}, "438631")
-	out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": messy, "kind": "movie", "candidate": idx, "year": 2021}))
-	if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" {
+	out := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": messy, "kind": "movie", "candidate": idx, "year": 2021}))
+	if ids, _ := out["metadata_provider_ids"].(map[string]any); acc.Str(ids["tmdb"]) != "438631" {
 		t.Fatalf("item_identify_apply = %v", out)
 	}
 	// the answer says the watch state moved with the ids, where it does
 	const moved = "watched mark and favourite for the title it was matched to"
-	if says := strings.Contains(str(out["note"]), moved); says == isJellyfin() {
+	if says := strings.Contains(acc.Str(out["note"]), moved); says == isJellyfin() {
 		t.Errorf("item_identify_apply's note = %q: on Emby it should say the watch state follows the ids, and on Jellyfin not", out["note"])
 	}
 
-	after := call(t, "user_stats", map[string]any{"user": "alice"})
+	after := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
 	watched, favourite := stateOf(t, messy, "alice")
 	if isJellyfin() {
 		// Jellyfin holds state under an item's ids as well, but answers from
@@ -151,7 +155,7 @@ func TestReidentifyingMovesWatchState(t *testing.T) {
 	if watched || !favourite {
 		t.Errorf("after the match the messy Dune for alice: watched %v favourite %v, want the clean Dune's: a favourite, unwatched", watched, favourite)
 	}
-	if num(t, after["movies_watched"], "movies_watched") != num(t, marked["movies_watched"], "movies_watched")-1 || num(t, after["favourites"], "favourites") != num(t, marked["favourites"], "favourites")-1 {
+	if acc.Num(t, after["movies_watched"], "movies_watched") != acc.Num(t, marked["movies_watched"], "movies_watched")-1 || acc.Num(t, after["favourites"], "favourites") != acc.Num(t, marked["favourites"], "favourites")-1 {
 		t.Errorf("after the match alice's counts are %v, were %v: want one watched and one favourite fewer", after, marked)
 	}
 	// the old ids back, and the old state with them: it was kept, not lost
@@ -194,22 +198,22 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 		t.Fatalf("the clean Dune's nfo does not name the 2021 film: %s", original)
 	}
 	tmdb := func() string {
-		got, _ := call(t, "item_get", map[string]any{"id": dune})["metadata_provider_ids"].(map[string]any)
-		return str(got["tmdb"])
+		got, _ := suite.Call(t, "item_get", map[string]any{"id": dune})["metadata_provider_ids"].(map[string]any)
+		return acc.Str(got["tmdb"])
 	}
-	orig := call(t, "item_get", map[string]any{"id": dune})
+	orig := suite.Call(t, "item_get", map[string]any{"id": dune})
 	lynch := candidateFor(t, map[string]any{"id": dune, "kind": "movie", "year": 1984}, "841")
 	matchLynch := func() {
 		t.Helper()
-		out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": lynch, "year": 1984}))
-		if got, _ := out["metadata_provider_ids"].(map[string]any); str(got["tmdb"]) != "841" || num(t, out["year"], "year") != 1984 {
+		out := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": lynch, "year": 1984}))
+		if got, _ := out["metadata_provider_ids"].(map[string]any); acc.Str(got["tmdb"]) != "841" || acc.Num(t, out["year"], "year") != 1984 {
 			t.Errorf("applying Lynch's film = %v", out)
 		}
 		// Emby's answer warns of the nfo the next refresh reads, and of the
 		// watch state that follows the ids; Jellyfin's, whose match holds
 		// and whose watch state stays, says nothing more than that its
 		// library saves nfos
-		note := beyondNfoUnseen(str(out["note"]))
+		note := beyondNfoUnseen(acc.Str(out["note"]))
 		if isJellyfin() && note != "" {
 			t.Errorf("applying Lynch's film on Jellyfin: note %q", note)
 		}
@@ -237,7 +241,7 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 			t.Errorf("after a refresh the film holds tmdb %s, want the nfo's 438631 back, as warned", got)
 		}
 		// the nfo made to agree, the match holds
-		mediaWrite(t, nfo, retag(original, map[string]string{"tmdb": "438631", "imdb": "tt1160419"}, map[string]string{"tmdb": "841", "imdb": "tt0087182"}))
+		acc.MediaWrite(t, nfo, retag(original, map[string]string{"tmdb": "438631", "imdb": "tt1160419"}, map[string]string{"tmdb": "841", "imdb": "tt0087182"}))
 		matchLynch()
 		if !refreshed(t, dune) {
 			t.Fatal("the refresh never ran")
@@ -245,15 +249,15 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 		if got := tmdb(); got != "841" {
 			t.Errorf("with the nfo naming Lynch's film, after a refresh the film holds tmdb %s", got)
 		}
-		mediaWrite(t, nfo, original)
+		acc.MediaWrite(t, nfo, original)
 	}
 
 	// undone by the tools: the 2021 film's match
 	back := candidateFor(t, map[string]any{"id": dune, "kind": "movie", "year": 2021}, "438631")
-	call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": back, "year": 2021}))
+	suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": back, "year": 2021}))
 	// the film as it was: its name, year, file and ids (the apply adds the
 	// provider's other links beside them on Emby, and the tvdb id it finds)
-	now := call(t, "item_get", map[string]any{"id": dune})
+	now := suite.Call(t, "item_get", map[string]any{"id": dune})
 	for _, field := range []string{"name", "year", "path"} {
 		if fmt.Sprint(now[field]) != fmt.Sprint(orig[field]) {
 			t.Errorf("after the undo the film's %s is %v, was %v", field, now[field], orig[field])
@@ -262,7 +266,7 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 	was, _ := orig["metadata_provider_ids"].(map[string]any)
 	is, _ := now["metadata_provider_ids"].(map[string]any)
 	for _, provider := range []string{"tmdb", "imdb"} {
-		if str(is[provider]) != str(was[provider]) {
+		if acc.Str(is[provider]) != acc.Str(was[provider]) {
 			t.Errorf("after the undo the film's %s id is %v, was %v", provider, is[provider], was[provider])
 		}
 	}
@@ -278,41 +282,41 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 func TestReidentifyingASeries(t *testing.T) {
 	needsTMDBCassette(t)
 	id := findItem(t, "Shows", "Series", "The Expanse")
-	keepFiles(t, filepath.Join(dataDir(), "shows", "The Expanse"))
+	keepFiles(t, filepath.Join(testenv.DataDir(), "shows", "The Expanse"))
 	before := restoreLater(t, id)
 
 	episodes := func() []string {
 		var out []string
-		for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes") {
-			out = append(out, fmt.Sprintf("S%02dE%02d %s at %s", numOr0(e["season"]), numOr0(e["episode"]), str(e["title"]), str(e["path"])))
+		for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes") {
+			out = append(out, fmt.Sprintf("S%02dE%02d %s at %s", acc.NumOr0(e["season"]), acc.NumOr0(e["episode"]), acc.Str(e["title"]), acc.Str(e["path"])))
 		}
 		slices.Sort(out)
 		return out
 	}
 	seasons := func() []string {
 		var out []string
-		for _, s := range rows(t, call(t, "show_seasons", map[string]any{"series_id": id})["seasons"], "seasons") {
-			out = append(out, fmt.Sprintf("%d %s %s", numOr0(s["season"]), str(s["id"]), str(s["name"])))
+		for _, s := range acc.Rows(t, suite.Call(t, "show_seasons", map[string]any{"series_id": id})["seasons"], "seasons") {
+			out = append(out, fmt.Sprintf("%d %s %s", acc.NumOr0(s["season"]), acc.Str(s["id"]), acc.Str(s["name"])))
 		}
 		slices.Sort(out)
 		return out
 	}
 	missing := func() string {
-		out := call(t, "show_missing", map[string]any{"series_id": id})
+		out := suite.Call(t, "show_missing", map[string]any{"series_id": id})
 		return fmt.Sprint(out["source"], out["missing"])
 	}
 	expanse := func(tool string, args map[string]any) string {
-		for _, f := range rowsOf(call(t, tool, args)["findings"]) {
-			if str(f["id"]) == id {
-				return str(f["detail"])
+		for _, f := range acc.RowsOf(suite.Call(t, tool, args)["findings"]) {
+			if acc.Str(f["id"]) == id {
+				return acc.Str(f["detail"])
 			}
 		}
 		return ""
 	}
 	images := func() []string {
 		var out []string
-		for _, img := range rows(t, call(t, "item_artwork", map[string]any{"id": id, "limit": 1})["current"], "current") {
-			out = append(out, str(img["ImageType"]))
+		for _, img := range acc.Rows(t, suite.Call(t, "item_artwork", map[string]any{"id": id, "limit": 1})["current"], "current") {
+			out = append(out, acc.Str(img["ImageType"]))
 		}
 		slices.Sort(out)
 		return out
@@ -325,7 +329,7 @@ func TestReidentifyingASeries(t *testing.T) {
 		t.Fatalf("The Expanse before: episodes %v, missing %s, images %v", wantEpisodes, wantMissing, wantImages)
 	}
 
-	wrong := maps.Clone(object(t, before["ProviderIds"], "ProviderIds"))
+	wrong := maps.Clone(acc.Object(t, before["ProviderIds"], "ProviderIds"))
 	for k := range wrong {
 		delete(wrong, k)
 	}
@@ -333,22 +337,22 @@ func TestReidentifyingASeries(t *testing.T) {
 	updateItem(t, id, map[string]any{"ProviderIds": wrong})
 
 	idx := candidateFor(t, map[string]any{"id": id, "kind": "series", "name": "The Expanse"}, "63639")
-	out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": id, "kind": "series", "candidate": idx, "name": "The Expanse", "replace_all_images": true}))
-	if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "63639" {
+	out := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": id, "kind": "series", "candidate": idx, "name": "The Expanse", "replace_all_images": true}))
+	if ids, _ := out["metadata_provider_ids"].(map[string]any); acc.Str(ids["tmdb"]) != "63639" {
 		t.Fatalf("item_identify_apply = %v", out)
 	}
 	// from Breaking Bad's ids to The Expanse's: Emby's answer warns of the
 	// show's nfo, read again at a refresh, and of the watch state that
 	// follows the ids; Jellyfin's says nothing more than that its library
 	// saves nfos
-	if note := beyondNfoUnseen(str(out["note"])); isJellyfin() != (note == "") || !isJellyfin() && !strings.Contains(note, "(tvshow.nfo)") {
+	if note := beyondNfoUnseen(acc.Str(out["note"])); isJellyfin() != (note == "") || !isJellyfin() && !strings.Contains(note, "(tvshow.nfo)") {
 		t.Errorf("item_identify_apply's note = %q", note)
 	}
 
 	// the refresh reaches the episodes after the series: what they hold is
 	// checked once it matches, and for a few seconds more
 	same := func() bool { return slices.Equal(episodes(), wantEpisodes) && slices.Equal(seasons(), wantSeasons) }
-	if !eventually(same) || !holds(same) {
+	if !acc.Eventually(same) || !acc.Holds(same) {
 		t.Errorf("after the match the episodes are %v and seasons %v, want %v and %v", episodes(), seasons(), wantEpisodes, wantSeasons)
 	}
 	if got := missing(); got != wantMissing {

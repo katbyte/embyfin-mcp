@@ -5,6 +5,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 )
 
 // The class a frame belongs on. Both of these were got wrong in the field, in
@@ -34,7 +36,7 @@ func TestResolutionClass(t *testing.T) {
 
 		{"nothing known", 0, 0, 0},
 	} {
-		if got := resolutionClass(tc.width, tc.height); got != tc.want {
+		if got := embyfin.ResolutionClass(tc.width, tc.height); got != tc.want {
 			t.Errorf("%s (%dx%d) classed %d, want %d", tc.name, tc.width, tc.height, got, tc.want)
 		}
 	}

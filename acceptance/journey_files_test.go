@@ -14,6 +14,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // Journeys through the files on disk: an episode imported into a gap, a copy
@@ -24,35 +28,17 @@ import (
 
 // hostPath is where a path the server reads (/media/...) sits on this machine.
 func hostPath(serverPath string) string {
-	return filepath.Join(dataDir(), strings.TrimPrefix(serverPath, "/media/"))
+	return filepath.Join(testenv.DataDir(), strings.TrimPrefix(serverPath, "/media/"))
 }
 
-// scanUntilTrue asks for a scan of one library until check holds, asking
-// again whenever the scan goes idle short of it: the same patience as
-// scanUntil, for a change a count of series or films cannot see.
+// scanUntilTrue asks for a scan of one library until check holds
+// (suite.ScanUntilTrue), for a change a count of series or films cannot see,
+// and fails the test when none brings it about.
 func scanUntilTrue(t *testing.T, library string, check func() bool) {
 	t.Helper()
 
-	deadline := time.Now().Add(scanPatience)
-	for {
-		if err := waitForScan(); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := invoke("library_scan", map[string]any{"library": library}); err != nil {
-			t.Fatal(err)
-		}
-		for range 22 {
-			if check() {
-				if err := waitForScan(); err != nil {
-					t.Fatal(err)
-				}
-				return
-			}
-			time.Sleep(2 * time.Second)
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("a scan of %s never brought about what the test waits for", library)
-		}
+	if err := suite.ScanUntilTrue(library, check); err != nil {
+		t.Fatalf("a scan of %s: %v", library, err)
 	}
 }
 
@@ -72,10 +58,10 @@ func episodeNfo(title string, season, episode int) []byte {
 func held(t *testing.T, seriesID string, season, episode int) (exists bool, id string) {
 	t.Helper()
 
-	out := call(t, "show_episodes_exist", map[string]any{"series_id": seriesID, "episodes": []map[string]any{{"season": season, "episode": episode}}})
-	row := rows(t, out["episodes"], "episodes")[0]
+	out := suite.Call(t, "show_episodes_exist", map[string]any{"series_id": seriesID, "episodes": []map[string]any{{"season": season, "episode": episode}}})
+	row := acc.Rows(t, out["episodes"], "episodes")[0]
 
-	return boolOf(row["exists"]), str(row["id"])
+	return acc.BoolOf(row["exists"]), acc.Str(row["id"])
 }
 
 // A missing episode imported the way a downloader does it: the release name
@@ -88,18 +74,18 @@ func held(t *testing.T, seriesID string, season, episode int) (exists bool, id s
 // and no ids, so the gap between its files is the fact every tool agrees on
 // without asking a provider.
 func TestImportingAMissingEpisode(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	const show = "Star Trek The Next Generation"
 	tng := findItem(t, "Messy Shows", "Series", show)
 
-	res := call(t, "show_resolve", map[string]any{"title": "Star.Trek.The.Next.Generation.S01E02.The.Naked.Now.DVDRip.x264-GROUP", "library": "Messy Shows"})
-	cands := rows(t, res["candidates"], "candidates")
-	if len(cands) == 0 || str(cands[0]["series_id"]) != tng || decimal(t, cands[0]["score"], "score") < 0.9 {
+	res := suite.Call(t, "show_resolve", map[string]any{"title": "Star.Trek.The.Next.Generation.S01E02.The.Naked.Now.DVDRip.x264-GROUP", "library": "Messy Shows"})
+	cands := acc.Rows(t, res["candidates"], "candidates")
+	if len(cands) == 0 || acc.Str(cands[0]["series_id"]) != tng || acc.Decimal(t, cands[0]["score"], "score") < 0.9 {
 		t.Fatalf("the release name resolved to %v, want %s", cands, show)
 	}
-	if num(t, res["parsed_season"], "parsed_season") != 1 || num(t, res["parsed_episode"], "parsed_episode") != 2 {
+	if acc.Num(t, res["parsed_season"], "parsed_season") != 1 || acc.Num(t, res["parsed_episode"], "parsed_episode") != 2 {
 		t.Errorf("parsed S%vE%v, want S01E02", res["parsed_season"], res["parsed_episode"])
 	}
 
@@ -108,9 +94,9 @@ func TestImportingAMissingEpisode(t *testing.T) {
 		t.Fatal("show_episodes_exist says the series already holds S01E02")
 	}
 	gapFor := func() string {
-		for _, f := range rows(t, call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})["findings"], "findings") {
-			if str(f["id"]) == tng {
-				return str(f["detail"])
+		for _, f := range acc.Rows(t, suite.Call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})["findings"], "findings") {
+			if acc.Str(f["id"]) == tng {
+				return acc.Str(f["detail"])
 			}
 		}
 		return ""
@@ -120,8 +106,8 @@ func TestImportingAMissingEpisode(t *testing.T) {
 	}
 	gaps := func() []string {
 		var out []string
-		for _, g := range rowsOf(call(t, "show_missing", map[string]any{"series_id": tng})["gaps_on_disk"]) {
-			out = append(out, fmt.Sprintf("S%02dE%02d", numOr0(g["season"]), numOr0(g["episode"])))
+		for _, g := range acc.RowsOf(suite.Call(t, "show_missing", map[string]any{"series_id": tng})["gaps_on_disk"]) {
+			out = append(out, fmt.Sprintf("S%02dE%02d", acc.NumOr0(g["season"]), acc.NumOr0(g["episode"])))
 		}
 		return out
 	}
@@ -131,9 +117,9 @@ func TestImportingAMissingEpisode(t *testing.T) {
 
 	// the destination, beside the episodes the series holds
 	var first string
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": tng})["episodes"], "episodes") {
-		if num(t, e["episode"], "episode") == 1 {
-			first = str(e["path"])
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": tng})["episodes"], "episodes") {
+		if acc.Num(t, e["episode"], "episode") == 1 {
+			first = acc.Str(e["path"])
 		}
 	}
 	if first == "" {
@@ -141,14 +127,14 @@ func TestImportingAMissingEpisode(t *testing.T) {
 	}
 	dest := filepath.Join(filepath.Dir(first), show+" S01E02.mp4")
 	plan := func() map[string]any {
-		out := call(t, "plan_check", map[string]any{"entries": []map[string]any{{"path": dest, "series": show, "season": 1, "episode": 2}}})
-		return rows(t, out["entries"], "entries")[0]
+		out := suite.Call(t, "plan_check", map[string]any{"entries": []map[string]any{{"path": dest, "series": show, "season": 1, "episode": 2}}})
+		return acc.Rows(t, out["entries"], "entries")[0]
 	}
 	before := plan()
 	if before["exists"] != false || before["current"] != nil {
 		t.Fatalf("plan_check calls the free path taken: %v", before)
 	}
-	if join := object(t, before["would_join"], "would_join"); str(join["series_id"]) != tng || decimal(t, join["claim_similarity"], "claim_similarity") < 0.9 {
+	if join := acc.Object(t, before["would_join"], "would_join"); acc.Str(join["series_id"]) != tng || acc.Decimal(t, join["claim_similarity"], "claim_similarity") < 0.9 {
 		t.Errorf("plan_check would_join = %v, want %s", join, show)
 	}
 
@@ -160,11 +146,11 @@ func TestImportingAMissingEpisode(t *testing.T) {
 		_ = os.Remove(nfo)
 		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, tng, 1, 2); return !there })
 	})
-	mediaWrite(t, file, fixtureVideo(t, "messy-shows", show, "Season 01", show+" S01E01.mp4"))
-	mediaWrite(t, nfo, episodeNfo("The Naked Now", 1, 2))
+	acc.MediaWrite(t, file, fixtureVideo(t, "messy-shows", show, "Season 01", show+" S01E01.mp4"))
+	acc.MediaWrite(t, nfo, episodeNfo("The Naked Now", 1, 2))
 	// written and not yet scanned: on the disk and in no item, and taken
 	// all the same - a second write there replaces it
-	if mid := plan(); !isBool(mid["exists"], true) || !isBool(mid["in_library"], false) || !isBool(mid["on_disk"], true) {
+	if mid := plan(); !acc.IsBool(mid["exists"], true) || !acc.IsBool(mid["in_library"], false) || !acc.IsBool(mid["on_disk"], true) {
 		t.Errorf("plan_check between the write and the scan = %v, want the file on disk and in no item", mid)
 	}
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, tng, 1, 2); return there })
@@ -174,7 +160,7 @@ func TestImportingAMissingEpisode(t *testing.T) {
 		t.Fatalf("after the scan show_episodes_exist says S01E02 is held %v, id %q", there, id)
 	}
 	// and it is the episode the nfo written beside it names
-	if name := str(call(t, "item_get", map[string]any{"id": id})["name"]); name != "The Naked Now" {
+	if name := acc.Str(suite.Call(t, "item_get", map[string]any{"id": id})["name"]); name != "The Naked Now" {
 		t.Errorf("the imported episode reads as %q, want its nfo's The Naked Now", name)
 	}
 	if d := gapFor(); d != "" {
@@ -187,7 +173,7 @@ func TestImportingAMissingEpisode(t *testing.T) {
 	if after["exists"] != true {
 		t.Fatalf("plan_check calls the written path free: %v", after)
 	}
-	if current := object(t, after["current"], "current"); str(current["item_id"]) != id || num(t, current["episode"], "episode") != 2 {
+	if current := acc.Object(t, after["current"], "current"); acc.Str(current["item_id"]) != id || acc.Num(t, current["episode"], "episode") != 2 {
 		t.Errorf("plan_check current = %v, want the new episode %s", current, id)
 	}
 }
@@ -205,11 +191,11 @@ func TestImportingAMissingEpisode(t *testing.T) {
 // "replaced" on Emby for good, its file newer than the server's first sight
 // of it.
 func TestUpgradingACopyInPlace(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	messy := findItem(t, "Messy Shows", "Series", "Severance")
-	season := filepath.Join(dataDir(), "messy-shows", "Severance", "Season 01")
+	season := filepath.Join(testenv.DataDir(), "messy-shows", "Severance", "Season 01")
 	file := filepath.Join(season, "Severance S01E04.mp4")
 	nfo := filepath.Join(season, "Severance S01E04.nfo")
 	t.Cleanup(func() {
@@ -217,25 +203,25 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 		_ = os.Remove(nfo)
 		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, messy, 1, 4); return !there })
 	})
-	mediaWrite(t, file, fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4"))
-	mediaWrite(t, nfo, episodeNfo("The You You Are", 1, 4))
+	acc.MediaWrite(t, file, fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4"))
+	acc.MediaWrite(t, nfo, episodeNfo("The You You Are", 1, 4))
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, messy, 1, 4); return there })
 	_, rip := held(t, messy, 1, 4)
 
 	// the rip is on the quality audit's worklist, for being 360p
 	listed := func() (detail string, replaced map[string]any, note string) {
-		out := call(t, "audit_quality", map[string]any{"library": "Messy Shows"})
-		for _, f := range rows(t, out["findings"], "findings") {
-			if str(f["id"]) == rip {
-				detail = str(f["detail"])
+		out := suite.Call(t, "audit_quality", map[string]any{"library": "Messy Shows"})
+		for _, f := range acc.Rows(t, out["findings"], "findings") {
+			if acc.Str(f["id"]) == rip {
+				detail = acc.Str(f["detail"])
 			}
 		}
-		for _, r := range rows(t, out["replaced"], "replaced") {
-			if str(r["id"]) == rip {
+		for _, r := range acc.Rows(t, out["replaced"], "replaced") {
+			if acc.Str(r["id"]) == rip {
 				replaced = r
 			}
 		}
-		return detail, replaced, str(out["note"])
+		return detail, replaced, acc.Str(out["note"])
 	}
 	if d, _, _ := listed(); d != "h264 640x360: 360p, below 720p" {
 		t.Fatalf("audit_quality says %q of the rip, want it listed as 360p", d)
@@ -243,21 +229,21 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 
 	// alice has watched it and it sits in a playlist, which an upgrade in
 	// place keeps: the item is the same one
-	call(t, "item_set_state", map[string]any{"id": rip, "user": "alice", "watched": true})
-	putBack(t, "item_set_state", map[string]any{"id": rip, "user": "alice", "watched": false})
-	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Upgrade", "item_ids": []any{rip}, "media_type": "Video"})["id"])
+	suite.Call(t, "item_set_state", map[string]any{"id": rip, "user": "alice", "watched": true})
+	suite.PutBack(t, "item_set_state", map[string]any{"id": rip, "user": "alice", "watched": false})
+	pl := acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": "Zzyzx Upgrade", "item_ids": []any{rip}, "media_type": "Video"})["id"])
 	deleteLater(t, "playlist_delete", "playlist", pl)
 	alicePlayed := func() bool {
-		for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": rip})["users"], "users") {
-			if str(u["user"]) == "alice" {
-				return boolOf(u["played"])
+		for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": rip})["users"], "users") {
+			if acc.Str(u["user"]) == "alice" {
+				return acc.BoolOf(u["played"])
 			}
 		}
 		return false
 	}
 	inPlaylist := func() bool {
-		for _, e := range rows(t, call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries") {
-			if str(e["id"]) == rip {
+		for _, e := range acc.Rows(t, suite.Call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries") {
+			if acc.Str(e["id"]) == rip {
 				return true
 			}
 		}
@@ -266,7 +252,7 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 	if !alicePlayed() || !inPlaylist() {
 		t.Fatalf("before the upgrade: alice played it %v, in the playlist %v", alicePlayed(), inPlaylist())
 	}
-	stats := call(t, "user_stats", map[string]any{"user": "alice"})
+	stats := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
 
 	// the incoming file is the clean library's 720p encode, byte for byte
 	incoming := fixtureVideo(t, "shows", "Severance", "Season 01", "Severance S01E01.mp4")
@@ -277,47 +263,47 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 	var path string
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
-		if str(e["id"]) == rip {
-			path = str(e["path"])
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+		if acc.Str(e["id"]) == rip {
+			path = acc.Str(e["path"])
 		}
 	}
-	plan := call(t, "plan_check", map[string]any{"library": "Messy Shows", "entries": []map[string]any{{"path": path, "size": len(incoming), "series": "Severance", "season": 1, "episode": 4}}})
-	row := rows(t, plan["entries"], "entries")[0]
-	if row["exists"] != true || num(t, plan["existing"], "existing") != 1 {
+	plan := suite.Call(t, "plan_check", map[string]any{"library": "Messy Shows", "entries": []map[string]any{{"path": path, "size": len(incoming), "series": "Severance", "season": 1, "episode": 4}}})
+	row := acc.Rows(t, plan["entries"], "entries")[0]
+	if row["exists"] != true || acc.Num(t, plan["existing"], "existing") != 1 {
 		t.Fatalf("plan_check calls the staged episode's path free: %v", row)
 	}
-	current := object(t, row["current"], "current")
+	current := acc.Object(t, row["current"], "current")
 	want := math.Round(float64(len(incoming))/float64(onDisk.Size())*100) / 100
-	if str(current["item_id"]) != rip || decimal(t, current["size_ratio"], "size_ratio") != want || want <= 1 {
+	if acc.Str(current["item_id"]) != rip || acc.Decimal(t, current["size_ratio"], "size_ratio") != want || want <= 1 {
 		t.Errorf("plan_check current = %v, want item %s at a size ratio of %v", current, rip, want)
 	}
 
 	// written over in place: same path, same item, a newer file
 	start := time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339)
-	mediaWrite(t, file, incoming)
+	acc.MediaWrite(t, file, incoming)
 	if !isJellyfin() {
 		// Emby judges a file by what it read at the last scan, and has not
 		// read this one yet
-		for _, r := range rowsOf(call(t, "audit_quality", map[string]any{"library": "Messy Shows"})["replaced"]) {
-			if str(r["id"]) == rip {
+		for _, r := range acc.RowsOf(suite.Call(t, "audit_quality", map[string]any{"library": "Messy Shows"})["replaced"]) {
+			if acc.Str(r["id"]) == rip {
 				t.Errorf("audit_quality calls the file replaced before any scan read it: %v", r)
 			}
 		}
 	}
 	savedSince := func() []string {
 		var ids []string
-		for _, e := range rowsOf(call(t, "library_episodes", map[string]any{"library": "Messy Shows", "saved_since": start})["episodes"]) {
-			ids = append(ids, str(e["id"]))
+		for _, e := range acc.RowsOf(suite.Call(t, "library_episodes", map[string]any{"library": "Messy Shows", "saved_since": start})["episodes"]) {
+			ids = append(ids, acc.Str(e["id"]))
 		}
 		return ids
 	}
 	// the scan saves the item before it has probed the new file, so what
 	// settles it is the picture the server reads
 	height := func() int {
-		for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
-			if str(e["id"]) == rip {
-				return numOr0(e["height"])
+		for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+			if acc.Str(e["id"]) == rip {
+				return acc.NumOr0(e["height"])
 			}
 		}
 		return 0
@@ -336,12 +322,12 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 		if replaced != nil || !strings.Contains(note, "Jellyfin does not say") {
 			t.Errorf("audit_quality on Jellyfin: replaced %v, note %q", replaced, note)
 		}
-	} else if replaced == nil || num(t, replaced["size"], "size") != len(incoming) {
+	} else if replaced == nil || acc.Num(t, replaced["size"], "size") != len(incoming) {
 		// Emby read the new file's size and time, and the time says replaced
 		t.Errorf("audit_quality replaced = %v, want the upgraded episode at %d bytes", replaced, len(incoming))
 	}
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
-		if str(e["id"]) == rip && (num(t, e["height"], "height") != 720 || num(t, e["size"], "size") != len(incoming)) {
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": messy, "season": 1})["episodes"], "episodes") {
+		if acc.Str(e["id"]) == rip && (acc.Num(t, e["height"], "height") != 720 || acc.Num(t, e["size"], "size") != len(incoming)) {
 			t.Errorf("library_episodes reads the upgraded episode as %vx%v, %v bytes", e["width"], e["height"], e["size"])
 		}
 	}
@@ -357,7 +343,7 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 	if !inPlaylist() {
 		t.Error("the playlist lost the upgraded episode")
 	}
-	if now := call(t, "user_stats", map[string]any{"user": "alice"}); !reflect.DeepEqual(now, stats) {
+	if now := suite.Call(t, "user_stats", map[string]any{"user": "alice"}); !reflect.DeepEqual(now, stats) {
 		t.Errorf("alice's user_stats changed with the upgrade:\nbefore %v\nafter  %v", stats, now)
 	}
 }
@@ -368,9 +354,9 @@ func removedPaths(t *testing.T, out map[string]any) []string {
 	t.Helper()
 
 	var got []string
-	for _, r := range rows(t, out["removed"], "removed") {
-		p := str(r["path"])
-		if boolOf(r["folder"]) {
+	for _, r := range acc.Rows(t, out["removed"], "removed") {
+		p := acc.Str(r["path"])
+		if acc.BoolOf(r["folder"]) {
 			p += "/"
 		}
 		got = append(got, p)
@@ -388,32 +374,32 @@ func removedPaths(t *testing.T, out map[string]any) []string {
 // would go; with it, the answer lists what went, and that is what left the
 // disk.
 func TestHowFarADeleteReaches(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 
 	t.Run("a film in two versions", func(t *testing.T) {
-		have := movieCount(t, "Messy Movies")
+		have := typeCount(t, "Messy Movies", "Movie")
 		const name = "Dune (1984)"
-		folder := filepath.Join(dataDir(), "messy-movies", name)
+		folder := filepath.Join(testenv.DataDir(), "messy-movies", name)
 		t.Cleanup(func() {
 			_ = os.RemoveAll(folder)
 			if err := scanUntil("Messy Movies", have); err != nil {
 				t.Error(err)
 			}
 		})
-		mediaMkdir(t, folder)
+		acc.MediaMkdir(t, testenv.DataDir(), folder)
 		cuts := map[string]string{"1080p": "Blade Runner (1982) - 1080p.mp4", "2160p": "Blade Runner (1982) - 2160p.mp4"}
 		for label, src := range cuts {
-			mediaWrite(t, filepath.Join(folder, name+" - "+label+".mp4"), fixtureVideo(t, "messy-movies", messyBladeRunner, src))
+			acc.MediaWrite(t, filepath.Join(folder, name+" - "+label+".mp4"), fixtureVideo(t, "messy-movies", messyBladeRunner, src))
 		}
 		// everything a film's folder gathers besides the film: its poster, an
 		// nfo (with no ids, which would join it to the messy Dune), a subtitle
 		// and a trailer
-		mediaWrite(t, filepath.Join(folder, "poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
-		mediaWrite(t, filepath.Join(folder, "movie.nfo"), movieNfo("Dune", 1984, "", ""))
-		mediaWrite(t, filepath.Join(folder, name+".eng.srt"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
-		mediaWrite(t, filepath.Join(folder, name+"-trailer.mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
+		acc.MediaWrite(t, filepath.Join(folder, "poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
+		acc.MediaWrite(t, filepath.Join(folder, "movie.nfo"), movieNfo("Dune", 1984, "", ""))
+		acc.MediaWrite(t, filepath.Join(folder, name+".eng.srt"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
+		acc.MediaWrite(t, filepath.Join(folder, name+"-trailer.mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
 		sidecars := []string{"poster.jpg", "movie.nfo", name + ".eng.srt", name + "-trailer.mp4"}
 		added := 2
 		if versionsMerged() {
@@ -425,10 +411,10 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		// the search answers with the messy Dune as well, the film its nfo
 		// says is this one in a folder saying 2021, so the folder decides
 		var ids, paths []string
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Dune"})["items"], "items") {
-			if strings.Contains(str(it["path"]), "/"+name+"/") {
-				ids = append(ids, str(it["id"]))
-				paths = append(paths, str(it["path"]))
+		for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Dune"})["items"], "items") {
+			if strings.Contains(acc.Str(it["path"]), "/"+name+"/") {
+				ids = append(ids, acc.Str(it["id"]))
+				paths = append(paths, acc.Str(it["path"]))
 			}
 		}
 		if len(ids) != added {
@@ -439,21 +425,21 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		// on Emby two entries it shows as one film's versions - so deleting
 		// either takes the folder, both files and the poster with it
 		server := "/media/messy-movies/" + name
-		msg := callErr(t, "item_delete", map[string]any{"id": ids[0]})
+		msg := suite.CallErr(t, "item_delete", map[string]any{"id": ids[0]})
 		for _, want := range []string{"without confirm=true", "nothing was deleted"} {
 			if !strings.Contains(msg, want) {
 				t.Errorf("the refusal does not say %q: %s", want, msg)
 			}
 		}
-		if whole, names := wouldRemove(t, msg); whole != server || !slices.Equal(names, sorted(append([]string{name + " - 1080p.mp4", name + " - 2160p.mp4"}, sidecars...))) {
+		if whole, names := wouldRemove(t, msg); whole != server || !slices.Equal(names, acc.Sorted(append([]string{name + " - 1080p.mp4", name + " - 2160p.mp4"}, sidecars...))) {
 			t.Errorf("the refusal would take %q %v, want the folder with both cuts and %v", whole, names, sidecars)
 		}
 		if _, err := os.Stat(filepath.Join(folder, name+" - 2160p.mp4")); err != nil {
 			t.Fatalf("the refused delete removed a file: %v", err)
 		}
 
-		out := call(t, "item_delete", map[string]any{"id": ids[0], "confirm": true})
-		if !strings.Contains(str(out["deleted"]), paths[0]) {
+		out := suite.Call(t, "item_delete", map[string]any{"id": ids[0], "confirm": true})
+		if !strings.Contains(acc.Str(out["deleted"]), paths[0]) {
 			t.Errorf("item_delete = %v, want the path it deleted, %s", out, paths[0])
 		}
 		got := removedPaths(t, out)
@@ -461,8 +447,8 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		for _, s := range sidecars {
 			want = append(want, server+"/"+s)
 		}
-		if !slices.Equal(got, sorted(want)) {
-			t.Errorf("removed = %v, want %v", got, sorted(want))
+		if !slices.Equal(got, acc.Sorted(want)) {
+			t.Errorf("removed = %v, want %v", got, acc.Sorted(want))
 		}
 		if _, err := os.Stat(folder); !os.IsNotExist(err) {
 			left, _ := os.ReadDir(folder)
@@ -472,8 +458,8 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		if err := scanUntil("Messy Movies", have); err != nil {
 			t.Fatal(err)
 		}
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Dune"})["items"], "items") {
-			if strings.Contains(str(it["path"]), "/"+name+"/") {
+		for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Dune"})["items"], "items") {
+			if strings.Contains(acc.Str(it["path"]), "/"+name+"/") {
 				t.Errorf("after a scan the library still holds %v", it["path"])
 			}
 		}
@@ -483,8 +469,8 @@ func TestHowFarADeleteReaches(t *testing.T) {
 	// and every other series in the library - its item, its folder, every
 	// file in it - is left as it was
 	t.Run("a series", func(t *testing.T) {
-		have := seriesCount(t, "Messy Shows")
-		root := filepath.Join(dataDir(), "messy-shows")
+		have := typeCount(t, "Messy Shows", "Series")
+		root := filepath.Join(testenv.DataDir(), "messy-shows")
 		folder := filepath.Join(root, "DuckTales (1987)")
 		t.Cleanup(func() {
 			_ = os.RemoveAll(folder)
@@ -512,9 +498,9 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		}
 		series := func() []string {
 			var out []string
-			for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Shows", "types": "Series", "limit": 50})["items"], "items") {
-				n := len(rows(t, call(t, "library_episodes", map[string]any{"series_id": str(it["id"])})["episodes"], "episodes"))
-				out = append(out, fmt.Sprintf("%s %s at %s, %d episodes", str(it["id"]), str(it["name"]), str(it["path"]), n))
+			for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Shows", "types": "Series", "limit": 50})["items"], "items") {
+				n := len(acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": acc.Str(it["id"])})["episodes"], "episodes"))
+				out = append(out, fmt.Sprintf("%s %s at %s, %d episodes", acc.Str(it["id"]), acc.Str(it["name"]), acc.Str(it["path"]), n))
 			}
 			slices.Sort(out)
 			return out
@@ -526,28 +512,28 @@ func TestHowFarADeleteReaches(t *testing.T) {
 
 		files := []string{"DuckTales S01E01 - Don't Give Up the Ship (1).mp4", "DuckTales S01E02 - Wronguay in Ronguay (2).mp4"}
 		ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
-		mediaMkdir(t, filepath.Join(folder, "Season 01"))
+		acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(folder, "Season 01"))
 		for _, f := range files {
-			mediaWrite(t, filepath.Join(folder, "Season 01", f), ep)
+			acc.MediaWrite(t, filepath.Join(folder, "Season 01", f), ep)
 		}
 		if err := scanUntil("Messy Shows", have+1); err != nil {
 			t.Fatal(err)
 		}
 		id := findItem(t, "Messy Shows", "Series", "DuckTales")
-		episodes := rows(t, call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes")
+		episodes := acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": id})["episodes"], "episodes")
 		if len(episodes) != 2 {
 			t.Fatalf("the staged series holds %v, want two episodes", episodes)
 		}
 
 		server := "/media/messy-shows/DuckTales (1987)"
-		if msg := callErr(t, "item_delete", map[string]any{"id": id}); !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || !strings.Contains(msg, "Season 01/"+files[1]) {
+		if msg := suite.CallErr(t, "item_delete", map[string]any{"id": id}); !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || !strings.Contains(msg, "Season 01/"+files[1]) {
 			t.Errorf("the refusal for a series: %s", msg)
 		}
 
 		// the answer names the series and its folder; every episode file in
 		// the folder goes with it
-		out := call(t, "item_delete", map[string]any{"id": id, "confirm": true})
-		if d := str(out["deleted"]); !strings.HasPrefix(d, "DuckTales") || !strings.Contains(d, server) {
+		out := suite.Call(t, "item_delete", map[string]any{"id": id, "confirm": true})
+		if d := acc.Str(out["deleted"]); !strings.HasPrefix(d, "DuckTales") || !strings.Contains(d, server) {
 			t.Errorf("item_delete of a series = %v", out)
 		}
 		got := removedPaths(t, out)
@@ -561,7 +547,7 @@ func TestHowFarADeleteReaches(t *testing.T) {
 			t.Errorf("the series folder is still on disk, holding %v", entries)
 		}
 		for _, e := range episodes {
-			if _, err := invoke("item_get", map[string]any{"id": str(e["id"])}); err == nil {
+			if _, err := suite.Invoke("item_get", map[string]any{"id": acc.Str(e["id"])}); err == nil {
 				t.Errorf("episode %v outlived its series", e["title"])
 			}
 		}
@@ -597,20 +583,20 @@ func TestHowFarADeleteReaches(t *testing.T) {
 	// folder and leaves the series, its first season and every file of it
 	t.Run("a season", func(t *testing.T) {
 		sev := findItem(t, "Messy Shows", "Series", "Severance")
-		show := filepath.Join(dataDir(), "messy-shows", "Severance")
+		show := filepath.Join(testenv.DataDir(), "messy-shows", "Severance")
 		folder := filepath.Join(show, "Season 02")
 		t.Cleanup(func() {
 			_ = os.RemoveAll(folder)
 			scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 2, 1); return !there })
 		})
-		keep := treeOf(t, show)
-		first := len(rows(t, call(t, "library_episodes", map[string]any{"series_id": sev, "season": 1})["episodes"], "episodes"))
+		keep := acc.TreeOf(t, show)
+		first := len(acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": sev, "season": 1})["episodes"], "episodes"))
 		ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
-		mediaMkdir(t, folder)
+		acc.MediaMkdir(t, testenv.DataDir(), folder)
 		for n, title := range map[int]string{1: "Hello, Ms. Cobel", 2: "Goodbye, Mrs. Selvig"} {
 			base := filepath.Join(folder, fmt.Sprintf("Severance S02E%02d", n))
-			mediaWrite(t, base+".mp4", ep)
-			mediaWrite(t, base+".nfo", episodeNfo(title, 2, n))
+			acc.MediaWrite(t, base+".mp4", ep)
+			acc.MediaWrite(t, base+".nfo", episodeNfo(title, 2, n))
 		}
 		scanUntilTrue(t, "Messy Shows", func() bool {
 			one, _ := held(t, sev, 2, 1)
@@ -618,22 +604,22 @@ func TestHowFarADeleteReaches(t *testing.T) {
 			return one && two
 		})
 		var id string
-		for _, s := range rows(t, call(t, "show_seasons", map[string]any{"series_id": sev})["seasons"], "seasons") {
-			if num(t, s["season"], "season") == 2 {
-				id = str(s["id"])
+		for _, s := range acc.Rows(t, suite.Call(t, "show_seasons", map[string]any{"series_id": sev})["seasons"], "seasons") {
+			if acc.Num(t, s["season"], "season") == 2 {
+				id = acc.Str(s["id"])
 			}
 		}
-		episodes := rows(t, call(t, "library_episodes", map[string]any{"series_id": sev, "season": 2})["episodes"], "episodes")
+		episodes := acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": sev, "season": 2})["episodes"], "episodes")
 		if id == "" || len(episodes) != 2 {
 			t.Fatalf("the staged season is %q holding %v", id, episodes)
 		}
 
 		server := "/media/messy-shows/Severance/Season 02"
 		files := []string{"Severance S02E01.mp4", "Severance S02E01.nfo", "Severance S02E02.mp4", "Severance S02E02.nfo"}
-		if folder, names := wouldRemove(t, callErr(t, "item_delete", map[string]any{"id": id})); folder != server || !slices.Equal(names, files) {
+		if folder, names := wouldRemove(t, suite.CallErr(t, "item_delete", map[string]any{"id": id})); folder != server || !slices.Equal(names, files) {
 			t.Errorf("the refusal for a season would take %q %v, want its folder with %v", folder, names, files)
 		}
-		out := call(t, "item_delete", map[string]any{"id": id, "confirm": true})
+		out := suite.Call(t, "item_delete", map[string]any{"id": id, "confirm": true})
 		want := []string{server + "/"}
 		for _, f := range files {
 			want = append(want, server+"/"+f)
@@ -641,20 +627,20 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		if got := removedPaths(t, out); !slices.Equal(got, want) {
 			t.Errorf("removed = %v, want %v", got, want)
 		}
-		sameTree(t, dataDir(), keep, treeOf(t, show))
+		acc.SameTree(t, testenv.DataDir(), keep, acc.TreeOf(t, show))
 		for _, e := range episodes {
-			if _, err := invoke("item_get", map[string]any{"id": str(e["id"])}); err == nil {
+			if _, err := suite.Invoke("item_get", map[string]any{"id": acc.Str(e["id"])}); err == nil {
 				t.Errorf("episode %v outlived its season", e["title"])
 			}
 		}
 		var seasons []int
-		for _, s := range rows(t, call(t, "show_seasons", map[string]any{"series_id": sev})["seasons"], "seasons") {
-			seasons = append(seasons, num(t, s["season"], "season"))
+		for _, s := range acc.Rows(t, suite.Call(t, "show_seasons", map[string]any{"series_id": sev})["seasons"], "seasons") {
+			seasons = append(seasons, acc.Num(t, s["season"], "season"))
 		}
 		if !slices.Equal(seasons, []int{1}) {
 			t.Errorf("after the delete the series has seasons %v, want [1]", seasons)
 		}
-		if n := len(rows(t, call(t, "library_episodes", map[string]any{"series_id": sev, "season": 1})["episodes"], "episodes")); n != first {
+		if n := len(acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": sev, "season": 1})["episodes"], "episodes")); n != first {
 			t.Errorf("the first season holds %d episodes after the delete, %d before", n, first)
 		}
 	})
@@ -665,7 +651,7 @@ func TestHowFarADeleteReaches(t *testing.T) {
 	// copy takes its three files and nothing of the episode it copies
 	t.Run("an episode held twice", func(t *testing.T) {
 		sev := findItem(t, "Messy Shows", "Series", "Severance")
-		season := filepath.Join(dataDir(), "messy-shows", "Severance", "Season 01")
+		season := filepath.Join(testenv.DataDir(), "messy-shows", "Severance", "Season 01")
 		base := filepath.Join(season, "Severance S01E05")
 		copies := []string{base + ".mp4", base + ".nfo", base + ".eng.srt"}
 		t.Cleanup(func() {
@@ -674,21 +660,21 @@ func TestHowFarADeleteReaches(t *testing.T) {
 			}
 			scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 5); return !there })
 		})
-		mediaWrite(t, copies[0], fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E02.mp4"))
-		mediaWrite(t, copies[1], episodeNfo("Half Loop", 1, 5))
-		mediaWrite(t, copies[2], fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
+		acc.MediaWrite(t, copies[0], fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E02.mp4"))
+		acc.MediaWrite(t, copies[1], episodeNfo("Half Loop", 1, 5))
+		acc.MediaWrite(t, copies[2], fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
 		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 5); return there })
 		_, original := held(t, sev, 1, 2)
 		_, copied := held(t, sev, 1, 5)
 
 		pair := func() []int {
-			for _, g := range rows(t, call(t, "audit_duplicate_episodes", map[string]any{"library": "Messy Shows"})["groups"], "groups") {
-				if title(str(g["series"])) != "Severance" {
+			for _, g := range acc.Rows(t, suite.Call(t, "audit_duplicate_episodes", map[string]any{"library": "Messy Shows"})["groups"], "groups") {
+				if title(acc.Str(g["series"])) != "Severance" {
 					continue
 				}
 				var numbers []int
-				for _, e := range rows(t, g["episodes"], "episodes") {
-					numbers = append(numbers, num(t, e["episode"], "episode"))
+				for _, e := range acc.Rows(t, g["episodes"], "episodes") {
+					numbers = append(numbers, acc.Num(t, e["episode"], "episode"))
 				}
 				return numbers
 			}
@@ -700,19 +686,19 @@ func TestHowFarADeleteReaches(t *testing.T) {
 
 		server := "/media/messy-shows/Severance/Season 01/Severance S01E05"
 		own := []string{server + ".eng.srt", server + ".mp4", server + ".nfo"}
-		if folder, names := wouldRemove(t, callErr(t, "item_delete", map[string]any{"id": copied})); folder != "" || !slices.Equal(names, own) {
+		if folder, names := wouldRemove(t, suite.CallErr(t, "item_delete", map[string]any{"id": copied})); folder != "" || !slices.Equal(names, own) {
 			t.Errorf("the refusal for the copy would take %q %v, want its own files %v", folder, names, own)
 		}
 		var gone []string
 		for _, p := range own {
 			gone = append(gone, hostPath(p))
 		}
-		keep := treeOf(t, season, gone...)
-		out := call(t, "item_delete", map[string]any{"id": copied, "confirm": true})
+		keep := acc.TreeOf(t, season, gone...)
+		out := suite.Call(t, "item_delete", map[string]any{"id": copied, "confirm": true})
 		if got := removedPaths(t, out); !slices.Equal(got, own) {
 			t.Errorf("removed = %v, want %v", got, own)
 		}
-		sameTree(t, dataDir(), keep, treeOf(t, season))
+		acc.SameTree(t, testenv.DataDir(), keep, acc.TreeOf(t, season))
 
 		if got := pair(); got != nil {
 			t.Errorf("after the delete audit_duplicate_episodes still pairs %v", got)
@@ -726,9 +712,9 @@ func TestHowFarADeleteReaches(t *testing.T) {
 	})
 }
 
-// One show held twice, put back together with the tools:
-// audit_duplicate_series finds A Knight of the Seven Kingdoms in two folders
-// a space and a letter's case apart, and every tool that takes a show by name
+// One show held twice, put back together with the tools: audit_duplicates'
+// folder_groups find A Knight of the Seven Kingdoms in two folders a space
+// and a letter's case apart, and every tool that takes a show by name
 // refuses it as a tie between the two. plan_check places the second folder's
 // episode under the first show, the file is moved there, and item_delete
 // removes the emptied show, naming its own folder and nothing of the one kept
@@ -737,20 +723,20 @@ func TestHowFarADeleteReaches(t *testing.T) {
 // carries an id, so the folder names are the only thing that says they are
 // one, and show_episodes_exist reads them by the audit's own rule.
 func TestAShowHeldTwicePutBackTogether(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	const name = "A Knight of the Seven Kingdoms"
 	groups := func() []map[string]any {
-		return rows(t, call(t, "audit_duplicate_series", map[string]any{"library": "Messy Shows"})["groups"], "groups")
+		return acc.Rows(t, suite.Call(t, "audit_duplicates", map[string]any{"library": "Messy Shows"})["folder_groups"], "folder_groups")
 	}
 	found := groups()
 	if len(found) != 1 {
-		t.Fatalf("audit_duplicate_series = %v, want the %s pair", found, name)
+		t.Fatalf("audit_duplicates folder_groups = %v, want the %s pair", found, name)
 	}
 	var keep, drop map[string]any
-	for _, s := range rows(t, found[0]["series"], "series") {
-		if str(s["folder"]) == name+" (2026)" {
+	for _, s := range acc.Rows(t, found[0]["series"], "series") {
+		if acc.Str(s["folder"]) == name+" (2026)" {
 			keep = s
 		} else {
 			drop = s
@@ -759,22 +745,22 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	if keep == nil || drop == nil {
 		t.Fatalf("the pair = %v", found[0])
 	}
-	keepID, dropID := str(keep["series_id"]), str(drop["series_id"])
+	keepID, dropID := acc.Str(keep["series_id"]), acc.Str(drop["series_id"])
 	if there, _ := held(t, keepID, 1, 2); there {
 		t.Fatal("the show to keep already holds S01E02")
 	}
 	// neither carries an id, and show_episodes_exist finds the other by its
 	// folder, beside this one and a space and a letter's case away: the
 	// episode absent here is not proof the library lacks it
-	if out := call(t, "show_episodes_exist", map[string]any{"series_id": keepID, "episodes": []map[string]any{{"season": 1, "episode": 2}}}); !slices.Equal(strs(t, out["duplicate_entries"], "duplicate_entries"), []string{dropID}) ||
-		!strings.Contains(str(out["warning"]), "id "+dropID+" at "+str(drop["path"])) {
+	if out := suite.Call(t, "show_episodes_exist", map[string]any{"series_id": keepID, "episodes": []map[string]any{{"season": 1, "episode": 2}}}); !slices.Equal(acc.Strs(t, out["duplicate_entries"], "duplicate_entries"), []string{dropID}) ||
+		!strings.Contains(acc.Str(out["warning"]), "id "+dropID+" at "+acc.Str(drop["path"])) {
 		t.Errorf("show_episodes_exist on the show held twice = %v, warning %q: want the other folder's entry named", out["duplicate_entries"], out["warning"])
 	}
 	// and the name is a tie: show_resolve scores both alike, and a tool
 	// taking the show by name refuses to pick one, naming both
-	cands := rows(t, call(t, "show_resolve", map[string]any{"title": name, "library": "Messy Shows"})["candidates"], "candidates")
-	if len(cands) < 2 || decimal(t, cands[0]["score"], "score") != decimal(t, cands[1]["score"], "score") ||
-		!slices.Equal(sorted([]string{str(cands[0]["series_id"]), str(cands[1]["series_id"])}), sorted([]string{keepID, dropID})) {
+	cands := acc.Rows(t, suite.Call(t, "show_resolve", map[string]any{"title": name, "library": "Messy Shows"})["candidates"], "candidates")
+	if len(cands) < 2 || acc.Decimal(t, cands[0]["score"], "score") != acc.Decimal(t, cands[1]["score"], "score") ||
+		!slices.Equal(acc.Sorted([]string{acc.Str(cands[0]["series_id"]), acc.Str(cands[1]["series_id"])}), acc.Sorted([]string{keepID, dropID})) {
 		t.Errorf("show_resolve = %v, want the pair first at one score", cands)
 	}
 	byName := map[string]map[string]any{
@@ -782,37 +768,37 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 		"library_episodes":    {"series": name, "library": "Messy Shows"},
 	}
 	for tool, args := range byName {
-		if msg := callErr(t, tool, args); !strings.Contains(msg, "id "+keepID) || !strings.Contains(msg, "id "+dropID) || !strings.Contains(msg, "give series_id") {
+		if msg := suite.CallErr(t, tool, args); !strings.Contains(msg, "id "+keepID) || !strings.Contains(msg, "id "+dropID) || !strings.Contains(msg, "give series_id") {
 			t.Errorf("%s by name: %s", tool, msg)
 		}
 	}
 
 	// alice has watched the second folder's episode
 	var watched string
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": dropID})["episodes"], "episodes") {
-		if num(t, e["episode"], "episode") == 2 {
-			watched = str(e["id"])
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": dropID})["episodes"], "episodes") {
+		if acc.Num(t, e["episode"], "episode") == 2 {
+			watched = acc.Str(e["id"])
 		}
 	}
 	if watched == "" {
 		t.Fatal("the second folder holds no S01E02")
 	}
-	call(t, "item_set_state", map[string]any{"id": watched, "user": "alice", "watched": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": watched, "user": "alice", "watched": true})
 	t.Cleanup(func() {
 		// the delete below takes this episode, and its state with it (the
 		// restored episode's is cleared further down)
-		undoIfThere(t, watched, "item_set_state", map[string]any{"id": watched, "user": "alice", "watched": false})
+		suite.UndoIfThere(t, watched, "item_set_state", map[string]any{"id": watched, "user": "alice", "watched": false})
 	})
 
 	dest := "/media/messy-shows/" + name + " (2026)/Season 01/" + name + " S01E02.mp4"
-	plan := call(t, "plan_check", map[string]any{"library": "Messy Shows", "entries": []map[string]any{{"path": dest, "series": name + " (2026)", "season": 1, "episode": 2}}})
-	row := rows(t, plan["entries"], "entries")[0]
-	if join := object(t, row["would_join"], "would_join"); row["exists"] != false || str(join["series_id"]) != keepID || decimal(t, join["claim_similarity"], "claim_similarity") < 0.9 {
+	plan := suite.Call(t, "plan_check", map[string]any{"library": "Messy Shows", "entries": []map[string]any{{"path": dest, "series": name + " (2026)", "season": 1, "episode": 2}}})
+	row := acc.Rows(t, plan["entries"], "entries")[0]
+	if join := acc.Object(t, row["would_join"], "would_join"); row["exists"] != false || acc.Str(join["series_id"]) != keepID || acc.Decimal(t, join["claim_similarity"], "claim_similarity") < 0.9 {
 		t.Fatalf("plan_check = %v", row)
 	}
 
 	// what both folders hold now, to put back exactly
-	folders := []string{hostPath(str(keep["path"])), hostPath(str(drop["path"]))}
+	folders := []string{hostPath(acc.Str(keep["path"])), hostPath(acc.Str(drop["path"]))}
 	before := map[string][]byte{}
 	for _, dir := range folders {
 		_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -823,14 +809,14 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 			return nil
 		})
 	}
-	have := seriesCount(t, "Messy Shows")
+	have := typeCount(t, "Messy Shows", "Series")
 	t.Cleanup(func() {
 		for _, dir := range folders {
 			_ = os.RemoveAll(dir)
 		}
 		for path, raw := range before {
-			mediaMkdir(t, filepath.Dir(path))
-			mediaWrite(t, path, raw)
+			acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(path))
+			acc.MediaWrite(t, path, raw)
 		}
 		if err := scanUntil("Messy Shows", have); err != nil {
 			t.Error(err)
@@ -838,22 +824,22 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 		// alice's watched state went with the item the delete took, and Emby
 		// hands it back to the episode the restored file makes (it keys the
 		// state by more than the id), so it is cleared there as well
-		out, err := invoke("library_items", map[string]any{"library": "Messy Shows", "types": "Series", "limit": 50})
+		out, err := suite.Invoke("library_items", map[string]any{"library": "Messy Shows", "types": "Series", "limit": 50})
 		if err != nil {
 			t.Error(err)
 		}
-		for _, s := range rowsOf(out["items"]) {
-			if str(s["path"]) != str(drop["path"]) {
+		for _, s := range acc.RowsOf(out["items"]) {
+			if acc.Str(s["path"]) != acc.Str(drop["path"]) {
 				continue
 			}
-			eps, err := invoke("library_episodes", map[string]any{"series_id": str(s["id"])})
+			eps, err := suite.Invoke("library_episodes", map[string]any{"series_id": acc.Str(s["id"])})
 			if err != nil {
 				t.Errorf("reading the restored %v's episodes, to clear alice's watched state: %v", s["name"], err)
 
 				continue
 			}
-			for _, e := range rowsOf(eps["episodes"]) {
-				if _, err := invoke("item_set_state", map[string]any{"id": str(e["id"]), "user": "alice", "watched": false}); err != nil {
+			for _, e := range acc.RowsOf(eps["episodes"]) {
+				if _, err := suite.Invoke("item_set_state", map[string]any{"id": acc.Str(e["id"]), "user": "alice", "watched": false}); err != nil {
 					t.Errorf("clearing alice's watched state on the restored %v: %v", e["path"], err)
 				}
 			}
@@ -866,53 +852,53 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 
 	// the emptied show goes with the tool: its own folder, and nothing of
 	// the kept one, which holds the file just moved
-	msg := callErr(t, "item_delete", map[string]any{"id": dropID})
-	if folder, names := wouldRemove(t, msg); folder != str(drop["path"]) || !slices.Equal(names, []string{"Season 01"}) || strings.Contains(msg, str(keep["path"])) {
+	msg := suite.CallErr(t, "item_delete", map[string]any{"id": dropID})
+	if folder, names := wouldRemove(t, msg); folder != acc.Str(drop["path"]) || !slices.Equal(names, []string{"Season 01"}) || strings.Contains(msg, acc.Str(keep["path"])) {
 		t.Errorf("the refusal for the emptied show would take %q %v: %s", folder, names, msg)
 	}
-	kept := treeOf(t, folders[0])
-	out := call(t, "item_delete", map[string]any{"id": dropID, "confirm": true})
-	if got, want := removedPaths(t, out), []string{str(drop["path"]) + "/", str(drop["path"]) + "/Season 01/"}; !slices.Equal(got, want) {
+	kept := acc.TreeOf(t, folders[0])
+	out := suite.Call(t, "item_delete", map[string]any{"id": dropID, "confirm": true})
+	if got, want := removedPaths(t, out), []string{acc.Str(drop["path"]) + "/", acc.Str(drop["path"]) + "/Season 01/"}; !slices.Equal(got, want) {
 		t.Errorf("removed = %v, want %v", got, want)
 	}
 	if _, err := os.Stat(folders[1]); !os.IsNotExist(err) {
 		t.Errorf("the emptied show's folder is still on disk: %v", err)
 	}
-	sameTree(t, dataDir(), kept, treeOf(t, folders[0]))
+	acc.SameTree(t, testenv.DataDir(), kept, acc.TreeOf(t, folders[0]))
 	if err := scanUntil("Messy Shows", have-1); err != nil {
 		t.Fatal(err)
 	}
 
 	if got := groups(); len(got) != 0 {
-		t.Errorf("after the merge audit_duplicate_series = %v", got)
+		t.Errorf("after the merge audit_duplicates folder_groups = %v", got)
 	}
 	var numbers []int
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": keepID})["episodes"], "episodes") {
-		numbers = append(numbers, num(t, e["episode"], "episode"))
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": keepID})["episodes"], "episodes") {
+		numbers = append(numbers, acc.Num(t, e["episode"], "episode"))
 	}
 	slices.Sort(numbers)
 	if !slices.Equal(numbers, []int{1, 2}) {
 		t.Errorf("the show kept holds episodes %v, want 1 and 2", numbers)
 	}
-	if _, err := invoke("item_get", map[string]any{"id": dropID}); err == nil {
+	if _, err := suite.Invoke("item_get", map[string]any{"id": dropID}); err == nil {
 		t.Error("the emptied show is still on the server")
 	}
 	// the name finds the one show now, holding the moved episode
-	res := call(t, "show_episodes_exist", byName["show_episodes_exist"])
-	ep := rows(t, res["episodes"], "episodes")[0]
-	if !boolOf(ep["exists"]) || str(res["series_id"]) != keepID {
+	res := suite.Call(t, "show_episodes_exist", byName["show_episodes_exist"])
+	ep := acc.Rows(t, res["episodes"], "episodes")[0]
+	if !acc.BoolOf(ep["exists"]) || acc.Str(res["series_id"]) != keepID {
 		t.Errorf("show_episodes_exist by name after the merge = %v", res)
 	}
 
 	// the moved file is a new item in the kept show, and what alice had
 	// watched was the item the delete took: her watched state does not
 	// follow the file on either server
-	moved := str(ep["id"])
+	moved := acc.Str(ep["id"])
 	if moved == watched {
 		t.Errorf("the moved episode kept its id %s", moved)
 	}
-	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": moved})["users"], "users") {
-		if str(u["user"]) == "alice" && boolOf(u["played"]) {
+	for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": moved})["users"], "users") {
+		if acc.Str(u["user"]) == "alice" && acc.BoolOf(u["played"]) {
 			t.Errorf("alice's watched state followed the moved file: %v", u)
 		}
 	}
@@ -924,12 +910,12 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 // the library holds as both. The messy Severance, which names its TMDB id in
 // its nfo and holds the first three episodes of its first season.
 func TestAnImportLeavesTheProvidersList(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	needsTMDBRecording(t, "GET api.themoviedb.org/3/tv/95396")
 	sev := findItem(t, "Messy Shows", "Series", "Severance")
-	season := filepath.Join(dataDir(), "messy-shows", "Severance", "Season 01")
+	season := filepath.Join(testenv.DataDir(), "messy-shows", "Severance", "Season 01")
 	staged := []string{"Severance S01E04.mp4", "Severance S01E04.nfo", "Severance S01E05E06.mp4", "Severance S01E05E06.nfo"}
 	t.Cleanup(func() {
 		for _, f := range staged {
@@ -946,8 +932,8 @@ func TestAnImportLeavesTheProvidersList(t *testing.T) {
 	// show_missing
 	const listedBy = "listed by TMDB without a file: "
 	firstListed := func() string {
-		for _, f := range rows(t, call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true})["findings"], "findings") {
-			if d := str(f["detail"]); str(f["id"]) == sev && strings.Contains(d, listedBy) {
+		for _, f := range acc.Rows(t, suite.Call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true})["findings"], "findings") {
+			if d := acc.Str(f["detail"]); acc.Str(f["id"]) == sev && strings.Contains(d, listedBy) {
 				first, _, _ := strings.Cut(d[strings.Index(d, listedBy)+len(listedBy):], ",")
 				return first
 			}
@@ -955,20 +941,20 @@ func TestAnImportLeavesTheProvidersList(t *testing.T) {
 		return ""
 	}
 	firstMissing := func() string {
-		out := call(t, "show_missing", map[string]any{"series_id": sev})
-		missing := rows(t, out["missing"], "missing")
-		if str(out["source"]) != "tmdb" || len(missing) == 0 {
+		out := suite.Call(t, "show_missing", map[string]any{"series_id": sev})
+		missing := acc.Rows(t, out["missing"], "missing")
+		if acc.Str(out["source"]) != "tmdb" || len(missing) == 0 {
 			t.Fatalf("show_missing = %v, want TMDB's run", out)
 		}
-		return fmt.Sprintf("S%02dE%02d", num(t, missing[0]["season"], "season"), num(t, missing[0]["episode"], "episode"))
+		return fmt.Sprintf("S%02dE%02d", acc.Num(t, missing[0]["season"], "season"), acc.Num(t, missing[0]["episode"], "episode"))
 	}
 	if l, m := firstListed(), firstMissing(); l != "S01E04" || m != "S01E04" {
 		t.Fatalf("before the import TMDB's list starts at %s in the audit and %s in show_missing, want S01E04", l, m)
 	}
 
 	ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
-	mediaWrite(t, filepath.Join(season, staged[0]), ep)
-	mediaWrite(t, filepath.Join(season, staged[1]), episodeNfo("The You You Are", 1, 4))
+	acc.MediaWrite(t, filepath.Join(season, staged[0]), ep)
+	acc.MediaWrite(t, filepath.Join(season, staged[1]), episodeNfo("The You You Are", 1, 4))
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 4); return there })
 	if l, m := firstListed(), firstMissing(); l != "S01E05" || m != "S01E05" {
 		t.Errorf("after importing S01E04 TMDB's list starts at %s in the audit and %s in show_missing, want S01E05", l, m)
@@ -976,8 +962,8 @@ func TestAnImportLeavesTheProvidersList(t *testing.T) {
 
 	// one file for the next two, its nfo ending the run at the second: no
 	// title, which neither server needs to number it
-	mediaWrite(t, filepath.Join(season, staged[2]), ep)
-	mediaWrite(t, filepath.Join(season, staged[3]), []byte(`<?xml version="1.0" encoding="utf-8"?>
+	acc.MediaWrite(t, filepath.Join(season, staged[2]), ep)
+	acc.MediaWrite(t, filepath.Join(season, staged[3]), []byte(`<?xml version="1.0" encoding="utf-8"?>
 <episodedetails>
   <season>1</season>
   <episode>5</episode>
@@ -985,15 +971,15 @@ func TestAnImportLeavesTheProvidersList(t *testing.T) {
 </episodedetails>
 `))
 	both := func() []map[string]any {
-		out := call(t, "show_episodes_exist", map[string]any{"series_id": sev, "episodes": []map[string]any{{"season": 1, "episode": 5}, {"season": 1, "episode": 6}}})
-		return rows(t, out["episodes"], "episodes")
+		out := suite.Call(t, "show_episodes_exist", map[string]any{"series_id": sev, "episodes": []map[string]any{{"season": 1, "episode": 5}, {"season": 1, "episode": 6}}})
+		return acc.Rows(t, out["episodes"], "episodes")
 	}
 	scanUntilTrue(t, "Messy Shows", func() bool {
 		rows := both()
-		return boolOf(rows[0]["exists"]) && boolOf(rows[1]["exists"])
+		return acc.BoolOf(rows[0]["exists"]) && acc.BoolOf(rows[1]["exists"])
 	})
 	for _, row := range both() {
-		if str(row["covered_by"]) != "S01E05E06" || !strings.HasSuffix(str(row["path"]), "/"+staged[2]) {
+		if acc.Str(row["covered_by"]) != "S01E05E06" || !strings.HasSuffix(acc.Str(row["path"]), "/"+staged[2]) {
 			t.Errorf("episode %v is held %v by %v at %v, want the two-episode file", row["episode"], row["exists"], row["covered_by"], row["path"])
 		}
 	}

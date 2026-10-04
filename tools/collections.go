@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -98,7 +99,7 @@ func collectionsNow(ctx context.Context, client *embyfin.Client, asked []string)
 	out := make([]collectionNow, len(cols))
 	for i := range cols {
 		out[i] = collectionNow{id: cols[i].ID, name: cols[i].Name}
-		if base := baseName(cols[i].Path); cols[i].Path != "" && strings.HasSuffix(strings.ToLower(base), boxsetFolder) {
+		if base := mediapath.Base(cols[i].Path); cols[i].Path != "" && strings.HasSuffix(strings.ToLower(base), boxsetFolder) {
 			out[i].firstName = base[:len(base)-len(boxsetFolder)]
 		}
 	}
@@ -174,10 +175,10 @@ func putCollectionBack(ctx context.Context, client *embyfin.Client, was collecti
 	case len(unknown) > 0:
 		return fmt.Errorf("%s. %s%s: choose another name", reached, strings.Join(unknown, "; "), prefixed(". It ", done))
 	case len(done) > 0:
-		return fmt.Errorf("%s. It was put back as it was (%s): choose another name, or add to it with collection_add", reached, strings.Join(done, "; "))
+		return fmt.Errorf("%s. It was put back as it was (%s): choose another name, or add to it with collection_edit add_items", reached, strings.Join(done, "; "))
 	}
 
-	return fmt.Errorf("%s, and holds what it held: choose another name, or add to it with collection_add", reached)
+	return fmt.Errorf("%s, and holds what it held: choose another name, or add to it with collection_edit add_items", reached)
 }
 
 // namedAmong names ids by the items holding them, each once.
@@ -241,7 +242,7 @@ func registerCollectionTools(r *registry) {
 		Name:        "collection_get",
 		Description: "A collection's contents.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getIn) (*mcp.CallToolResult, getOut, error) {
-		col, err := resolveByType(ctx, client, "BoxSet", in.Collection)
+		col, err := client.ResolveByType(ctx, "BoxSet", in.Collection)
 		if err != nil {
 			return nil, getOut{}, err
 		}
@@ -268,16 +269,16 @@ func registerCollectionTools(r *registry) {
 		Name: "collection_create",
 		Description: "Create a new collection (boxset) holding the given items (Emby needs at least one), and check a moment later that it still holds them. " +
 			"The first collection made on a server makes it add a Collections library and start a scan of every library, which drops items whose files are gone, re-reads changed files, and on Emby saves every playlist back as it found it. " +
-			"Both servers keep a collection in a folder named after the name it was first made with, whatever it has been renamed since, with any character a file name cannot hold (/ \\ : * ? \" < > |) made a space, and a new collection whose name comes to the same folder name reaches the old one instead of making another: Emby adds the items to it, and Jellyfin replaces what it holds with them and takes its first name back. So a name another collection has, or was first made with, is refused, as is one that differs from those only in case, spaces or such characters, and collection_add adds to that one. " +
+			"Both servers keep a collection in a folder named after the name it was first made with, whatever it has been renamed since, with any character a file name cannot hold (/ \\ : * ? \" < > |) made a space, and a new collection whose name comes to the same folder name reaches the old one instead of making another: Emby adds the items to it, and Jellyfin replaces what it holds with them and takes its first name back. So a name another collection has, or was first made with, is refused, as is one that differs from those only in case, spaces or such characters, and collection_edit add_items adds to that one. " +
 			"Emby does not show which name a collection was first made with: there, if the server answers with a collection that was already there, the items it gained are taken out of it again and the call is an error saying so; where what such a collection held before was not read, nothing is taken out and the error says what it holds now. " +
 			membersScanSaid,
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in createIn) (*mcp.CallToolResult, createOut, error) {
 		// the name is taken by one collection, or by several already, which
 		// resolveByType reports as an ambiguity rather than a hit
-		existing, err := resolveByType(ctx, client, "BoxSet", in.Name)
+		existing, err := client.ResolveByType(ctx, "BoxSet", in.Name)
 		switch {
 		case err == nil:
-			return nil, createOut{}, fmt.Errorf("a collection named %q exists (id %s): add to it with collection_add", existing.Name, existing.ID)
+			return nil, createOut{}, fmt.Errorf("a collection named %q exists (id %s): add to it with collection_edit add_items", existing.Name, existing.ID)
 		case strings.Contains(err.Error(), "are named"):
 			return nil, createOut{}, fmt.Errorf("the name is taken: %w", err)
 		}
@@ -293,9 +294,9 @@ func registerCollectionTools(r *registry) {
 		for _, c := range before {
 			switch {
 			case c.firstName != "" && folderName(c.firstName) == want:
-				return nil, createOut{}, fmt.Errorf("the collection %q (id %s) is kept in the folder %q, from the name it was first made with: a new collection named %q would come to the same folder and reach that one instead of making another. Nothing was made: choose another name, or add to it with collection_add", c.name, c.id, c.firstName+boxsetFolder, in.Name)
+				return nil, createOut{}, fmt.Errorf("the collection %q (id %s) is kept in the folder %q, from the name it was first made with: a new collection named %q would come to the same folder and reach that one instead of making another. Nothing was made: choose another name, or add to it with collection_edit add_items", c.name, c.id, c.firstName+boxsetFolder, in.Name)
 			case folderName(c.name) == want:
-				return nil, createOut{}, fmt.Errorf("the collection %q (id %s) differs from %q only in case, spaces or characters a folder name cannot hold, which both servers set aside in naming its folder: a new collection by it could reach that one instead of making another. Nothing was made: choose another name, or add to it with collection_add", c.name, c.id, in.Name)
+				return nil, createOut{}, fmt.Errorf("the collection %q (id %s) differs from %q only in case, spaces or characters a folder name cannot hold, which both servers set aside in naming its folder: a new collection by it could reach that one instead of making another. Nothing was made: choose another name, or add to it with collection_edit add_items", c.name, c.id, in.Name)
 			}
 		}
 
@@ -325,175 +326,109 @@ func registerCollectionTools(r *registry) {
 		return nil, createOut{ID: id, Name: in.Name, Items: len(members), Note: note}, nil
 	})
 
-	type addIn struct {
-		Collection string   `json:"collection" jsonschema:"collection name or id"`
-		ItemIDs    []string `json:"item_ids"   jsonschema:"library item ids to add"`
-	}
-	type addOut struct {
-		Added       int    `json:"added"`
-		AlreadyHeld int    `json:"already_held,omitempty" jsonschema:"items asked for that the collection already held, which a collection cannot hold twice"`
-		To          string `json:"to"`
-		Note        string `json:"note,omitempty"`
-	}
-	add(r, writeTool, &mcp.Tool{
-		Name:        "collection_add",
-		Description: "Add items to a collection, and check a moment later that it still holds them. An item it already holds is left as it is and counted as already_held. " + membersScanSaid,
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in addIn) (*mcp.CallToolResult, addOut, error) {
-		col, err := resolveByType(ctx, client, "BoxSet", in.Collection)
-		if err != nil {
-			return nil, addOut{}, err
-		}
-
-		// both servers answer an add of a member with a success and change
-		// nothing, so count what is new rather than what was asked for
-		held, err := client.CollectionMembers(ctx, col.ID)
-		if err != nil {
-			return nil, addOut{}, err
-		}
-		var fresh []string
-		for _, id := range in.ItemIDs {
-			if !slices.Contains(held, id) && !slices.Contains(fresh, id) {
-				fresh = append(fresh, id)
-			}
-		}
-		out := addOut{Added: len(fresh), AlreadyHeld: len(in.ItemIDs) - len(fresh), To: col.Name}
-		if len(fresh) == 0 {
-			return nil, out, nil
-		}
-		scanning, err := client.ScansRunning(ctx)
-		if err != nil {
-			return nil, addOut{}, fmt.Errorf("could not tell whether a library scan was running, which can put back or drop a collection's members, so nothing was added: %w", err)
-		}
-		if err := client.AddToCollection(ctx, col.ID, fresh); err != nil {
-			return nil, addOut{}, err
-		}
-		if out.Note, err = membersRace(ctx, client, scanning); err != nil {
-			return nil, addOut{}, fmt.Errorf("added %d items to %s, but %w", len(fresh), col.Name, err)
-		}
-
-		return nil, out, nil
-	})
-
-	type removeIn struct {
-		Collection string   `json:"collection" jsonschema:"collection name or id"`
-		ItemIDs    []string `json:"item_ids"   jsonschema:"library item ids to remove (items stay in the library)"`
-	}
-	type removeOut struct {
-		Removed int         `json:"removed"`
-		From    string      `json:"from"`
-		Items   []memberRow `json:"items"          jsonschema:"the items taken out, by id and name, to put back with collection_add"`
-		Note    string      `json:"note,omitempty"`
-	}
-	add(r, writeTool, &mcp.Tool{
-		Name:        "collection_remove",
-		Description: "Remove items from a collection (the items stay in the library). It answers once they have left and are still out a moment later, and an item the collection does not hold is an error. The answer names the items taken out, by id and name, so collection_add can put them back. " + membersScanSaid,
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in removeIn) (*mcp.CallToolResult, removeOut, error) {
-		col, err := resolveByType(ctx, client, "BoxSet", in.Collection)
-		if err != nil {
-			return nil, removeOut{}, err
-		}
-
-		// counted by what the collection holds before and after
-		before, err := membersOf(ctx, client, col.ID)
-		if err != nil {
-			return nil, removeOut{}, err
-		}
-		scanning, err := client.ScansRunning(ctx)
-		if err != nil {
-			return nil, removeOut{}, fmt.Errorf("could not tell whether a library scan was running, which can put back or drop a collection's members, so nothing was taken out: %w", err)
-		}
-		if err := client.RemoveFromCollection(ctx, col.ID, in.ItemIDs); err != nil {
-			return nil, removeOut{}, err
-		}
-		out := removeOut{From: col.Name, Items: []memberRow{}}
-		for _, m := range before {
-			if slices.Contains(in.ItemIDs, m.ID) {
-				out.Items = append(out.Items, m)
-			}
-		}
-		after, err := client.CollectionMembers(ctx, col.ID)
-		if err != nil {
-			return nil, removeOut{}, fmt.Errorf("took %s out of %s, but reading the collection back failed: %w", membersSaid(out.Items), col.Name, err)
-		}
-		out.Removed = max(len(before)-len(after), 0)
-		if out.Note, err = membersRace(ctx, client, scanning); err != nil {
-			return nil, removeOut{}, fmt.Errorf("took %s out of %s, but %w", membersSaid(out.Items), col.Name, err)
-		}
-
-		return nil, out, nil
-	})
-
 	type editIn struct {
-		Collection string `json:"collection"          jsonschema:"collection name or id"`
-		Name       string `json:"name,omitempty"      jsonschema:"rename the collection"`
-		SortName   string `json:"sort_name,omitempty" jsonschema:"the name it sorts by, e.g. Alien 1 to keep a saga together"`
-		Overview   string `json:"overview,omitempty"  jsonschema:"the collection's description"`
+		Collection  string   `json:"collection"             jsonschema:"collection name or id"`
+		Name        string   `json:"name,omitempty"         jsonschema:"rename the collection"`
+		SortName    string   `json:"sort_name,omitempty"    jsonschema:"the name it sorts by, e.g. Alien 1 to keep a saga together"`
+		Overview    string   `json:"overview,omitempty"     jsonschema:"the collection's description"`
+		AddItems    []string `json:"add_items,omitempty"    jsonschema:"library item ids to add; one it already holds is left as it is and counted as already_held"`
+		RemoveItems []string `json:"remove_items,omitempty" jsonschema:"library item ids to take out (the items stay in the library); one it does not hold is an error, and nothing is taken out"`
 	}
 	type editOut struct {
-		Name    string            `json:"name"`
-		Updated []string          `json:"changed"`
-		Was     map[string]string `json:"was"     jsonschema:"each field changed, as it was before"`
+		Name         string            `json:"name"`
+		Updated      []string          `json:"changed"                 jsonschema:"the fields changed: Name, SortName, Overview"`
+		Was          map[string]string `json:"was"                     jsonschema:"each field changed, as it was before"`
+		Added        int               `json:"added,omitempty"         jsonschema:"items the collection gained"`
+		AlreadyHeld  int               `json:"already_held,omitempty"  jsonschema:"items asked to add that it already held, which a collection cannot hold twice"`
+		Removed      int               `json:"removed,omitempty"       jsonschema:"items that left it"`
+		RemovedItems []memberRow       `json:"removed_items,omitempty" jsonschema:"the items taken out, by id and name, to put back with add_items"`
+		Note         string            `json:"note,omitempty"`
 	}
 	add(r, writeTool, &mcp.Tool{
 		Name: "collection_edit",
-		Description: "Rename a collection, or set the name it sorts by or its description. Only the fields given change; collection_add and collection_remove change what it holds. It reads the collection back a moment later and sends the edit once more if the refresh a new or changed collection gets saved it over the edit. " +
-			"A rename leaves the collection's folder under the name it was first made with, which collection_create then refuses. On Emby a sort name set here is locked, so Emby no longer works it out from the name, and no tool unlocks it. The answer gives what each field was.",
+		Description: "Change a collection: rename it, set the name it sorts by or its description, and add items to it or take items out of it (the items stay in the library), any or all in one call. Only the fields given change. An item added that it already holds is left as it is and counted as already_held; an item taken out that it does not hold is an error, and nothing is taken out. " +
+			"The fields are changed first: it reads the collection back a moment later and sends the edit once more if the refresh a new or changed collection gets saved it over the edit. Then the items taken out, and it answers once they have left and are still out a moment later; then the items added, which it checks a moment later that it still holds. The answer names the items taken out, by id and name, so add_items can put them back. " +
+			"A rename leaves the collection's folder under the name it was first made with, which collection_create then refuses. On Emby a sort name set here is locked, so Emby no longer works it out from the name, and no tool unlocks it. The answer gives what each field was. " + membersScanSaid,
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
-		if in.Name == "" && in.SortName == "" && in.Overview == "" {
-			return nil, editOut{}, errors.New("nothing to change: pass name, sort_name or overview")
+		fields := in.Name != "" || in.SortName != "" || in.Overview != ""
+		if !fields && len(in.AddItems) == 0 && len(in.RemoveItems) == 0 {
+			return nil, editOut{}, errors.New("nothing to change: pass name, sort_name, overview, add_items or remove_items")
 		}
-		col, err := resolveByType(ctx, client, "BoxSet", in.Collection)
-		if err != nil {
-			return nil, editOut{}, err
+		for _, id := range in.AddItems {
+			if slices.Contains(in.RemoveItems, id) {
+				return nil, editOut{}, fmt.Errorf("item %s is in add_items and in remove_items: nothing was changed", id)
+			}
 		}
-		admin, err := client.ResolveUser(ctx, "")
+		col, err := client.ResolveByType(ctx, "BoxSet", in.Collection)
 		if err != nil {
 			return nil, editOut{}, err
 		}
 		out := editOut{Name: col.Name, Updated: []string{}, Was: map[string]string{}}
-		edit := func(full map[string]any) (bool, error) {
-			out.Updated = out.Updated[:0]
-			if in.Name != "" {
-				wasOnce(out.Was, "Name", fieldText(full, "Name"))
-				full["Name"], out.Name = in.Name, in.Name
-				out.Updated = append(out.Updated, "Name")
-			}
-			if in.SortName != "" {
-				wasOnce(out.Was, "SortName", sortNameOf(full))
-				setSortName(full, in.SortName, client.Backend() == embyfin.Emby)
-				out.Updated = append(out.Updated, "SortName")
-			}
-			if in.Overview != "" {
-				wasOnce(out.Was, "Overview", fieldText(full, "Overview"))
-				full["Overview"] = in.Overview
-				out.Updated = append(out.Updated, "Overview")
-			}
-			return true, nil
-		}
-		// sent again once if a refresh saved the collection over it: seen on
-		// Emby, a rename straight after collection_create was answered and
-		// lost to the refresh the create queued
-		for try := range 2 {
-			if _, err := client.EditItem(ctx, admin.ID, col.ID, edit); err != nil {
-				if try > 0 {
-					return nil, editOut{}, fmt.Errorf("the edit of %s was saved over and sent again, and the second failed: %w", col.Name, err)
-				}
+		if fields {
+			if err := r.editCollectionFields(ctx, col, in.Name, in.SortName, in.Overview, &out.Name, &out.Updated, out.Was); err != nil {
 				return nil, editOut{}, err
 			}
-			held, err := r.editHeld(ctx, admin.ID, col.ID, func(full map[string]any) bool {
-				return (in.Name == "" || fieldText(full, "Name") == in.Name) &&
-					(in.SortName == "" || sortNameOf(full) == in.SortName) &&
-					(in.Overview == "" || fieldText(full, "Overview") == in.Overview)
-			})
-			if err != nil {
-				return nil, editOut{}, fmt.Errorf("edited %s (%s), but reading it back failed: %w", col.Name, strings.Join(out.Updated, ", "), err)
+		}
+		if len(in.AddItems) == 0 && len(in.RemoveItems) == 0 {
+			return nil, out, nil
+		}
+		// what the edit of the fields did, for an error after it
+		done := ""
+		if len(out.Updated) > 0 {
+			done = fmt.Sprintf("; %s already changed (%s)", col.Name, strings.Join(out.Updated, ", "))
+		}
+		// counted by what the collection holds before and after, not by what
+		// was asked: both servers answer an add of a member with a success and
+		// change nothing
+		held, err := membersOf(ctx, client, col.ID)
+		if err != nil {
+			return nil, editOut{}, fmt.Errorf("%w%s", err, done)
+		}
+		scanning, err := client.ScansRunning(ctx)
+		if err != nil {
+			return nil, editOut{}, fmt.Errorf("could not tell whether a library scan was running, which can put back or drop a collection's members, so its members were not changed: %w%s", err, done)
+		}
+		changed := []string{}
+		if len(in.RemoveItems) > 0 {
+			if err := client.RemoveFromCollection(ctx, col.ID, in.RemoveItems); err != nil {
+				return nil, editOut{}, fmt.Errorf("%w%s", err, done)
 			}
-			if held {
-				return nil, out, nil
+			out.RemovedItems = []memberRow{}
+			for _, m := range held {
+				if slices.Contains(in.RemoveItems, m.ID) {
+					out.RemovedItems = append(out.RemovedItems, m)
+				}
+			}
+			after, rerr := membersOf(ctx, client, col.ID)
+			if rerr != nil {
+				return nil, editOut{}, fmt.Errorf("took %s out of %s, but reading the collection back failed: %w%s", membersSaid(out.RemovedItems), col.Name, rerr, done)
+			}
+			out.Removed = max(len(held)-len(after), 0)
+			held = after
+			changed = append(changed, "took out "+membersSaid(out.RemovedItems))
+		}
+		if len(in.AddItems) > 0 {
+			var fresh []string
+			for _, id := range in.AddItems {
+				if !slices.ContainsFunc(held, func(m memberRow) bool { return m.ID == id }) && !slices.Contains(fresh, id) {
+					fresh = append(fresh, id)
+				}
+			}
+			out.Added, out.AlreadyHeld = len(fresh), len(in.AddItems)-len(fresh)
+			if len(fresh) > 0 {
+				if err := client.AddToCollection(ctx, col.ID, fresh); err != nil {
+					return nil, editOut{}, fmt.Errorf("%w%s", err, prefixed("; already done: ", changed)+done)
+				}
+				changed = append(changed, fmt.Sprintf("added %d items", len(fresh)))
+			}
+		}
+		if len(changed) > 0 {
+			if out.Note, err = membersRace(ctx, client, scanning); err != nil {
+				return nil, editOut{}, fmt.Errorf("%s in %s, but %w", strings.Join(changed, " and "), col.Name, err)
 			}
 		}
 
-		return nil, editOut{}, fmt.Errorf("the server saved %s over the edit twice (%s did not stay): a refresh of it is still running; try again in a minute", col.Name, strings.Join(out.Updated, ", "))
+		return nil, out, nil
 	})
 
 	type deleteIn struct {
@@ -512,7 +447,7 @@ func registerCollectionTools(r *registry) {
 			"On Emby, a collection deleted while a refresh of it was still queued (behind a library scan, say) leaves its name unusable for a new collection until Emby restarts. " +
 			"It answers once the collection has stayed gone, deleting it again if it comes back: Jellyfin refreshes a collection it has made or whose members changed, and saves it back when that refresh ends - a second or so later, or a minute when the provider fails - so there a collection changed in the last 75 seconds is watched a few seconds when the provider that refresh asks answers at once, and until 75 seconds after the change when it is slow or failing; anything else for a few seconds.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
-		col, err := resolveByType(ctx, client, "BoxSet", in.Collection)
+		col, err := client.ResolveByType(ctx, "BoxSet", in.Collection)
 		if err != nil {
 			return nil, deleteOut{}, err
 		}
@@ -540,6 +475,59 @@ func registerCollectionTools(r *registry) {
 
 		return nil, out, nil
 	})
+}
+
+// editCollectionFields renames a collection, or sets its sort name or
+// overview, whichever are given, sent again once if a refresh saved the
+// collection over it: seen on Emby, a rename straight after collection_create
+// was answered and lost to the refresh the create queued. name, updated and
+// was say what changed, and what each field was.
+func (r *registry) editCollectionFields(ctx context.Context, col *embyfin.Item, newName, sortName, overview string, name *string, updated *[]string, was map[string]string) error {
+	client := r.client
+	admin, err := client.ResolveUser(ctx, "")
+	if err != nil {
+		return err
+	}
+	edit := func(full map[string]any) (bool, error) {
+		*updated = (*updated)[:0]
+		if newName != "" {
+			wasOnce(was, "Name", fieldText(full, "Name"))
+			full["Name"], *name = newName, newName
+			*updated = append(*updated, "Name")
+		}
+		if sortName != "" {
+			wasOnce(was, "SortName", sortNameOf(full))
+			setSortName(full, sortName, client.Backend() == embyfin.Emby)
+			*updated = append(*updated, "SortName")
+		}
+		if overview != "" {
+			wasOnce(was, "Overview", fieldText(full, "Overview"))
+			full["Overview"] = overview
+			*updated = append(*updated, "Overview")
+		}
+		return true, nil
+	}
+	for try := range 2 {
+		if _, err := client.EditItem(ctx, admin.ID, col.ID, edit); err != nil {
+			if try > 0 {
+				return fmt.Errorf("the edit of %s was saved over and sent again, and the second failed: %w", col.Name, err)
+			}
+			return err
+		}
+		held, err := r.editHeld(ctx, admin.ID, col.ID, func(full map[string]any) bool {
+			return (newName == "" || fieldText(full, "Name") == newName) &&
+				(sortName == "" || sortNameOf(full) == sortName) &&
+				(overview == "" || fieldText(full, "Overview") == overview)
+		})
+		if err != nil {
+			return fmt.Errorf("edited %s (%s), but reading it back failed: %w", col.Name, strings.Join(*updated, ", "), err)
+		}
+		if held {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("the server saved %s over the edit twice (%s did not stay): a refresh of it is still running; try again in a minute", col.Name, strings.Join(*updated, ", "))
 }
 
 // membersScanSaid is what the tools that change a collection's members say

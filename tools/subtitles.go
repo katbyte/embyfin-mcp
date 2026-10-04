@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -109,7 +110,7 @@ func registerSubtitleTools(r *registry) {
 		// an id no item has: Emby answers the search with a bare 500 and
 		// Jellyfin with a 404, neither of which says the id is wrong. A
 		// version's own id is an item's, which the search answers for
-		if _, err := itemOrVersion(ctx, client, in.ID); err != nil {
+		if _, _, err := client.ItemByIDOrVersion(ctx, in.ID); err != nil {
 			return nil, searchOut{}, err
 		}
 
@@ -153,8 +154,8 @@ func registerSubtitleTools(r *registry) {
 		}
 		streams := subtitleStreams(it)
 		dir := ""
-		if onDisk(it.Path) && !it.IsFolder {
-			dir = parentDir(it.Path)
+		if mediapath.OnDisk(it.Path) && !it.IsFolder {
+			dir = mediapath.Dir(it.Path)
 		}
 		var files []string
 		if dir != "" {

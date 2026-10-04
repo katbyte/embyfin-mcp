@@ -12,6 +12,7 @@ import (
 
 	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -366,7 +367,7 @@ func resolveSeriesRef(ctx context.Context, r *registry, ref, library string) (*e
 	if ref == "" {
 		return nil, nil, errors.New("a series is required: give it by name or id")
 	}
-	folder, err := resolveLibrary(ctx, r.client, library)
+	folder, err := r.client.ResolveLibrary(ctx, library)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -380,7 +381,7 @@ func resolveSeriesRef(ctx context.Context, r *registry, ref, library string) (*e
 	}
 	if i, ok := idx.byID[ref]; ok {
 		byID := idx.items[i]
-		if rows := idx.rank(parseRelease(ref)); len(rows) > 0 && rows[0].Score >= seriesConfident && rows[0].SeriesID != byID.ID {
+		if rows := idx.rank(naming.ParseRelease(ref)); len(rows) > 0 && rows[0].Score >= seriesConfident && rows[0].SeriesID != byID.ID {
 			return nil, nil, fmt.Errorf("%q is the id of %s (%d) at %s, and also names %s (%d) id %s at %s: give series_id for the one by id, or more of the name",
 				ref, byID.Name, byID.ProductionYear, byID.Path, rows[0].Name, rows[0].Year, rows[0].SeriesID, rows[0].Path)
 		}
@@ -464,7 +465,7 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 		return nil, nil, errors.New("a series is required: give series_id, or series by name")
 	}
 
-	folder, err := resolveLibrary(ctx, client, library)
+	folder, err := client.ResolveLibrary(ctx, library)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -479,7 +480,7 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 	// hundreds of series and commits to none. Apostrophes, colons and
 	// ampersands are stripped by the naming conventions this is fed from, so
 	// a name path that needs them punctuated right fails on most real input.
-	rows, seen, err := r.matchSeries(ctx, parseRelease(name), parent)
+	rows, seen, err := r.matchSeries(ctx, naming.ParseRelease(name), parent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -564,7 +565,7 @@ func resolveSeriesMatch(ctx context.Context, r *registry, id, name, library stri
 // call a match rather than a guess, and clear enough of the next candidate
 // that choosing it is not picking one of two.
 const (
-	seriesConfident = 0.9
+	seriesConfident = naming.Confident
 	seriesMargin    = 0.02
 	// scoreTolerance is how far apart two scores can be and still be the
 	// same number. Scores are hundredths, and the difference of two of them

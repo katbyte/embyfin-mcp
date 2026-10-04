@@ -128,48 +128,135 @@ func registerServerTools(r *registry) {
 	})
 
 	type activityIn struct {
-		Days   int `json:"days,omitempty"   jsonschema:"how many days back to include, default 60"`
-		Limit  int `json:"limit,omitempty"  jsonschema:"page size, default 50"`
-		Offset int `json:"offset,omitempty" jsonschema:"skip this many entries, to page"`
+		Days   int    `json:"days,omitempty"   jsonschema:"how many days back to include, default 60 or as many as the server keeps if fewer"`
+		Item   string `json:"item,omitempty"   jsonschema:"only the entries about one library item, by id: a film, an episode or a track, or a series, a season or an album, whose episodes or tracks are read as the library holds them now (a play of one since deleted is not found). A collection, a playlist, an artist or a folder is refused rather than answered with nothing"`
+		User   string `json:"user,omitempty"   jsonschema:"only the entries about one user, by name or id: their logins, plays and the rest"`
+		Limit  int    `json:"limit,omitempty"  jsonschema:"page size, default 50"`
+		Offset int    `json:"offset,omitempty" jsonschema:"skip this many entries, to page"`
 	}
 	type activityEntry struct {
 		Date     string `json:"date"`
 		Type     string `json:"type"`
 		Severity string `json:"severity,omitempty"`
 		Summary  string `json:"summary"`
+		ItemID   string `json:"item_id,omitempty"  jsonschema:"the library item the entry is about, where the server records it"`
 	}
 	type activityOut struct {
-		Total   int             `json:"total"   jsonschema:"entries in the timeframe, across every page"`
-		Offset  int             `json:"offset"`
-		Entries []activityEntry `json:"entries"`
+		Days     int             `json:"days"             jsonschema:"the period read, in days back from now"`
+		Item     string          `json:"item,omitempty"   jsonschema:"the item the entries were kept to"`
+		User     string          `json:"user,omitempty"   jsonschema:"the user the entries were kept to"`
+		Covers   *int            `json:"covers,omitempty" jsonschema:"item, for a series, a season or an album: how many of its episodes or tracks the log was read for, as the library holds them now"`
+		Total    int             `json:"total"            jsonschema:"entries in the period, across every page, as far as the log was read"`
+		Offset   int             `json:"offset"`
+		Entries  []activityEntry `json:"entries"          jsonschema:"newest first"`
+		Complete bool            `json:"complete"         jsonschema:"false when not all of the period could be read: it reaches back past what the server keeps of its activity log, or, kept to an item or a user, it holds more activity than one call reads. The answer then covers only the newest part of it, and note says how far back"`
+		Note     string          `json:"note,omitempty"   jsonschema:"what of the period could not be read, and why"`
+	}
+	summarise := func(e *embyfin.ActivityEntry) activityEntry {
+		summary := e.Name
+		if e.ShortOverview != "" {
+			summary += " — " + e.ShortOverview
+		}
+
+		return activityEntry{Date: e.Date, Type: e.Type, Severity: e.Severity, Summary: summary, ItemID: e.ItemID}
 	}
 	add(r, readTool, &mcp.Tool{
-		Name:        "server_activity",
-		Description: "Recent server activity log: logins, playback, library changes, errors. Newest first, default last 60 days.",
+		Name: "server_activity",
+		Description: "The server's activity log, newest first: logins, playback, library changes, errors. The last 60 days, or as many as the server keeps if fewer (Jellyfin deletes activity older than its retention, 30 days out of the box); a period asked for past what the server keeps comes back complete false, saying how far back can be seen. " +
+			"item keeps the entries about one item (who played it, when): plays are logged against what was played, so a series, a season or an album is read as its episodes or tracks, as the library holds them now. user keeps the entries about one user, by the user's id where the server records it (Jellyfin) and by the user's name leading the entry's text on Emby, whose entries carry no id a client can match. Either reads the whole period, and says so when it holds more than one call reads.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in activityIn) (*mcp.CallToolResult, activityOut, error) {
 		limit := in.Limit
 		if limit <= 0 {
 			limit = 50
 		}
-
 		offset := max(in.Offset, 0)
-		entries, total, err := client.ActivityLog(ctx, daysCutoff(in.Days), limit, offset)
+		window, err := client.ActivityWindow(ctx, in.Days)
 		if err != nil {
 			return nil, activityOut{}, err
 		}
+		out := activityOut{Days: window.Days, Offset: offset, Entries: []activityEntry{}, Complete: !window.Short, Note: window.Note}
 
-		out := activityOut{Total: total, Offset: offset, Entries: []activityEntry{}}
-		for _, e := range entries {
-			summary := e.Name
-			if e.ShortOverview != "" {
-				summary += " — " + e.ShortOverview
+		// about one item: by id when the entry names its item, and by title
+		// when it carries none; a title is a substring of others ("Dune" of
+		// "Dune: Part Two"), so an entry with an id is never matched by title
+		var about func(e *embyfin.ActivityEntry) bool
+		if in.Item != "" {
+			it, ierr := client.ItemByID(ctx, in.Item)
+			if ierr != nil {
+				return nil, activityOut{}, ierr
 			}
-			out.Entries = append(out.Entries, activityEntry{
-				Date:     e.Date,
-				Type:     e.Type,
-				Severity: e.Severity,
-				Summary:  summary,
-			})
+			// what the log names a play of this by: the item itself, or what
+			// it holds. A series' id is in no entry, and read by it alone
+			// the answer was no plays at all, complete
+			held, herr := playedAs(ctx, client, it)
+			if herr != nil {
+				return nil, activityOut{}, herr
+			}
+			played := map[string]bool{in.Item: true}
+			for _, id := range held {
+				played[id] = true
+			}
+			out.Item = it.Name
+			if held != nil {
+				out.Covers = new(len(held))
+			}
+			about = func(e *embyfin.ActivityEntry) bool {
+				if e.ItemID == "" {
+					return strings.Contains(e.Name, it.Name) || strings.Contains(e.ShortOverview, it.Name)
+				}
+
+				return played[e.ItemID]
+			}
+		}
+		if in.User != "" {
+			user, uerr := client.ResolveUser(ctx, in.User)
+			if uerr != nil {
+				return nil, activityOut{}, uerr
+			}
+			users, uerr := client.Users(ctx)
+			if uerr != nil {
+				return nil, activityOut{}, uerr
+			}
+			jellyfin := client.Backend() == embyfin.Jellyfin
+			out.User = user.Name
+			aboutItem := about
+			about = func(e *embyfin.ActivityEntry) bool {
+				return playedBy(e, users, jellyfin) == user.ID && (aboutItem == nil || aboutItem(e))
+			}
+		}
+
+		if about == nil {
+			// the server pages the whole log itself
+			entries, total, lerr := client.ActivityLog(ctx, window.Cutoff, limit, offset)
+			if lerr != nil {
+				return nil, activityOut{}, lerr
+			}
+			out.Total = total
+			for i := range entries {
+				out.Entries = append(out.Entries, summarise(&entries[i]))
+			}
+
+			return nil, out, nil
+		}
+
+		// kept to an item or a user, the whole period is read and sifted
+		// here: the server filters its log by user on Jellyfin alone, and by
+		// item on neither
+		activity, err := client.ReadActivity(ctx, window.Cutoff)
+		if err != nil {
+			return nil, activityOut{}, err
+		}
+		out.Complete = activity.Complete && !window.Short
+		out.Note = joinNotes(window.Note, activity.Note())
+		var kept []activityEntry
+		for i := range activity.Entries {
+			if about(&activity.Entries[i]) {
+				kept = append(kept, summarise(&activity.Entries[i]))
+			}
+		}
+		out.Total = len(kept)
+		if offset < len(kept) {
+			out.Entries = kept[offset:min(offset+limit, len(kept))]
 		}
 
 		return nil, out, nil
@@ -211,45 +298,30 @@ func registerServerTools(r *registry) {
 		Size     int64  `json:"size"     jsonschema:"file size in bytes"`
 		Modified string `json:"modified"`
 	}
-	type logsOut struct {
-		Files []logFileRow `json:"files"`
-	}
-	add(r, readTool, &mcp.Tool{
-		Name:        "server_logs",
-		Description: "List the server's log files with size and modification time.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, logsOut, error) {
-		files, err := client.LogFiles(ctx)
-		if err != nil {
-			return nil, logsOut{}, err
-		}
-
-		out := logsOut{}
-		for _, f := range files {
-			out.Files = append(out.Files, logFileRow{Name: f.Name, Size: f.Size, Modified: f.DateModified})
-		}
-
-		return nil, out, nil
-	})
-
 	type logIn struct {
-		Name  string `json:"name,omitempty"  jsonschema:"log file name (server_logs lists them); empty fetches the server's own log"`
+		Name  string `json:"name,omitempty"  jsonschema:"log file name (files in the answer lists them); empty fetches the server's own log"`
 		Lines int    `json:"lines,omitempty" jsonschema:"how many lines from the end to return, default 200"`
 	}
 	type logOut struct {
-		Name string `json:"name"`
-		Tail string `json:"tail"`
-		Note string `json:"note,omitempty" jsonschema:"set when no name was given and the server lists no log of its own, so the most recently changed file was read instead"`
+		Name  string       `json:"name"`
+		Tail  string       `json:"tail"`
+		Files []logFileRow `json:"files"          jsonschema:"every log file the server has, with size and modification time: the names this tool takes"`
+		Note  string       `json:"note,omitempty" jsonschema:"set when no name was given and the server lists no log of its own, so the most recently changed file was read instead"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "server_log",
-		Description: "Fetch the tail of a server log file: by default the server's own log (Emby's embyserver.txt, Jellyfin's newest log_<date>.log), not the transcode or hardware logs beside it.",
+		Description: "Fetch the tail of a server log file, and list every log file the server has: by default the tail of the server's own log (Emby's embyserver.txt, Jellyfin's newest log_<date>.log), not the transcode or hardware logs beside it, which files names for a second call.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in logIn) (*mcp.CallToolResult, logOut, error) {
+		files, err := client.LogFiles(ctx)
+		if err != nil {
+			return nil, logOut{}, err
+		}
+		rows := make([]logFileRow, 0, len(files))
+		for _, f := range files {
+			rows = append(rows, logFileRow{Name: f.Name, Size: f.Size, Modified: f.DateModified})
+		}
 		name, note := in.Name, ""
 		if name == "" {
-			files, err := client.LogFiles(ctx)
-			if err != nil {
-				return nil, logOut{}, err
-			}
 			if len(files) == 0 {
 				return nil, logOut{}, errors.New("server reports no log files")
 			}
@@ -269,7 +341,7 @@ func registerServerTools(r *registry) {
 			return nil, logOut{}, err
 		}
 
-		return nil, logOut{Name: name, Tail: tail, Note: note}, nil
+		return nil, logOut{Name: name, Tail: tail, Files: rows, Note: note}, nil
 	})
 
 	type taskOut struct {

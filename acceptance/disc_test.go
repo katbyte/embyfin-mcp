@@ -8,6 +8,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // A disc flattened into a film's folder, which is what the audit is for: the
@@ -21,36 +25,36 @@ import (
 // staged here: found, matched one stream at a time to two films, and then
 // remuxed into the one file they should have been, which the audit lets go of.
 func TestAuditDiscFolders(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 
-	before := call(t, "audit_disc_folders", nil)
-	folders := rows(t, before["folders"], "folders")
-	if num(t, before["total_findings"], "total_findings") != 1 || len(folders) != 1 {
+	before := suite.Call(t, "audit_disc_folders", nil)
+	folders := acc.Rows(t, before["folders"], "folders")
+	if acc.Num(t, before["total_findings"], "total_findings") != 1 || len(folders) != 1 {
 		t.Fatalf("before staging one: %v, want the loose DVD alone", before)
 	}
 	dvd := folders[0]
-	entries := rows(t, dvd["entries"], "entries")
-	if str(dvd["folder"]) != "/media/messy-movies/"+messyLooseDVD || str(dvd["kind"]) != "flattened dvd" || num(t, dvd["items"], "items") != 1 || len(entries) != 1 {
+	entries := acc.Rows(t, dvd["entries"], "entries")
+	if acc.Str(dvd["folder"]) != "/media/messy-movies/"+messyLooseDVD || acc.Str(dvd["kind"]) != "flattened dvd" || acc.Num(t, dvd["items"], "items") != 1 || len(entries) != 1 {
 		t.Errorf("the loose DVD = %v", dvd)
-	} else if e := entries[0]; str(e["file"]) != "VTS_01_1.VOB" || title(str(e["name"])) != "Coyote vs. Acme" || num(t, e["size"], "size") <= 0 || str(e["matched_to"]) != "" {
+	} else if e := entries[0]; acc.Str(e["file"]) != "VTS_01_1.VOB" || title(acc.Str(e["name"])) != "Coyote vs. Acme" || acc.Num(t, e["size"], "size") <= 0 || acc.Str(e["matched_to"]) != "" {
 		t.Errorf("the loose DVD's entry = %v", e)
 	}
 	for _, f := range folders {
-		if strings.Contains(str(f["folder"]), messyKeptBluRay) {
+		if strings.Contains(acc.Str(f["folder"]), messyKeptBluRay) {
 			t.Errorf("the Blu-ray kept whole was reported: %v", f)
 		}
 	}
 
-	have := movieCount(t, "Messy Movies")
+	have := typeCount(t, "Messy Movies", "Movie")
 	const name = "Pi (1998)"
-	dir := filepath.Join(dataDir(), "messy-movies", name)
+	dir := filepath.Join(testenv.DataDir(), "messy-movies", name)
 	server := "/media/messy-movies/" + name
 	streams := []string{"00000.m2ts", "00001.m2ts"}
-	mediaMkdir(t, dir)
+	acc.MediaMkdir(t, testenv.DataDir(), dir)
 	for _, s := range streams {
-		mediaWrite(t, filepath.Join(dir, s), fixtureVideo(t, "disc-src", s))
+		acc.MediaWrite(t, filepath.Join(dir, s), fixtureVideo(t, "disc-src", s))
 	}
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
@@ -65,41 +69,41 @@ func TestAuditDiscFolders(t *testing.T) {
 
 	pi := func() map[string]any {
 		t.Helper()
-		out := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})
-		folders := rows(t, out["folders"], "folders")
+		out := suite.Call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})
+		folders := acc.Rows(t, out["folders"], "folders")
 		// most items first: the two streams, then the one VOB
-		if len(folders) != 2 || num(t, out["total_findings"], "total_findings") != 2 || str(folders[0]["folder"]) != server {
+		if len(folders) != 2 || acc.Num(t, out["total_findings"], "total_findings") != 2 || acc.Str(folders[0]["folder"]) != server {
 			t.Fatalf("folders = %v, want the staged disc then the loose DVD", folders)
 		}
 		// the sweep reads the library, not just this folder
-		if num(t, out["items_scanned"], "items_scanned") != have+2 {
+		if acc.Num(t, out["items_scanned"], "items_scanned") != have+2 {
 			t.Errorf("items_scanned = %v, want the library's %d films", out["items_scanned"], have+2)
 		}
 		return folders[0]
 	}
 	group := pi()
-	if str(group["kind"]) != "flattened blu-ray" || group["note"] != nil {
+	if acc.Str(group["kind"]) != "flattened blu-ray" || group["note"] != nil {
 		t.Errorf("the staged disc = %v", group)
 	}
-	entries = rows(t, group["entries"], "entries")
-	if len(entries) != 2 || num(t, group["items"], "items") != 2 {
+	entries = acc.Rows(t, group["entries"], "entries")
+	if len(entries) != 2 || acc.Num(t, group["items"], "items") != 2 {
 		t.Fatalf("entries = %v", entries)
 	}
 	ids := make([]string, len(entries))
 	for i, e := range entries {
-		if str(e["file"]) != streams[i] || str(e["id"]) == "" || str(e["matched_to"]) != "" {
+		if acc.Str(e["file"]) != streams[i] || acc.Str(e["id"]) == "" || acc.Str(e["matched_to"]) != "" {
 			t.Errorf("entry = %v", e)
 		}
-		ids[i] = str(e["id"])
+		ids[i] = acc.Str(e["id"])
 	}
 	// a limit caps the folders, most items first, and not the count
-	capped := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies", "limit": 1})
-	if first := rows(t, capped["folders"], "folders"); len(first) != 1 || str(first[0]["folder"]) != server || num(t, capped["total_findings"], "total_findings") != 2 {
+	capped := suite.Call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies", "limit": 1})
+	if first := acc.Rows(t, capped["folders"], "folders"); len(first) != 1 || acc.Str(first[0]["folder"]) != server || acc.Num(t, capped["total_findings"], "total_findings") != 2 {
 		t.Errorf("limit 1 = %v, want the staged disc alone and a count of 2", capped)
 	}
 	// a stream is one film of two in the folder: deleting it would take that
 	// stream and nothing else
-	if folder, names := wouldRemove(t, callErr(t, "item_delete", map[string]any{"id": ids[0]})); folder != "" || !slices.Equal(names, []string{server + "/" + streams[0]}) {
+	if folder, names := wouldRemove(t, suite.CallErr(t, "item_delete", map[string]any{"id": ids[0]})); folder != "" || !slices.Equal(names, []string{server + "/" + streams[0]}) {
 		t.Errorf("the refusal for one stream would take %q %v, want that stream alone", folder, names)
 	}
 
@@ -108,24 +112,24 @@ func TestAuditDiscFolders(t *testing.T) {
 	// least one of them is wrong
 	nfos := map[string][]byte{"00000.nfo": movieNfo("Pi", 1998, "473", "tt0138704"), "00001.nfo": movieNfo("Arrival", 2016, "329865", "tt2543164")}
 	for file, raw := range nfos {
-		mediaWrite(t, filepath.Join(dir, file), raw)
+		acc.MediaWrite(t, filepath.Join(dir, file), raw)
 	}
 	for _, id := range ids {
-		call(t, "item_refresh", map[string]any{"id": id})
+		suite.Call(t, "item_refresh", map[string]any{"id": id})
 	}
 	matched := func() []string {
 		var out []string
-		for _, e := range rows(t, pi()["entries"], "entries") {
-			out = append(out, str(e["matched_to"]))
+		for _, e := range acc.Rows(t, pi()["entries"], "entries") {
+			out = append(out, acc.Str(e["matched_to"]))
 		}
 		return out
 	}
-	if !eventually(func() bool {
+	if !acc.Eventually(func() bool {
 		return slices.Equal(matched(), []string{"imdb:tt0138704 tmdb:473", "imdb:tt2543164 tmdb:329865"})
 	}) {
 		t.Errorf("the streams are matched to %v, want Pi's ids and Arrival's", matched())
 	}
-	if note := str(pi()["note"]); note != "matched to 2 different titles, so at least 1 of these are the wrong film" {
+	if note := acc.Str(pi()["note"]); note != "matched to 2 different titles, so at least 1 of these are the wrong film" {
 		t.Errorf("note = %q", note)
 	}
 
@@ -136,22 +140,22 @@ func TestAuditDiscFolders(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mediaWrite(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
+	acc.MediaWrite(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
 	if err := scanUntil("Messy Movies", have+1); err != nil {
 		t.Fatal(err)
 	}
-	after := call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})
+	after := suite.Call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})
 	var left []string
-	for _, f := range rows(t, after["folders"], "folders") {
-		left = append(left, str(f["folder"]))
+	for _, f := range acc.Rows(t, after["folders"], "folders") {
+		left = append(left, acc.Str(f["folder"]))
 	}
-	if want := []string{"/media/messy-movies/" + messyLooseDVD}; !slices.Equal(left, want) || num(t, after["total_findings"], "total_findings") != 1 {
+	if want := []string{"/media/messy-movies/" + messyLooseDVD}; !slices.Equal(left, want) || acc.Num(t, after["total_findings"], "total_findings") != 1 {
 		t.Errorf("after the remux audit_disc_folders = %v, want %v alone", left, want)
 	}
 	var remux []string
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "limit": 50})["items"], "items") {
-		if strings.HasPrefix(str(it["path"]), server+"/") {
-			remux = append(remux, str(it["path"]))
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "limit": 50})["items"], "items") {
+		if strings.HasPrefix(acc.Str(it["path"]), server+"/") {
+			remux = append(remux, acc.Str(it["path"]))
 		}
 	}
 	if !slices.Equal(remux, []string{server + "/" + name + ".mp4"}) {
@@ -167,13 +171,13 @@ func TestAuditDiscFolders(t *testing.T) {
 // so it is shown at its stored width and needs no display width.
 func TestTheLooseVOBsStatedShape(t *testing.T) {
 	vob := findItem(t, "Messy Movies", "Movie", "Coyote vs. Acme")
-	got := call(t, "item_get", map[string]any{"id": vob})
-	if ratio := str(got["aspect_ratio"]); !strings.Contains(ratio, ":") || got["display_width"] != nil || num(t, got["width"], "width") != 720 || num(t, got["height"], "height") != 480 {
+	got := suite.Call(t, "item_get", map[string]any{"id": vob})
+	if ratio := acc.Str(got["aspect_ratio"]); !strings.Contains(ratio, ":") || got["display_width"] != nil || acc.Num(t, got["width"], "width") != 720 || acc.Num(t, got["height"], "height") != 480 {
 		t.Errorf("item_get of the loose VOB = aspect %v, display width %v, %vx%v: want its stated ratio, and no display width for a frame of its own shape", got["aspect_ratio"], got["display_width"], got["width"], got["height"])
 	}
-	out := call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": vob}, "b": map[string]any{"item_id": vob}})
-	a := object(t, out["a"], "a")
-	if decimal(t, a["aspect"], "aspect") != 1.5 || str(a["aspect_from"]) != "stated" {
+	out := suite.Call(t, "quality_compare", map[string]any{"a": map[string]any{"item_id": vob}, "b": map[string]any{"item_id": vob}})
+	a := acc.Object(t, out["a"], "a")
+	if acc.Decimal(t, a["aspect"], "aspect") != 1.5 || acc.Str(a["aspect_from"]) != "stated" {
 		t.Errorf("quality_compare reads the loose VOB's shape as %v from %v, want 1.5 as the stream states it", a["aspect"], a["aspect_from"])
 	}
 }
@@ -187,34 +191,34 @@ func TestTheLooseVOBsStatedShape(t *testing.T) {
 // take is TestWhatADeleteWouldTake's.)
 func TestADVDKeptWhole(t *testing.T) {
 	moon := findItem(t, "Messy Movies", "Movie", "Moon")
-	got := call(t, "item_get", map[string]any{"id": moon})
-	ids := object(t, got["metadata_provider_ids"], "metadata_provider_ids")
-	if str(got["path"]) != "/media/messy-movies/"+messyKeptDVD || num(t, got["year"], "year") != 2009 || str(ids["tmdb"]) != "17431" || str(ids["imdb"]) != "tt1182345" {
+	got := suite.Call(t, "item_get", map[string]any{"id": moon})
+	ids := acc.Object(t, got["metadata_provider_ids"], "metadata_provider_ids")
+	if acc.Str(got["path"]) != "/media/messy-movies/"+messyKeptDVD || acc.Num(t, got["year"], "year") != 2009 || acc.Str(ids["tmdb"]) != "17431" || acc.Str(ids["imdb"]) != "tt1182345" {
 		t.Errorf("item_get Moon = %v at %v, %v: want one film at its folder with the nfo's ids", got["name"], got["path"], ids)
 	}
-	if found := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "17431", "type": "movie"})["items"], "items"); len(found) != 1 || str(found[0]["id"]) != moon {
+	if found := acc.Rows(t, suite.Call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "17431", "type": "movie"})["items"], "items"); len(found) != 1 || acc.Str(found[0]["id"]) != moon {
 		t.Errorf("tmdb 17431 finds %v, want Moon alone", found)
 	}
 
-	for _, f := range rows(t, call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})["folders"], "folders") {
-		if strings.Contains(str(f["folder"]), messyKeptDVD) {
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_disc_folders", map[string]any{"library": "Messy Movies"})["folders"], "folders") {
+		if strings.Contains(acc.Str(f["folder"]), messyKeptDVD) {
 			t.Errorf("the DVD kept whole was reported: %v", f)
 		}
 	}
 
-	quality := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
+	quality := suite.Call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
 	var finding string
-	for _, f := range rows(t, quality["findings"], "findings") {
-		if str(f["id"]) == moon {
-			finding = str(f["detail"])
+	for _, f := range acc.Rows(t, quality["findings"], "findings") {
+		if acc.Str(f["id"]) == moon {
+			finding = acc.Str(f["detail"])
 		}
 	}
 	unprobed := false
-	for _, u := range rows(t, quality["unprobed"], "unprobed") {
-		unprobed = unprobed || str(u["id"]) == moon
+	for _, u := range acc.Rows(t, quality["unprobed"], "unprobed") {
+		unprobed = unprobed || acc.Str(u["id"]) == moon
 	}
 	if isJellyfin() {
-		if finding != "mpeg2video 720x480: 480p, below 720p; legacy codec mpeg2video" || unprobed || str(got["video_codec"]) != "mpeg2video" {
+		if finding != "mpeg2video 720x480: 480p, below 720p; legacy codec mpeg2video" || unprobed || acc.Str(got["video_codec"]) != "mpeg2video" {
 			t.Errorf("Jellyfin reads Moon as %v, and audit_quality says %q (unprobed %v): want the DVD's MPEG-2 judged", got["video_codec"], finding, unprobed)
 		}
 	} else if finding != "" || !unprobed || got["video_codec"] != nil {

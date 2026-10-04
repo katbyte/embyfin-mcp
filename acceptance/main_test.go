@@ -17,6 +17,8 @@
 //	EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh down
 package acceptance
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestMain(m *testing.M) { testMain(m) }

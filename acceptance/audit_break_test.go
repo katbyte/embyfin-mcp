@@ -9,6 +9,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // Break, audit, fix, audit clean: each test here puts a defect into the
@@ -29,31 +33,31 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	// as Stargate: Continuum, a subtitle added to the path's title, which
 	// TMDB says is the film of 1994 - and the runtime is its too
 	stargate := findItem(t, "Messy Movies", "Movie", "Stargate: Continuum")
-	lasting := rows(t, call(t, "audit_file_path", titles)["findings"], "findings")
-	if len(lasting) != 1 || str(lasting[0]["id"]) != stargate ||
-		!slices.Equal(strs(t, lasting[0]["problems"], "problems"), []string{`title: the path is named "Stargate", the server holds "Stargate: Continuum": the item's title is the path's with "Continuum" added: an edition, a subtitle, or another film - can't tell from the names`}) ||
-		str(lasting[0]["path_tmdb"]) != "2164 Stargate (1994)" || str(lasting[0]["item_tmdb"]) != "12914" ||
-		!strings.Contains(str(lasting[0]["diagnosis"]), "it is matched to another film than the one on disk; the file runs 121 min, and TMDB's 2164 runs 121 and its 12914 98: the file's runtime is the path's film's") {
+	lasting := acc.Rows(t, suite.Call(t, "audit_file_path", titles)["findings"], "findings")
+	if len(lasting) != 1 || acc.Str(lasting[0]["id"]) != stargate ||
+		!slices.Equal(acc.Strs(t, lasting[0]["problems"], "problems"), []string{`title: the path is named "Stargate", the server holds "Stargate: Continuum": the item's title is the path's with "Continuum" added: an edition, a subtitle, or another film - can't tell from the names`}) ||
+		acc.Str(lasting[0]["path_tmdb"]) != "2164 Stargate (1994)" || acc.Str(lasting[0]["item_tmdb"]) != "12914" ||
+		!strings.Contains(acc.Str(lasting[0]["diagnosis"]), "it is matched to another film than the one on disk; the file runs 121 min, and TMDB's 2164 runs 121 and its 12914 98: the file's runtime is the path's film's") {
 		t.Fatalf("the messy films' title rows = %v, want Stargate held as Stargate: Continuum alone", lasting)
 	}
 
 	rename(t, interstellar, "Arrival")
-	out := call(t, "audit_file_path", titles)
+	out := suite.Call(t, "audit_file_path", titles)
 	var found []map[string]any
-	for _, row := range rows(t, out["findings"], "findings") {
-		if str(row["id"]) != stargate {
+	for _, row := range acc.Rows(t, out["findings"], "findings") {
+		if acc.Str(row["id"]) != stargate {
 			found = append(found, row)
 		}
 	}
-	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != 2 {
+	if len(found) != 1 || acc.Num(t, out["total_findings"], "total_findings") != 2 {
 		t.Fatalf("with Interstellar held as Arrival = %v", found)
 	}
 	f := found[0]
 	// the tools are given a TMDB token here, and TMDB says the folder names
 	// the film the item is matched to: it is the name that is wrong
-	if ps := strs(t, f["problems"], "problems"); len(ps) != 1 || ps[0] != `title: the path is named "Interstellar", the server holds "Arrival": the path names the item's own title, and the name is none TMDB gives it` ||
-		str(f["id"]) != interstellar || str(f["title_in_file"]) != "Interstellar" || str(f["title_on_server"]) != "Arrival" || str(f["type"]) != "Movie" ||
-		str(f["item_tmdb"]) != "157336" || !strings.Contains(str(f["diagnosis"]), "the path is right and the name is what is wrong") {
+	if ps := acc.Strs(t, f["problems"], "problems"); len(ps) != 1 || ps[0] != `title: the path is named "Interstellar", the server holds "Arrival": the path names the item's own title, and the name is none TMDB gives it` ||
+		acc.Str(f["id"]) != interstellar || acc.Str(f["title_in_file"]) != "Interstellar" || acc.Str(f["title_on_server"]) != "Arrival" || acc.Str(f["type"]) != "Movie" ||
+		acc.Str(f["item_tmdb"]) != "157336" || !strings.Contains(acc.Str(f["diagnosis"]), "the path is right and the name is what is wrong") {
 		t.Errorf("the title row = %v", f)
 	}
 	if score, _ := f["similarity"].(float64); score >= 0.5 {
@@ -62,8 +66,8 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	if n := auditRow(t, "Messy Movies", "audit_file_path"); n != before+1 {
 		t.Errorf("audit_all's row = %d with the title wrong, want %d", n, before+1)
 	}
-	call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "name": "Interstellar"})
-	if n := num(t, call(t, "audit_file_path", titles)["total_findings"], "total_findings"); n != 1 {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "name": "Interstellar"})
+	if n := acc.Num(t, suite.Call(t, "audit_file_path", titles)["total_findings"], "total_findings"); n != 1 {
 		t.Errorf("with the title put back the title check finds %d, want Stargate's alone", n)
 	}
 	if n := auditRow(t, "Messy Movies", "audit_file_path"); n != before {
@@ -73,10 +77,10 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 	// a year either side of the folder's is a release over New Year, and two
 	// is not
 	years := map[string]any{"library": "Messy Movies", "checks": "year"}
-	putBack(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2014})
+	suite.PutBack(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2014})
 	for year, flagged := range map[int]bool{2013: false, 2015: false, 2016: true, 2012: true} {
-		call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": year})
-		got := findings(t, call(t, "audit_file_path", years))
+		suite.Call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": year})
+		got := findings(t, suite.Call(t, "audit_file_path", years))
 		want := []string{"Dune", "Stargate: Continuum"}
 		if flagged {
 			want = []string{"Dune", "Interstellar", "Stargate: Continuum"}
@@ -85,40 +89,40 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 			t.Errorf("with Interstellar's year %d the year check finds %v, want %v", year, got, want)
 		}
 	}
-	call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2016})
-	for _, f := range rows(t, call(t, "audit_file_path", years)["findings"], "findings") {
-		if str(f["id"]) == interstellar && !slices.Equal(strs(t, f["problems"], "problems"), []string{"year: path says 2014, metadata says 2016"}) {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2016})
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_file_path", years)["findings"], "findings") {
+		if acc.Str(f["id"]) == interstellar && !slices.Equal(acc.Strs(t, f["problems"], "problems"), []string{"year: path says 2014, metadata says 2016"}) {
 			t.Errorf("Interstellar's year row = %v", f)
 		}
 	}
-	call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2014})
-	if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{interstellar}, "year": 2014})
+	if got := findings(t, suite.Call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
 		t.Errorf("with the year put back the year check finds %v", got)
 	}
 
 	// a series is read by its folder the same way
 	andor := findItem(t, "Messy Shows", "Series", "Andor")
 	series := map[string]any{"library": "Messy Shows", "types": "Series"}
-	if n := num(t, call(t, "audit_file_path", series)["total_findings"], "total_findings"); n != 0 {
+	if n := acc.Num(t, suite.Call(t, "audit_file_path", series)["total_findings"], "total_findings"); n != 0 {
 		t.Fatalf("the messy series' folders already disagree with them: %d", n)
 	}
-	putBack(t, "item_edit", map[string]any{"ids": []any{andor}, "year": 2022})
-	call(t, "item_edit", map[string]any{"ids": []any{andor}, "year": 2020})
+	suite.PutBack(t, "item_edit", map[string]any{"ids": []any{andor}, "year": 2022})
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{andor}, "year": 2020})
 	rename(t, andor, "Severance")
-	out = call(t, "audit_file_path", series)
-	if found := rows(t, out["findings"], "findings"); len(found) != 1 || str(found[0]["id"]) != andor ||
-		!slices.Equal(strs(t, found[0]["problems"], "problems"), []string{
+	out = suite.Call(t, "audit_file_path", series)
+	if found := acc.Rows(t, out["findings"], "findings"); len(found) != 1 || acc.Str(found[0]["id"]) != andor ||
+		!slices.Equal(acc.Strs(t, found[0]["problems"], "problems"), []string{
 			`title: the path is named "Andor", the server holds "Severance", and the path's title is none of the titles it goes by: the wrong match, or another series`,
 			"year: path says 2022, metadata says 2020",
 		}) {
 		t.Errorf("Andor held as Severance of 2020 = %v", found)
 	}
 	// one row failing two checks counts under both
-	if byCheck := object(t, out["by_check"], "by_check"); num(t, byCheck["title"], "title") != 1 || num(t, byCheck["year"], "year") != 1 || num(t, out["total_findings"], "total_findings") != 1 {
+	if byCheck := acc.Object(t, out["by_check"], "by_check"); acc.Num(t, byCheck["title"], "title") != 1 || acc.Num(t, byCheck["year"], "year") != 1 || acc.Num(t, out["total_findings"], "total_findings") != 1 {
 		t.Errorf("by_check = %v of %v rows", byCheck, out["total_findings"])
 	}
-	call(t, "item_edit", map[string]any{"ids": []any{andor}, "name": "Andor", "year": 2022})
-	if n := num(t, call(t, "audit_file_path", series)["total_findings"], "total_findings"); n != 0 {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{andor}, "name": "Andor", "year": 2022})
+	if n := acc.Num(t, suite.Call(t, "audit_file_path", series)["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("with Andor put back its folder check finds %d", n)
 	}
 
@@ -129,13 +133,13 @@ func TestAuditFilePathTitlesAndYears(t *testing.T) {
 		"messy-movies/Dune Collection (1984)/Dune (2021)/Dune (2021).mp4": fixture(t, "messy-movies/Dune (2021)/Dune (2021).mp4"),
 		"messy-movies/Dune Collection (1984)/Dune (2021)/movie.nfo":       nfo,
 	}, "messy-movies/Dune Collection (1984)")
-	out = call(t, "audit_file_path", map[string]any{"library": "Messy Movies"})
-	for _, f := range rows(t, out["findings"], "findings") {
-		if strings.Contains(str(f["path"]), "Dune Collection") {
+	out = suite.Call(t, "audit_file_path", map[string]any{"library": "Messy Movies"})
+	for _, f := range acc.Rows(t, out["findings"], "findings") {
+		if strings.Contains(acc.Str(f["path"]), "Dune Collection") {
 			t.Errorf("the film in a collection's folder was reported: %v", f)
 		}
 	}
-	if n := num(t, out["total_findings"], "total_findings"); n != 2 || num(t, out["items_scanned"], "items_scanned") != messyMovies()+1 {
+	if n := acc.Num(t, out["total_findings"], "total_findings"); n != 2 || acc.Num(t, out["items_scanned"], "items_scanned") != messyMovies()+1 {
 		t.Errorf("with the collection staged = %d rows of %v, want the messy Dune's year and Stargate's row alone of %d", n, out["items_scanned"], messyMovies()+1)
 	}
 }
@@ -146,8 +150,8 @@ func TestAuditFilePathFixedByARename(t *testing.T) {
 	season := filepath.Join("messy-shows", "Andor (2022)", "Season 01")
 	episodes := map[string]any{"library": "Messy Shows", "checks": "episode"}
 	has := func(file string) bool {
-		for _, f := range rows(t, call(t, "audit_file_path", episodes)["findings"], "findings") {
-			if filepath.Base(str(f["path"])) == file {
+		for _, f := range acc.Rows(t, suite.Call(t, "audit_file_path", episodes)["findings"], "findings") {
+			if filepath.Base(acc.Str(f["path"])) == file {
 				return true
 			}
 		}
@@ -165,14 +169,14 @@ func TestAuditFilePathFixedByARename(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for ext, raw := range moved {
-			mediaWrite(t, filepath.Join(dataDir(), season, "Andor S01E04"+ext), raw)
-			_ = os.Remove(filepath.Join(dataDir(), season, "Andor S01E05"+ext))
+			acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, "Andor S01E04"+ext), raw)
+			_ = os.Remove(filepath.Join(testenv.DataDir(), season, "Andor S01E05"+ext))
 		}
 		rescanUntil(t, "Andor's S01E04 file back", func() bool { return has("Andor S01E04.mp4") })
 	})
 	for ext, raw := range moved {
-		mediaWrite(t, filepath.Join(dataDir(), season, "Andor S01E05"+ext), raw)
-		if err := os.Remove(filepath.Join(dataDir(), season, "Andor S01E04"+ext)); err != nil {
+		acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, "Andor S01E05"+ext), raw)
+		if err := os.Remove(filepath.Join(testenv.DataDir(), season, "Andor S01E04"+ext)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -187,7 +191,7 @@ func TestAuditFilePathFixedByARename(t *testing.T) {
 // a downloader names them: one for its own episode, which the server holds
 // under another title, and one for an episode of another show.
 func TestAuditFilePathAgainstTMDB(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	needsTMDBRecording(t, "GET api.themoviedb.org/3/tv/95396")
@@ -195,8 +199,8 @@ func TestAuditFilePathAgainstTMDB(t *testing.T) {
 	titles := map[string]any{"library": "Messy Shows", "checks": "title"}
 	byFile := func() map[string]map[string]any {
 		got := map[string]map[string]any{}
-		for _, f := range rows(t, call(t, "audit_file_path", titles)["findings"], "findings") {
-			got[filepath.Base(str(f["path"]))] = f
+		for _, f := range acc.Rows(t, suite.Call(t, "audit_file_path", titles)["findings"], "findings") {
+			got[filepath.Base(acc.Str(f["path"]))] = f
 		}
 
 		return got
@@ -205,7 +209,7 @@ func TestAuditFilePathAgainstTMDB(t *testing.T) {
 		t.Fatalf("the messy shows already have title rows: %v", got)
 	}
 	before := auditRow(t, "Messy Shows", "audit_file_path")
-	unnamed := num(t, call(t, "audit_file_path", titles)["unnamed"], "unnamed")
+	unnamed := acc.Num(t, suite.Call(t, "audit_file_path", titles)["unnamed"], "unnamed")
 
 	renames := map[string]string{
 		"Severance S01E03": "Severance S01E03 - In Perpetuity",
@@ -220,16 +224,16 @@ func TestAuditFilePathAgainstTMDB(t *testing.T) {
 	t.Cleanup(func() {
 		for from, to := range renames {
 			for _, ext := range []string{".mp4", ".nfo"} {
-				mediaWrite(t, filepath.Join(dataDir(), season, from+ext), held[from+ext])
-				_ = os.Remove(filepath.Join(dataDir(), season, to+ext))
+				acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, from+ext), held[from+ext])
+				_ = os.Remove(filepath.Join(testenv.DataDir(), season, to+ext))
 			}
 		}
 		rescanUntil(t, "Severance's files named as they were", func() bool { return len(byFile()) == 0 })
 	})
 	for from, to := range renames {
 		for _, ext := range []string{".mp4", ".nfo"} {
-			mediaWrite(t, filepath.Join(dataDir(), season, to+ext), held[from+ext])
-			if err := os.Remove(filepath.Join(dataDir(), season, from+ext)); err != nil {
+			acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, to+ext), held[from+ext])
+			if err := os.Remove(filepath.Join(testenv.DataDir(), season, from+ext)); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -240,24 +244,24 @@ func TestAuditFilePathAgainstTMDB(t *testing.T) {
 	sev := findItem(t, "Messy Shows", "Series", "Severance")
 	rename(t, episodeID(t, sev, 1, 3), "Hello, Ms. Cobel")
 
-	out := call(t, "audit_file_path", titles)
+	out := suite.Call(t, "audit_file_path", titles)
 	got := byFile()
-	if len(got) != 2 || num(t, out["total_findings"], "total_findings") != 2 {
+	if len(got) != 2 || acc.Num(t, out["total_findings"], "total_findings") != 2 {
 		t.Fatalf("title rows = %v, want the two renamed files", got)
 	}
 	// named for its own episode: TMDB gives the file's title to the very
 	// number the server holds, so the server's title is the odd one
-	if f := got["Severance S01E03 - In Perpetuity.mp4"]; str(f["title_in_file"]) != "In Perpetuity" || str(f["title_on_server"]) != "Hello, Ms. Cobel" ||
-		str(f["tmdb_episode"]) != "S01E03" || str(f["diagnosis"]) != "TMDB gives the file's title to this very episode: the server's title is a reworded one, not a different episode" {
+	if f := got["Severance S01E03 - In Perpetuity.mp4"]; acc.Str(f["title_in_file"]) != "In Perpetuity" || acc.Str(f["title_on_server"]) != "Hello, Ms. Cobel" ||
+		acc.Str(f["tmdb_episode"]) != "S01E03" || acc.Str(f["diagnosis"]) != "TMDB gives the file's title to this very episode: the server's title is a reworded one, not a different episode" {
 		t.Errorf("the file named for its own episode = %v", f)
 	}
 	// named for another show's episode: TMDB has no episode of that title
-	if f := got["Severance S01E02 - Kassa.mp4"]; str(f["title_in_file"]) != "Kassa" || str(f["title_on_server"]) != "Half Loop" ||
-		str(f["tmdb_episode"]) != "" || str(f["diagnosis"]) != "no TMDB episode title of this series matches the file's title as written: the file may be another series', named by hand, or titled otherwise than TMDB titles it" {
+	if f := got["Severance S01E02 - Kassa.mp4"]; acc.Str(f["title_in_file"]) != "Kassa" || acc.Str(f["title_on_server"]) != "Half Loop" ||
+		acc.Str(f["tmdb_episode"]) != "" || acc.Str(f["diagnosis"]) != "no TMDB episode title of this series matches the file's title as written: the file may be another series', named by hand, or titled otherwise than TMDB titles it" {
 		t.Errorf("the file named for another show's episode = %v", f)
 	}
 	// the two files now claim a title, so two fewer claim none
-	if n := num(t, out["unnamed"], "unnamed"); n != unnamed-2 {
+	if n := acc.Num(t, out["unnamed"], "unnamed"); n != unnamed-2 {
 		t.Errorf("unnamed = %d, want %d", n, unnamed-2)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_file_path"); n != before+2 {
@@ -276,8 +280,8 @@ func TestAuditFilePathRunInTheNfo(t *testing.T) {
 		"messy-shows/Andor (2022)/Season 01/Andor S01E09.nfo": nfo,
 	})
 	var row map[string]any
-	for _, f := range rows(t, call(t, "audit_file_path", map[string]any{"library": "Messy Shows", "checks": "episode"})["findings"], "findings") {
-		if filepath.Base(str(f["path"])) == "Andor S01E09.mp4" {
+	for _, f := range acc.Rows(t, suite.Call(t, "audit_file_path", map[string]any{"library": "Messy Shows", "checks": "episode"})["findings"], "findings") {
+		if filepath.Base(acc.Str(f["path"])) == "Andor S01E09.mp4" {
 			row = f
 		}
 	}
@@ -288,7 +292,7 @@ func TestAuditFilePathRunInTheNfo(t *testing.T) {
 
 		return
 	}
-	if row == nil || !slices.Equal(strs(t, row["problems"], "problems"), []string{"episode: the server holds E09-E10, the file claims E09: the metadata says a run the file name does not"}) {
+	if row == nil || !slices.Equal(acc.Strs(t, row["problems"], "problems"), []string{"episode: the server holds E09-E10, the file claims E09: the metadata says a run the file name does not"}) {
 		t.Errorf("the run the nfo claims = %v", row)
 	}
 }
@@ -301,16 +305,16 @@ func TestAuditFilePathRunInTheNfo(t *testing.T) {
 func TestAuditDuplicatesJoinOnlyOneTitle(t *testing.T) {
 	groups := func(args map[string]any) []string {
 		var got []string
-		all, _ := call(t, "audit_duplicates", args)["groups"].([]any)
+		all, _ := suite.Call(t, "audit_duplicates", args)["groups"].([]any)
 		for _, g := range all {
 			var members []string
-			for _, it := range rows(t, g, "group") {
-				members = append(members, str(it["type"])+" "+title(str(it["name"])))
+			for _, it := range acc.Rows(t, g, "group") {
+				members = append(members, acc.Str(it["type"])+" "+title(acc.Str(it["name"])))
 			}
-			got = append(got, strings.Join(sorted(members), " + "))
+			got = append(got, strings.Join(acc.Sorted(members), " + "))
 		}
 
-		return sorted(got)
+		return acc.Sorted(got)
 	}
 	base := groups(nil)
 	baseRow := auditRow(t, "", "audit_duplicates")
@@ -391,23 +395,23 @@ func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 	sev := findItem(t, "Messy Shows", "Series", "Severance")
 	e01, e03 := episodeID(t, sev, 1, 1), episodeID(t, sev, 1, 3)
 	messy := map[string]any{"library": "Messy Shows"}
-	if n := num(t, call(t, "audit_duplicate_episodes", messy)["total_findings"], "total_findings"); n != 0 {
+	if n := acc.Num(t, suite.Call(t, "audit_duplicate_episodes", messy)["total_findings"], "total_findings"); n != 0 {
 		t.Fatalf("the messy shows already repeat a title: %d", n)
 	}
 	before := auditRow(t, "Messy Shows", "audit_duplicate_episodes")
 	only := func(what string) map[string]any {
 		t.Helper()
-		out := call(t, "audit_duplicate_episodes", messy)
-		groups := rows(t, out["groups"], "groups")
-		if len(groups) != 1 || num(t, out["total_findings"], "total_findings") != 1 {
+		out := suite.Call(t, "audit_duplicate_episodes", messy)
+		groups := acc.Rows(t, out["groups"], "groups")
+		if len(groups) != 1 || acc.Num(t, out["total_findings"], "total_findings") != 1 {
 			t.Fatalf("with %s = %v", what, groups)
 		}
 		return groups[0]
 	}
 	numbers := func(g map[string]any) []int {
 		var out []int
-		for _, e := range rows(t, g["episodes"], "episodes") {
-			out = append(out, num(t, e["episode"], "episode"))
+		for _, e := range acc.Rows(t, g["episodes"], "episodes") {
+			out = append(out, acc.Num(t, e["episode"], "episode"))
 		}
 		return out
 	}
@@ -415,7 +419,7 @@ func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 	for _, name := range []string{"Half Loop", "HALF LOOP"} {
 		rename(t, e01, name)
 		g := only("S01E01 named " + name)
-		if str(g["series"]) != "Severance" || num(t, g["season"], "season") != 1 || str(g["confidence"]) != "lead" ||
+		if acc.Str(g["series"]) != "Severance" || acc.Num(t, g["season"], "season") != 1 || acc.Str(g["confidence"]) != "lead" ||
 			g["evidence"] != nil || !slices.Equal(numbers(g), []int{1, 2}) {
 			t.Errorf("with S01E01 named %q the group = %v", name, g)
 		}
@@ -423,12 +427,12 @@ func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 			t.Errorf("audit_all's row = %d, want %d", n, before+1)
 		}
 	}
-	call(t, "item_edit", map[string]any{"ids": []any{e01}, "name": "Good News About Hell"})
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{e01}, "name": "Good News About Hell"})
 
 	// a copy cut short, one file holding two, or two episodes - far apart,
 	// and listed
 	rename(t, e03, "Half Loop")
-	if g := only("S01E03 named Half Loop"); str(g["confidence"]) != "far_apart" || !slices.Equal(numbers(g), []int{2, 3}) || decimal(t, g["runtime_gap"], "runtime_gap") != 1 {
+	if g := only("S01E03 named Half Loop"); acc.Str(g["confidence"]) != "far_apart" || !slices.Equal(numbers(g), []int{2, 3}) || acc.Decimal(t, g["runtime_gap"], "runtime_gap") != 1 {
 		t.Errorf("a title on episodes of 57 minutes and five seconds = %v", g)
 	}
 
@@ -436,12 +440,12 @@ func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 	// another season, another episode
 	ds9 := findItem(t, "Messy Shows", "Series", "Star Trek: Deep Space Nine")
 	rename(t, episodeID(t, ds9, 3, 1), "Emissary")
-	if n := num(t, call(t, "audit_duplicate_episodes", messy)["total_findings"], "total_findings"); n != 1 {
+	if n := acc.Num(t, suite.Call(t, "audit_duplicate_episodes", messy)["total_findings"], "total_findings"); n != 1 {
 		t.Errorf("a title repeated across seasons was grouped: %d groups", n)
 	}
 
-	call(t, "item_edit", map[string]any{"ids": []any{e03}, "name": "In Perpetuity"})
-	if n := num(t, call(t, "audit_duplicate_episodes", messy)["total_findings"], "total_findings"); n != 0 {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{e03}, "name": "In Perpetuity"})
+	if n := acc.Num(t, suite.Call(t, "audit_duplicate_episodes", messy)["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("with the title put back %d groups remain", n)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_duplicate_episodes"); n != before {
@@ -452,20 +456,20 @@ func TestAuditDuplicateEpisodesCaseAndLength(t *testing.T) {
 // A show's folder renamed by an accent or by punctuation leaves a second
 // series behind, the way the Knight pair's space and case do.
 func TestAuditDuplicateSeriesSpellings(t *testing.T) {
-	before := num(t, call(t, "audit_duplicate_series", map[string]any{"library": "Messy Shows"})["total_findings"], "total_findings")
+	before := acc.Num(t, suite.Call(t, "audit_duplicates", map[string]any{"library": "Messy Shows"})["total_folder_groups"], "total_folder_groups")
 	stage(t, plus(0, 2, 2), map[string][]byte{
 		"messy-shows/Andór (2022)/Season 01/Andor S01E01.mp4":                                            fixture(t, "messy-shows/Andor (2022)/Season 01/Andor S01E01.mp4"),
 		"messy-shows/Star Trek - The Next Generation/Season 01/Star Trek The Next Generation S01E02.mp4": fixture(t, "messy-shows/Star Trek The Next Generation/Season 01/Star Trek The Next Generation S01E01.mp4"),
 	}, "messy-shows/Andór (2022)", "messy-shows/Star Trek - The Next Generation")
 
-	out := call(t, "audit_duplicate_series", map[string]any{"library": "Messy Shows"})
+	out := suite.Call(t, "audit_duplicates", map[string]any{"library": "Messy Shows"})
 	pairs := map[string][]string{}
-	for _, g := range rows(t, out["groups"], "groups") {
+	for _, g := range acc.Rows(t, out["folder_groups"], "folder_groups") {
 		var folders []string
-		for _, s := range rows(t, g["series"], "series") {
-			folders = append(folders, str(s["folder"]))
+		for _, s := range acc.Rows(t, g["series"], "series") {
+			folders = append(folders, acc.Str(s["folder"]))
 		}
-		pairs[str(g["key"])] = sorted(folders)
+		pairs[acc.Str(g["key"])] = acc.Sorted(folders)
 	}
 	for _, want := range [][]string{
 		{"Andor (2022)", "Andór (2022)"},
@@ -479,8 +483,8 @@ func TestAuditDuplicateSeriesSpellings(t *testing.T) {
 			t.Errorf("no group of %v: %v", want, pairs)
 		}
 	}
-	if n := num(t, out["total_findings"], "total_findings"); n != before+2 {
-		t.Errorf("groups = %d, want the %d there were and the two staged", n, before)
+	if n := acc.Num(t, out["total_folder_groups"], "total_folder_groups"); n != before+2 {
+		t.Errorf("folder groups = %d, want the %d there were and the two staged", n, before)
 	}
 }
 
@@ -509,39 +513,39 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	// what the audit says of the staged files, by file
 	staged := func(out map[string]any) map[string]string {
 		got := map[string]string{}
-		for _, f := range rows(t, out["findings"], "findings") {
-			if file := filepath.Base(str(f["path"])); strings.Contains(str(f["path"]), "/hack Liminality (2002)/Season 0") && !strings.HasSuffix(file, "S01E03.mp4") {
-				got[file] = str(f["detail"])
+		for _, f := range acc.Rows(t, out["findings"], "findings") {
+			if file := filepath.Base(acc.Str(f["path"])); strings.Contains(acc.Str(f["path"]), "/hack Liminality (2002)/Season 0") && !strings.HasSuffix(file, "S01E03.mp4") {
+				got[file] = acc.Str(f["detail"])
 			}
 		}
 
 		return got
 	}
-	out := call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})
+	out := suite.Call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})
 	cut := "1 s: too short to be the episode, an incomplete, sample or broken file"
 	want := map[string]string{"hack Liminality S00E03.mp4": cut, "hack Liminality S02E03.mp4": cut}
 	if got := staged(out); !maps.Equal(got, want) {
 		t.Errorf("the staged files named = %v, want %v", got, want)
 	}
-	if n := num(t, out["total_findings"], "total_findings"); n != before+2 {
+	if n := acc.Num(t, out["total_findings"], "total_findings"); n != before+2 {
 		t.Errorf("total_findings = %d, want the %d before and the two staged a second long", n, before)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_runtime"); n != before+2 {
 		t.Errorf("audit_all's row = %d, want %d", n, before+2)
 	}
 	// the broken duration first, and a limit keeps it
-	capped := call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1})
-	if f := rows(t, capped["findings"], "findings"); len(f) != 1 || filepath.Base(str(f[0]["path"])) != "Star Trek Deep Space Nine S03E01.mkv" || str(f[0]["detail"]) != "12 h 0 min: not a runtime, the file's duration metadata is broken" || num(t, capped["total_findings"], "total_findings") != before+2 {
+	capped := suite.Call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1})
+	if f := acc.Rows(t, capped["findings"], "findings"); len(f) != 1 || filepath.Base(acc.Str(f[0]["path"])) != "Star Trek Deep Space Nine S03E01.mkv" || acc.Str(f[0]["detail"]) != "12 h 0 min: not a runtime, the file's duration metadata is broken" || acc.Num(t, capped["total_findings"], "total_findings") != before+2 {
 		t.Errorf("limit 1 = %v of %v, want the broken duration", f, capped["total_findings"])
 	}
 
 	// the whole episode written over the one cut short
-	mediaWrite(t, filepath.Join(dataDir(), g+"Season 02/hack Liminality S02E03.mp4"), long)
+	acc.MediaWrite(t, filepath.Join(testenv.DataDir(), g+"Season 02/hack Liminality S02E03.mp4"), long)
 	rescanUntil(t, "the whole copy read", func() bool {
-		_, named := staged(call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000}))["hack Liminality S02E03.mp4"]
+		_, named := staged(suite.Call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000}))["hack Liminality S02E03.mp4"]
 		return !named
 	})
-	if got := staged(call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})); !maps.Equal(got, map[string]string{"hack Liminality S00E03.mp4": cut}) {
+	if got := staged(suite.Call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000})); !maps.Equal(got, map[string]string{"hack Liminality S00E03.mp4": cut}) {
 		t.Errorf("after the fix = %v", got)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_runtime"); n != before+1 {
@@ -552,11 +556,11 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	// audit cannot vouch for: Emby says when a file was last written, so it
 	// lists both written here, and a limit caps that list; Jellyfin does not
 	// say, and the answer says so instead
-	mediaWrite(t, filepath.Join(dataDir(), g+"Season 02/hack Liminality S02E01.mp4"), long)
+	acc.MediaWrite(t, filepath.Join(testenv.DataDir(), g+"Season 02/hack Liminality S02E01.mp4"), long)
 	quality := map[string]any{"library": "Messy Shows", "limit": 1}
 	if isJellyfin() {
-		out := call(t, "audit_quality", quality)
-		if num(t, out["total_replaced"], "total_replaced") != 0 || !strings.Contains(str(out["note"]), "Jellyfin does not say when a file was last written") {
+		out := suite.Call(t, "audit_quality", quality)
+		if acc.Num(t, out["total_replaced"], "total_replaced") != 0 || !strings.Contains(acc.Str(out["note"]), "Jellyfin does not say when a file was last written") {
 			t.Errorf("Jellyfin's replaced files = %v, note %q", out["replaced"], out["note"])
 		}
 
@@ -566,11 +570,11 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	// sample agreeing, and nothing else: not the library changing, nor the
 	// key disagreeing with a read
 	rescanUntil(t, "both files written over", func() bool {
-		return num(t, call(t, "audit_quality", quality)["total_replaced"], "total_replaced") == 2
+		return acc.Num(t, suite.Call(t, "audit_quality", quality)["total_replaced"], "total_replaced") == 2
 	})
-	out = call(t, "audit_quality", quality)
-	replaced := rows(t, out["replaced"], "replaced")
-	if len(replaced) != 1 || !strings.HasSuffix(str(replaced[0]["path"]), "Season 02/hack Liminality S02E01.mp4") || !strings.Contains(str(replaced[0]["detail"]), "after the server first saw it") || (str(out["note"]) != "" && !strings.HasPrefix(str(out["note"]), "on Emby, of the")) {
+	out = suite.Call(t, "audit_quality", quality)
+	replaced := acc.Rows(t, out["replaced"], "replaced")
+	if len(replaced) != 1 || !strings.HasSuffix(acc.Str(replaced[0]["path"]), "Season 02/hack Liminality S02E01.mp4") || !strings.Contains(acc.Str(replaced[0]["detail"]), "after the server first saw it") || (acc.Str(out["note"]) != "" && !strings.HasPrefix(acc.Str(out["note"]), "on Emby, of the")) {
 		t.Errorf("limit 1 replaced = %v, note %q, want the first of the two by path and no note but how versions were placed", replaced, out["note"])
 	}
 }
@@ -597,21 +601,21 @@ func TestAuditMultipleVersionsOfAnEpisode(t *testing.T) {
 	if !isJellyfin() {
 		twice = 1
 	}
-	out := call(t, "audit_multiple_versions", map[string]any{"library": "Messy Shows"})
+	out := suite.Call(t, "audit_multiple_versions", map[string]any{"library": "Messy Shows"})
 	var found []map[string]any
-	for _, f := range rows(t, out["findings"], "findings") {
-		if strings.Contains(str(f["path"]), "/hack Liminality (2002)/") {
+	for _, f := range acc.Rows(t, out["findings"], "findings") {
+		if strings.Contains(acc.Str(f["path"]), "/hack Liminality (2002)/") {
 			found = append(found, f)
 		}
 	}
-	if len(found) != 1 || num(t, out["total_findings"], "total_findings") != twice+1 {
+	if len(found) != 1 || acc.Num(t, out["total_findings"], "total_findings") != twice+1 {
 		t.Fatalf("episodes in versions = %v of %v, want the staged one", found, out["total_findings"])
 	}
-	if d := str(found[0]["detail"]); !strings.HasPrefix(d, "2 versions: ") || !strings.Contains(d, "hack Liminality S02E01 - 90p.mp4") || !strings.Contains(d, "hack Liminality S02E01.mp4") {
+	if d := acc.Str(found[0]["detail"]); !strings.HasPrefix(d, "2 versions: ") || !strings.Contains(d, "hack Liminality S02E01 - 90p.mp4") || !strings.Contains(d, "hack Liminality S02E01.mp4") {
 		t.Errorf("detail = %q, want the two files", d)
 	}
 	// films alone find none of it
-	if n := num(t, call(t, "audit_multiple_versions", map[string]any{"library": "Messy Shows", "types": "Movie"})["items_scanned"], "items_scanned"); n != 0 {
+	if n := acc.Num(t, suite.Call(t, "audit_multiple_versions", map[string]any{"library": "Messy Shows", "types": "Movie"})["items_scanned"], "items_scanned"); n != 0 {
 		t.Errorf("types Movie swept %d items of a show library", n)
 	}
 	if n := auditRow(t, "Messy Shows", "audit_multiple_versions"); n != twice+1 {
@@ -627,18 +631,18 @@ func TestAuditMultipleVersionsOfAnEpisode(t *testing.T) {
 // quality audit cannot judge, and a limit caps that list too.
 func TestAuditDiscFoldersLeaveHomeVideoAlone(t *testing.T) {
 	stream := fixture(t, "disc-src/00000.m2ts")
-	before := call(t, "audit_disc_folders", nil)
+	before := suite.Call(t, "audit_disc_folders", nil)
 	stage(t, plus(2, 0, 0), map[string][]byte{
 		"messy-movies/Disc Rip (1999)/PRIVATE/AVCHD/BDMV/STREAM/00000.MTS": stream,
 		"messy-movies/Home Video (2010)/00000.mts":                         stream,
 	}, "messy-movies/Disc Rip (1999)", "messy-movies/Home Video (2010)")
 
-	out := call(t, "audit_disc_folders", nil)
-	folders := rows(t, out["folders"], "folders")
-	if len(folders) != 1 || str(folders[0]["folder"]) != "/media/messy-movies/"+messyLooseDVD || num(t, out["total_findings"], "total_findings") != 1 {
+	out := suite.Call(t, "audit_disc_folders", nil)
+	folders := acc.Rows(t, out["folders"], "folders")
+	if len(folders) != 1 || acc.Str(folders[0]["folder"]) != "/media/messy-movies/"+messyLooseDVD || acc.Num(t, out["total_findings"], "total_findings") != 1 {
 		t.Errorf("disc folders with home video staged = %v, want the loose DVD alone", folders)
 	}
-	if num(t, out["items_scanned"], "items_scanned") != num(t, before["items_scanned"], "items_scanned")+2 {
+	if acc.Num(t, out["items_scanned"], "items_scanned") != acc.Num(t, before["items_scanned"], "items_scanned")+2 {
 		t.Errorf("items_scanned = %v, want the two staged items swept too (%v before)", out["items_scanned"], before["items_scanned"])
 	}
 	if n := auditRow(t, "Messy Movies", "audit_disc_folders"); n != 1 {
@@ -651,15 +655,15 @@ func TestAuditDiscFoldersLeaveHomeVideoAlone(t *testing.T) {
 	if !isJellyfin() {
 		want = append(want, "/media/messy-movies/"+messyKeptDVD)
 	}
-	quality := call(t, "audit_quality", map[string]any{"library": "Messy Movies", "limit": 1})
-	unprobed := rows(t, quality["unprobed"], "unprobed")
-	if len(unprobed) != 1 || num(t, quality["total_unprobed"], "total_unprobed") != len(want) {
+	quality := suite.Call(t, "audit_quality", map[string]any{"library": "Messy Movies", "limit": 1})
+	unprobed := acc.Rows(t, quality["unprobed"], "unprobed")
+	if len(unprobed) != 1 || acc.Num(t, quality["total_unprobed"], "total_unprobed") != len(want) {
 		t.Errorf("limit 1 unprobed = %v of %v, want one of the %d", unprobed, quality["total_unprobed"], len(want))
 	}
-	all := call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
+	all := suite.Call(t, "audit_quality", map[string]any{"library": "Messy Movies"})
 	var paths []string
-	for _, u := range rows(t, all["unprobed"], "unprobed") {
-		paths = append(paths, str(u["path"]))
+	for _, u := range acc.Rows(t, all["unprobed"], "unprobed") {
+		paths = append(paths, acc.Str(u["path"]))
 	}
 	// by path, so a limit keeps the same one each call
 	if !slices.Equal(paths, want) {
@@ -671,10 +675,10 @@ func TestAuditDiscFoldersLeaveHomeVideoAlone(t *testing.T) {
 // names none, so a film with it cannot be said to lack English; one named
 // .eng is English, and the film it sits beside can be watched in English.
 func TestAuditLanguageStaged(t *testing.T) {
-	folder := filepath.Join(dataDir(), "messy-movies", messyDespecialized)
+	folder := filepath.Join(testenv.DataDir(), "messy-movies", messyDespecialized)
 	restoration := findItem(t, "Messy Movies", "Movie", despecialized)
 	subtitles := func() int {
-		return len(strs(t, call(t, "item_get", map[string]any{"id": restoration})["subtitles"], "subtitles"))
+		return len(acc.Strs(t, suite.Call(t, "item_get", map[string]any{"id": restoration})["subtitles"], "subtitles"))
 	}
 	line := []byte("1\n00:00:00,000 --> 00:00:00,900\nA line.\n")
 	written := []string{}
@@ -683,7 +687,7 @@ func TestAuditLanguageStaged(t *testing.T) {
 			_ = os.Remove(f)
 		}
 		rescanUntil(t, "the Despecialized Edition without subtitles", func() bool {
-			out, err := invoke("item_get", map[string]any{"id": restoration})
+			out, err := suite.Invoke("item_get", map[string]any{"id": restoration})
 			subs, _ := out["subtitles"].([]any)
 			return err == nil && len(subs) == 0
 		})
@@ -692,46 +696,46 @@ func TestAuditLanguageStaged(t *testing.T) {
 		t.Helper()
 		path := filepath.Join(folder, name)
 		written = append(written, path)
-		mediaWrite(t, path, line)
+		acc.MediaWrite(t, path, line)
 		rescanUntil(t, name+" read", func() bool {
-			out, err := invoke("item_get", map[string]any{"id": restoration})
+			out, err := suite.Invoke("item_get", map[string]any{"id": restoration})
 			subs, _ := out["subtitles"].([]any)
 			return err == nil && len(subs) == want
 		})
 	}
 	unwatchable := map[string]any{"language": "eng", "find": "unwatchable", "library": "Messy Movies"}
-	start := call(t, "audit_language", unwatchable)
+	start := suite.Call(t, "audit_language", unwatchable)
 	if got := names(t, start["findings"], "findings"); !slices.Equal(got, []string{despecialized}) {
 		t.Fatalf("unwatchable in English = %v, want the Despecialized Edition, its one track German", got)
 	}
 
 	add(messyDespecialized+".srt", 1)
-	out := call(t, "audit_language", unwatchable)
-	if n := num(t, out["total_findings"], "total_findings"); n != 0 || num(t, out["untagged"], "untagged") != num(t, start["untagged"], "untagged")+1 {
+	out := suite.Call(t, "audit_language", unwatchable)
+	if n := acc.Num(t, out["total_findings"], "total_findings"); n != 0 || acc.Num(t, out["untagged"], "untagged") != acc.Num(t, start["untagged"], "untagged")+1 {
 		t.Errorf("with an untagged subtitle = %v, want the Despecialized Edition counted untagged rather than reported", out)
 	}
-	if got := names(t, call(t, "audit_language", map[string]any{"language": "eng", "find": "subtitles"})["findings"], "findings"); !slices.Equal(got, []string{"The Thirteenth Floor"}) {
+	if got := names(t, suite.Call(t, "audit_language", map[string]any{"language": "eng", "find": "subtitles"})["findings"], "findings"); !slices.Equal(got, []string{"The Thirteenth Floor"}) {
 		t.Errorf("English subtitles with an untagged one staged = %v", got)
 	}
 
 	add(messyDespecialized+".eng.srt", 2)
 	english := map[string]any{"language": "eng", "find": "subtitles"}
-	out = call(t, "audit_language", english)
-	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{despecialized, "The Thirteenth Floor"}) || num(t, out["total_findings"], "total_findings") != 2 {
+	out = suite.Call(t, "audit_language", english)
+	if got := names(t, out["findings"], "findings"); !slices.Equal(got, []string{despecialized, "The Thirteenth Floor"}) || acc.Num(t, out["total_findings"], "total_findings") != 2 {
 		t.Errorf("English subtitles = %v", got)
 	}
-	for _, f := range rows(t, out["findings"], "findings") {
-		if title(str(f["name"])) == despecialized && str(f["detail"]) != "audio: deu; subtitles: eng, untagged" {
+	for _, f := range acc.Rows(t, out["findings"], "findings") {
+		if title(acc.Str(f["name"])) == despecialized && acc.Str(f["detail"]) != "audio: deu; subtitles: eng, untagged" {
 			t.Errorf("detail = %q", f["detail"])
 		}
 	}
 	// a limit caps the rows, name order keeps the first, and the count is
 	// the whole
-	capped := call(t, "audit_language", map[string]any{"language": "en", "find": "subtitles", "limit": 1})
-	if got := names(t, capped["findings"], "findings"); !slices.Equal(got, []string{despecialized}) || num(t, capped["total_findings"], "total_findings") != 2 {
+	capped := suite.Call(t, "audit_language", map[string]any{"language": "en", "find": "subtitles", "limit": 1})
+	if got := names(t, capped["findings"], "findings"); !slices.Equal(got, []string{despecialized}) || acc.Num(t, capped["total_findings"], "total_findings") != 2 {
 		t.Errorf("limit 1 = %v of %v", got, capped["total_findings"])
 	}
-	if n := num(t, call(t, "audit_language", unwatchable)["total_findings"], "total_findings"); n != 0 {
+	if n := acc.Num(t, suite.Call(t, "audit_language", unwatchable)["total_findings"], "total_findings"); n != 0 {
 		t.Errorf("with English subtitles the Despecialized Edition is still unwatchable in English: %d", n)
 	}
 	if subtitles() != 2 {
@@ -744,40 +748,40 @@ func TestAuditLanguageStaged(t *testing.T) {
 func TestAuditMissingProviderLinksOnly(t *testing.T) {
 	mononoke := findItem(t, "Messy Movies", "Movie", "Princess Mononoke")
 	messy := map[string]any{"library": "Messy Movies"}
-	before := auditRow(t, "Messy Movies", "audit_missing_metadata_provider")
+	before := auditRow(t, "Messy Movies", rowProvider)
 	setIDs(t, mononoke, map[string]any{"Official Website": "https://movies.disney.com/princess-mononoke", "Wikipedia": "Princess_Mononoke"})
 	t.Cleanup(func() { updateItem(t, mononoke, map[string]any{"Overview": ""}) })
 
 	detail := ""
-	for _, f := range rows(t, call(t, "audit_missing_metadata_provider", messy)["findings"], "findings") {
-		if str(f["id"]) == mononoke {
-			detail = str(f["detail"])
+	for _, f := range acc.Rows(t, missing(t, "provider_id", messy)["findings"], "findings") {
+		if acc.Str(f["id"]) == mononoke {
+			detail = acc.Str(f["detail"])
 		}
 	}
 	if detail != "no provider id, only links to its pages" {
 		t.Errorf("a film with links alone = %q", detail)
 	}
-	if n := auditRow(t, "Messy Movies", "audit_missing_metadata_provider"); n != before {
+	if n := auditRow(t, "Messy Movies", rowProvider); n != before {
 		t.Errorf("audit_all's row = %d, want %d: links are not a match", n, before)
 	}
 
 	// by either id: without the item Jellyfin's search is answered by OMDb,
 	// whose candidates carry the imdb id alone
-	cands := rows(t, call(t, "item_identify", map[string]any{"id": mononoke, "kind": "movie"})["candidates"], "candidates")
+	cands := acc.Rows(t, suite.Call(t, "item_identify", map[string]any{"id": mononoke, "kind": "movie"})["candidates"], "candidates")
 	idx := slices.IndexFunc(cands, func(c map[string]any) bool {
 		ids, _ := c["metadata_provider_ids"].(map[string]any)
-		return str(ids["tmdb"]) == "128" || str(ids["imdb"]) == "tt0119698"
+		return acc.Str(ids["tmdb"]) == "128" || acc.Str(ids["imdb"]) == "tt0119698"
 	})
 	if idx < 0 {
 		t.Fatalf("no Princess Mononoke among the candidates: %v", cands)
 	}
-	call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx}))
-	if !eventually(func() bool {
-		return !slices.Contains(findings(t, call(t, "audit_missing_metadata_provider", messy)), "Princess Mononoke")
+	suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx}))
+	if !acc.Eventually(func() bool {
+		return !slices.Contains(findings(t, missing(t, "provider_id", messy)), "Princess Mononoke")
 	}) {
 		t.Errorf("identified, Princess Mononoke is still matched nowhere")
 	}
-	if n := auditRow(t, "Messy Movies", "audit_missing_metadata_provider"); n != before-1 {
+	if n := auditRow(t, "Messy Movies", rowProvider); n != before-1 {
 		t.Errorf("audit_all's row = %d identified, want %d", n, before-1)
 	}
 }
@@ -792,7 +796,7 @@ func TestAuditMissingEpisodesJoinsTwinFolders(t *testing.T) {
 	stage(t, plus(0, 0, 1), map[string][]byte{
 		knight + "A Knight of the Seven Kingdoms S01E03.mp4": fixture(t, "messy-shows/Severance/Season 01/Severance S01E03.mp4"),
 	})
-	if got := findings(t, call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})); !slices.Equal(got, []string{"Andor", "Star Trek The Next Generation", "Star Trek: Deep Space Nine"}) {
+	if got := findings(t, suite.Call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})); !slices.Equal(got, []string{"Andor", "Star Trek The Next Generation", "Star Trek: Deep Space Nine"}) {
 		t.Errorf("with E03 beside E01 = %v, want the Knight's E02 found in its other folder", got)
 	}
 }
@@ -809,11 +813,11 @@ func TestAuditMissingEpisodesStaged(t *testing.T) {
 		sev + "Severance S00E04.mp4": one,
 	}, "messy-shows/Severance/Season 00")
 
-	out := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})
+	out := suite.Call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows"})
 	if got := findings(t, out); !slices.Equal(got, []string{"Andor", "Star Trek The Next Generation", "Star Trek: Deep Space Nine"}) {
 		t.Errorf("with specials 1 and 4 staged = %v, want no gap among them", got)
 	}
-	if n := num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes()+2 {
+	if n := acc.Num(t, out["items_scanned"], "items_scanned"); n != messyEpisodes()+2 {
 		t.Errorf("scanned %d, want the specials counted too (%d)", n, messyEpisodes()+2)
 	}
 
@@ -823,17 +827,17 @@ func TestAuditMissingEpisodesStaged(t *testing.T) {
 	// season adds nothing, and the specials it skips are no part of a run
 	run := "listed by TMDB without a file: S01E04, S01E05, S01E06, S01E07, S01E08, S01E09, S02E01, S02E02, S02E03, S02E04, S02E05, S02E06 and 4 more"
 	severance := func() (string, string) {
-		out := call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true})
+		out := suite.Call(t, "audit_missing_episodes", map[string]any{"library": "Messy Shows", "provider": true})
 		detail := ""
-		for _, f := range rows(t, out["findings"], "findings") {
-			if str(f["name"]) == "Severance" {
-				detail = str(f["detail"])
+		for _, f := range acc.Rows(t, out["findings"], "findings") {
+			if acc.Str(f["name"]) == "Severance" {
+				detail = acc.Str(f["detail"])
 			}
 		}
 		reason := ""
-		for _, u := range rows(t, out["unknown"], "unknown") {
-			if str(u["name"]) == "Andor" {
-				reason = str(u["reason"])
+		for _, u := range acc.Rows(t, out["unknown"], "unknown") {
+			if acc.Str(u["name"]) == "Andor" {
+				reason = acc.Str(u["reason"])
 			}
 		}
 

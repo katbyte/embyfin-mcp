@@ -19,6 +19,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // Journeys: the tools chained the way a session uses them, against state
@@ -26,79 +30,14 @@ import (
 // puts back what it changes, and says so when it cannot: a change left
 // behind fails the tests after it rather than this one.
 
-// retried calls a tool until it succeeds, a second apart and ten times at
-// most: the servers refuse a write while a refresh holds the item (both
-// answer a 500 then). It returns the last error.
-func retried(tool string, args map[string]any) error {
-	var err error
-	// backing off, for about a minute in all: Emby refused to remove a
-	// library for longer than ten seconds after a scan (seen on 4.11)
-	for _, wait := range []time.Duration{0, time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 15 * time.Second, 15 * time.Second, 15 * time.Second} {
-		time.Sleep(wait)
-		if _, err = invoke(tool, args); err == nil {
-			return nil
-		}
-	}
-
-	return err
-}
-
 // removeLibrary removes a library a test made, as retried calls a tool, and
 // names it when it is left behind, which the tests that count the libraries
 // then stop on (noLeftoverLibraries) rather than failing on the count.
 func removeLibrary(t *testing.T, name string) {
 	t.Helper()
 
-	if err := retried("library_delete", map[string]any{"library": name, "confirm": true}); err != nil {
+	if err := suite.Retried("library_delete", map[string]any{"library": name, "confirm": true}); err != nil {
 		t.Errorf("the library %s was left behind: removing it failed for a minute: %v", name, err)
-	}
-}
-
-// putBack calls a tool once the test ends, to undo what the test changed,
-// and reports one that never succeeds rather than leaving the change for the
-// tests after.
-func putBack(t *testing.T, tool string, args map[string]any) {
-	t.Helper()
-
-	t.Cleanup(func() { undo(t, tool, args) })
-}
-
-// deleteLaterIfThere deletes what a test made once it ends, unless the test
-// deleted it itself: an answer that it is gone (gone, e.g. "no collection
-// named") is no failure. Any other is reported, as putBack does.
-func deleteLaterIfThere(t *testing.T, tool string, args map[string]any, gone string) {
-	t.Helper()
-
-	t.Cleanup(func() {
-		if _, err := invoke(tool, args); err == nil || strings.Contains(err.Error(), gone) {
-			return
-		}
-		undo(t, tool, args)
-	})
-}
-
-// undoIfThere is undo for a change to an item the test may since have
-// deleted, and its state with it: an item gone needs nothing put back, and a
-// read that can't say whether it is gone is reported.
-func undoIfThere(t *testing.T, id, tool string, args map[string]any) {
-	t.Helper()
-
-	if _, err := invoke("item_get", map[string]any{"id": id}); err != nil {
-		if !strings.Contains(err.Error(), "no item with id") {
-			t.Errorf("reading whether %s is still there: %v", id, err)
-		}
-
-		return
-	}
-	undo(t, tool, args)
-}
-
-// undo is putBack for a call made in a clean-up already under way.
-func undo(t *testing.T, tool string, args map[string]any) {
-	t.Helper()
-
-	if err := retried(tool, args); err != nil {
-		t.Errorf("putting back with %s %v: %v", tool, args, err)
 	}
 }
 
@@ -109,7 +48,7 @@ func undo(t *testing.T, tool string, args map[string]any) {
 func removeLibraryIfThere(t *testing.T, name string) bool {
 	t.Helper()
 
-	if _, err := invoke("library_get", map[string]any{"library": name}); err != nil {
+	if _, err := suite.Invoke("library_get", map[string]any{"library": name}); err != nil {
 		if !strings.Contains(err.Error(), "no library named") {
 			t.Errorf("reading whether the library %s is still there: %v", name, err)
 		}
@@ -121,9 +60,9 @@ func removeLibraryIfThere(t *testing.T, name string) bool {
 	return true
 }
 
-// settleScan waits for the scan a change started (waitForScan, or
-// waitForExpectedScan) and reports a wait that fails: the tests after would
-// start under the scan.
+// settleScan waits for the scan a change started (suite.WaitForScan, or
+// suite.WaitForExpectedScan) and reports a wait that fails: the tests after
+// would start under the scan.
 func settleScan(t *testing.T, wait func() error) {
 	t.Helper()
 
@@ -135,7 +74,7 @@ func settleScan(t *testing.T, wait func() error) {
 // deleteLater removes what a test created once it ends.
 func deleteLater(t *testing.T, tool, field, id string) {
 	t.Helper()
-	putBack(t, tool, map[string]any{field: id})
+	suite.PutBack(t, tool, map[string]any{field: id})
 }
 
 // unmarkLater clears a user's watched mark and favourite on items once the
@@ -143,7 +82,7 @@ func deleteLater(t *testing.T, tool, field, id string) {
 func unmarkLater(t *testing.T, user string, ids ...string) {
 	t.Helper()
 	for _, id := range ids {
-		putBack(t, "item_set_state", map[string]any{"id": id, "user": user, "watched": false, "favourite": false})
+		suite.PutBack(t, "item_set_state", map[string]any{"id": id, "user": user, "watched": false, "favourite": false})
 	}
 }
 
@@ -178,7 +117,7 @@ func restoreLater(t *testing.T, id string) map[string]any {
 		// key the database cannot follow)
 		for _, field := range []string{"People", "Studios", "GenreItems", "TagItems"} {
 			var named []any
-			for _, e := range rowsOf(item[field]) {
+			for _, e := range acc.RowsOf(item[field]) {
 				e = maps.Clone(e)
 				delete(e, "Id")
 				named = append(named, e)
@@ -251,8 +190,8 @@ func keepFiles(t *testing.T, dirs ...string) {
 			if now, err := os.ReadFile(path); err == nil && bytes.Equal(now, raw) { //nolint:gosec // same
 				continue
 			}
-			mediaMkdir(t, filepath.Dir(path))
-			mediaWrite(t, path, raw)
+			acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(path))
+			acc.MediaWrite(t, path, raw)
 		}
 	})
 }
@@ -261,14 +200,14 @@ func keepFiles(t *testing.T, dirs ...string) {
 func itemFolder(t *testing.T, id string) string {
 	t.Helper()
 
-	return filepath.Dir(hostPath(str(call(t, "item_get", map[string]any{"id": id})["path"])))
+	return filepath.Dir(hostPath(acc.Str(suite.Call(t, "item_get", map[string]any{"id": id})["path"])))
 }
 
 // itemEtag is an item's etag, which moves whenever the server saves the item.
 func itemEtag(t *testing.T, id string) string {
 	t.Helper()
 
-	return str(fullItem(t, id)["Etag"])
+	return acc.Str(fullItem(t, id)["Etag"])
 }
 
 // savedSince waits for the server to save an item after it read with the
@@ -278,7 +217,7 @@ func itemEtag(t *testing.T, id string) string {
 func savedSince(t *testing.T, id, was string) bool {
 	t.Helper()
 
-	return eventuallyWithin(time.Minute, func() bool { return itemEtag(t, id) != was })
+	return acc.EventuallyWithin(time.Minute, func() bool { return itemEtag(t, id) != was })
 }
 
 // refreshed asks for a refresh of an item and says whether it ran:
@@ -287,7 +226,7 @@ func savedSince(t *testing.T, id, was string) bool {
 func refreshed(t *testing.T, id string) bool {
 	t.Helper()
 
-	return boolOf(call(t, "item_refresh", map[string]any{"id": id})["landed"])
+	return acc.BoolOf(suite.Call(t, "item_refresh", map[string]any{"id": id})["landed"])
 }
 
 // serverNow is the server's clock, from the Date header it answers with: a
@@ -316,29 +255,8 @@ func serverNow(t *testing.T) time.Time {
 func rescanOrReport(t *testing.T, library string, check func() bool) {
 	t.Helper()
 
-	deadline := time.Now().Add(scanPatience)
-	for {
-		if err := waitForScan(); err != nil {
-			t.Error(err)
-			return
-		}
-		if _, err := invoke("library_scan", nil); err != nil {
-			t.Error(err)
-			return
-		}
-		for range 22 {
-			if check() {
-				if err := waitForScan(); err != nil {
-					t.Error(err)
-				}
-				return
-			}
-			time.Sleep(2 * time.Second)
-		}
-		if time.Now().After(deadline) {
-			t.Errorf("a scan of %s never brought about what the test waits for", library)
-			return
-		}
+	if err := suite.ScanUntilTrue("", check); err != nil {
+		t.Errorf("a scan for %s: %v", library, err)
 	}
 }
 
@@ -354,25 +272,25 @@ func slowScan(t *testing.T) (again func()) {
 	t.Helper()
 
 	const name = "The Lord of the Rings The Two Towers (2002)"
-	dir := filepath.Join(dataDir(), "messy-movies", name)
+	dir := filepath.Join(testenv.DataDir(), "messy-movies", name)
 	t.Cleanup(func() {
 		if err := os.RemoveAll(dir); err != nil {
 			t.Error(err)
 		}
 		rescanOrReport(t, "Messy Movies", func() bool {
-			out, err := invoke("library_items", map[string]any{"library": "Messy Movies", "query": "Two Towers", "limit": 100})
-			return err == nil && !slices.ContainsFunc(rowsOf(out["items"]), func(it map[string]any) bool {
-				return strings.Contains(str(it["path"]), "/"+name+"/")
+			out, err := suite.Invoke("library_items", map[string]any{"library": "Messy Movies", "query": "Two Towers", "limit": 100})
+			return err == nil && !slices.ContainsFunc(acc.RowsOf(out["items"]), func(it map[string]any) bool {
+				return strings.Contains(acc.Str(it["path"]), "/"+name+"/")
 			})
 		})
 	})
 	raw := fixtureVideo(t, "messy-movies", messyAlien, messyAlien+".mp4")
-	mediaMkdir(t, dir)
+	acc.MediaMkdir(t, testenv.DataDir(), dir)
 	var files []string
 	lay := func(n int) {
 		for range n {
 			f := filepath.Join(dir, fmt.Sprintf("%s - part%d.mp4", name, len(files)+1))
-			mediaWrite(t, f, raw)
+			acc.MediaWrite(t, f, raw)
 			files = append(files, f)
 		}
 	}
@@ -394,9 +312,9 @@ func slowScan(t *testing.T) (again func()) {
 func entryNamed(t *testing.T, playlist, name string) string {
 	t.Helper()
 
-	for _, e := range rows(t, call(t, "playlist_get", map[string]any{"playlist": playlist})["entries"], "entries") {
-		if str(e["name"]) == name {
-			return str(e["entry_id"])
+	for _, e := range acc.Rows(t, suite.Call(t, "playlist_get", map[string]any{"playlist": playlist})["entries"], "entries") {
+		if acc.Str(e["name"]) == name {
+			return acc.Str(e["entry_id"])
 		}
 	}
 	t.Fatalf("%s is not in the playlist", name)
@@ -416,7 +334,7 @@ func TestEditsDuringAScan(t *testing.T) {
 	alien := findItem(t, "Movies", "Movie", "Alien")
 	again := slowScan(t)
 	t.Cleanup(func() {
-		if err := waitForScan(); err != nil {
+		if err := suite.WaitForScan(); err != nil {
 			t.Error(err)
 		}
 	})
@@ -430,46 +348,46 @@ func TestEditsDuringAScan(t *testing.T) {
 		if pl == "" {
 			return
 		}
-		if err := retried("playlist_delete", map[string]any{"playlist": pl}); err != nil {
+		if err := suite.Retried("playlist_delete", map[string]any{"playlist": pl}); err != nil {
 			t.Errorf("deleting the playlist: %v", err)
 		}
 	})
 	for try := 1; ; try++ {
-		if out := call(t, "library_scan", nil); !boolOf(out["started"]) {
+		if out := suite.Call(t, "library_scan", nil); !acc.BoolOf(out["started"]) {
 			t.Fatalf("library_scan = %v", out)
 		}
 
-		pl = str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{dune}, "media_type": "Video"})["id"])
-		if add := call(t, "playlist_add", map[string]any{"playlist": pl, "item_ids": []any{dune2, arrival}}); num(t, add["added"], "added") != 2 {
-			t.Errorf("playlist_add = %v", add)
+		pl = acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{dune}, "media_type": "Video"})["id"])
+		if add := suite.Call(t, "playlist_edit", map[string]any{"playlist": pl, "add_items": []any{dune2, arrival}}); acc.Num(t, add["added"], "added") != 2 {
+			t.Errorf("playlist_edit add_items = %v", add)
 		}
 		// a scan can renumber Emby's entries between reading one and using
 		// it, which the tool refuses; a caller reads the playlist again
 		args := map[string]any{"playlist": pl, "move_entry_id": entryNamed(t, pl, "Arrival"), "move_item_id": arrival, "position": 1}
-		_, err := invoke("playlist_edit", args)
+		_, err := suite.Invoke("playlist_edit", args)
 		if err != nil && strings.Contains(err.Error(), "so nothing was changed") {
 			args["move_entry_id"] = entryNamed(t, pl, "Arrival")
-			_, err = invoke("playlist_edit", args)
+			_, err = suite.Invoke("playlist_edit", args)
 		}
 		if err != nil {
 			t.Fatalf("playlist_edit: %v", err)
 		}
-		if rm := call(t, "playlist_remove", map[string]any{"playlist": pl, "entry_ids": []any{entryNamed(t, pl, "Dune: Part Two")}, "item_ids": []any{dune2}}); num(t, rm["removed"], "removed") != 1 {
-			t.Errorf("playlist_remove = %v", rm)
+		if rm := suite.Call(t, "playlist_edit", map[string]any{"playlist": pl, "remove_entries": []any{map[string]any{"entry_id": entryNamed(t, pl, "Dune: Part Two"), "item_id": dune2}}}); acc.Num(t, rm["removed"], "removed") != 1 {
+			t.Errorf("playlist_edit remove_entries = %v", rm)
 		}
 
 		if col == "" {
-			col = str(call(t, "collection_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{alien}})["id"])
+			col = acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Scan Race", "item_ids": []any{alien}})["id"])
 			deleteLater(t, "collection_delete", "collection", col)
 		}
-		if colAdd = call(t, "collection_add", map[string]any{"collection": col, "item_ids": []any{dune, arrival}}); num(t, colAdd["added"], "added") != 2 {
-			t.Errorf("collection_add = %v", colAdd)
+		if colAdd = suite.Call(t, "collection_edit", map[string]any{"collection": col, "add_items": []any{dune, arrival}}); acc.Num(t, colAdd["added"], "added") != 2 {
+			t.Errorf("collection_edit add_items = %v", colAdd)
 		}
-		if colRemove = call(t, "collection_remove", map[string]any{"collection": col, "item_ids": []any{dune}}); num(t, colRemove["removed"], "removed") != 1 {
-			t.Errorf("collection_remove = %v", colRemove)
+		if colRemove = suite.Call(t, "collection_edit", map[string]any{"collection": col, "remove_items": []any{dune}}); acc.Num(t, colRemove["removed"], "removed") != 1 {
+			t.Errorf("collection_edit remove_items = %v", colRemove)
 		}
 
-		if idle, err := scanIdle(); err == nil && !idle {
+		if idle, err := suite.ScanIdle(); err == nil && !idle {
 			break
 		}
 		if try == 4 {
@@ -477,23 +395,23 @@ func TestEditsDuringAScan(t *testing.T) {
 		}
 		// the scan finished first: once it has, put the lists back as the
 		// try found them and go again
-		if err := waitForScan(); err != nil {
+		if err := suite.WaitForScan(); err != nil {
 			t.Fatal(err)
 		}
-		if err := retried("playlist_delete", map[string]any{"playlist": pl}); err != nil {
+		if err := suite.Retried("playlist_delete", map[string]any{"playlist": pl}); err != nil {
 			t.Fatalf("deleting the try's playlist: %v", err)
 		}
 		pl = ""
-		call(t, "collection_remove", map[string]any{"collection": col, "item_ids": []any{arrival}})
+		suite.Call(t, "collection_edit", map[string]any{"collection": col, "remove_items": []any{arrival}})
 		again()
 	}
 
-	if err := waitForScan(); err != nil {
+	if err := suite.WaitForScan(); err != nil {
 		t.Fatal(err)
 	}
 	var got []string
-	for _, e := range rows(t, call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries") {
-		got = append(got, str(e["name"]))
+	for _, e := range acc.Rows(t, suite.Call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries") {
+		got = append(got, acc.Str(e["name"]))
 	}
 	if !slices.Equal(got, []string{"Arrival", "Dune"}) {
 		t.Errorf("after the scan the playlist is %v, want [Arrival Dune]", got)
@@ -501,33 +419,26 @@ func TestEditsDuringAScan(t *testing.T) {
 	// the collection's changes were made while the scan ran, and both
 	// answers say so
 	const raced = "was running: it may put back or drop members once it finishes; check the collection afterwards"
-	for tool, out := range map[string]map[string]any{"collection_add": colAdd, "collection_remove": colRemove} {
-		if !strings.Contains(str(out["note"]), raced) {
+	for tool, out := range map[string]map[string]any{"collection_edit add_items": colAdd, "collection_edit remove_items": colRemove} {
+		if !strings.Contains(acc.Str(out["note"]), raced) {
 			t.Errorf("%s during the scan: note %q, want it to say a scan was running", tool, out["note"])
 		}
 	}
 	// Jellyfin's scan saves a collection as it read it, and has put an item
-	// back after collection_remove said it was gone, and dropped one nobody
+	// back after collection_edit remove_items said it was gone, and dropped one nobody
 	// took out (seen on 12.1): allowed there because the answers said a scan
 	// could; Emby's must hold
 	var held []string
-	if !eventually(func() bool {
-		held = sorted(names(t, call(t, "collection_get", map[string]any{"collection": col})["items"], "items"))
+	if !acc.Eventually(func() bool {
+		held = acc.Sorted(names(t, suite.Call(t, "collection_get", map[string]any{"collection": col})["items"], "items"))
 		return slices.Equal(held, []string{"Alien", "Arrival"})
 	}) {
-		if isJellyfin() && strings.Contains(str(colAdd["note"]), raced) && strings.Contains(str(colRemove["note"]), raced) {
+		if isJellyfin() && strings.Contains(acc.Str(colAdd["note"]), raced) && strings.Contains(acc.Str(colRemove["note"]), raced) {
 			t.Logf("after the scan Jellyfin's collection holds %v, not [Alien Arrival]: the scan saved it over the changes, as their answers said it may", held)
 		} else {
 			t.Errorf("after the scan the collection holds %v, want [Alien Arrival]", held)
 		}
 	}
-}
-
-func sorted(s []string) []string {
-	s = slices.Clone(s)
-	slices.Sort(s)
-
-	return s
 }
 
 // fullItem reads an item the way the servers' own editors do, for putting
@@ -567,16 +478,6 @@ func postItem(t *testing.T, id string, change map[string]any) (int, []byte) {
 	return api(t, http.MethodPost, "/Items/"+id, "", item)
 }
 
-// withoutName is a sorted list of names with one taken out, once.
-func withoutName(names []string, name string) []string {
-	out := slices.Clone(names)
-	if i := slices.Index(out, name); i >= 0 {
-		out = slices.Delete(out, i, i+1)
-	}
-
-	return out
-}
-
 // movedBy checks audit_all's counts after a fix against the counts before
 // it: the rows named move by exactly what they are given, and every other
 // row, and the total, by nothing else. A fix that shifted another audit's
@@ -606,48 +507,48 @@ func TestAuditsAreFixable(t *testing.T) {
 	messy := map[string]any{"library": "Messy Movies"}
 
 	t.Run("missing overview", func(t *testing.T) {
-		before := findings(t, call(t, "audit_missing_overview", messy))
+		before := findings(t, missing(t, "overview", messy))
 		if !slices.Contains(before, "Arrival") {
-			t.Fatalf("audit_missing_overview = %v, want Arrival among them", before)
+			t.Fatalf("audit_missing_metadata overview = %v, want Arrival among them", before)
 		}
 		counts := auditCounts(t, messy)
 		keepFiles(t, itemFolder(t, arrival))
 		restoreLater(t, arrival)
 
-		call(t, "item_edit", map[string]any{"ids": []any{arrival}, "overview": "A linguist is recruited to talk to the visitors."})
-		if got := findings(t, call(t, "audit_missing_overview", messy)); !slices.Equal(got, withoutName(before, "Arrival")) {
-			t.Errorf("after item_edit audit_missing_overview = %v, want %v", got, withoutName(before, "Arrival"))
+		suite.Call(t, "item_edit", map[string]any{"ids": []any{arrival}, "overview": "A linguist is recruited to talk to the visitors."})
+		if got := findings(t, missing(t, "overview", messy)); !slices.Equal(got, acc.WithoutName(before, "Arrival")) {
+			t.Errorf("after item_edit audit_missing_metadata overview = %v, want %v", got, acc.WithoutName(before, "Arrival"))
 		}
-		movedBy(t, "Messy Movies", counts, map[string]int{"audit_missing_overview": -1, "total_findings": -1})
+		movedBy(t, "Messy Movies", counts, map[string]int{rowOverview: -1, "total_findings": -1})
 	})
 
 	t.Run("missing poster", func(t *testing.T) {
-		before := findings(t, call(t, "audit_missing_poster", messy))
+		before := findings(t, missing(t, "poster", messy))
 		if !slices.Contains(before, "Arrival") {
-			t.Fatalf("audit_missing_poster = %v, want Arrival among them", before)
+			t.Fatalf("audit_missing_metadata poster = %v, want Arrival among them", before)
 		}
 		counts := auditCounts(t, messy)
 		keepFiles(t, itemFolder(t, arrival))
 		// the providers are off in the messy library, so the poster comes from
 		// the clean copy's candidates
 		clean := findItem(t, "Movies", "Movie", "Arrival")
-		cands := rows(t, call(t, "item_artwork", map[string]any{"id": clean, "type": "Primary", "limit": 1})["candidates"], "candidates")
+		cands := acc.Rows(t, suite.Call(t, "item_artwork", map[string]any{"id": clean, "type": "Primary", "limit": 1})["candidates"], "candidates")
 		if len(cands) == 0 {
 			t.Fatal("no poster candidates for Arrival")
 		}
-		call(t, "item_artwork_set", map[string]any{"id": arrival, "url": str(cands[0]["url"])})
+		suite.Call(t, "item_artwork_set", map[string]any{"id": arrival, "url": acc.Str(cands[0]["url"])})
 		t.Cleanup(func() {
 			if status, raw := api(t, http.MethodDelete, "/Items/"+arrival+"/Images/Primary", "", nil); status/100 != 2 {
 				t.Errorf("removing the poster: HTTP %d: %s", status, raw)
 			}
 		})
-		if !eventually(func() bool { return !slices.Contains(findings(t, call(t, "audit_missing_poster", messy)), "Arrival") }) {
+		if !acc.Eventually(func() bool { return !slices.Contains(findings(t, missing(t, "poster", messy)), "Arrival") }) {
 			t.Fatal("after item_artwork_set Arrival still has no poster")
 		}
-		if got := findings(t, call(t, "audit_missing_poster", messy)); !slices.Equal(got, withoutName(before, "Arrival")) {
-			t.Errorf("after item_artwork_set audit_missing_poster = %v, want %v", got, withoutName(before, "Arrival"))
+		if got := findings(t, missing(t, "poster", messy)); !slices.Equal(got, acc.WithoutName(before, "Arrival")) {
+			t.Errorf("after item_artwork_set audit_missing_metadata poster = %v, want %v", got, acc.WithoutName(before, "Arrival"))
 		}
-		movedBy(t, "Messy Movies", counts, map[string]int{"audit_missing_poster": -1, "total_findings": -1})
+		movedBy(t, "Messy Movies", counts, map[string]int{rowPoster: -1, "total_findings": -1})
 	})
 
 	// the messy Dune's folder says 2021 and its metadata Lynch's 1984 film,
@@ -657,7 +558,7 @@ func TestAuditsAreFixable(t *testing.T) {
 		// Stargate, held as Stargate: Continuum, is dated wrong too, and
 		// stays so
 		years := map[string]any{"library": "Messy Movies", "checks": "year"}
-		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
+		if got := findings(t, suite.Call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
 			t.Fatalf("audit_file_path = %v, want [Dune Stargate: Continuum]", got)
 		}
 		counts := auditCounts(t, messy)
@@ -665,8 +566,8 @@ func TestAuditsAreFixable(t *testing.T) {
 		restoreLater(t, dune)
 
 		idx := -1
-		for i, c := range rows(t, call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
-			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && str(ids["tmdb"]) == "438631" {
+		for i, c := range acc.Rows(t, suite.Call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
+			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && acc.Str(ids["tmdb"]) == "438631" {
 				idx = i
 			}
 		}
@@ -675,69 +576,69 @@ func TestAuditsAreFixable(t *testing.T) {
 		}
 		// the fetchers are off, so the apply sets the ids and the answer says
 		// the rest is item_edit's to set: the year is still the old film's
-		out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021}))
-		if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" || num(t, out["year"], "year") != 1984 || !strings.Contains(str(out["note"]), "set what is missing or wrong with item_edit") {
+		out := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021}))
+		if ids, _ := out["metadata_provider_ids"].(map[string]any); acc.Str(ids["tmdb"]) != "438631" || acc.Num(t, out["year"], "year") != 1984 || !strings.Contains(acc.Str(out["note"]), "set what is missing or wrong with item_edit") {
 			t.Errorf("item_identify_apply = %v", out)
 		}
-		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
+		if got := findings(t, suite.Call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Dune", "Stargate: Continuum"}) {
 			t.Errorf("with the new ids alone audit_file_path = %v, want [Dune Stargate: Continuum] still", got)
 		}
-		call(t, "item_edit", map[string]any{"ids": []any{dune}, "year": 2021})
-		if got := findings(t, call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Stargate: Continuum"}) {
+		suite.Call(t, "item_edit", map[string]any{"ids": []any{dune}, "year": 2021})
+		if got := findings(t, suite.Call(t, "audit_file_path", years)); !slices.Equal(got, []string{"Stargate: Continuum"}) {
 			t.Errorf("after the match and the year audit_file_path = %v, want Stargate's alone", got)
 		}
-		if got := call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841", "type": "movie"}); boolOf(got["found"]) || len(rowsOf(got["items"])) != 0 {
+		if got := suite.Call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841", "type": "movie"}); acc.BoolOf(got["found"]) || len(acc.RowsOf(got["items"])) != 0 {
 			t.Errorf("tmdb 841 still finds %v", got)
 		}
 		movedBy(t, "Messy Movies", counts, map[string]int{"audit_file_path": -1, "total_findings": -1})
 	})
 
 	t.Run("unmatched", func(t *testing.T) {
-		if got := findings(t, call(t, "audit_missing_metadata_provider", messy)); !slices.Equal(got, messyUnmatched) {
-			t.Fatalf("audit_missing_metadata_provider = %v, want %v", got, messyUnmatched)
+		if got := findings(t, missing(t, "provider_id", messy)); !slices.Equal(got, messyUnmatched) {
+			t.Fatalf("audit_missing_metadata provider_id = %v, want %v", got, messyUnmatched)
 		}
 		counts := auditCounts(t, messy)
 		keepFiles(t, itemFolder(t, mononoke))
 		restoreLater(t, mononoke)
 		// the messy library has its fetchers off, so the search runs without
 		// the item and the match still sets its ids
-		cands := rows(t, call(t, "item_identify", map[string]any{"id": mononoke, "kind": "movie"})["candidates"], "candidates")
+		cands := acc.Rows(t, suite.Call(t, "item_identify", map[string]any{"id": mononoke, "kind": "movie"})["candidates"], "candidates")
 		// by either id: without the item Jellyfin's search is answered by OMDb,
 		// whose candidates carry the imdb id alone
 		idx := -1
 		for i, c := range cands {
-			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && (str(ids["tmdb"]) == "128" || str(ids["imdb"]) == "tt0119698") {
+			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && (acc.Str(ids["tmdb"]) == "128" || acc.Str(ids["imdb"]) == "tt0119698") {
 				idx = i
 			}
 		}
 		if idx < 0 {
 			t.Fatalf("no Princess Mononoke (tmdb 128, imdb tt0119698) among the candidates: %v", cands)
 		}
-		call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx}))
+		suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx}))
 		// the two discs are still unmatched; the film is not
-		discs := withoutName(messyUnmatched, "Princess Mononoke")
-		if !eventually(func() bool {
-			return slices.Equal(findings(t, call(t, "audit_missing_metadata_provider", messy)), discs)
+		discs := acc.WithoutName(messyUnmatched, "Princess Mononoke")
+		if !acc.Eventually(func() bool {
+			return slices.Equal(findings(t, missing(t, "provider_id", messy)), discs)
 		}) {
-			t.Errorf("after item_identify_apply the unmatched are %v, want %v", findings(t, call(t, "audit_missing_metadata_provider", messy)), discs)
+			t.Errorf("after item_identify_apply the unmatched are %v, want %v", findings(t, missing(t, "provider_id", messy)), discs)
 		}
-		movedBy(t, "Messy Movies", counts, map[string]int{"audit_missing_metadata_provider": -1, "total_findings": -1})
+		movedBy(t, "Messy Movies", counts, map[string]int{rowProvider: -1, "total_findings": -1})
 	})
 
 	// what TestAuditUnwatched does not see: audit_all counts the unwatched as
 	// a row and leaves them out of its total, which is of defects
 	t.Run("unwatched", func(t *testing.T) {
 		movies := map[string]any{"library": "Movies"}
-		before := findings(t, call(t, "audit_unwatched", movies))
+		before := findings(t, suite.Call(t, "audit_unwatched", movies))
 		if !slices.Contains(before, "Princess Mononoke") {
 			t.Fatalf("audit_unwatched = %v, want Princess Mononoke among them", before)
 		}
 		counts := auditCounts(t, movies)
 		id := findItem(t, "Movies", "Movie", "Princess Mononoke")
 		unmarkLater(t, "alice", id)
-		call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true})
-		if got := findings(t, call(t, "audit_unwatched", movies)); !slices.Equal(got, withoutName(before, "Princess Mononoke")) {
-			t.Errorf("after item_set_state audit_unwatched = %v, want %v", got, withoutName(before, "Princess Mononoke"))
+		suite.Call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": true})
+		if got := findings(t, suite.Call(t, "audit_unwatched", movies)); !slices.Equal(got, acc.WithoutName(before, "Princess Mononoke")) {
+			t.Errorf("after item_set_state audit_unwatched = %v, want %v", got, acc.WithoutName(before, "Princess Mononoke"))
 		}
 		movedBy(t, "Movies", counts, map[string]int{"audit_unwatched": -1})
 	})
@@ -749,7 +650,7 @@ func TestPlaybackIsRecorded(t *testing.T) {
 	device, token := signInPlayer(t)
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	dune2 := findItem(t, "Movies", "Movie", "Dune: Part Two")
-	aliceBefore := call(t, "user_stats", map[string]any{"user": "alice"})
+	aliceBefore := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
 	unmarkLater(t, "alice", dune)
 	// a second early, for the Date header's whole seconds
 	started := serverNow(t).Add(-time.Second)
@@ -774,8 +675,8 @@ func TestPlaybackIsRecorded(t *testing.T) {
 
 	playing := false
 	for range 20 {
-		for _, s := range rows(t, call(t, "session_list", nil)["sessions"], "sessions") {
-			if str(s["device"]) == device && str(s["now_playing"]) == "Dune" && str(s["user"]) == "alice" {
+		for _, s := range acc.Rows(t, suite.Call(t, "session_list", nil)["sessions"], "sessions") {
+			if acc.Str(s["device"]) == device && acc.Str(s["now_playing"]) == "Dune" && acc.Str(s["user"]) == "alice" {
 				playing = true
 			}
 		}
@@ -785,7 +686,7 @@ func TestPlaybackIsRecorded(t *testing.T) {
 		time.Sleep(250 * time.Millisecond)
 	}
 	if !playing {
-		t.Errorf("session_list does not show alice playing Dune: %v", call(t, "session_list", nil)["sessions"])
+		t.Errorf("session_list does not show alice playing Dune: %v", suite.Call(t, "session_list", nil)["sessions"])
 	}
 
 	// stopped a minute before the end of the film's 155 minutes, which is
@@ -796,8 +697,8 @@ func TestPlaybackIsRecorded(t *testing.T) {
 
 	var played map[string]any
 	for range 20 {
-		for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": dune})["users"], "users") {
-			if str(u["user"]) == "alice" && boolOf(u["played"]) {
+		for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": dune})["users"], "users") {
+			if acc.Str(u["user"]) == "alice" && acc.BoolOf(u["played"]) {
 				played = u
 			}
 		}
@@ -806,10 +707,10 @@ func TestPlaybackIsRecorded(t *testing.T) {
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
-	if played == nil || num(t, played["play_count"], "play_count") < 1 {
+	if played == nil || acc.Num(t, played["play_count"], "play_count") < 1 {
 		t.Errorf("item_last_watched does not show alice finishing Dune: %v", played)
 	}
-	if after := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, after["movies_watched"], "movies_watched") != num(t, aliceBefore["movies_watched"], "movies_watched")+1 {
+	if after := suite.Call(t, "user_stats", map[string]any{"user": "alice"}); acc.Num(t, after["movies_watched"], "movies_watched") != acc.Num(t, aliceBefore["movies_watched"], "movies_watched")+1 {
 		t.Errorf("alice movies_watched %v, was %v", after["movies_watched"], aliceBefore["movies_watched"])
 	}
 
@@ -819,29 +720,41 @@ func TestPlaybackIsRecorded(t *testing.T) {
 	var history []map[string]any
 	var hist map[string]any
 	this := func(row map[string]any) bool {
-		at, err := time.Parse(time.RFC3339Nano, str(row["last_played"]))
-		return err == nil && !at.Before(started) && str(row["name"]) == "Dune" && str(row["event"]) == "stop"
+		at, err := time.Parse(time.RFC3339Nano, acc.Str(row["last_played"]))
+		return err == nil && !at.Before(started) && acc.Str(row["name"]) == "Dune" && acc.Str(row["event"]) == "stop"
 	}
-	if !eventually(func() bool {
-		hist = call(t, "user_history", map[string]any{"user": "alice", "days": 1})
-		history = rows(t, hist["items"], "items")
+	if !acc.Eventually(func() bool {
+		hist = suite.Call(t, "user_history", map[string]any{"user": "alice", "days": 1})
+		history = acc.Rows(t, hist["items"], "items")
 		return len(history) > 0 && this(history[0])
 	}) {
 		t.Errorf("user_history alice has no stop of Dune since %s first: %v", started, history)
 	}
-	if num(t, hist["total"], "total") != len(history) || num(t, hist["offset"], "offset") != 0 {
+	if acc.Num(t, hist["total"], "total") != len(history) || acc.Num(t, hist["offset"], "offset") != 0 {
 		t.Errorf("user_history total %v offset %v for %d items", hist["total"], hist["offset"], len(history))
 	}
-	entries := strs(t, call(t, "item_watch_history", map[string]any{"id": dune, "days": 1})["entries"], "entries")
+	entries := summaries(t, suite.Call(t, "server_activity", map[string]any{"item": dune, "days": 1}))
 	if !slices.ContainsFunc(entries, func(e string) bool { return strings.Contains(e, "alice") }) {
-		t.Errorf("item_watch_history Dune = %v", entries)
+		t.Errorf("server_activity about Dune = %v", entries)
 	}
-	if other := strs(t, call(t, "item_watch_history", map[string]any{"id": dune2, "days": 1})["entries"], "entries"); slices.ContainsFunc(other, func(e string) bool { return strings.Contains(e, "alice") }) {
-		t.Errorf("item_watch_history Dune: Part Two picked up Dune's playback: %v", other)
+	// and Dune's play is not Dune: Part Two's, whose title holds Dune's:
+	// every entry about Part Two names Part Two, whoever played it when
+	if other := summaries(t, suite.Call(t, "server_activity", map[string]any{"item": dune2, "days": 1})); slices.ContainsFunc(other, func(e string) bool { return !strings.Contains(e, "Dune: Part Two") }) {
+		t.Errorf("server_activity about Dune: Part Two picked up Dune's playback: %v", other)
 	}
-	activity := rows(t, call(t, "server_activity", map[string]any{"days": 1, "limit": 50})["entries"], "entries")
+	// and about alice: her play of Dune, by the item's id
+	about := acc.Rows(t, suite.Call(t, "server_activity", map[string]any{"user": "alice", "days": 1})["entries"], "entries")
+	if !slices.ContainsFunc(about, func(e map[string]any) bool { return acc.Str(e["item_id"]) == dune }) {
+		t.Errorf("server_activity about alice has no entry about Dune: %v", about)
+	}
+	for _, e := range about {
+		if !strings.Contains(acc.Str(e["summary"]), "alice") {
+			t.Errorf("server_activity about alice holds another's entry: %v", e)
+		}
+	}
+	activity := acc.Rows(t, suite.Call(t, "server_activity", map[string]any{"days": 1, "limit": 50})["entries"], "entries")
 	if !slices.ContainsFunc(activity, func(e map[string]any) bool {
-		return strings.Contains(str(e["summary"]), "alice") && strings.Contains(str(e["summary"]), "Dune")
+		return strings.Contains(acc.Str(e["summary"]), "alice") && strings.Contains(acc.Str(e["summary"]), "Dune")
 	}) {
 		t.Errorf("server_activity has no playback of Dune by alice: %v", activity)
 	}
@@ -859,34 +772,25 @@ func TestAuditAllMatchesEachAudit(t *testing.T) {
 		if library != "" {
 			args["library"] = library
 		}
-		for _, row := range rows(t, call(t, "audit_all", args)["audits"], "audits") {
-			name := str(row["audit"])
+		for _, row := range acc.Rows(t, suite.Call(t, "audit_all", args)["audits"], "audits") {
+			name := rowKey(row)
 			if s, _ := row["skipped"].(bool); s {
 				continue
 			}
 			// audit_orphans takes no library and runs in audit_all only
-			// without one; the rest take the same arguments
-			own := maps.Clone(args)
+			// without one; the rest take the same arguments, and what the
+			// row says it was counted over
+			own := rowArgs(row, args)
 			if name == "audit_orphans" {
 				own = nil
 			}
-			// a row read over other types than the audit's default names
-			// them (albums beside films and series, across the server)
-			if types := str(row["types"]); types != "" && own != nil {
-				own["types"] = types
-			}
-			// and a row counted over some of the places an audit reads names
-			// them (audit_whitespace's, without the file names)
-			if where := str(row["where"]); where != "" && own != nil {
-				own["where"] = where
-			}
-			out := call(t, name, own)
+			out := suite.Call(t, acc.Str(row["audit"]), own)
 			// every audit names its count and its sweep the same way
 			count, scanned := out["total_findings"], out["items_scanned"]
-			if num(t, count, name) != num(t, row["findings"], "findings") || num(t, scanned, name) != num(t, row["items_scanned"], "items_scanned") {
+			if acc.Num(t, count, name) != acc.Num(t, row["findings"], "findings") || acc.Num(t, scanned, name) != acc.Num(t, row["items_scanned"], "items_scanned") {
 				t.Errorf("%q %s: audit_all counted %v of %v, the audit %v of %v", library, name, row["findings"], row["items_scanned"], count, scanned)
 			}
-			found[name] = found[name] || num(t, row["findings"], "findings") > 0
+			found[name] = found[name] || acc.Num(t, row["findings"], "findings") > 0
 		}
 	}
 
@@ -918,85 +822,78 @@ func TestLookupsChangeNothing(t *testing.T) {
 	messyMononoke := findItem(t, "Messy Movies", "Movie", "Princess Mononoke")
 	messyArrival := findItem(t, "Messy Movies", "Movie", "Arrival")
 	severance := findItem(t, "Shows", "Series", "Severance")
-	pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Lookups", "item_ids": []any{blade, arrival}, "media_type": "Video"})["id"])
+	pl := acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": "Zzyzx Lookups", "item_ids": []any{blade, arrival}, "media_type": "Video"})["id"])
 	deleteLater(t, "playlist_delete", "playlist", pl)
-	col := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Lookups", "item_ids": []any{blade, mononoke}})["id"])
+	col := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Lookups", "item_ids": []any{blade, mononoke}})["id"])
 	deleteLater(t, "collection_delete", "collection", col)
 
 	snapshot := func() map[string]any {
 		s := map[string]any{}
 		for _, id := range []string{blade, mononoke, arrival, messyMononoke, messyArrival, severance} {
-			s["item "+id] = call(t, "item_get", map[string]any{"id": id})
-			s["watch state "+id] = call(t, "item_last_watched", map[string]any{"id": id})
-			s["images "+id] = call(t, "item_artwork", map[string]any{"id": id, "limit": 1})["current"]
+			s["item "+id] = suite.Call(t, "item_get", map[string]any{"id": id})
+			s["watch state "+id] = suite.Call(t, "item_last_watched", map[string]any{"id": id})
+			s["images "+id] = suite.Call(t, "item_artwork", map[string]any{"id": id, "limit": 1})["current"]
 		}
 		for _, u := range []string{"root", "alice"} {
-			s["user "+u] = call(t, "user_get", map[string]any{"user": u})
+			s["user "+u] = suite.Call(t, "user_get", map[string]any{"user": u})
 		}
-		s["alice's counts"] = call(t, "user_stats", map[string]any{"user": "alice"})
-		s["playlist"] = call(t, "playlist_get", map[string]any{"playlist": pl})
-		s["collection"] = call(t, "collection_get", map[string]any{"collection": col})
-		s["playlists"] = call(t, "playlist_list", nil)
-		s["collections"] = call(t, "collection_list", nil)
-		s["libraries"] = call(t, "library_list", nil)
-		s["filters"] = call(t, "library_filters", map[string]any{"library": "Movies"})
+		s["alice's counts"] = suite.Call(t, "user_stats", map[string]any{"user": "alice"})
+		s["playlist"] = suite.Call(t, "playlist_get", map[string]any{"playlist": pl})
+		s["collection"] = suite.Call(t, "collection_get", map[string]any{"collection": col})
+		s["playlists"] = suite.Call(t, "playlist_list", nil)
+		s["collections"] = suite.Call(t, "collection_list", nil)
+		s["libraries"] = suite.Call(t, "library_list", nil)
+		s["filters"] = suite.Call(t, "library_filters", map[string]any{"library": "Movies"})
 		return s
 	}
 	before := snapshot()
 
 	lookups := map[string][]map[string]any{
-		"audit_all":                       {nil, {"library": "Messy Movies"}},
-		"audit_anime_ids":                 {{"library": "Messy Shows"}},
-		"audit_disc_folders":              {{"library": "Messy Movies"}},
-		"audit_duplicate_episodes":        {{"library": "Messy Shows"}},
-		"audit_duplicate_series":          {{"library": "Messy Shows"}},
-		"audit_duplicates":                {{"library": "Messy Movies"}},
-		"audit_file_path":                 {{"library": "Messy Movies"}},
-		"audit_language":                  {{"language": "jpn", "find": "no_audio", "library": "Messy Movies"}},
-		"audit_missing_episodes":          {{"library": "Shows"}},
-		"audit_missing_metadata_provider": {{"library": "Messy Movies"}},
-		"audit_missing_overview":          {{"library": "Messy Movies"}},
-		"audit_missing_poster":            {{"library": "Messy Movies"}},
-		"audit_multiple_versions":         {{"library": "Messy Movies"}},
-		"audit_orphans":                   {nil},
-		"audit_provider":                  {{"library": "Movies", "checks": "ids", "types": "Movie"}},
-		"audit_quality":                   {{"library": "Messy Movies"}},
-		"audit_runtime":                   {{"library": "Messy Shows"}},
-		"audit_spelling":                  {nil},
-		"provider_cache_clear":            {nil},
-		"audit_unwatched":                 {{"types": "Movie,Series"}},
-		"audit_whitespace":                {{"library": "Messy Shows"}},
-		"collection_get":                  {{"collection": col}},
-		"collection_list":                 {nil},
-		"item_artwork":                    {{"id": blade, "type": "Primary", "limit": 2}},
-		"item_find_by_metadata_id":        {{"metadata_provider": "tmdb", "id": "78", "type": "movie"}},
-		"item_get":                        {{"id": blade}},
-		"item_identify":                   {{"id": blade, "kind": "movie"}, {"id": messyMononoke, "kind": "movie"}},
-		"item_instant_mix":                {{"id": blade, "limit": 5}},
-		"item_last_watched":               {{"id": mononoke}},
-		"item_similar":                    {{"id": blade, "limit": 5}},
-		"item_subtitle_search":            {{"id": blade, "language": "eng"}},
-		"item_watch_history":              {{"id": mononoke, "days": 7}},
-		"library_episodes":                {{"series_id": severance}},
+		"audit_all":                {nil, {"library": "Messy Movies"}},
+		"audit_anime_ids":          {{"library": "Messy Shows"}},
+		"audit_disc_folders":       {{"library": "Messy Movies"}},
+		"audit_duplicate_episodes": {{"library": "Messy Shows"}},
+		"audit_duplicates":         {{"library": "Messy Movies"}, {"library": "Messy Shows"}},
+		"audit_file_path":          {{"library": "Messy Movies"}},
+		"audit_language":           {{"language": "jpn", "find": "no_audio", "library": "Messy Movies"}},
+		"audit_missing_episodes":   {{"library": "Shows"}},
+		"audit_missing_metadata":   {{"library": "Messy Movies"}, {"library": "Messy Movies", "problems": "provider_id", "missing": "tmdb"}},
+		"audit_multiple_versions":  {{"library": "Messy Movies"}},
+		"audit_orphans":            {nil},
+		"audit_provider":           {{"library": "Movies", "checks": "ids", "types": "Movie"}},
+		"audit_quality":            {{"library": "Messy Movies"}},
+		"audit_runtime":            {{"library": "Messy Shows"}},
+		"audit_spelling":           {nil},
+		"provider_cache_clear":     {nil},
+		"audit_unwatched":          {{"types": "Movie,Series"}},
+		"audit_whitespace":         {{"library": "Messy Shows"}},
+		"collection_get":           {{"collection": col}},
+		"collection_list":          {nil},
+		"item_artwork":             {{"id": blade, "type": "Primary", "limit": 2}},
+		"item_find_by_metadata_id": {{"metadata_provider": "tmdb", "id": "78", "type": "movie"}},
+		"item_get":                 {{"id": blade}},
+		"item_identify":            {{"id": blade, "kind": "movie"}, {"id": messyMononoke, "kind": "movie"}},
+		"item_instant_mix":         {{"id": blade, "limit": 5}},
+		"item_last_watched":        {{"id": mononoke}},
+		"item_similar":             {{"id": blade, "limit": 5}},
+		"item_subtitle_search":     {{"id": blade, "language": "eng"}},
+		"library_episodes":         {{"series_id": severance}},
 		// writes a file on this machine, and never over one: the server is
 		// what must not change
 		"library_export":      {{"path": filepath.Join(t.TempDir(), "movies.jsonl"), "library": "Movies"}},
 		"library_filters":     {{"library": "Movies"}},
-		"library_genres":      {nil},
 		"library_get":         {{"library": "Movies"}},
 		"library_items":       {{"library": "Movies", "user": "alice", "watched": "unwatched"}, {"query": "Princess"}},
 		"library_list":        {nil},
-		"library_recent":      {{"library": "Movies", "limit": 3}},
 		"person_get":          {{"person": "Scott"}, {"person": "Ridley Scott"}},
-		"plan_check":          {{"library": "Movies", "entries": []map[string]any{{"path": str(call(t, "item_get", map[string]any{"id": arrival})["path"])}}}},
+		"plan_check":          {{"library": "Movies", "entries": []map[string]any{{"path": acc.Str(suite.Call(t, "item_get", map[string]any{"id": arrival})["path"])}}}},
 		"playlist_get":        {{"playlist": pl}},
 		"playlist_list":       {nil},
 		"quality_compare":     {{"a": map[string]any{"item_id": arrival}, "b": map[string]any{"item_id": messyArrival}}},
-		"server_activity":     {{"days": 1, "limit": 5}},
+		"server_activity":     {{"days": 1, "limit": 5}, {"item": mononoke, "days": 7}, {"user": "alice", "days": 1}},
 		"server_devices":      {nil},
 		"server_info":         {nil},
 		"server_log":          {{"lines": 5}},
-		"server_logs":         {nil},
 		"server_stats":        {nil},
 		"session_list":        {nil},
 		"show_episodes_exist": {{"series_id": severance, "episodes": []map[string]any{{"season": 1, "episode": 1}}}},
@@ -1031,7 +928,7 @@ func TestLookupsChangeNothing(t *testing.T) {
 			continue
 		}
 		for _, args := range calls {
-			call(t, name, args)
+			suite.Call(t, name, args)
 		}
 	}
 
@@ -1120,24 +1017,24 @@ func restrictAlice(t *testing.T, libraries ...string) {
 func TestUserLibraryAccess(t *testing.T) {
 	restrictAlice(t, "Movies")
 
-	got := call(t, "user_get", map[string]any{"user": "alice"})
-	libs := strs(t, got["libraries"], "libraries")
-	if boolOf(got["all_libraries"]) || !slices.Contains(libs, "Movies") || slices.Contains(libs, "Shows") || slices.Contains(libs, "Messy Movies") {
+	got := suite.Call(t, "user_get", map[string]any{"user": "alice"})
+	libs := acc.Strs(t, got["libraries"], "libraries")
+	if acc.BoolOf(got["all_libraries"]) || !slices.Contains(libs, "Movies") || slices.Contains(libs, "Shows") || slices.Contains(libs, "Messy Movies") {
 		t.Errorf("user_get alice: all_libraries %v, libraries %v, want Movies alone", got["all_libraries"], libs)
 	}
-	if n := num(t, call(t, "library_items", map[string]any{"library": "Movies", "user": "alice"})["total"], "total"); n != len(movies) {
+	if n := acc.Num(t, suite.Call(t, "library_items", map[string]any{"library": "Movies", "user": "alice"})["total"], "total"); n != len(movies) {
 		t.Errorf("alice sees %d films in Movies, want 8", n)
 	}
 	for tool, args := range map[string]map[string]any{
 		"library_items": {"library": "Shows", "user": "alice"},
 		"user_stats":    {"library": "Shows", "user": "alice"},
 	} {
-		if msg := callErr(t, tool, args); !strings.Contains(msg, "cannot see the Shows library") {
+		if msg := suite.CallErr(t, tool, args); !strings.Contains(msg, "cannot see the Shows library") {
 			t.Errorf("%s in a library alice cannot see: %s", tool, msg)
 		}
 	}
 	// root still sees everything
-	if root := call(t, "user_get", nil); !boolOf(root["all_libraries"]) {
+	if root := suite.Call(t, "user_get", nil); !acc.BoolOf(root["all_libraries"]) {
 		t.Errorf("root = %v", root)
 	}
 }
@@ -1151,28 +1048,28 @@ func TestWritesTwice(t *testing.T) {
 	t.Run("watched and favourite", func(t *testing.T) {
 		// Aliens: its tmdb id is its own, and Emby keeps watch state by
 		// provider id, so marking a film with a copy elsewhere marks both
-		before := call(t, "user_stats", map[string]any{"user": "alice"})
+		before := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
 		unmarkLater(t, "alice", aliens)
 		for range 2 {
 			// both in one call
-			if out := call(t, "item_set_state", map[string]any{"id": aliens, "user": "alice", "watched": true, "favourite": true}); !boolOf(out["watched"]) || !boolOf(out["favourite"]) || str(out["item"]) != "Aliens" {
+			if out := suite.Call(t, "item_set_state", map[string]any{"id": aliens, "user": "alice", "watched": true, "favourite": true}); !acc.BoolOf(out["watched"]) || !acc.BoolOf(out["favourite"]) || acc.Str(out["item"]) != "Aliens" {
 				t.Errorf("item_set_state = %v", out)
 			}
-			after := call(t, "user_stats", map[string]any{"user": "alice"})
-			if num(t, after["movies_watched"], "movies_watched") != num(t, before["movies_watched"], "movies_watched")+1 ||
-				num(t, after["favourites"], "favourites") != num(t, before["favourites"], "favourites")+1 {
+			after := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
+			if acc.Num(t, after["movies_watched"], "movies_watched") != acc.Num(t, before["movies_watched"], "movies_watched")+1 ||
+				acc.Num(t, after["favourites"], "favourites") != acc.Num(t, before["favourites"], "favourites")+1 {
 				t.Errorf("alice after marking Aliens: %v watched %v favourites, was %v and %v", after["movies_watched"], after["favourites"], before["movies_watched"], before["favourites"])
 			}
 		}
 	})
 
 	t.Run("collection add", func(t *testing.T) {
-		col := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Twice", "item_ids": []any{alien}})["id"])
+		col := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Twice", "item_ids": []any{alien}})["id"])
 		deleteLater(t, "collection_delete", "collection", col)
-		if out := call(t, "collection_add", map[string]any{"collection": col, "item_ids": []any{alien, aliens}}); num(t, out["added"], "added") != 1 || num(t, out["already_held"], "already_held") != 1 {
+		if out := suite.Call(t, "collection_edit", map[string]any{"collection": col, "add_items": []any{alien, aliens}}); acc.Num(t, out["added"], "added") != 1 || acc.Num(t, out["already_held"], "already_held") != 1 {
 			t.Errorf("adding a member and a new item = %v", out)
 		}
-		if out := call(t, "collection_add", map[string]any{"collection": col, "item_ids": []any{alien}}); num(t, out["added"], "added") != 0 || num(t, out["already_held"], "already_held") != 1 {
+		if out := suite.Call(t, "collection_edit", map[string]any{"collection": col, "add_items": []any{alien}}); acc.NumOr0(out["added"]) != 0 || acc.Num(t, out["already_held"], "already_held") != 1 {
 			t.Errorf("adding a member again = %v", out)
 		}
 		if n := collectionSize(t, col, 2); n != 2 {
@@ -1181,14 +1078,14 @@ func TestWritesTwice(t *testing.T) {
 	})
 
 	t.Run("playlist add", func(t *testing.T) {
-		pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Twice", "item_ids": []any{alien}, "media_type": "Video"})["id"])
+		pl := acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": "Zzyzx Twice", "item_ids": []any{alien}, "media_type": "Video"})["id"])
 		deleteLater(t, "playlist_delete", "playlist", pl)
 		// a playlist may hold an item twice
-		if out := call(t, "playlist_add", map[string]any{"playlist": pl, "item_ids": []any{alien}}); num(t, out["added"], "added") != 1 {
+		if out := suite.Call(t, "playlist_edit", map[string]any{"playlist": pl, "add_items": []any{alien}}); acc.Num(t, out["added"], "added") != 1 {
 			t.Errorf("adding it again = %v", out)
 		}
 		entries := playlistEntries(t, pl, 2)
-		if len(entries) != 2 || str(entries[0]["name"]) != "Alien" || str(entries[1]["name"]) != "Alien" {
+		if len(entries) != 2 || acc.Str(entries[0]["name"]) != "Alien" || acc.Str(entries[1]["name"]) != "Alien" {
 			t.Fatalf("the playlist = %v", entries)
 		}
 		// removing one entry: Emby numbers them, Jellyfin's is the item id, so
@@ -1199,17 +1096,17 @@ func TestWritesTwice(t *testing.T) {
 		}
 		// on Emby each entry has its own id, and an old id of one could name
 		// the other after a change: the playlist's fingerprint is needed
-		remove := map[string]any{"playlist": pl, "entry_ids": []any{str(entries[0]["entry_id"])}, "item_ids": []any{alien}}
+		remove := map[string]any{"playlist": pl, "remove_entries": []any{map[string]any{"entry_id": acc.Str(entries[0]["entry_id"]), "item_id": alien}}}
 		if !isJellyfin() {
-			if msg := callErr(t, "playlist_remove", remove); !strings.Contains(msg, "more than once") || !strings.Contains(msg, "fingerprint") {
+			if msg := suite.CallErr(t, "playlist_edit", remove); !strings.Contains(msg, "more than once") || !strings.Contains(msg, "fingerprint") {
 				t.Errorf("removing one of two entries of an item without the fingerprint: %s", msg)
 			}
 		}
-		remove["fingerprint"] = str(call(t, "playlist_get", map[string]any{"playlist": pl})["fingerprint"])
+		remove["fingerprint"] = acc.Str(suite.Call(t, "playlist_get", map[string]any{"playlist": pl})["fingerprint"])
 		// on Jellyfin the entry id names both, which it removes together:
 		// refused unless all_copies says to take both
 		if isJellyfin() {
-			if msg := callErr(t, "playlist_remove", remove); !strings.Contains(msg, "names all 2 entries of Alien") || !strings.Contains(msg, "pass all_copies") {
+			if msg := suite.CallErr(t, "playlist_edit", remove); !strings.Contains(msg, "names all 2 entries of Alien") || !strings.Contains(msg, "pass all_copies") {
 				t.Errorf("removing one entry of an item held twice on Jellyfin: %s", msg)
 			}
 			if n := len(playlistEntries(t, pl, 2)); n != 2 {
@@ -1217,7 +1114,7 @@ func TestWritesTwice(t *testing.T) {
 			}
 			remove["all_copies"] = true
 		}
-		if out := call(t, "playlist_remove", remove); num(t, out["removed"], "removed") != want {
+		if out := suite.Call(t, "playlist_edit", remove); acc.Num(t, out["removed"], "removed") != want {
 			t.Errorf("removing one of the two = %v, want %d removed", out, want)
 		}
 		if n := len(playlistEntries(t, pl, 2-want)); n != 2-want {
@@ -1227,16 +1124,16 @@ func TestWritesTwice(t *testing.T) {
 
 	t.Run("metadata rename", func(t *testing.T) {
 		keepFiles(t, itemFolder(t, arrival))
-		putBack(t, "item_edit", map[string]any{"ids": []any{arrival}, "remove_tags": []any{"zzyzx-twice", "zzyzx-once"}})
-		call(t, "item_edit", map[string]any{"ids": []any{arrival}, "add_tags": []any{"zzyzx-twice"}})
+		suite.PutBack(t, "item_edit", map[string]any{"ids": []any{arrival}, "remove_tags": []any{"zzyzx-twice", "zzyzx-once"}})
+		suite.Call(t, "item_edit", map[string]any{"ids": []any{arrival}, "add_tags": []any{"zzyzx-twice"}})
 		rename := map[string]any{"field": "tags", "from": "zzyzx-twice", "to": "zzyzx-once", "library": "Movies"}
-		if out := call(t, "metadata_rename", rename); num(t, out["updated"], "updated") != 1 {
+		if out := suite.Call(t, "metadata_rename", rename); acc.Num(t, out["updated"], "updated") != 1 {
 			t.Errorf("the rename = %v", out)
 		}
-		if out := call(t, "metadata_rename", rename); num(t, out["updated"], "updated") != 0 {
+		if out := suite.Call(t, "metadata_rename", rename); acc.Num(t, out["updated"], "updated") != 0 {
 			t.Errorf("the rename again = %v", out)
 		}
-		if tags := strs(t, call(t, "item_get", map[string]any{"id": arrival})["tags"], "tags"); !slices.Contains(tags, "zzyzx-once") || slices.Contains(tags, "zzyzx-twice") {
+		if tags := acc.Strs(t, suite.Call(t, "item_get", map[string]any{"id": arrival})["tags"], "tags"); !slices.Contains(tags, "zzyzx-once") || slices.Contains(tags, "zzyzx-twice") {
 			t.Errorf("after the rename Arrival's tags are %v, want zzyzx-once and no zzyzx-twice", tags)
 		}
 	})
@@ -1245,47 +1142,47 @@ func TestWritesTwice(t *testing.T) {
 // Everything that resolves by name resolves by id to the same thing, and a
 // name several share is refused with their ids.
 func TestResolveByIDAndName(t *testing.T) {
-	for _, l := range rows(t, call(t, "library_list", nil)["libraries"], "libraries") {
-		byID := call(t, "library_get", map[string]any{"library": str(l["id"])})
-		byName := call(t, "library_get", map[string]any{"library": str(l["name"])})
-		if str(byID["name"]) != str(l["name"]) || str(byName["id"]) != str(l["id"]) {
+	for _, l := range acc.Rows(t, suite.Call(t, "library_list", nil)["libraries"], "libraries") {
+		byID := suite.Call(t, "library_get", map[string]any{"library": acc.Str(l["id"])})
+		byName := suite.Call(t, "library_get", map[string]any{"library": acc.Str(l["name"])})
+		if acc.Str(byID["name"]) != acc.Str(l["name"]) || acc.Str(byName["id"]) != acc.Str(l["id"]) {
 			t.Errorf("library %v: by id %v, by name %v", l["name"], byID["name"], byName["id"])
 		}
 	}
-	for _, u := range rows(t, call(t, "user_list", nil)["users"], "users") {
-		byID := call(t, "user_get", map[string]any{"user": str(u["id"])})
-		byName := call(t, "user_get", map[string]any{"user": str(u["name"])})
-		if str(byID["name"]) != str(u["name"]) || str(byName["id"]) != str(u["id"]) {
+	for _, u := range acc.Rows(t, suite.Call(t, "user_list", nil)["users"], "users") {
+		byID := suite.Call(t, "user_get", map[string]any{"user": acc.Str(u["id"])})
+		byName := suite.Call(t, "user_get", map[string]any{"user": acc.Str(u["name"])})
+		if acc.Str(byID["name"]) != acc.Str(u["name"]) || acc.Str(byName["id"]) != acc.Str(u["id"]) {
 			t.Errorf("user %v: by id %v, by name %v", u["name"], byID["name"], byName["id"])
 		}
 	}
 	// a part of a name answers with the people it could mean (Emby lists
 	// Adam Scott too), each by name and id
 	var ridley string
-	for _, p := range rows(t, call(t, "person_get", map[string]any{"person": "Scott"})["candidates"], "candidates") {
-		if str(p["name"]) == "Ridley Scott" {
-			ridley = str(p["id"])
+	for _, p := range acc.Rows(t, suite.Call(t, "person_get", map[string]any{"person": "Scott"})["candidates"], "candidates") {
+		if acc.Str(p["name"]) == "Ridley Scott" {
+			ridley = acc.Str(p["id"])
 		}
 	}
 	if ridley == "" {
 		t.Fatal("person_get offered no Ridley Scott for Scott")
 	}
-	if byID := call(t, "person_get", map[string]any{"person": ridley}); str(byID["name"]) != "Ridley Scott" {
+	if byID := suite.Call(t, "person_get", map[string]any{"person": ridley}); acc.Str(byID["name"]) != "Ridley Scott" {
 		t.Errorf("person_get by id = %v", byID["name"])
 	}
-	if byName := call(t, "person_get", map[string]any{"person": "Ridley Scott"}); str(byName["id"]) != ridley {
+	if byName := suite.Call(t, "person_get", map[string]any{"person": "Ridley Scott"}); acc.Str(byName["id"]) != ridley {
 		t.Errorf("person_get by name = %v, want %s", byName["id"], ridley)
 	}
 
 	// the films named Dune, across libraries - the clean Dune and Dune: Part
 	// Two and the messy Dune - each resolve to themselves
-	dunes := rows(t, call(t, "library_items", map[string]any{"query": "Dune", "types": "Movie"})["items"], "items")
+	dunes := acc.Rows(t, suite.Call(t, "library_items", map[string]any{"query": "Dune", "types": "Movie"})["items"], "items")
 	if len(dunes) != 3 {
 		t.Errorf("the films named Dune are %v, want the three", dunes)
 	}
 	for _, it := range dunes {
-		got := call(t, "item_get", map[string]any{"id": str(it["id"])})
-		if str(got["name"]) != str(it["name"]) || str(got["path"]) != str(it["path"]) {
+		got := suite.Call(t, "item_get", map[string]any{"id": acc.Str(it["id"])})
+		if acc.Str(got["name"]) != acc.Str(it["name"]) || acc.Str(got["path"]) != acc.Str(it["path"]) {
 			t.Errorf("item %v: item_get says %v at %v", it["id"], got["name"], got["path"])
 		}
 	}
@@ -1293,16 +1190,16 @@ func TestResolveByIDAndName(t *testing.T) {
 	// two playlists may share a name: by name is then refused, with the ids
 	var ids []string
 	for range 2 {
-		id := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Twin"})["id"])
+		id := acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": "Zzyzx Twin"})["id"])
 		ids = append(ids, id)
 		deleteLater(t, "playlist_delete", "playlist", id)
 	}
-	msg := callErr(t, "playlist_get", map[string]any{"playlist": "zzyzx twin"})
+	msg := suite.CallErr(t, "playlist_get", map[string]any{"playlist": "zzyzx twin"})
 	if !strings.Contains(msg, "2 playlists are named") || !strings.Contains(msg, ids[0]) || !strings.Contains(msg, ids[1]) {
 		t.Errorf("playlist_get by a shared name: %s", msg)
 	}
 	for _, id := range ids {
-		if got := call(t, "playlist_get", map[string]any{"playlist": id}); str(got["name"]) != "Zzyzx Twin" {
+		if got := suite.Call(t, "playlist_get", map[string]any{"playlist": id}); acc.Str(got["name"]) != "Zzyzx Twin" {
 			t.Errorf("playlist_get by id %s = %v", id, got["name"])
 		}
 	}
@@ -1312,76 +1209,43 @@ func TestResolveByIDAndName(t *testing.T) {
 	// the tool refuses one and the first keeps what it held
 	alien := findItem(t, "Movies", "Movie", "Alien")
 	aliens := findItem(t, "Movies", "Movie", "Aliens")
-	first := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Twin", "item_ids": []any{alien}})["id"])
+	first := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Twin", "item_ids": []any{alien}})["id"])
 	deleteLater(t, "collection_delete", "collection", first)
-	if msg := callErr(t, "collection_create", map[string]any{"name": "zzyzx twin", "item_ids": []any{aliens}}); !strings.Contains(msg, "exists") || !strings.Contains(msg, first) {
+	if msg := suite.CallErr(t, "collection_create", map[string]any{"name": "zzyzx twin", "item_ids": []any{aliens}}); !strings.Contains(msg, "exists") || !strings.Contains(msg, first) {
 		t.Errorf("a second collection named Zzyzx Twin: %s", msg)
 	}
-	if byName := call(t, "collection_get", map[string]any{"collection": "Zzyzx Twin"}); fmt.Sprint(names(t, byName["items"], "items")) != fmt.Sprint([]string{"Alien"}) {
+	if byName := suite.Call(t, "collection_get", map[string]any{"collection": "Zzyzx Twin"}); fmt.Sprint(names(t, byName["items"], "items")) != fmt.Sprint([]string{"Alien"}) {
 		t.Errorf("collection_get by name = %v", byName["items"])
 	}
 	// a collection with nothing in it: Emby cannot make one, and the tool says
 	// so; Jellyfin makes it, and it lists, holding nothing
 	if !isJellyfin() {
-		if msg := callErr(t, "collection_create", map[string]any{"name": "Zzyzx Empty"}); !strings.Contains(msg, "empty collection") {
+		if msg := suite.CallErr(t, "collection_create", map[string]any{"name": "Zzyzx Empty"}); !strings.Contains(msg, "empty collection") {
 			t.Errorf("an empty collection on Emby: %s", msg)
 		}
 		return
 	}
-	empty := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Empty"})["id"])
+	empty := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Empty"})["id"])
 	// deleted at once, while the refresh Jellyfin starts on a new collection
 	// is still running: collection_delete answers only once it stays gone
 	t.Cleanup(func() {
-		if _, err := invoke("collection_delete", map[string]any{"collection": empty}); err != nil {
+		if _, err := suite.Invoke("collection_delete", map[string]any{"collection": empty}); err != nil {
 			t.Errorf("deleting the empty collection: %v", err)
 		}
-		if _, err := invoke("collection_get", map[string]any{"collection": empty}); err == nil {
+		if _, err := suite.Invoke("collection_get", map[string]any{"collection": empty}); err == nil {
 			t.Error("the empty collection is back after collection_delete answered")
 		}
 	})
-	if got := call(t, "collection_get", map[string]any{"collection": empty}); len(rows(t, got["items"], "items")) != 0 {
+	if got := suite.Call(t, "collection_get", map[string]any{"collection": empty}); len(acc.Rows(t, got["items"], "items")) != 0 {
 		t.Errorf("the empty collection holds %v", got["items"])
 	}
 	listed := false
-	for _, c := range rows(t, call(t, "collection_list", nil)["collections"], "collections") {
-		listed = listed || str(c["id"]) == empty
+	for _, c := range acc.Rows(t, suite.Call(t, "collection_list", nil)["collections"], "collections") {
+		listed = listed || acc.Str(c["id"]) == empty
 	}
 	if !listed {
 		t.Error("the empty collection is not listed")
 	}
-}
-
-// holds reports whether check stays true for a few seconds: a change the
-// server applies in the background (a refresh) that would undo something
-// shows within that.
-func holds(check func() bool) bool {
-	for range 10 {
-		if !check() {
-			return false
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	return true
-}
-
-// eventually reports whether check comes true within about twenty seconds.
-func eventually(check func() bool) bool {
-	return eventuallyWithin(20*time.Second, check)
-}
-
-// eventuallyWithin is eventually with its own patience, for work a server
-// queues behind whatever else it is doing: a refresh that asks the providers
-// can wait on a scan's.
-func eventuallyWithin(patience time.Duration, check func() bool) bool {
-	for range int(patience / (500 * time.Millisecond)) {
-		if check() {
-			return true
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	return false
 }
 
 // plotOf reads the plot an nfo gives.
@@ -1416,75 +1280,75 @@ func TestEditsSurviveARefreshAndAScan(t *testing.T) {
 			const overview = "Zzyzx: an overview typed by hand."
 			edit := func() {
 				t.Helper()
-				call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": overview})
-				call(t, "item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{"zzyzx-kept"}, "add_genres": []any{"Zzyzx Kept"}})
+				suite.Call(t, "item_edit", map[string]any{"ids": []any{id}, "overview": overview})
+				suite.Call(t, "item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{"zzyzx-kept"}, "add_genres": []any{"Zzyzx Kept"}})
 			}
 			edit()
 			edited := func() bool {
-				got := call(t, "item_get", map[string]any{"id": id})
-				return str(got["overview"]) == overview && slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept") && slices.Contains(strs(t, got["genres"], "genres"), "Zzyzx Kept")
+				got := suite.Call(t, "item_get", map[string]any{"id": id})
+				return acc.Str(got["overview"]) == overview && slices.Contains(acc.Strs(t, got["tags"], "tags"), "zzyzx-kept") && slices.Contains(acc.Strs(t, got["genres"], "genres"), "Zzyzx Kept")
 			}
 			if !edited() {
-				t.Fatalf("the edit did not land: %v", call(t, "item_get", map[string]any{"id": id}))
+				t.Fatalf("the edit did not land: %v", suite.Call(t, "item_get", map[string]any{"id": id}))
 			}
 
 			if !refreshed(t, id) {
 				t.Fatal("the refresh never ran")
 			}
-			if !holds(edited) {
-				t.Errorf("item_refresh undid the edit: %v", call(t, "item_get", map[string]any{"id": id}))
+			if !acc.Holds(edited) {
+				t.Errorf("item_refresh undid the edit: %v", suite.Call(t, "item_get", map[string]any{"id": id}))
 			}
 
 			// the file written again, as a download that replaces it would:
 			// the scan re-reads it and saves the film
-			file := hostPath(str(call(t, "item_get", map[string]any{"id": id})["path"]))
+			file := hostPath(acc.Str(suite.Call(t, "item_get", map[string]any{"id": id})["path"]))
 			now := time.Now()
 			if err := os.Chtimes(file, now, now); err != nil {
 				t.Fatal(err)
 			}
 			was := itemEtag(t, id)
-			if err := waitForScan(); err != nil {
+			if err := suite.WaitForScan(); err != nil {
 				t.Fatal(err)
 			}
-			call(t, "library_scan", nil)
+			suite.Call(t, "library_scan", nil)
 			if !savedSince(t, id, was) {
 				t.Fatal("the scan never re-read the film whose file changed")
 			}
-			if err := waitForScan(); err != nil {
+			if err := suite.WaitForScan(); err != nil {
 				t.Fatal(err)
 			}
 			if isJellyfin() {
-				if !holds(edited) {
-					t.Errorf("a scan that re-read the film undid the edit: %v", call(t, "item_get", map[string]any{"id": id}))
+				if !acc.Holds(edited) {
+					t.Errorf("a scan that re-read the film undid the edit: %v", suite.Call(t, "item_get", map[string]any{"id": id}))
 				}
 			} else {
-				got := call(t, "item_get", map[string]any{"id": id})
-				if str(got["overview"]) != plot || plot == "" || slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept") {
+				got := suite.Call(t, "item_get", map[string]any{"id": id})
+				if acc.Str(got["overview"]) != plot || plot == "" || slices.Contains(acc.Strs(t, got["tags"], "tags"), "zzyzx-kept") {
 					t.Errorf("after a scan re-read the film its overview is %q and tags %v, want the nfo's plot %q back over the edit", got["overview"], got["tags"], plot)
 				}
 				// typed again, for what follows
 				edit()
 				if !edited() {
-					t.Fatalf("the edit did not land again: %v", call(t, "item_get", map[string]any{"id": id}))
+					t.Fatalf("the edit did not land again: %v", suite.Call(t, "item_get", map[string]any{"id": id}))
 				}
 			}
 
 			if c.library == "Messy Movies" {
 				// Jellyfin would clear the film rather than re-read its nfo
-				if msg := callErr(t, "item_refresh", map[string]any{"id": id, "replace_all": true}); !strings.Contains(msg, "metadata fetchers off") {
+				if msg := suite.CallErr(t, "item_refresh", map[string]any{"id": id, "replace_all": true}); !strings.Contains(msg, "metadata fetchers off") {
 					t.Errorf("replace_all without fetchers: %s", msg)
 				}
 				if !edited() {
-					t.Errorf("the refused replace_all changed the film: %v", call(t, "item_get", map[string]any{"id": id}))
+					t.Errorf("the refused replace_all changed the film: %v", suite.Call(t, "item_get", map[string]any{"id": id}))
 				}
 				return
 			}
 			// and item_refresh answers once the refresh has run: what it
 			// replaced is gone at the first read after
-			if out := call(t, "item_refresh", map[string]any{"id": id, "replace_all": true}); !boolOf(out["landed"]) {
+			if out := suite.Call(t, "item_refresh", map[string]any{"id": id, "replace_all": true}); !acc.BoolOf(out["landed"]) {
 				t.Fatalf("item_refresh replace_all = %v, want it seen to land", out)
 			}
-			if got := call(t, "item_get", map[string]any{"id": id}); str(got["overview"]) == overview || str(got["overview"]) == "" || slices.Contains(strs(t, got["tags"], "tags"), "zzyzx-kept") {
+			if got := suite.Call(t, "item_get", map[string]any{"id": id}); acc.Str(got["overview"]) == overview || acc.Str(got["overview"]) == "" || slices.Contains(acc.Strs(t, got["tags"], "tags"), "zzyzx-kept") {
 				t.Errorf("replace_all kept the edit: %v", got)
 			}
 		})
@@ -1513,37 +1377,37 @@ func TestParallelWrites(t *testing.T) {
 		var wg sync.WaitGroup
 		for _, tag := range tags {
 			wg.Go(func() {
-				if _, err := invoke("item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{tag}}); err != nil {
+				if _, err := suite.Invoke("item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{tag}}); err != nil {
 					t.Error(err)
 				}
 			})
 		}
 		wg.Go(func() {
-			if _, err := invoke("item_edit", map[string]any{"ids": []any{id}, "overview": "Zzyzx: edited alongside."}); err != nil {
+			if _, err := suite.Invoke("item_edit", map[string]any{"ids": []any{id}, "overview": "Zzyzx: edited alongside."}); err != nil {
 				t.Error(err)
 			}
 		})
 		wg.Wait()
 
-		got := call(t, "item_get", map[string]any{"id": id})
+		got := suite.Call(t, "item_get", map[string]any{"id": id})
 		for _, tag := range tags {
-			if !slices.Contains(strs(t, got["tags"], "tags"), tag.(string)) {
+			if !slices.Contains(acc.Strs(t, got["tags"], "tags"), tag.(string)) {
 				t.Errorf("tag %s was lost: the tags are %v", tag, got["tags"])
 			}
 		}
-		if str(got["overview"]) != "Zzyzx: edited alongside." {
+		if acc.Str(got["overview"]) != "Zzyzx: edited alongside." {
 			t.Errorf("the overview edit was lost: %v", got["overview"])
 		}
 	})
 
 	t.Run("a playlist", func(t *testing.T) {
-		pl := str(call(t, "playlist_create", map[string]any{"name": "Zzyzx Parallel", "item_ids": []any{alien}, "media_type": "Video"})["id"])
+		pl := acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": "Zzyzx Parallel", "item_ids": []any{alien}, "media_type": "Video"})["id"])
 		deleteLater(t, "playlist_delete", "playlist", pl)
 
 		var wg sync.WaitGroup
 		for _, id := range films {
 			wg.Go(func() {
-				if _, err := invoke("playlist_add", map[string]any{"playlist": pl, "item_ids": []any{id}}); err != nil {
+				if _, err := suite.Invoke("playlist_edit", map[string]any{"playlist": pl, "add_items": []any{id}}); err != nil {
 					t.Error(err)
 				}
 			})
@@ -1551,37 +1415,37 @@ func TestParallelWrites(t *testing.T) {
 		wg.Wait()
 		entries := playlistEntries(t, pl, 6)
 		if len(entries) != 6 {
-			t.Fatalf("after five adds at once the playlist holds %v", names(t, call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries"))
+			t.Fatalf("after five adds at once the playlist holds %v", names(t, suite.Call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries"))
 		}
 
 		// move the last to the top while another film is added
 		last := entries[5]
 		extra := findItem(t, "Movies", "Movie", "Dune: Part Two")
 		wg.Go(func() {
-			if _, err := invoke("playlist_edit", map[string]any{"playlist": pl, "move_entry_id": str(last["entry_id"]), "move_item_id": str(last["id"]), "position": 1}); err != nil {
+			if _, err := suite.Invoke("playlist_edit", map[string]any{"playlist": pl, "move_entry_id": acc.Str(last["entry_id"]), "move_item_id": acc.Str(last["id"]), "position": 1}); err != nil {
 				t.Errorf("the move: %v", err)
 			}
 		})
 		wg.Go(func() {
-			if _, err := invoke("playlist_add", map[string]any{"playlist": pl, "item_ids": []any{extra}}); err != nil {
+			if _, err := suite.Invoke("playlist_edit", map[string]any{"playlist": pl, "add_items": []any{extra}}); err != nil {
 				t.Errorf("the add: %v", err)
 			}
 		})
 		wg.Wait()
-		got := names(t, call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries")
-		if len(got) != 7 || got[0] != str(last["name"]) || !slices.Contains(got, "Dune: Part Two") {
+		got := names(t, suite.Call(t, "playlist_get", map[string]any{"playlist": pl})["entries"], "entries")
+		if len(got) != 7 || got[0] != acc.Str(last["name"]) || !slices.Contains(got, "Dune: Part Two") {
 			t.Errorf("after a move and an add at once the playlist is %v, want %s first and Dune: Part Two in it", got, last["name"])
 		}
 	})
 
 	t.Run("a collection", func(t *testing.T) {
-		col := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Parallel", "item_ids": []any{alien}})["id"])
+		col := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Parallel", "item_ids": []any{alien}})["id"])
 		deleteLater(t, "collection_delete", "collection", col)
 
 		var wg sync.WaitGroup
 		for _, id := range films {
 			wg.Go(func() {
-				if _, err := invoke("collection_add", map[string]any{"collection": col, "item_ids": []any{id}}); err != nil {
+				if _, err := suite.Invoke("collection_edit", map[string]any{"collection": col, "add_items": []any{id}}); err != nil {
 					t.Error(err)
 				}
 			})
@@ -1592,13 +1456,13 @@ func TestParallelWrites(t *testing.T) {
 		}
 		for _, id := range films[:3] {
 			wg.Go(func() {
-				if _, err := invoke("collection_remove", map[string]any{"collection": col, "item_ids": []any{id}}); err != nil {
+				if _, err := suite.Invoke("collection_edit", map[string]any{"collection": col, "remove_items": []any{id}}); err != nil {
 					t.Error(err)
 				}
 			})
 		}
 		wg.Wait()
-		if got := names(t, call(t, "collection_get", map[string]any{"collection": col})["items"], "items"); !slices.Equal(sorted(got), []string{"Alien", "Arrival", "The Thirteenth Floor"}) {
+		if got := names(t, suite.Call(t, "collection_get", map[string]any{"collection": col})["items"], "items"); !slices.Equal(acc.Sorted(got), []string{"Alien", "Arrival", "The Thirteenth Floor"}) {
 			t.Errorf("after three removals at once the collection holds %v", got)
 		}
 	})
@@ -1621,7 +1485,7 @@ func copyRenamed(t *testing.T, src, dst, from, to string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mediaMkdir(t, dst)
+	acc.MediaMkdir(t, testenv.DataDir(), dst)
 	for _, e := range entries {
 		name := strings.ReplaceAll(e.Name(), from, to)
 		if e.IsDir() {
@@ -1632,7 +1496,7 @@ func copyRenamed(t *testing.T, src, dst, from, to string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mediaWrite(t, filepath.Join(dst, name), raw)
+		acc.MediaWrite(t, filepath.Join(dst, name), raw)
 	}
 }
 
@@ -1640,30 +1504,30 @@ func copyRenamed(t *testing.T, src, dst, from, to string) {
 // the playlist, collection and favourites that held their items let go of
 // them, and the audits and lookups count one fewer.
 func TestDeletesLeaveNothingBehind(t *testing.T) {
-	if dataDir() == "" {
+	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
 	dune := findItem(t, "Movies", "Movie", "Dune")
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	alienCopies := func() int {
-		return len(rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348", "type": "movie"})["items"], "items"))
+		return len(acc.Rows(t, suite.Call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348", "type": "movie"})["items"], "items"))
 	}
 	// the messy Aliens as the server shows them: Jellyfin as separate
 	// entries, which audit_duplicates groups; Emby as one film's versions,
 	// merging every copy that shares the TMDB id
 	alienGroup := func() int {
 		if !isJellyfin() {
-			for _, f := range rowsOf(call(t, "audit_multiple_versions", map[string]any{"library": "Messy Movies"})["findings"]) {
-				if title(str(f["name"])) == "Alien" {
-					n, _ := strconv.Atoi(strings.SplitN(str(f["detail"]), " ", 2)[0])
+			for _, f := range acc.RowsOf(suite.Call(t, "audit_multiple_versions", map[string]any{"library": "Messy Movies"})["findings"]) {
+				if title(acc.Str(f["name"])) == "Alien" {
+					n, _ := strconv.Atoi(strings.SplitN(acc.Str(f["detail"]), " ", 2)[0])
 					return n
 				}
 			}
 			return 0
 		}
-		groups, _ := call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})["groups"].([]any)
+		groups, _ := suite.Call(t, "audit_duplicates", map[string]any{"library": "Messy Movies"})["groups"].([]any)
 		for _, g := range groups {
-			if group := rowsOf(g); len(group) > 0 && str(group[0]["name"]) == "Alien" {
+			if group := acc.RowsOf(g); len(group) > 0 && acc.Str(group[0]["name"]) == "Alien" {
 				return len(group)
 			}
 		}
@@ -1672,18 +1536,18 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 	// the lists are named after the test holding them: Emby cannot recreate a
 	// collection under the name of the first it created, once deleted
 	held := func(name, id string) (playlist, collection, favourite bool) {
-		for _, p := range rowsOf(call(t, "playlist_list", nil)["playlists"]) {
-			if str(p["name"]) == name {
-				for _, e := range rowsOf(call(t, "playlist_get", map[string]any{"playlist": str(p["id"])})["entries"]) {
-					playlist = playlist || str(e["id"]) == id
+		for _, p := range acc.RowsOf(suite.Call(t, "playlist_list", nil)["playlists"]) {
+			if acc.Str(p["name"]) == name {
+				for _, e := range acc.RowsOf(suite.Call(t, "playlist_get", map[string]any{"playlist": acc.Str(p["id"])})["entries"]) {
+					playlist = playlist || acc.Str(e["id"]) == id
 				}
 			}
 		}
-		for _, it := range rowsOf(call(t, "collection_get", map[string]any{"collection": name})["items"]) {
-			collection = collection || str(it["id"]) == id
+		for _, it := range acc.RowsOf(suite.Call(t, "collection_get", map[string]any{"collection": name})["items"]) {
+			collection = collection || acc.Str(it["id"]) == id
 		}
-		for _, it := range rowsOf(call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite"})["items"]) {
-			favourite = favourite || str(it["id"]) == id
+		for _, it := range acc.RowsOf(suite.Call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite"})["items"]) {
+			favourite = favourite || acc.Str(it["id"]) == id
 		}
 		return playlist, collection, favourite
 	}
@@ -1691,12 +1555,12 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 	// its favourites list then shows only some of them
 	hold := func(t *testing.T, name, id string, favourite bool) {
 		t.Helper()
-		pl := str(call(t, "playlist_create", map[string]any{"name": name, "item_ids": []any{id, dune}, "media_type": "Video"})["id"])
+		pl := acc.Str(suite.Call(t, "playlist_create", map[string]any{"name": name, "item_ids": []any{id, dune}, "media_type": "Video"})["id"])
 		deleteLater(t, "playlist_delete", "playlist", pl)
-		col := str(call(t, "collection_create", map[string]any{"name": name, "item_ids": []any{id, arrival}})["id"])
+		col := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": name, "item_ids": []any{id, arrival}})["id"])
 		deleteLater(t, "collection_delete", "collection", col)
 		if favourite {
-			call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "favourite": true})
+			suite.Call(t, "item_set_state", map[string]any{"id": id, "user": "alice", "favourite": true})
 		}
 		if p, c, f := held(name, id); !p || !c || f != favourite {
 			t.Fatalf("the item is not held: playlist %v collection %v favourite %v", p, c, f)
@@ -1708,13 +1572,13 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 	// folders' files, so the delete must still reach no further than the
 	// copy's own folder
 	t.Run("a duplicate pruned", func(t *testing.T) {
-		have := movieCount(t, "Messy Movies")
+		have := typeCount(t, "Messy Movies", "Movie")
 		copies, group := alienCopies(), alienGroup()
 		const copyName = "Alien (1979) Copy"
-		dst := filepath.Join(dataDir(), "messy-movies", copyName)
+		dst := filepath.Join(testenv.DataDir(), "messy-movies", copyName)
 		// every other copy's files, on disk, to hold them to after the delete
 		kept := map[string][]byte{}
-		for _, dir := range []string{filepath.Join(dataDir(), "messy-movies", messyAlien), filepath.Join(dataDir(), "messy-movies", messyAlienCut), filepath.Join(dataDir(), "movies", "Alien (1979)")} {
+		for _, dir := range []string{filepath.Join(testenv.DataDir(), "messy-movies", messyAlien), filepath.Join(testenv.DataDir(), "messy-movies", messyAlienCut), filepath.Join(testenv.DataDir(), "movies", "Alien (1979)")} {
 			_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 				if err == nil && !d.IsDir() {
 					kept[path], _ = os.ReadFile(path) //nolint:gosec // a fixture under the test data dir
@@ -1722,7 +1586,7 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 				return nil
 			})
 		}
-		copyFixture(t, filepath.Join(dataDir(), "messy-movies", messyAlien), dst)
+		copyFixture(t, filepath.Join(testenv.DataDir(), "messy-movies", messyAlien), dst)
 		t.Cleanup(func() {
 			if err := os.RemoveAll(dst); err != nil {
 				t.Error(err)
@@ -1735,9 +1599,9 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 			t.Fatal(err)
 		}
 		var id string
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Alien", "limit": 50})["items"], "items") {
-			if strings.Contains(str(it["path"]), "/"+copyName+"/") {
-				id = str(it["id"])
+		for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Alien", "limit": 50})["items"], "items") {
+			if strings.Contains(acc.Str(it["path"]), "/"+copyName+"/") {
+				id = acc.Str(it["id"])
 			}
 		}
 		if id == "" {
@@ -1749,11 +1613,11 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		hold(t, "Zzyzx Pruned", id, false)
 
 		server := "/media/messy-movies/" + copyName
-		msg := callErr(t, "item_delete", map[string]any{"id": id})
+		msg := suite.CallErr(t, "item_delete", map[string]any{"id": id})
 		if !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || strings.Contains(msg, messyAlienCut) || strings.Contains(msg, "/media/movies/") {
 			t.Errorf("the refusal names more than the copy's folder: %s", msg)
 		}
-		out := call(t, "item_delete", map[string]any{"id": id, "confirm": true})
+		out := suite.Call(t, "item_delete", map[string]any{"id": id, "confirm": true})
 		got := removedPaths(t, out)
 		if !slices.Contains(got, server+"/") || !slices.Contains(got, server+"/"+copyName+".mp4") {
 			t.Errorf("removed = %v, want the copy's folder and file", got)
@@ -1778,7 +1642,7 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		if alienCopies() != copies || alienGroup() != group {
 			t.Errorf("after the delete: %d copies in a group of %d, want %d in %d", alienCopies(), alienGroup(), copies, group)
 		}
-		if msg := callErr(t, "item_get", map[string]any{"id": id}); !strings.Contains(msg, "no item") {
+		if msg := suite.CallErr(t, "item_get", map[string]any{"id": id}); !strings.Contains(msg, "no item") {
 			t.Errorf("item_get of the deleted copy: %s", msg)
 		}
 		// and a scan finds nothing to bring back: the counts hold
@@ -1791,73 +1655,73 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 	})
 
 	t.Run("a library removed", func(t *testing.T) {
-		raw, err := os.ReadFile(filepath.Join(dataDir(), "movies", "Arrival (2016)", "Arrival (2016).mp4")) //nolint:gosec // a fixture under the test data dir
+		raw, err := os.ReadFile(filepath.Join(testenv.DataDir(), "movies", "Arrival (2016)", "Arrival (2016).mp4")) //nolint:gosec // a fixture under the test data dir
 		if err != nil {
 			t.Fatal(err)
 		}
-		dir := filepath.Join(dataDir(), "ripple", "The Lord of the Rings The Return of the King (2003)")
+		dir := filepath.Join(testenv.DataDir(), "ripple", "The Lord of the Rings The Return of the King (2003)")
 		file := filepath.Join(dir, "The Lord of the Rings The Return of the King (2003).mp4")
-		mediaMkdir(t, dir)
-		mediaWrite(t, file, raw)
+		acc.MediaMkdir(t, testenv.DataDir(), dir)
+		acc.MediaWrite(t, file, raw)
 		t.Cleanup(func() {
-			if err := os.RemoveAll(filepath.Join(dataDir(), "ripple")); err != nil {
+			if err := os.RemoveAll(filepath.Join(testenv.DataDir(), "ripple")); err != nil {
 				t.Error(err)
 			}
 		})
 		t.Cleanup(func() {
 			// gone already when the test got as far as removing it
-			if !slices.ContainsFunc(rows(t, call(t, "library_list", nil)["libraries"], "libraries"), func(l map[string]any) bool { return str(l["name"]) == "Ripple" }) {
+			if !slices.ContainsFunc(acc.Rows(t, suite.Call(t, "library_list", nil)["libraries"], "libraries"), func(l map[string]any) bool { return acc.Str(l["name"]) == "Ripple" }) {
 				return
 			}
 			removeLibrary(t, "Ripple")
-			if err := waitForScan(); err != nil {
+			if err := suite.WaitForScan(); err != nil {
 				t.Error(err)
 			}
 		})
-		call(t, "library_create", map[string]any{"name": "Ripple", "type": "movies", "paths": []any{"/media/ripple"}, "scan": true})
+		suite.Call(t, "library_create", map[string]any{"name": "Ripple", "type": "movies", "paths": []any{"/media/ripple"}, "scan": true})
 		var id string
-		if !eventually(func() bool {
-			out, err := invoke("library_items", map[string]any{"library": "Ripple"})
-			if items := rowsOf(out["items"]); err == nil && len(items) == 1 {
-				id = str(items[0]["id"])
+		if !acc.Eventually(func() bool {
+			out, err := suite.Invoke("library_items", map[string]any{"library": "Ripple"})
+			if items := acc.RowsOf(out["items"]); err == nil && len(items) == 1 {
+				id = acc.Str(items[0]["id"])
 			}
 			return id != ""
 		}) {
 			t.Fatal("the library never held its film")
 		}
-		if err := waitForScan(); err != nil {
+		if err := suite.WaitForScan(); err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() {
 			// the film goes with its library; one still there is unmarked
-			if _, err := invoke("item_get", map[string]any{"id": id}); err != nil {
+			if _, err := suite.Invoke("item_get", map[string]any{"id": id}); err != nil {
 				return
 			}
-			if err := retried("item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false}); err != nil {
+			if err := suite.Retried("item_set_state", map[string]any{"id": id, "user": "alice", "favourite": false}); err != nil {
 				t.Errorf("unmarking the film: %v", err)
 			}
 		})
 		hold(t, "Zzyzx Removed", id, true)
-		favourites := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["favourites"], "favourites")
+		favourites := acc.Num(t, suite.Call(t, "user_stats", map[string]any{"user": "alice"})["favourites"], "favourites")
 
-		call(t, "library_delete", map[string]any{"library": "Ripple", "confirm": true})
+		suite.Call(t, "library_delete", map[string]any{"library": "Ripple", "confirm": true})
 		// the library goes; its folder and film stay on disk
 		if _, err := os.Stat(file); err != nil {
 			t.Errorf("removing the library took its film off the disk: %v", err)
 		}
 		// Jellyfin lets go of the items on the library scan the removal starts
-		if !eventually(func() bool {
+		if !acc.Eventually(func() bool {
 			p, c, f := held("Zzyzx Removed", id)
-			_, err := invoke("item_get", map[string]any{"id": id})
+			_, err := suite.Invoke("item_get", map[string]any{"id": id})
 			return !p && !c && !f && err != nil
 		}) {
 			p, c, f := held("Zzyzx Removed", id)
 			t.Errorf("the removed library's film is still held: playlist %v collection %v favourite %v", p, c, f)
 		}
-		if n := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["favourites"], "favourites"); n != favourites-1 {
+		if n := acc.Num(t, suite.Call(t, "user_stats", map[string]any{"user": "alice"})["favourites"], "favourites"); n != favourites-1 {
 			t.Errorf("alice has %d favourites, want %d", n, favourites-1)
 		}
-		if err := waitForScan(); err != nil {
+		if err := suite.WaitForScan(); err != nil {
 			t.Fatal(err)
 		}
 		// and the scans since have not taken it either
@@ -1872,10 +1736,10 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 func auditCounts(t *testing.T, args map[string]any) map[string]int {
 	t.Helper()
 
-	out := call(t, "audit_all", args)
-	counts := map[string]int{"total_findings": num(t, out["total_findings"], "total_findings")}
-	for _, row := range rows(t, out["audits"], "audits") {
-		counts[str(row["audit"])] = num(t, row["findings"], "findings")
+	out := suite.Call(t, "audit_all", args)
+	counts := map[string]int{"total_findings": acc.Num(t, out["total_findings"], "total_findings")}
+	for _, row := range acc.Rows(t, out["audits"], "audits") {
+		counts[rowKey(row)] = acc.Num(t, row["findings"], "findings")
 	}
 
 	return counts
@@ -1917,16 +1781,16 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			mediaWrite(t, nfo, plotless.ReplaceAll(raw, nil))
+			acc.MediaWrite(t, nfo, plotless.ReplaceAll(raw, nil))
 		}
-		if got := findings(t, call(t, "audit_missing_overview", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Arrival"}) {
-			t.Fatalf("audit_missing_overview = %v, want [Arrival]", got)
+		if got := findings(t, missing(t, "overview", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Arrival"}) {
+			t.Fatalf("audit_missing_metadata overview = %v, want [Arrival]", got)
 		}
-		call(t, "item_refresh", map[string]any{"id": arrival})
-		if !eventually(func() bool {
-			return num(t, call(t, "audit_missing_overview", map[string]any{"library": "Movies"})["total_findings"], "total_findings") == 0
+		suite.Call(t, "item_refresh", map[string]any{"id": arrival})
+		if !acc.Eventually(func() bool {
+			return acc.Num(t, missing(t, "overview", map[string]any{"library": "Movies"})["total_findings"], "total_findings") == 0
 		}) {
-			t.Errorf("after item_refresh Arrival still has no overview: %v", call(t, "item_get", map[string]any{"id": arrival}))
+			t.Errorf("after item_refresh Arrival still has no overview: %v", suite.Call(t, "item_get", map[string]any{"id": arrival}))
 		}
 	})
 
@@ -1949,37 +1813,37 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 			}
 		}
 		counts := auditCounts(t, nil)
-		if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Dune"}) {
+		if got := findings(t, suite.Call(t, "audit_file_path", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Dune"}) {
 			t.Fatalf("audit_file_path = %v, want [Dune]", got)
 		}
-		if n := len(rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841", "type": "movie"})["items"], "items")); n != 2 {
+		if n := len(acc.Rows(t, suite.Call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841", "type": "movie"})["items"], "items")); n != 2 {
 			t.Fatalf("tmdb 841 matches %d films, want the clean and the messy Dune", n)
 		}
 
 		idx := -1
-		for i, c := range rows(t, call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
-			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && str(ids["tmdb"]) == "438631" {
+		for i, c := range acc.Rows(t, suite.Call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
+			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && acc.Str(ids["tmdb"]) == "438631" {
 				idx = i
 			}
 		}
 		if idx < 0 {
 			t.Fatal("the 2021 Dune is not a candidate")
 		}
-		applied := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021}))
+		applied := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021}))
 		ids, _ := applied["metadata_provider_ids"].(map[string]any)
-		if str(ids["tmdb"]) != "438631" || num(t, applied["year"], "year") != 2021 {
+		if acc.Str(ids["tmdb"]) != "438631" || acc.Num(t, applied["year"], "year") != 2021 {
 			t.Errorf("item_identify_apply = %v", applied)
 		}
 		// no nfo is left to warn of; on Emby the watch state follows the ids,
 		// and the answer says so
-		if note := beyondNfoUnseen(str(applied["note"])); strings.Contains(note, "nfo") || isJellyfin() != (note == "") {
+		if note := beyondNfoUnseen(acc.Str(applied["note"])); strings.Contains(note, "nfo") || isJellyfin() != (note == "") {
 			t.Errorf("item_identify_apply's note = %q", note)
 		}
 
-		if got := findings(t, call(t, "audit_file_path", map[string]any{"library": "Movies"})); len(got) != 0 {
+		if got := findings(t, suite.Call(t, "audit_file_path", map[string]any{"library": "Movies"})); len(got) != 0 {
 			t.Errorf("after the re-match audit_file_path = %v", got)
 		}
-		if n := len(rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841", "type": "movie"})["items"], "items")); n != 1 {
+		if n := len(acc.Rows(t, suite.Call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "841", "type": "movie"})["items"], "items")); n != 1 {
 			t.Errorf("after the re-match tmdb 841 matches %d films, want the messy Dune alone", n)
 		}
 		after := auditCounts(t, nil)
@@ -1996,8 +1860,8 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 		restoreLater(t, dune)
 
 		idx := -1
-		for i, c := range rows(t, call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
-			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && str(ids["tmdb"]) == "438631" {
+		for i, c := range acc.Rows(t, suite.Call(t, "item_identify", map[string]any{"id": dune, "kind": "movie", "year": 2021})["candidates"], "candidates") {
+			if ids, _ := c["metadata_provider_ids"].(map[string]any); idx < 0 && acc.Str(ids["tmdb"]) == "438631" {
 				idx = i
 			}
 		}
@@ -2006,17 +1870,17 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 		}
 		// the ids are set by a plain edit, on both servers: they change and
 		// nothing is fetched, which the answer says
-		out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021}))
-		note := str(out["note"])
-		if ids, _ := out["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "438631" || !strings.Contains(note, "metadata fetchers off") {
+		out := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": dune, "kind": "movie", "candidate": idx, "year": 2021}))
+		note := acc.Str(out["note"])
+		if ids, _ := out["metadata_provider_ids"].(map[string]any); acc.Str(ids["tmdb"]) != "438631" || !strings.Contains(note, "metadata fetchers off") {
 			t.Errorf("item_identify_apply = %v", out)
 		}
-		if msg := callErr(t, "item_refresh", map[string]any{"id": dune, "replace_all": true}); !strings.Contains(msg, "metadata fetchers off") {
+		if msg := suite.CallErr(t, "item_refresh", map[string]any{"id": dune, "replace_all": true}); !strings.Contains(msg, "metadata fetchers off") {
 			t.Errorf("replace_all without fetchers: %s", msg)
 		}
 		tmdb := func() string {
-			ids, _ := call(t, "item_get", map[string]any{"id": dune})["metadata_provider_ids"].(map[string]any)
-			return str(ids["tmdb"])
+			ids, _ := suite.Call(t, "item_get", map[string]any{"id": dune})["metadata_provider_ids"].(map[string]any)
+			return acc.Str(ids["tmdb"])
 		}
 		if isJellyfin() {
 			// Jellyfin saves the new ids to the nfo, so a refresh keeps them
@@ -2024,11 +1888,11 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 				t.Errorf("the note warns of an nfo on a library that saves them: %q", note)
 			}
 			was := itemEtag(t, dune)
-			call(t, "item_refresh", map[string]any{"id": dune})
+			suite.Call(t, "item_refresh", map[string]any{"id": dune})
 			if !savedSince(t, dune, was) {
 				t.Fatal("the refresh never saved the film")
 			}
-			if !holds(func() bool { return tmdb() == "438631" }) {
+			if !acc.Holds(func() bool { return tmdb() == "438631" }) {
 				t.Errorf("a refresh after the apply left tmdb %s", tmdb())
 			}
 			return
@@ -2038,8 +1902,8 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 		if !strings.Contains(note, "does not save nfo files") {
 			t.Errorf("the note says nothing of the nfo a refresh reads: %q", note)
 		}
-		call(t, "item_refresh", map[string]any{"id": dune})
-		if !eventually(func() bool { return tmdb() == "841" }) {
+		suite.Call(t, "item_refresh", map[string]any{"id": dune})
+		if !acc.Eventually(func() bool { return tmdb() == "841" }) {
 			t.Errorf("after a refresh the nfo's id did not come back: tmdb %s", tmdb())
 		}
 	})
@@ -2050,33 +1914,33 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 // carries it.
 func TestGenresFollowEdits(t *testing.T) {
 	ids := []any{findItem(t, "Movies", "Movie", "Alien"), findItem(t, "Movies", "Movie", "Aliens")}
-	putBack(t, "item_edit", map[string]any{"ids": ids, "remove_genres": []any{"Zzyzx Franchise", "Zzyzx Saga"}})
+	suite.PutBack(t, "item_edit", map[string]any{"ids": ids, "remove_genres": []any{"Zzyzx Franchise", "Zzyzx Saga"}})
 	carried := func(genre string, want ...string) {
 		t.Helper()
-		if n := valueCounts(t, call(t, "library_filters", map[string]any{"library": "Movies"})["genres"], "genres")[genre]; n != len(want) {
+		if n := valueCounts(t, suite.Call(t, "library_filters", map[string]any{"library": "Movies"})["genres"], "genres")[genre]; n != len(want) {
 			t.Errorf("library_filters counts %s on %d films, want %d", genre, n, len(want))
 		}
-		if got := names(t, call(t, "library_items", map[string]any{"library": "Movies", "genres": []any{genre}})["items"], "items"); !slices.Equal(sorted(got), want) {
+		if got := names(t, suite.Call(t, "library_items", map[string]any{"library": "Movies", "genres": []any{genre}})["items"], "items"); !slices.Equal(acc.Sorted(got), want) {
 			t.Errorf("library_items genre %s = %v, want %v", genre, got, want)
 		}
-		if got := names(t, call(t, "library_items", map[string]any{"query": "Alien", "genres": []any{genre}})["items"], "items"); !slices.Equal(sorted(got), want) {
+		if got := names(t, suite.Call(t, "library_items", map[string]any{"query": "Alien", "genres": []any{genre}})["items"], "items"); !slices.Equal(acc.Sorted(got), want) {
 			t.Errorf("library_items query+genre %s = %v, want %v", genre, got, want)
 		}
 		for _, args := range []map[string]any{{"library": "Movies"}, nil} {
-			if listed := slices.Contains(strs(t, call(t, "library_genres", args)["genres"], "genres"), genre); listed != (len(want) > 0) {
-				t.Errorf("library_genres %v lists %s: %v, want %v", args, genre, listed, len(want) > 0)
+			if _, listed := valueCounts(t, suite.Call(t, "library_filters", args)["genres"], "genres")[genre]; listed != (len(want) > 0) {
+				t.Errorf("library_filters %v lists %s: %v, want %v", args, genre, listed, len(want) > 0)
 			}
 		}
 	}
 
-	call(t, "item_edit", map[string]any{"ids": ids, "add_genres": []any{"Zzyzx Franchise"}})
+	suite.Call(t, "item_edit", map[string]any{"ids": ids, "add_genres": []any{"Zzyzx Franchise"}})
 	carried("Zzyzx Franchise", "Alien", "Aliens")
 
-	call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Zzyzx Franchise", "to": "Zzyzx Saga", "library": "Movies"})
+	suite.Call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Zzyzx Franchise", "to": "Zzyzx Saga", "library": "Movies"})
 	carried("Zzyzx Franchise")
 	carried("Zzyzx Saga", "Alien", "Aliens")
 
-	call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Zzyzx Saga", "remove": true, "library": "Movies"})
+	suite.Call(t, "metadata_rename", map[string]any{"field": "genres", "from": "Zzyzx Saga", "remove": true, "library": "Movies"})
 	carried("Zzyzx Saga")
 }
 
@@ -2086,38 +1950,38 @@ func TestGenresFollowEdits(t *testing.T) {
 // watched, one favourite, and no copy of it left unwatched.
 func TestCopiesCountOnce(t *testing.T) {
 	alien := findItem(t, "Movies", "Movie", "Alien")
-	copies := rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348", "type": "movie"})["items"], "items")
+	copies := acc.Rows(t, suite.Call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": "tmdb", "id": "348", "type": "movie"})["items"], "items")
 	if len(copies) != 3 {
 		t.Fatalf("tmdb 348 has %d copies, want 3", len(copies))
 	}
 	for _, c := range copies {
-		unmarkLater(t, "alice", str(c["id"]))
+		unmarkLater(t, "alice", acc.Str(c["id"]))
 	}
 	unwatchedAliens := func(library string) int {
-		return len(slices.DeleteFunc(findings(t, call(t, "audit_unwatched", map[string]any{"library": library})), func(n string) bool { return n != "Alien" }))
+		return len(slices.DeleteFunc(findings(t, suite.Call(t, "audit_unwatched", map[string]any{"library": library})), func(n string) bool { return n != "Alien" }))
 	}
 	for library, want := range map[string]int{"Movies": 1, "Messy Movies": 2} {
 		if n := unwatchedAliens(library); n != want {
 			t.Fatalf("audit_unwatched lists %d Aliens in %s before, want %d", n, library, want)
 		}
 	}
-	stats := call(t, "user_stats", map[string]any{"user": "alice"})
+	stats := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
 
-	call(t, "item_set_state", map[string]any{"id": alien, "user": "alice", "watched": true, "favourite": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": alien, "user": "alice", "watched": true, "favourite": true})
 
 	for _, c := range copies {
 		played := false
-		for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": str(c["id"])})["users"], "users") {
-			played = played || (str(u["user"]) == "alice" && boolOf(u["played"]))
+		for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": acc.Str(c["id"])})["users"], "users") {
+			played = played || (acc.Str(u["user"]) == "alice" && acc.BoolOf(u["played"]))
 		}
-		if want := !isJellyfin() || str(c["id"]) == alien; played != want {
+		if want := !isJellyfin() || acc.Str(c["id"]) == alien; played != want {
 			t.Errorf("the copy at %s is played for alice: %v, want %v", c["path"], played, want)
 		}
 	}
 	// the copies count once, watched and favourited
-	after := call(t, "user_stats", map[string]any{"user": "alice"})
+	after := suite.Call(t, "user_stats", map[string]any{"user": "alice"})
 	for _, field := range []string{"movies_watched", "favourites"} {
-		if num(t, after[field], field) != num(t, stats[field], field)+1 {
+		if acc.Num(t, after[field], field) != acc.Num(t, stats[field], field)+1 {
 			t.Errorf("alice's %s went from %v to %v, want one more", field, stats[field], after[field])
 		}
 	}
@@ -2134,7 +1998,7 @@ func TestCopiesCountOnce(t *testing.T) {
 func playThrough(t *testing.T, token, id string) {
 	t.Helper()
 
-	playTo(t, token, id, int64(num(t, call(t, "item_get", map[string]any{"id": id})["runtime_s"], "runtime_s"))*10_000_000)
+	playTo(t, token, id, int64(acc.Num(t, suite.Call(t, "item_get", map[string]any{"id": id})["runtime_s"], "runtime_s"))*10_000_000)
 }
 
 // playTo plays an item as alice's player and stops it at a position, in
@@ -2166,28 +2030,28 @@ func playTo(t *testing.T, token, id string, stop int64) {
 func TestFinishingASeries(t *testing.T) {
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
 	byNumber := map[int]string{}
-	for _, e := range rows(t, call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes") {
-		byNumber[num(t, e["episode"], "episode")] = str(e["id"])
+	for _, e := range acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes") {
+		byNumber[acc.Num(t, e["episode"], "episode")] = acc.Str(e["id"])
 	}
 	e1, e2, e3 := byNumber[1], byNumber[2], byNumber[3]
 	unmarkLater(t, "alice", e1, e2, e3)
 	ids := func(tool, field string) []string {
 		var out []string
-		for _, it := range rows(t, call(t, tool, map[string]any{"user": "alice"})[field], field) {
-			out = append(out, str(it["id"]))
+		for _, it := range acc.Rows(t, suite.Call(t, tool, map[string]any{"user": "alice"})[field], field) {
+			out = append(out, acc.Str(it["id"]))
 		}
 		return out
 	}
 	breakingBad := func() map[string]any {
-		for _, s := range rows(t, call(t, "user_stats", map[string]any{"user": "alice"})["top_series"], "top_series") {
-			if str(s["name"]) == "Breaking Bad" {
+		for _, s := range acc.Rows(t, suite.Call(t, "user_stats", map[string]any{"user": "alice"})["top_series"], "top_series") {
+			if acc.Str(s["name"]) == "Breaking Bad" {
 				return s
 			}
 		}
 		return nil
 	}
 
-	call(t, "item_set_state", map[string]any{"id": e1, "user": "alice", "watched": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": e1, "user": "alice", "watched": true})
 	if next := ids("user_next_up", "next_up"); !slices.Contains(next, e2) {
 		t.Errorf("after the pilot next up is %v, want episode two", next)
 	}
@@ -2195,36 +2059,36 @@ func TestFinishingASeries(t *testing.T) {
 	if in := ids("user_next_up", "in_progress"); len(in) != 0 {
 		t.Errorf("after marking the pilot watched alice has %v in progress", in)
 	}
-	if bb := breakingBad(); bb == nil || num(t, bb["episodes_watched"], "episodes_watched") != 1 || boolOf(bb["finished"]) {
+	if bb := breakingBad(); bb == nil || acc.Num(t, bb["episodes_watched"], "episodes_watched") != 1 || acc.BoolOf(bb["finished"]) {
 		t.Errorf("Breaking Bad in the stats = %v", bb)
 	}
-	if got := findings(t, call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})); slices.Contains(got, "Breaking Bad") {
+	if got := findings(t, suite.Call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})); slices.Contains(got, "Breaking Bad") {
 		t.Errorf("audit_unwatched lists Breaking Bad after an episode was watched: %v", got)
 	}
 
-	call(t, "item_set_state", map[string]any{"id": e2, "user": "alice", "position_s": 1})
+	suite.Call(t, "item_set_state", map[string]any{"id": e2, "user": "alice", "position_s": 1})
 	if in := ids("user_next_up", "in_progress"); !slices.Equal(in, []string{e2}) {
 		t.Errorf("with episode two started alice has %v in progress", in)
 	}
 
 	_, token := signInPlayer(t)
 	playThrough(t, token, e2)
-	if !eventually(func() bool {
+	if !acc.Eventually(func() bool {
 		return slices.Contains(ids("user_next_up", "next_up"), e3) && len(ids("user_next_up", "in_progress")) == 0
 	}) {
 		t.Errorf("after episode two was played next up is %v and in progress %v", ids("user_next_up", "next_up"), ids("user_next_up", "in_progress"))
 	}
 
-	call(t, "item_set_state", map[string]any{"id": e3, "user": "alice", "watched": true})
-	for _, row := range rows(t, call(t, "user_next_up", map[string]any{"user": "alice"})["next_up"], "next_up") {
-		if str(row["series"]) == "Breaking Bad" {
+	suite.Call(t, "item_set_state", map[string]any{"id": e3, "user": "alice", "watched": true})
+	for _, row := range acc.Rows(t, suite.Call(t, "user_next_up", map[string]any{"user": "alice"})["next_up"], "next_up") {
+		if acc.Str(row["series"]) == "Breaking Bad" {
 			t.Errorf("after the last episode next up still has Breaking Bad: %v", row)
 		}
 	}
-	if bb := breakingBad(); bb == nil || num(t, bb["episodes_watched"], "episodes_watched") != 3 || !boolOf(bb["finished"]) {
+	if bb := breakingBad(); bb == nil || acc.Num(t, bb["episodes_watched"], "episodes_watched") != 3 || !acc.BoolOf(bb["finished"]) {
 		t.Errorf("Breaking Bad in the stats after the last episode = %v", bb)
 	}
-	if n := num(t, call(t, "user_stats", map[string]any{"user": "alice"})["series_finished"], "series_finished"); n != 1 {
+	if n := acc.Num(t, suite.Call(t, "user_stats", map[string]any{"user": "alice"})["series_finished"], "series_finished"); n != 1 {
 		t.Errorf("alice has finished %d series, want 1", n)
 	}
 }
@@ -2234,21 +2098,21 @@ func TestFinishingASeries(t *testing.T) {
 // and not changed.
 func TestRestrictedUserAcrossTools(t *testing.T) {
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	eps := rows(t, call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
-	pilot, second := str(eps[0]["id"]), str(eps[1]["id"])
+	eps := acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": series})["episodes"], "episodes")
+	pilot, second := acc.Str(eps[0]["id"]), acc.Str(eps[1]["id"])
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	unmarkLater(t, "alice", pilot, second, arrival)
 	// watched and favourited while alice could see everything
-	call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "watched": true})
-	call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "favourite": true})
-	call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "position_s": 1})
+	suite.Call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "watched": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "favourite": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "position_s": 1})
 
 	// what each tool says of her while she can see it all, so what goes
 	// once she cannot is known to have been there
 	nextUp := func() []string {
 		var out []string
-		for _, e := range rows(t, call(t, "user_next_up", map[string]any{"user": "alice"})["next_up"], "next_up") {
-			out = append(out, str(e["id"]))
+		for _, e := range acc.Rows(t, suite.Call(t, "user_next_up", map[string]any{"user": "alice"})["next_up"], "next_up") {
+			out = append(out, acc.Str(e["id"]))
 		}
 		return out
 	}
@@ -2256,15 +2120,15 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	// would find no favourite episode whoever could see it
 	favourites := func() []string {
 		var out []string
-		for _, it := range rows(t, call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite", "types": "Movie,Series,Episode"})["items"], "items") {
-			out = append(out, str(it["id"]))
+		for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"user": "alice", "watched": "favourite", "types": "Movie,Series,Episode"})["items"], "items") {
+			out = append(out, acc.Str(it["id"]))
 		}
 		return out
 	}
 	watchers := func() map[string]bool {
 		out := map[string]bool{}
-		for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": pilot})["users"], "users") {
-			out[str(u["user"])] = boolOf(u["played"])
+		for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": pilot})["users"], "users") {
+			out[acc.Str(u["user"])] = acc.BoolOf(u["played"])
 		}
 		return out
 	}
@@ -2274,7 +2138,7 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	if got := favourites(); !slices.Equal(got, []string{pilot}) {
 		t.Fatalf("before the restriction alice's favourites are %v, want the pilot alone", got)
 	}
-	if got := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, got["episodes_watched"], "episodes_watched") != 1 || num(t, got["favourites"], "favourites") != 1 {
+	if got := suite.Call(t, "user_stats", map[string]any{"user": "alice"}); acc.Num(t, got["episodes_watched"], "episodes_watched") != 1 || acc.Num(t, got["favourites"], "favourites") != 1 {
 		t.Fatalf("before the restriction user_stats alice = %v, want one episode and one favourite", got)
 	}
 	if got := watchers(); !got["alice"] {
@@ -2283,8 +2147,8 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 
 	restrictAlice(t, "Movies")
 
-	next := call(t, "user_next_up", map[string]any{"user": "alice"})
-	if n := len(rows(t, next["next_up"], "next_up")); n != 0 {
+	next := suite.Call(t, "user_next_up", map[string]any{"user": "alice"})
+	if n := len(acc.Rows(t, next["next_up"], "next_up")); n != 0 {
 		t.Errorf("alice has %d episodes next up in a library she cannot see", n)
 	}
 	if got := names(t, next["in_progress"], "in_progress"); !slices.Equal(got, []string{"Arrival"}) {
@@ -2293,7 +2157,7 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 	if got := favourites(); len(got) != 0 {
 		t.Errorf("alice's favourites = %v, want none she can see", got)
 	}
-	if got := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, got["episodes_watched"], "episodes_watched") != 0 || num(t, got["favourites"], "favourites") != 0 {
+	if got := suite.Call(t, "user_stats", map[string]any{"user": "alice"}); acc.Num(t, got["episodes_watched"], "episodes_watched") != 0 || acc.Num(t, got["favourites"], "favourites") != 0 {
 		t.Errorf("user_stats alice counts what she cannot see: %v", got)
 	}
 	// root, who can still see the pilot, is reported; so is alice, who
@@ -2304,12 +2168,12 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 		t.Errorf("item_last_watched of the pilot = %v, want root's row", got)
 	}
 	var aliceRow map[string]any
-	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": pilot})["users"], "users") {
-		if str(u["user"]) == "alice" {
+	for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": pilot})["users"], "users") {
+		if acc.Str(u["user"]) == "alice" {
 			aliceRow = u
 		}
 	}
-	if aliceRow == nil || !boolOf(aliceRow["played"]) || !boolOf(aliceRow["no_access"]) {
+	if aliceRow == nil || !acc.BoolOf(aliceRow["played"]) || !acc.BoolOf(aliceRow["no_access"]) {
 		t.Errorf("item_last_watched of the pilot for alice = %v, want her watch, marked no_access", aliceRow)
 	}
 	for _, args := range []map[string]any{
@@ -2317,13 +2181,13 @@ func TestRestrictedUserAcrossTools(t *testing.T) {
 		{"id": second, "user": "alice", "favourite": true},
 		{"id": second, "user": "alice", "position_s": 1},
 	} {
-		if msg := callErr(t, "item_set_state", args); !strings.Contains(msg, "alice cannot see") {
+		if msg := suite.CallErr(t, "item_set_state", args); !strings.Contains(msg, "alice cannot see") {
 			t.Errorf("item_set_state %v on an episode alice cannot see: %s", args, msg)
 		}
 	}
 	// alice watched the pilot before she lost the library, and a series
 	// someone has watched is not one nobody has
-	if got := findings(t, call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})); slices.Contains(got, "Breaking Bad") {
+	if got := findings(t, suite.Call(t, "audit_unwatched", map[string]any{"library": "Shows", "types": "Series"})); slices.Contains(got, "Breaking Bad") {
 		t.Errorf("audit_unwatched = %v: alice's watch of the pilot stopped counting when she lost the library", got)
 	}
 }

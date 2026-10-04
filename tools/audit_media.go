@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -33,17 +34,6 @@ type qualityIn struct {
 	Limit      int    `json:"limit,omitempty"         jsonschema:"maximum rows in each list, default 100"`
 }
 
-// videoOf is a file's primary video stream, or nil.
-func videoOf(src *embyfin.MediaSource) *embyfin.MediaStream {
-	for i := range src.MediaStreams {
-		if src.MediaStreams[i].Type == "Video" {
-			return &src.MediaStreams[i]
-		}
-	}
-
-	return nil
-}
-
 // checkQuality judges an item by its best file: a 4K copy beside a 480p one is
 // not a worklist entry. It returns the finding and the best picture's class
 // (resolutionClass: a 2.39:1 encode at 1280x536 is 720p, not 536p), which
@@ -52,11 +42,11 @@ func checkQuality(it *embyfin.Item, in qualityIn) (detail string, height int, ba
 	var best *embyfin.MediaStream
 	bitrate := int64(0)
 	for i := range it.MediaSources {
-		v := videoOf(&it.MediaSources[i])
+		v := it.MediaSources[i].Video()
 		if v == nil {
 			continue
 		}
-		if best == nil || resolutionClass(v.Width, v.Height) > resolutionClass(best.Width, best.Height) {
+		if best == nil || embyfin.ResolutionClass(v.Width, v.Height) > embyfin.ResolutionClass(best.Width, best.Height) {
 			best, bitrate = v, v.BitRate
 			if bitrate == 0 {
 				bitrate = it.MediaSources[i].Bitrate
@@ -68,7 +58,7 @@ func checkQuality(it *embyfin.Item, in qualityIn) (detail string, height int, ba
 	}
 
 	var problems []string
-	class := resolutionClass(best.Width, best.Height)
+	class := embyfin.ResolutionClass(best.Width, best.Height)
 	if in.MinHeight > 0 && class > 0 && class < in.MinHeight {
 		problems = append(problems, fmt.Sprintf("%dp, below %dp", class, in.MinHeight))
 	}
@@ -135,24 +125,6 @@ type unprobedRow struct {
 	Detail       string `json:"detail"`
 }
 
-// probed says whether the server has read the file: a stream it found in
-// it. A size is not a probe: Jellyfin gives a file it could not read (the
-// first few kilobytes of an episode, cut short in the copying) its size and
-// no streams, and Emby gives it neither (seen on Jellyfin 12.1 and Emby
-// 4.10). Nor is a subtitle file beside it, which a server lists as a stream
-// of the item without opening the video.
-func probed(it *embyfin.Item) bool {
-	for i := range it.MediaSources {
-		for _, st := range it.MediaSources[i].MediaStreams {
-			if !st.IsExternal {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
 // extraFolders are the folders both servers keep what goes with a film or a
 // show in - its trailers, featurettes and deleted scenes - by the names they
 // read them by.
@@ -168,7 +140,7 @@ func extraEpisode(it *embyfin.Item) bool {
 	if it.Type != typeEpisode || it.Path == "" {
 		return false
 	}
-	folder := baseName(parentDir(it.Path))
+	folder := mediapath.Base(mediapath.Dir(it.Path))
 
 	return slices.Contains(extraFolders, strings.ToLower(folder)) && folderKey(folder) != folderKey(it.SeriesName)
 }
@@ -201,7 +173,7 @@ func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (qu
 	// beside a 4K copy is not a worklist entry on Emby either, where each
 	// version is stored as an item of its own; the facts that cannot be
 	// trusted are the files', so they are listed file by file
-	groups, read, placing, err := shownGroups(ctx, client, opts)
+	groups, read, placing, err := client.ShownGroups(ctx, opts)
 	if err != nil {
 		return qualityOut{}, err
 	}
@@ -212,8 +184,8 @@ func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (qu
 			continue // not an episode to replace, whatever its size
 		}
 		out.Scanned++
-		for i := range groups[g].stored {
-			it := &groups[g].stored[i]
+		for i := range groups[g].Stored {
+			it := &groups[g].Stored[i]
 			if !it.HasFile() {
 				continue
 			}
@@ -222,7 +194,7 @@ func auditQuality(ctx context.Context, client *embyfin.Client, in qualityIn) (qu
 				row.Size = it.MediaSources[0].Size
 			}
 			switch {
-			case !probed(it):
+			case !it.Probed():
 				// no picture to judge, and left out in silence it would
 				// read as fine
 				row.Detail = "no media facts: the server has never probed the file, so nothing about its picture or sound is known"
@@ -771,9 +743,9 @@ func joinedListedBy(show []string, items map[string]*embyfin.Item) string {
 	ids, folders := joinedHow(show, items)
 	switch {
 	case ids && folders:
-		return "audit_duplicates lists every show sharing ids, and audit_duplicate_series every pair of folders named alike"
+		return "audit_duplicates lists every show sharing ids, and in folder_groups every pair of folders named alike"
 	case folders:
-		return "audit_duplicate_series lists every pair of folders named alike"
+		return "audit_duplicates lists every pair of folders named alike in folder_groups"
 	}
 
 	return "audit_duplicates lists every show in this state"
@@ -805,7 +777,7 @@ func joinedHow(show []string, items map[string]*embyfin.Item) (ids, folders bool
 // sameShows groups series ids into shows: entries sharing a tmdb, tvdb or
 // imdb id are one show, held under more than one entry, and so are entries
 // in folders beside each other whose names differ only by spacing, case, an
-// accent or punctuation (twinFolderKey, audit_duplicate_series' rule), which
+// accent or punctuation (twinFolderKey, audit_duplicates' folder rule), which
 // a rename leaves with no ids to share - unless their AniDB ids differ (see
 // sameAnime): a group holds at most one AniDB id, so an
 // anime entry kept apart is not joined to its parent by the parent's id it
@@ -920,7 +892,7 @@ func registerMediaAudits(r *registry) {
 		Name: "audit_missing_episodes",
 		Description: "Find the series with episodes missing: the episode numbers a season skips between the ones on disk (E01 and E03 but no E02), whole seasons skipped between the ones on disk, and, when the server records them, the episodes its metadata provider lists that have aired and have no file (stock Jellyfin needs the TheTVDB plugin for those, and Emby 4.10 does not record them). " +
 			"With provider true, each series' whole run is read from the configured metadata providers instead (TMDB, with EMBYFIN_TMDB_TOKEN set), one request a series and paged, so what a series lacks after its last file is seen too. " +
-			"A show held under two entries sharing its ids (a folder renamed and the old one left behind), or in two folders beside each other whose names differ only by spacing, case, an accent or punctuation (audit_duplicate_series' rule), is judged as one show, named by the first entry with the rest in its warning; two entries whose AniDB ids differ are two shows, whatever else they share. " +
+			"A show held under two entries sharing its ids (a folder renamed and the old one left behind), or in two folders beside each other whose names differ only by spacing, case, an accent or punctuation (audit_duplicates' folder rule), is judged as one show, named by the first entry with the rest in its warning; two entries whose AniDB ids differ are two shows, whatever else they share. " +
 			"TMDB's runs are in its aired order and files are compared with them number by number: a show whose files hold numbers that order has no episode for (numbered the TVDB way, as Sonarr names them, or a DVD's) is listed in numbered_otherwise and warned on, because what TMDB lists as missing may be held under other numbers. " +
 			"A gap just after a file titled 'A & B' (two segments named by the first number alone) is warned on as probably held by that file. " +
 			"Read 'runs_known': it is true only when every show's whole run was read; when it is false, total_unknown shows were judged only by the gaps between their files, so a show not listed is not known to be complete, and each finding says run_known for its own show.",
@@ -955,7 +927,7 @@ func auditUnwatched(ctx context.Context, client *embyfin.Client, in unwatchedIn)
 			return unwatchedOut{}, fmt.Errorf("types must be Movie, Series or both, not %q", t)
 		}
 	}
-	folder, err := resolveLibrary(ctx, client, in.Library)
+	folder, err := client.ResolveLibrary(ctx, in.Library)
 	if err != nil {
 		return unwatchedOut{}, err
 	}
@@ -1293,7 +1265,7 @@ func hiddenParents(ctx context.Context, client *embyfin.Client, folder *embyfin.
 		}
 		// a path Emby could not match drops the filter, so the answer has to
 		// be the folder asked for
-		if len(items) == 1 && trimSep(items[0].Path) == trimSep(loc) {
+		if len(items) == 1 && mediapath.Trim(items[0].Path) == mediapath.Trim(loc) {
 			out = append(out, items[0].ID)
 		}
 	}

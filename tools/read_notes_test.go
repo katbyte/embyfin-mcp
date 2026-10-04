@@ -583,7 +583,7 @@ func TestReadsThatCannotBeSure(t *testing.T) {
 				jellyfinOnly     bool
 				onCheck, whenCut string
 			}{
-				{tool: "audit_missing_overview", onCheck: answer, whenCut: refuse},
+				{tool: "audit_missing_metadata", onCheck: answer, whenCut: refuse},
 				{tool: "audit_unwatched", onCheck: answer, whenCut: refuse},
 				{tool: "audit_missing_episodes", onCheck: answer, whenCut: refuse},
 				{tool: "audit_orphans", n: 10500, onCheck: answer, whenCut: refuse},
@@ -759,13 +759,12 @@ func TestWholeLibraryReadsSayWhenTheLibraryChanged(t *testing.T) {
 		only func(r *http.Request) bool
 		read string
 	}{
-		{tool: "audit_missing_overview"},
-		{tool: "audit_missing_metadata_provider"},
+		{tool: "audit_missing_metadata"},
+		{tool: "audit_missing_metadata", args: map[string]any{"problems": "provider_id", "missing": "tmdb"}},
 		{tool: "audit_multiple_versions"},
 		{tool: "audit_duplicates"},
 		{tool: "audit_file_path"},
 		{tool: "audit_duplicate_episodes"},
-		{tool: "audit_duplicate_series"},
 		{tool: "audit_disc_folders", n: sweep},
 		{tool: "audit_runtime"},
 		{tool: "audit_quality"},

@@ -471,7 +471,7 @@ func (c *Client) RemoveFromPlaylist(ctx context.Context, playlistID string, aske
 			if len(left.back) > 0 {
 				still = fmt.Sprintf(", and it still holds %s, which it was asked to take out", namedEntries(left.back))
 			}
-			return PlaylistRemoval{}, fmt.Errorf("after the removal of %s the playlist lost %s too, which it was not asked to take out%s: an entry id sent just as the entries were numbered again names another entry (Emby does it a moment after an add or a removal), or someone else changed the playlist. Put back what should be there with playlist_add and playlist_edit; the playlist holds now, in order: %s", namedEntries(gone), namedIDs(entries, left.short), still, namedEntries(left.now))
+			return PlaylistRemoval{}, fmt.Errorf("after the removal of %s the playlist lost %s too, which it was not asked to take out%s: an entry id sent just as the entries were numbered again names another entry (Emby does it a moment after an add or a removal), or someone else changed the playlist. Put back what should be there with playlist_edit add_items; the playlist holds now, in order: %s", namedEntries(gone), namedIDs(entries, left.short), still, namedEntries(left.now))
 		}
 		if back = left.back; len(back) == 0 {
 			return out, nil
@@ -752,14 +752,14 @@ func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entr
 			return fmt.Errorf("moving entry %s takes entries %d to %d out and puts them back in the new order, and taking them out failed, so some may be gone: %s: %w", entryID, lo+1, len(entries), namedEntries(order[lo:]), err)
 		}
 		if err := c.addItems(ctx, playlistID, itemIDs, userID); err != nil {
-			return fmt.Errorf("moving entry %s took entries %d to %d out, and putting them back failed, so they are gone from the playlist until added again (playlist_add, in this order): %s: %w", entryID, lo+1, len(entries), namedEntries(order[lo:]), err)
+			return fmt.Errorf("moving entry %s took entries %d to %d out, and putting them back failed, so they are gone from the playlist until added again (playlist_edit add_items, in this order): %s: %w", entryID, lo+1, len(entries), namedEntries(order[lo:]), err)
 		}
 		missing, missErr := c.playlistMissing(ctx, playlistID, want)
 		if missErr != nil {
 			return fmt.Errorf("moving entry %s took entries %d to %d out and put them back, but reading the playlist back failed, so whether they all stayed is not known (they were, in this order: %s): %w", entryID, lo+1, len(entries), namedEntries(order[lo:]), missErr)
 		}
 		if len(missing) > 0 {
-			return fmt.Errorf("the server did not keep %s in the playlist after moving entry %s: add them again with playlist_add", namedIDs(order, missing), entryID)
+			return fmt.Errorf("the server did not keep %s in the playlist after moving entry %s: add them again with playlist_edit add_items", namedIDs(order, missing), entryID)
 		}
 	}
 	// the last put-back is read back like the others

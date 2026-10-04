@@ -44,7 +44,7 @@ func TestTheHistoryToolsKnowWhatTheServerKeeps(t *testing.T) {
 	for _, tool := range []struct {
 		name string
 		args map[string]any
-	}{{"user_history", map[string]any{}}, {"item_watch_history", map[string]any{"id": "9"}}} {
+	}{{"user_history", map[string]any{}}, {"server_activity", map[string]any{"item": "9"}}, {"server_activity", map[string]any{}}} {
 		// asked for nothing: the thirty days the server keeps, whole
 		out := mustCall(t, cs, tool.name, tool.args)
 		if number(t, out["days"], "days") != 30 || !boolean(t, out["complete"], "complete") || !strings.Contains(text(out["note"]), "the server keeps 30 days of activity") {
@@ -98,10 +98,10 @@ func TestUserHistorySaysWhatWasRemoved(t *testing.T) {
 }
 
 // Plays are logged against the episode played, so a series' id is in no
-// entry, and item_watch_history on a series answered no plays, complete.
-// A series or a season is read as its episodes, and what holds items of
-// another kind is refused rather than answered with nothing.
-func TestItemWatchHistoryReadsWhatAnItemHolds(t *testing.T) {
+// entry, and the history of a series answered no plays, complete. A series
+// or a season is read as its episodes, and what holds items of another kind
+// is refused rather than answered with nothing.
+func TestServerActivityReadsWhatAnItemHolds(t *testing.T) {
 	t.Parallel()
 
 	s := severance()
@@ -116,26 +116,26 @@ func TestItemWatchHistoryReadsWhatAnItemHolds(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	out := mustCall(t, cs, "item_watch_history", map[string]any{"id": "sev"})
-	if got := texts(out["entries"]); len(got) != 2 || !strings.HasSuffix(got[0], "S02E01") || !strings.HasSuffix(got[1], "S01E02") || number(t, out["covers"], "covers") != 3 {
+	out := mustCall(t, cs, "server_activity", map[string]any{"item": "sev"})
+	if got := objects(t, out["entries"], "entries"); len(got) != 2 || !strings.HasSuffix(text(got[0]["summary"]), "S02E01") || !strings.HasSuffix(text(got[1]["summary"]), "S01E02") || number(t, out["covers"], "covers") != 3 {
 		t.Errorf("a series' history = %v, covering %v", got, out["covers"])
 	}
 	// an episode is itself
-	if out := mustCall(t, cs, "item_watch_history", map[string]any{"id": "sev-1-2"}); len(texts(out["entries"])) != 1 || out["covers"] != nil {
+	if out := mustCall(t, cs, "server_activity", map[string]any{"item": "sev-1-2"}); len(objects(t, out["entries"], "entries")) != 1 || out["covers"] != nil {
 		t.Errorf("an episode's history = %v", out)
 	}
 }
 
 // An id the log names no play by, and that holds nothing whose plays it
 // names, is refused: a collection answered no plays.
-func TestItemWatchHistoryRefusesACollection(t *testing.T) {
+func TestServerActivityRefusesACollection(t *testing.T) {
 	t.Parallel()
 
 	f, _ := zzyzxServer(t)
 	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, page(map[string]any{"Id": "c1", "Name": "Zzyzx Collection", "Type": "BoxSet"}))
 	})
-	msg := mustRefuse(t, session(t, f, Options{}), "item_watch_history", map[string]any{"id": "c1"})
+	msg := mustRefuse(t, session(t, f, Options{}), "server_activity", map[string]any{"item": "c1"})
 	if !strings.Contains(msg, `c1 is a collection, "Zzyzx Collection"`) || !strings.Contains(msg, "a series, a season or an album") {
 		t.Errorf("a collection = %q", msg)
 	}

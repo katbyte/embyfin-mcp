@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 )
 
 // library_edit renames a library only to a name no other library has, apart
@@ -14,11 +16,11 @@ import (
 func TestALibraryRenamedOntoAnother(t *testing.T) {
 	list := func() []map[string]any {
 		t.Helper()
-		return rows(t, call(t, "library_list", nil)["libraries"], "libraries")
+		return acc.Rows(t, suite.Call(t, "library_list", nil)["libraries"], "libraries")
 	}
 	before := list()
 	for _, name := range []string{"Movies", "movies", "MOVIES"} {
-		msg := callErr(t, "library_edit", map[string]any{"library": "Music", "name": name, "save_nfo": false})
+		msg := suite.CallErr(t, "library_edit", map[string]any{"library": "Music", "name": name, "save_nfo": false})
 		if !strings.Contains(msg, `a library named "Movies" already exists: rename Music to a name no other library has, apart from case too`) {
 			t.Errorf("renaming Music onto %q = %q", name, msg)
 		}

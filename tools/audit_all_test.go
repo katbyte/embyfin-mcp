@@ -103,12 +103,12 @@ func TestAuditAllNamesEveryRowItRuns(t *testing.T) {
 	t.Parallel()
 
 	for _, folder := range []*embyfin.VirtualFolder{nil, {Name: "Zzyzx Music", CollectionType: "music"}} {
-		var steps []string
+		var steps []auditAllKey
 		for _, s := range auditAllSteps(t.Context(), nil, "", folder) {
-			steps = append(steps, s.audit)
+			steps = append(steps, auditAllKey{audit: s.audit, problems: s.problems})
 		}
-		if names := auditAllNames(); !slices.Equal(steps, names) {
-			t.Errorf("library %v: audit_all runs %v, and names %v", folder, steps, names)
+		if rows := auditAllRows(); !slices.Equal(steps, rows) {
+			t.Errorf("library %v: audit_all runs %v, and names %v", folder, steps, rows)
 		}
 	}
 }

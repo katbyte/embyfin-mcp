@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -45,7 +46,7 @@ func registerArtworkTools(r *registry) {
 		// an id no item has: Emby answers the image reads with a bare 500 and
 		// Jellyfin with a 404, neither of which says the id is wrong. A
 		// version's own id is an item's, whose images the server answers
-		if _, err := itemOrVersion(ctx, client, in.ID); err != nil {
+		if _, _, err := client.ItemByIDOrVersion(ctx, in.ID); err != nil {
 			return nil, artworkOut{}, err
 		}
 
@@ -109,10 +110,10 @@ func registerArtworkTools(r *registry) {
 			return nil, setOut{}, err
 		}
 		dir := ""
-		if onDisk(it.Path) {
-			dir = parentDir(it.Path)
+		if mediapath.OnDisk(it.Path) {
+			dir = mediapath.Dir(it.Path)
 			if it.IsFolder {
-				dir = trimSep(it.Path)
+				dir = mediapath.Trim(it.Path)
 			}
 		}
 		before, err := client.Images(ctx, in.ID)
@@ -156,17 +157,17 @@ func registerArtworkTools(r *registry) {
 			entries = nil
 		}
 		there := func(list []embyfin.FolderEntry, path string) bool {
-			return slices.ContainsFunc(list, func(e embyfin.FolderEntry) bool { return trimSep(e.Path) == trimSep(path) })
+			return slices.ContainsFunc(list, func(e embyfin.FolderEntry) bool { return mediapath.Trim(e.Path) == mediapath.Trim(path) })
 		}
 		var notes []string
 		// the file it replaced, when that was one beside the media
-		if old != nil && old.Path != "" && parentDir(old.Path) == dir {
+		if old != nil && old.Path != "" && mediapath.Dir(old.Path) == dir {
 			now := imageOfType(after, imgType)
 			switch {
 			case !there(entries, old.Path):
 				out.Removed = old.Path
 				notes = append(notes, "the server deleted "+old.Path+", the image this one replaced, from beside the media")
-			case now != nil && trimSep(now.Path) == trimSep(old.Path):
+			case now != nil && mediapath.Trim(now.Path) == mediapath.Trim(old.Path):
 				// the set was answered, and the image is the file the old
 				// one was: Emby, saving artwork beside the media, wrote
 				// over it (seen on 4.10)
@@ -175,11 +176,11 @@ func registerArtworkTools(r *registry) {
 			}
 		}
 		// a file the new image went to that was not there before
-		if out.Image != "" && parentDir(out.Image) == dir && !there(had, out.Image) {
+		if out.Image != "" && mediapath.Dir(out.Image) == dir && !there(had, out.Image) {
 			out.Written = out.Image
 			notes = append(notes, "the server wrote the new image to "+out.Image+", beside the media")
 		}
-		if out.Removed != "" && out.Image != "" && parentDir(out.Image) != dir {
+		if out.Removed != "" && out.Image != "" && mediapath.Dir(out.Image) != dir {
 			notes = append(notes, "it keeps the new image in its own metadata folder: the folder no longer holds that file")
 		}
 		out.Note = strings.Join(notes, "; ")

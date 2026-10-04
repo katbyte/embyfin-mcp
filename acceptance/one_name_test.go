@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 )
 
 // Limitless is a film of 2011 in the clean movie library and a series of
@@ -18,27 +20,27 @@ func TestOneNameForAFilmAndAShow(t *testing.T) {
 
 	// the show tools by name: the series, matched whole, and the film is not
 	// even a candidate
-	resolved := rows(t, call(t, "show_resolve", map[string]any{"title": "Limitless"})["candidates"], "candidates")
-	if len(resolved) != 1 || str(resolved[0]["series_id"]) != series || decimal(t, resolved[0]["score"], "score") != 1 {
+	resolved := acc.Rows(t, suite.Call(t, "show_resolve", map[string]any{"title": "Limitless"})["candidates"], "candidates")
+	if len(resolved) != 1 || acc.Str(resolved[0]["series_id"]) != series || acc.Decimal(t, resolved[0]["score"], "score") != 1 {
 		t.Errorf("show_resolve Limitless = %v, want the series alone", resolved)
 	}
-	eps := call(t, "library_episodes", map[string]any{"series": "Limitless"})
-	if str(eps["series_id"]) != series || !slices.Equal(episodeKeys(t, eps), []string{"Limitless S01E01"}) {
+	eps := suite.Call(t, "library_episodes", map[string]any{"series": "Limitless"})
+	if acc.Str(eps["series_id"]) != series || !slices.Equal(episodeKeys(t, eps), []string{"Limitless S01E01"}) {
 		t.Errorf("library_episodes Limitless = %v %v, want the series' pilot", eps["series_id"], episodeKeys(t, eps))
 	}
-	exists := call(t, "show_episodes_exist", map[string]any{"series": "Limitless", "episodes": []map[string]any{{"season": 1, "episode": 1}}})
-	if str(exists["series_id"]) != series || num(t, exists["absent"], "absent") != 0 {
+	exists := suite.Call(t, "show_episodes_exist", map[string]any{"series": "Limitless", "episodes": []map[string]any{{"season": 1, "episode": 1}}})
+	if acc.Str(exists["series_id"]) != series || acc.Num(t, exists["absent"], "absent") != 0 {
 		t.Errorf("show_episodes_exist Limitless = %v", exists)
 	}
 	// and a film's id is refused as a series by every show tool
-	if msg := callErr(t, "show_seasons", map[string]any{"series_id": film}); !strings.Contains(msg, film+" is a film, Limitless (2011), not a series") {
+	if msg := suite.CallErr(t, "show_seasons", map[string]any{"series_id": film}); !strings.Contains(msg, film+" is a film, Limitless (2011), not a series") {
 		t.Errorf("show_seasons of the film = %s", msg)
 	}
 
 	// a search is both, each as what it is
 	got := map[string]string{}
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"query": "Limitless", "limit": 50})["items"], "items") {
-		got[str(it["type"])+" "+str(it["path"])] = str(it["id"])
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"query": "Limitless", "limit": 50})["items"], "items") {
+		got[acc.Str(it["type"])+" "+acc.Str(it["path"])] = acc.Str(it["id"])
 	}
 	want := map[string]string{"Movie /media/movies/Limitless (2011)/Limitless (2011).mp4": film, "Series /media/shows/Limitless": series}
 	if len(got) != len(want) {
@@ -59,8 +61,8 @@ func TestOneNameForAFilmAndAShow(t *testing.T) {
 		{"tvdb", "295743", "series", series},
 	} {
 		var ids []string
-		for _, it := range rows(t, call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": tc.provider, "id": tc.id, "type": tc.typ})["items"], "items") {
-			ids = append(ids, str(it["id"]))
+		for _, it := range acc.Rows(t, suite.Call(t, "item_find_by_metadata_id", map[string]any{"metadata_provider": tc.provider, "id": tc.id, "type": tc.typ})["items"], "items") {
+			ids = append(ids, acc.Str(it["id"]))
 		}
 		if !slices.Equal(ids, []string{tc.want}) {
 			t.Errorf("%s %s = %v, want %s alone", tc.provider, tc.id, ids, tc.want)
@@ -68,10 +70,10 @@ func TestOneNameForAFilmAndAShow(t *testing.T) {
 	}
 
 	// and one name is no duplicate: the two share no id
-	groups, _ := call(t, "audit_duplicates", nil)["groups"].([]any)
+	groups, _ := suite.Call(t, "audit_duplicates", nil)["groups"].([]any)
 	for _, g := range groups {
-		for _, it := range rows(t, g, "group") {
-			if str(it["name"]) == "Limitless" {
+		for _, it := range acc.Rows(t, g, "group") {
+			if acc.Str(it["name"]) == "Limitless" {
 				t.Errorf("audit_duplicates groups Limitless: %v", g)
 			}
 		}

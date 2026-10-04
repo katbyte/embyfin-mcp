@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 )
 
 // Two films part way and two series started, their first episodes marked
@@ -24,18 +26,18 @@ func TestInProgressPastTheNextEpisodes(t *testing.T) {
 	var pilots []string
 	for _, show := range []string{"Breaking Bad", "Severance"} {
 		series := findItem(t, "Shows", "Series", show)
-		pilots = append(pilots, str(rows(t, call(t, "library_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"]))
+		pilots = append(pilots, acc.Str(acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"]))
 	}
 	t.Cleanup(func() {
 		for _, id := range append([]string{alien, arrival}, pilots...) {
-			undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
+			suite.Undo(t, "item_set_state", map[string]any{"id": id, "user": "alice", "watched": false})
 		}
 	})
 	for _, film := range []string{alien, arrival} {
-		call(t, "item_set_state", map[string]any{"id": film, "user": "alice", "position_s": 2550})
+		suite.Call(t, "item_set_state", map[string]any{"id": film, "user": "alice", "position_s": 2550})
 	}
 	for _, pilot := range pilots {
-		call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "watched": true})
+		suite.Call(t, "item_set_state", map[string]any{"id": pilot, "user": "alice", "watched": true})
 	}
 
 	if !isJellyfin() {
@@ -67,7 +69,7 @@ func TestInProgressPastTheNextEpisodes(t *testing.T) {
 	// are part way through as well: any of them fills a row, and nothing else
 	films := []string{"Alien", "Arrival"}
 	for _, limit := range []int{1, 2, 10} {
-		got := names(t, call(t, "user_next_up", map[string]any{"user": "alice", "limit": limit})["in_progress"], "in_progress")
+		got := names(t, suite.Call(t, "user_next_up", map[string]any{"user": "alice", "limit": limit})["in_progress"], "in_progress")
 		if limit <= 2 && len(got) != limit {
 			t.Errorf("limit %d in_progress = %v, want %d rows", limit, got, limit)
 		}
@@ -78,7 +80,7 @@ func TestInProgressPastTheNextEpisodes(t *testing.T) {
 			t.Errorf("limit 10 in_progress = %v, want both films", got)
 		}
 	}
-	next := names(t, call(t, "user_next_up", map[string]any{"user": "alice", "limit": 2})["next_up"], "next_up")
+	next := names(t, suite.Call(t, "user_next_up", map[string]any{"user": "alice", "limit": 2})["next_up"], "next_up")
 	if len(next) != 2 {
 		t.Errorf("next_up = %v, want the second episode of each series", next)
 	}
@@ -90,16 +92,16 @@ func TestInProgressPastTheNextEpisodes(t *testing.T) {
 func TestUnwatchedAfterLosingAccess(t *testing.T) {
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	t.Cleanup(func() {
-		undo(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
+		suite.Undo(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": false})
 	})
 	unwatched := func() []string {
 		t.Helper()
-		return findings(t, call(t, "audit_unwatched", map[string]any{"library": "Movies"}))
+		return findings(t, suite.Call(t, "audit_unwatched", map[string]any{"library": "Movies"}))
 	}
 	if !slices.Contains(unwatched(), "Arrival") {
 		t.Fatalf("Arrival is watched before alice watches it: %v", unwatched())
 	}
-	call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": true})
+	suite.Call(t, "item_set_state", map[string]any{"id": arrival, "user": "alice", "watched": true})
 	if slices.Contains(unwatched(), "Arrival") {
 		t.Fatalf("alice's watch of Arrival does not count while she can see it: %v", unwatched())
 	}
@@ -111,15 +113,15 @@ func TestUnwatchedAfterLosingAccess(t *testing.T) {
 	// and item_last_watched says the same: her watch, marked as made by an
 	// account that has lost the library since
 	var row map[string]any
-	for _, u := range rows(t, call(t, "item_last_watched", map[string]any{"id": arrival})["users"], "users") {
-		if str(u["user"]) == "alice" {
+	for _, u := range acc.Rows(t, suite.Call(t, "item_last_watched", map[string]any{"id": arrival})["users"], "users") {
+		if acc.Str(u["user"]) == "alice" {
 			row = u
 		}
 	}
-	if row == nil || !boolOf(row["played"]) || !boolOf(row["no_access"]) || num(t, row["play_count"], "play_count") < 1 || str(row["last_played"]) == "" {
+	if row == nil || !acc.BoolOf(row["played"]) || !acc.BoolOf(row["no_access"]) || acc.Num(t, row["play_count"], "play_count") < 1 || acc.Str(row["last_played"]) == "" {
 		t.Errorf("item_last_watched for alice after she lost the library = %v, want her watch, marked no_access", row)
 	}
-	if got := call(t, "user_stats", map[string]any{"user": "alice"}); num(t, got["movies_watched"], "movies_watched") != 0 {
+	if got := suite.Call(t, "user_stats", map[string]any{"user": "alice"}); acc.Num(t, got["movies_watched"], "movies_watched") != 0 {
 		t.Errorf("user_stats alice = %v: in her own view she has watched no film she can see", got)
 	}
 }
@@ -141,7 +143,7 @@ func TestAnIDNoItemHas(t *testing.T) {
 		{"item_get", map[string]any{"id": unknown}},
 		{"item_set_state", map[string]any{"id": unknown, "user": "alice", "watched": true}},
 	} {
-		if msg := callErr(t, tc.tool, tc.args); !strings.Contains(msg, fmt.Sprintf("no item with id %s", unknown)) {
+		if msg := suite.CallErr(t, tc.tool, tc.args); !strings.Contains(msg, fmt.Sprintf("no item with id %s", unknown)) {
 			t.Errorf("%s of an id nothing has = %q", tc.tool, msg)
 		}
 	}
@@ -149,12 +151,12 @@ func TestAnIDNoItemHas(t *testing.T) {
 	// watched in her name
 	arrival := findItem(t, "Movies", "Movie", "Arrival")
 	restrictAlice(t, "Shows")
-	out := call(t, "item_last_watched", map[string]any{"id": arrival})
-	if title(str(out["item"])) != "Arrival" {
+	out := suite.Call(t, "item_last_watched", map[string]any{"id": arrival})
+	if title(acc.Str(out["item"])) != "Arrival" {
 		t.Errorf("item_last_watched = %v", out)
 	}
-	for _, u := range rows(t, out["users"], "users") {
-		if str(u["user"]) == "alice" {
+	for _, u := range acc.Rows(t, out["users"], "users") {
+		if acc.Str(u["user"]) == "alice" {
 			t.Errorf("alice is reported on a film she may not see: %v", u)
 		}
 	}

@@ -81,7 +81,7 @@ linters:
           - goconst
       # tool names, item types, query keys and fixture titles repeat the same short words by
       # design in the tools, the clients and the suites; constants would only add indirection
-      - path: '(tools|lib/embyfin|lib/emby|lib/jf|lib/providerproxy|acceptance|integration)/.*\.go'
+      - path: '(tools|lib/embyfin|lib/emby|lib/jf|lib/mediapath|lib/naming|lib/providerproxy|acceptance|integration)/.*\.go'
         linters:
           - goconst
       # media types, type names and HTTP methods are the generator's vocabulary, and the base

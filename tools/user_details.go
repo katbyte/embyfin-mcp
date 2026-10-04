@@ -148,7 +148,7 @@ func registerUserDetailTools(r *registry) {
 		Name:        "user_stats",
 		Description: "A user's watching in numbers, from their watch state across the library in one pass: films and episodes watched, in progress and favourited, hours, series started and finished, their top genres and series, and what they have played most. A film with copies in several places counts once.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in statsIn) (*mcp.CallToolResult, statsOut, error) {
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, statsOut{}, err
 		}

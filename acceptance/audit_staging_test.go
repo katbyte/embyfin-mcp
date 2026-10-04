@@ -8,7 +8,10 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
-	"time"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // The audits' staged tests break something the way a library comes to be
@@ -26,7 +29,7 @@ type holdings struct{ films, series, episodes int }
 func typeCount(t *testing.T, library, kind string) int {
 	t.Helper()
 
-	counts, _ := call(t, "library_get", map[string]any{"library": library})["type_counts"].(map[string]any)
+	counts, _ := suite.Call(t, "library_get", map[string]any{"library": library})["type_counts"].(map[string]any)
 	n, _ := counts[kind].(float64)
 
 	return int(n)
@@ -49,10 +52,10 @@ func messyHoldings(t *testing.T) holdings {
 func fixture(t *testing.T, rel string) []byte {
 	t.Helper()
 
-	if !ready {
+	if !suite.Ready {
 		t.Skip("EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN are not set")
 	}
-	raw, err := os.ReadFile(filepath.Join(dataDir(), rel)) //nolint:gosec // a fixture under the test data dir
+	raw, err := os.ReadFile(filepath.Join(testenv.DataDir(), rel)) //nolint:gosec // a fixture under the test data dir
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,33 +63,13 @@ func fixture(t *testing.T, rel string) []byte {
 	return raw
 }
 
-// rescanUntil asks for a scan of every library until check holds, asking
-// again whenever the scan goes idle short of it: a scan already running
-// when the ask comes passes over what was written since it started.
+// rescanUntil asks for a scan of every library until check holds
+// (suite.ScanUntilTrue), and fails the test naming what never came about.
 func rescanUntil(t *testing.T, what string, check func() bool) {
 	t.Helper()
 
-	deadline := time.Now().Add(scanPatience)
-	for {
-		if err := waitForScan(); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := invoke("library_scan", nil); err != nil {
-			t.Fatal(err)
-		}
-		for range 22 {
-			if check() {
-				if err := waitForScan(); err != nil {
-					t.Fatal(err)
-				}
-
-				return
-			}
-			time.Sleep(2 * time.Second)
-		}
-		if time.Now().After(deadline) {
-			t.Fatalf("no scan brought about %s", what)
-		}
+	if err := suite.ScanUntilTrue("", check); err != nil {
+		t.Fatalf("%s: %v", what, err)
 	}
 }
 
@@ -101,18 +84,18 @@ func stage(t *testing.T, want func(before holdings) holdings, files map[string][
 	before := messyHoldings(t)
 	t.Cleanup(func() {
 		for rel := range files {
-			_ = os.Remove(filepath.Join(dataDir(), rel))
+			_ = os.Remove(filepath.Join(testenv.DataDir(), rel))
 		}
 		for _, folder := range folders {
-			_ = os.RemoveAll(filepath.Join(dataDir(), folder))
+			_ = os.RemoveAll(filepath.Join(testenv.DataDir(), folder))
 		}
 		rescanUntil(t, "the messy libraries back as they were", func() bool { return messyHoldings(t) == before })
 	})
 	// in a stable order, so a failure reads the same each run
 	for _, rel := range slices.Sorted(maps.Keys(files)) {
-		path := filepath.Join(dataDir(), rel)
-		mediaMkdir(t, filepath.Dir(path))
-		mediaWrite(t, path, files[rel])
+		path := filepath.Join(testenv.DataDir(), rel)
+		acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(path))
+		acc.MediaWrite(t, path, files[rel])
 	}
 	after := want(before)
 	rescanUntil(t, "the staged files in the libraries", func() bool { return messyHoldings(t) == after })
@@ -142,35 +125,36 @@ func setIDs(t *testing.T, id string, ids map[string]any) {
 func rename(t *testing.T, id, name string) {
 	t.Helper()
 
-	held := str(call(t, "item_get", map[string]any{"id": id})["name"])
+	held := acc.Str(suite.Call(t, "item_get", map[string]any{"id": id})["name"])
 	t.Cleanup(func() {
-		if _, err := invoke("item_edit", map[string]any{"ids": []any{id}, "name": held}); err != nil {
+		if _, err := suite.Invoke("item_edit", map[string]any{"ids": []any{id}, "name": held}); err != nil {
 			t.Errorf("putting back %q: %v", held, err)
 		}
 	})
-	call(t, "item_edit", map[string]any{"ids": []any{id}, "name": name})
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{id}, "name": name})
 }
 
 // episodeID is the id of the one episode a series holds at a number.
 func episodeID(t *testing.T, seriesID string, season, episode int) string {
 	t.Helper()
 
-	out := call(t, "show_episodes_exist", map[string]any{"series_id": seriesID, "episodes": []map[string]any{{"season": season, "episode": episode}}})
-	row := rows(t, out["episodes"], "episodes")[0]
-	if !boolOf(row["exists"]) || str(row["id"]) == "" {
+	out := suite.Call(t, "show_episodes_exist", map[string]any{"series_id": seriesID, "episodes": []map[string]any{{"season": season, "episode": episode}}})
+	row := acc.Rows(t, out["episodes"], "episodes")[0]
+	if !acc.BoolOf(row["exists"]) || acc.Str(row["id"]) == "" {
 		t.Fatalf("series %s holds no S%02dE%02d: %v", seriesID, season, episode, row)
 	}
 
-	return str(row["id"])
+	return acc.Str(row["id"])
 }
 
-// auditRow is one audit's count in audit_all over a library.
+// auditRow is one audit's count in audit_all over a library, the row named
+// as rowKey names it.
 func auditRow(t *testing.T, library, audit string) int {
 	t.Helper()
 
-	for _, row := range rows(t, call(t, "audit_all", map[string]any{"library": library})["audits"], "audits") {
-		if str(row["audit"]) == audit {
-			return num(t, row["findings"], "findings")
+	for _, row := range acc.Rows(t, suite.Call(t, "audit_all", map[string]any{"library": library})["audits"], "audits") {
+		if rowKey(row) == audit {
+			return acc.Num(t, row["findings"], "findings")
 		}
 	}
 	t.Fatalf("audit_all over %s has no %s row", library, audit)

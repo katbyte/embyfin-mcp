@@ -149,7 +149,7 @@ Limitless|1|1|44|Pilot'
 # true; the files themselves are one-second sine tones. The library is
 # created with the fetchers off like the messy ones, so the tags are all the
 # servers know, and it carries two defects of its own: Thundercolor has no
-# cover art (audit_missing_poster with types=MusicAlbum finds it) and
+# cover art (audit_missing_metadata's poster problem finds it with types=MusicAlbum) and
 # SirensCeol is tagged "Electronica" where the other electronic acts say
 # "Electronic" (audit_spelling finds the pair). Thundercolor is the rip with
 # no art at all - no cover.jpg beside the tracks and no picture embedded in

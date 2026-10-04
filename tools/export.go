@@ -73,11 +73,11 @@ func registerExportTool(r *registry) {
 		if episodes && !needsMediaSources(keep) {
 			// how many files an item is held in, so the paths of the ones
 			// Jellyfin folds into it are read back (withVersionFiles)
-			opts.Fields = "Path,DateCreated,DateModified," + versionCountField
+			opts.Fields = "Path,DateCreated,DateModified," + embyfin.FieldVersionCount
 		} else {
 			opts.Fields = embyfin.FieldsDefault + ",DateModified"
 		}
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, exportFileOut{}, err
 		}
@@ -112,7 +112,7 @@ func registerExportTool(r *registry) {
 		}
 		var writeErr error
 		swept, sweepErr := client.ReadAll(ctx, opts, embyfin.ToAnswer, func(items []embyfin.Item) bool {
-			if writeErr = withVersionFiles(ctx, client, items); writeErr != nil {
+			if writeErr = client.WithVersionFiles(ctx, items); writeErr != nil {
 				return false
 			}
 			for i := range items {

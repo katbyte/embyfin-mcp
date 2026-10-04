@@ -4,12 +4,21 @@
 
 ### Breaking
 
+- `collection_add` and `collection_remove` are `collection_edit`'s `add_items` and `remove_items`; `playlist_add` and `playlist_remove` are `playlist_edit`'s `add_items` and `remove_entries`. One call can rename, add and remove; a move still goes in a call of its own
+- `library_recent` is `library_items` with `added_since`; `library_genres` is `library_filters`
+- `server_logs` is gone: `server_log` lists every log file in `files` beside the newest one's tail
+- `audit_missing_metadata_provider`, `audit_missing_poster` and `audit_missing_overview` are one audit, `audit_missing_metadata`: `problems` picks which to look for (all three by default), each finding names the problems its item has, `by_problem` counts each, and `audit_all` has a row a problem
+- `audit_duplicate_series` is `audit_duplicates`' `folder_groups`, counted in `total_findings` and in `total_folder_groups`; `audit_all`'s duplicates row counts both
+- `item_watch_history` is `server_activity` with `item`; `server_activity` also takes `user`, reads only what the server keeps (Jellyfin's retention), and says `complete` and `days` like the history tools
 - `audit_runtime` reports only runtimes no film or episode can have: under 2 minutes, or 12 hours or more; it no longer compares a file with its season, and `tolerance_percent` is gone
 - `runtime_multiple` and `season_median_runtime_s` are gone from `library_episodes` and `show_episodes_exist`
 - `audit_provider` checks episodes too by default (`types` is Movie, Episode or both)
 
 ### Added
 
+- `show_resolve` and `audit_file_path` read a file holding a run of episodes in every form the servers read and the common ones they do not (`S01E01-E02`, `S01E01E02`, `01x02-03`, `S01E01+E02`, up to twenty a file), say the file's `run_style`, and warn (`run_warning`) when the server it runs against does not read that style as a run: the file is then listed as its first episode and the rest read as missing, and the warning names the form to rename it to
+- `server_activity` entries carry `item_id`, and about an item or a user the answer says how far back it could read
+- `audit_missing_metadata` on a music library looks at the albums' covers alone
 - `audit_provider` checks each episode's runtime against TMDB's for that episode, names the TMDB episode it compared with, and counts what it could not judge in `runtime_not_judged`
 - `audit_anime_ids` says in `note` when an older copy of the anime list answered because it could not be read again
 - `audit_spelling` reads album and artist names off a music library's tracks: an album spelled two ways by one album artist, an artist with and without `The`; `metadata_rename` refuses them, as they are the files' tags

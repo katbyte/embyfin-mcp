@@ -380,7 +380,7 @@ func TestAnIndexThatCannotBeReadIsSaidNotHidden(t *testing.T) {
 
 // A show held twice after a folder rename usually has one entry with the
 // show's ids and one with none - nothing matched the second - so it shares
-// no id to be found by. The folder rule audit_duplicate_series groups by
+// no id to be found by. The folder rule audit_duplicates' folder_groups group by
 // finds it: two folders side by side whose names differ only in spacing,
 // case, accents or punctuation. And a shared id is not the same show when
 // the two entries' AniDB ids differ: an anime entry kept apart carries its

@@ -77,12 +77,12 @@ func TestSharedNamesAndHeldItems(t *testing.T) {
 	}
 
 	// an add counts what is new and sends only that
-	out, msg := callTool(t, cs, "collection_add", map[string]any{"collection": "set", "item_ids": []any{"a", "b", "b"}})
+	out, msg := callTool(t, cs, "collection_edit", map[string]any{"collection": "set", "add_items": []any{"a", "b", "b"}})
 	if msg != "" || out["added"] != float64(1) || out["already_held"] != float64(2) {
-		t.Errorf("collection_add = %v %s", out, msg)
+		t.Errorf("collection_edit add_items = %v %s", out, msg)
 	}
-	if out, msg = callTool(t, cs, "collection_add", map[string]any{"collection": "Set", "item_ids": []any{"a"}}); msg != "" || out["added"] != float64(0) {
-		t.Errorf("collection_add of a member = %v %s", out, msg)
+	if out, msg = callTool(t, cs, "collection_edit", map[string]any{"collection": "Set", "add_items": []any{"a"}}); msg != "" || out["added"] != nil {
+		t.Errorf("collection_edit add_items of a member = %v %s", out, msg)
 	}
 	if len(added) != 1 || added[0] != "b" {
 		t.Errorf("adds sent = %v, want one of b", added)
@@ -178,7 +178,7 @@ func TestParallelEditsKeepEveryChange(t *testing.T) {
 	}
 }
 
-// library_genres reads the genres off the items, so an edit shows at once
+// library_filters reads the genres off the items, so an edit shows at once
 // and a genre no item carries any more is gone, where the servers' own genre
 // lists lag.
 func TestLibraryGenresReadOffTheItems(t *testing.T) {
@@ -190,9 +190,15 @@ func TestLibraryGenresReadOffTheItems(t *testing.T) {
 	})
 	cs := session(t, f, Options{})
 
-	out, msg := callTool(t, cs, "library_genres", nil)
-	if got, _ := json.Marshal(out["genres"]); msg != "" || string(got) != `["Action","Horror","Zzyzx Saga"]` {
-		t.Errorf("library_genres = %s %s", got, msg)
+	out, msg := callTool(t, cs, "library_filters", nil)
+	genres := objects(t, out["genres"], "genres")
+	got := make([]string, 0, len(genres))
+	for _, g := range genres {
+		got = append(got, text(g["value"]))
+	}
+	slices.Sort(got)
+	if msg != "" || !slices.Equal(got, []string{"Action", "Horror", "Zzyzx Saga"}) {
+		t.Errorf("library_filters genres = %v %s", got, msg)
 	}
 	if q := f.requests("/Items")[0].Query; !strings.Contains(q, "IncludeItemTypes=Movie%2CSeries") {
 		t.Errorf("the sweep = %s", q)

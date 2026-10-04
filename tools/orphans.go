@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -55,33 +56,12 @@ const (
 	folderUnknown = "unknown"
 )
 
-// libraryPath is one folder a library reads from.
-type libraryPath struct{ library, path string }
-
-func libraryPaths(ctx context.Context, client *embyfin.Client) ([]libraryPath, error) {
-	folders, err := client.VirtualFolders(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var out []libraryPath
-	for _, f := range folders {
-		for _, loc := range f.Locations {
-			if loc = trimSep(loc); loc != "" {
-				out = append(out, libraryPath{library: f.Name, path: loc})
-			}
-		}
-	}
-
-	return out, nil
-}
-
 // findOrphans is the sweep audit_orphans counts: every item outside every
 // library folder, the library folders it was read against, and what the
 // sweep saw. audit_all reports its count without placing the items in
 // folders, which asks the server about each folder.
-func findOrphans(ctx context.Context, client *embyfin.Client) ([]libraryPath, []embyfin.Item, embyfin.ReadResult, error) {
-	libs, err := libraryPaths(ctx, client)
+func findOrphans(ctx context.Context, client *embyfin.Client) ([]embyfin.LibraryPath, []embyfin.Item, embyfin.ReadResult, error) {
+	libs, err := client.LibraryPaths(ctx)
 	if err != nil {
 		return nil, nil, embyfin.ReadResult{}, err
 	}
@@ -102,18 +82,20 @@ func findOrphans(ctx context.Context, client *embyfin.Client) ([]libraryPath, []
 // else, so this asks the disk: whether it finds the library's folder spelled
 // with every letter's case turned over. On a disk that tells case apart the
 // two are different folders, and the items stay orphans.
-func dropCaseTwins(ctx context.Context, client *embyfin.Client, orphans []embyfin.Item, libs []libraryPath) ([]embyfin.Item, error) {
+func dropCaseTwins(ctx context.Context, client *embyfin.Client, orphans []embyfin.Item, libs []embyfin.LibraryPath) ([]embyfin.Item, error) {
 	folds := map[string]bool{} // library folder -> whether the disk ignores case there
 	kept := make([]embyfin.Item, 0, len(orphans))
 	for j := range orphans {
 		it := &orphans[j]
-		i := slices.IndexFunc(libs, func(l libraryPath) bool { return within(strings.ToLower(it.Path), strings.ToLower(l.path)) })
+		i := slices.IndexFunc(libs, func(l embyfin.LibraryPath) bool {
+			return mediapath.Within(strings.ToLower(it.Path), strings.ToLower(l.Path))
+		})
 		if i < 0 {
 			kept = append(kept, *it)
 
 			continue
 		}
-		folder := libs[i].path
+		folder := libs[i].Path
 		ignores, asked := folds[folder]
 		if !asked {
 			turned := turnCase(folder)
@@ -198,7 +180,7 @@ type orphanPlace struct {
 // them. A folder the server could not be asked about is reported as it
 // stands, unknown, and nothing below it is guessed at. Each folder is asked
 // about once.
-func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin.Item, libs []libraryPath) map[string]*orphanPlace {
+func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin.Item, libs []embyfin.LibraryPath) map[string]*orphanPlace {
 	type answer struct{ state, note string }
 	asked := map[string]answer{}
 	ask := func(folder string) answer {
@@ -231,7 +213,7 @@ func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin
 		below := map[string][]embyfin.Item{}
 		for i := range items {
 			it := &items[i]
-			child := childOf(folder, it.Path)
+			child := mediapath.ChildOf(folder, it.Path)
 			if child == "" {
 				// the folder's own item: a Folder or a Series whose folder
 				// the server can see
@@ -245,7 +227,7 @@ func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin
 			part := below[child]
 			// a file sitting in this folder, or copies of one: the folder
 			// holding it is this one, which the server can see
-			if !slices.ContainsFunc(part, func(it embyfin.Item) bool { return trimSep(it.Path) != child }) {
+			if !slices.ContainsFunc(part, func(it embyfin.Item) bool { return mediapath.Trim(it.Path) != child }) {
 				*onDisk = append(*onDisk, part...)
 
 				continue
@@ -277,17 +259,17 @@ func placeOrphans(ctx context.Context, client *embyfin.Client, orphans []embyfin
 // copies of one), the folder holding it. It never climbs above bound, which
 // holds them all and no library.
 func holdingFolder(items []embyfin.Item, bound string) string {
-	first := trimSep(items[0].Path)
+	first := mediapath.Trim(items[0].Path)
 	common, same := first, true
 	for i := 1; i < len(items); i++ {
-		p := trimSep(items[i].Path)
+		p := mediapath.Trim(items[i].Path)
 		same = same && p == first
-		for common != "" && !within(p, common) {
-			common = parentDir(common)
+		for common != "" && !mediapath.Within(p, common) {
+			common = mediapath.Dir(common)
 		}
 	}
 	if same {
-		if up := parentDir(common); up != "" && within(up, bound) {
+		if up := mediapath.Dir(common); up != "" && mediapath.Within(up, bound) {
 			common = up
 		}
 	}
@@ -295,148 +277,37 @@ func holdingFolder(items []embyfin.Item, bound string) string {
 	return common
 }
 
-// childOf is the entry directly inside folder that path is or is under,
-// spelled with the path's own separator, or "" for the folder itself. path
-// is within folder.
-func childOf(folder, path string) string {
-	folder, path = trimSep(folder), trimSep(path)
-	if len(path) <= len(folder) {
-		return ""
-	}
-	rest, sep := path[len(folder):], ""
-	// a filesystem's top already ends in its separator
-	if !isSep(folder[len(folder)-1]) {
-		sep, rest = rest[:1], rest[1:]
-	}
-	if i := strings.IndexAny(rest, `/\`); i >= 0 {
-		rest = rest[:i]
-	}
-
-	return folder + sep + rest
-}
-
-func isSep(b byte) bool { return b == '/' || b == '\\' }
-
-// isTop is the top of a filesystem - /, C:\, or \\host\share - which is never
-// reported or cleaned.
-func isTop(p string) bool {
-	switch {
-	case p == "/":
-		return true
-	case len(p) == 3 && p[1] == ':' && isSep(p[2]):
-		return true
-	case strings.HasPrefix(p, `\\`):
-		return strings.Count(strings.TrimSuffix(p[2:], `\`), `\`) <= 1
-	}
-
-	return false
-}
-
-// trimSep drops trailing separators, keeping the one that is a whole top.
-func trimSep(p string) string {
-	for len(p) > 1 && isSep(p[len(p)-1]) && !isTop(p) {
-		p = p[:len(p)-1]
-	}
-
-	return p
-}
-
-// parentDir is the folder holding p, or "" when p is a filesystem's top.
-func parentDir(p string) string {
-	p = trimSep(p)
-	if isTop(p) {
-		return ""
-	}
-
-	i := strings.LastIndexAny(p, `/\`)
-	switch {
-	case i < 0:
-		return ""
-	case i == 0:
-		return p[:1]
-	case i == 2 && p[1] == ':':
-		return p[:3]
-	}
-
-	return p[:i]
-}
-
-// baseName is the last segment of a path, either separator. Every path an
-// audit splits is the media server's, and one on Windows answers with
-// backslashes whatever machine this runs on, which filepath.Base would read
-// as one long name.
-func baseName(p string) string {
-	p = trimSep(p)
-	if i := strings.LastIndexAny(p, `/\`); i >= 0 {
-		return p[i+1:]
-	}
-
-	return p
-}
-
-// within says whether path is root or inside it, a whole path segment at a
-// time: /data/docs is not inside /data/doc.
-func within(path, root string) bool {
-	path, root = trimSep(path), trimSep(root)
-	switch {
-	case root == "" || !strings.HasPrefix(path, root):
-		return false
-	case len(path) == len(root):
-		return true
-	}
-
-	return isSep(root[len(root)-1]) || isSep(path[len(root)])
-}
-
-// onDisk says whether a path names a place on a filesystem, rather than a URL
-// or a name the server made up: nothing else can be checked, or left behind.
-func onDisk(p string) bool {
-	return strings.HasPrefix(p, "/") || strings.HasPrefix(p, `\\`) || (len(p) > 2 && p[1] == ':' && isSep(p[2]))
-}
-
-// hasDots says whether a path steps through . or .., which only the server
-// would resolve: every check here compares paths as they are written.
-func hasDots(p string) bool {
-	for _, seg := range strings.FieldsFunc(p, func(r rune) bool { return r == '/' || r == '\\' }) {
-		if seg == "." || seg == ".." {
-			return true
-		}
-	}
-
-	return false
-}
-
 // inLibrary is the library folder path is inside, if any.
-func inLibrary(path string, libs []libraryPath) (libraryPath, bool) {
+func inLibrary(path string, libs []embyfin.LibraryPath) (embyfin.LibraryPath, bool) {
 	for _, l := range libs {
-		if within(path, l.path) {
+		if mediapath.Within(path, l.Path) {
 			return l, true
 		}
 	}
 
-	return libraryPath{}, false
+	return embyfin.LibraryPath{}, false
 }
 
 // holdsLibrary is a library folder inside folder, if any.
-func holdsLibrary(folder string, libs []libraryPath) (libraryPath, bool) {
+func holdsLibrary(folder string, libs []embyfin.LibraryPath) (embyfin.LibraryPath, bool) {
 	for _, l := range libs {
-		if within(l.path, folder) {
+		if mediapath.Within(l.Path, folder) {
 			return l, true
 		}
 	}
 
-	return libraryPath{}, false
+	return embyfin.LibraryPath{}, false
 }
 
 // orphanFolder is the highest folder above an orphan that holds no library
 // folder, which is as high as the removed library's folder can have been:
 // the one above holds libraries still in use, and naming it would be naming
 // them. audit_orphans reports each orphan at or below it (placeOrphans).
-func orphanFolder(path string, libs []libraryPath) string {
-	folder := trimSep(path)
+func orphanFolder(path string, libs []embyfin.LibraryPath) string {
+	folder := mediapath.Trim(path)
 	for {
-		up := parentDir(folder)
-		if up == "" || isTop(up) {
+		up := mediapath.Dir(folder)
+		if up == "" || mediapath.IsTop(up) {
 			return folder
 		}
 		if _, holds := holdsLibrary(up, libs); holds {
@@ -451,18 +322,18 @@ func orphanFolder(path string, libs []libraryPath) string {
 // it - and says what the sweep saw, read for purpose. It names no library and
 // no user, because an orphan belongs to neither: only a sweep of everything
 // the server holds reaches it.
-func sweepOrphans(ctx context.Context, client *embyfin.Client, libs []libraryPath, root string, purpose embyfin.ReadPurpose) ([]embyfin.Item, embyfin.ReadResult, error) {
+func sweepOrphans(ctx context.Context, client *embyfin.Client, libs []embyfin.LibraryPath, root string, purpose embyfin.ReadPurpose) ([]embyfin.Item, embyfin.ReadResult, error) {
 	var found []embyfin.Item
 	swept, err := sweepAll(ctx, client, embyfin.SearchOptions{IncludeItemTypes: orphanTypes, Fields: "Path,ParentId"}, purpose, func(items []embyfin.Item) {
 		for i := range items {
 			it := items[i]
-			if !onDisk(it.Path) {
+			if !mediapath.OnDisk(it.Path) {
 				continue
 			}
 			if _, in := inLibrary(it.Path, libs); in {
 				continue
 			}
-			if root != "" && !within(it.Path, root) {
+			if root != "" && !mediapath.Within(it.Path, root) {
 				continue
 			}
 			found = append(found, it)
@@ -640,9 +511,6 @@ func settled(ctx context.Context, client *embyfin.Client, failures []orphanFailu
 	return gone, left
 }
 
-// depth is how many folders deep a path is.
-func depth(p string) int { return strings.Count(trimSep(p), "/") + strings.Count(trimSep(p), `\`) }
-
 type orphanGroup struct {
 	Folder   string         `json:"folder"         jsonschema:"the deepest folder holding these items: for leftovers the one the server can no longer see, which item_orphans_delete takes as named; for files still on disk the folder they are in"`
 	OnServer string         `json:"on_server"      jsonschema:"missing: the server cannot find the folder, so these are leftovers item_orphans_delete removes; present: the files are still there, held outside every library, and item_orphans_delete refuses them; unknown: the check failed, see note"`
@@ -705,13 +573,13 @@ func registerOrphanTools(r *registry) {
 			"What goes with the items: " + goneWithItems + ". lists_affected names the playlists and collections. " +
 			"Without confirm=true it only reports what it would delete, and the lists that hold them. Deletes at most limit items a call, deepest first; remaining says how many are left.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in deleteIn) (*mcp.CallToolResult, deleteOut, error) {
-		folder := trimSep(strings.TrimSpace(in.Folder))
+		folder := mediapath.Trim(strings.TrimSpace(in.Folder))
 		switch {
-		case folder == "" || !onDisk(folder):
+		case folder == "" || !mediapath.OnDisk(folder):
 			return nil, deleteOut{}, errors.New("folder must be a full path on the server, as audit_orphans reports it")
-		case hasDots(folder):
+		case mediapath.HasDots(folder):
 			return nil, deleteOut{}, fmt.Errorf("folder %s steps through . or ..: name it as audit_orphans reports it", folder)
-		case isTop(folder):
+		case mediapath.IsTop(folder):
 			return nil, deleteOut{}, fmt.Errorf("refusing %s: it is the top of a filesystem", folder)
 		case in.Limit > orphanDeleteMax:
 			return nil, deleteOut{}, fmt.Errorf("limit %d is more than the %d one call deletes: call again for the rest", in.Limit, orphanDeleteMax)
@@ -721,15 +589,15 @@ func registerOrphanTools(r *registry) {
 			limit = orphanDeleteDefault
 		}
 
-		libs, err := libraryPaths(ctx, client)
+		libs, err := client.LibraryPaths(ctx)
 		if err != nil {
 			return nil, deleteOut{}, err
 		}
 		if l, inside := inLibrary(folder, libs); inside {
-			return nil, deleteOut{}, fmt.Errorf("%s is inside the %s library's folder %s: only a folder outside every library holds orphans", folder, l.library, l.path)
+			return nil, deleteOut{}, fmt.Errorf("%s is inside the %s library's folder %s: only a folder outside every library holds orphans", folder, l.Library, l.Path)
 		}
 		if l, holds := holdsLibrary(folder, libs); holds {
-			return nil, deleteOut{}, fmt.Errorf("%s holds the %s library's folder %s: name the folder the orphans are under, as audit_orphans reports it", folder, l.library, l.path)
+			return nil, deleteOut{}, fmt.Errorf("%s holds the %s library's folder %s: name the folder the orphans are under, as audit_orphans reports it", folder, l.Library, l.Path)
 		}
 		if err := refuseVisible(ctx, client, folder); err != nil {
 			return nil, deleteOut{}, err
@@ -761,7 +629,7 @@ func registerOrphanTools(r *registry) {
 		// delete depends on a server taking a folder's items with it
 		var failures []orphanFailure
 		targets := slices.SortedFunc(slices.Values(orphans), func(a, b embyfin.Item) int {
-			return cmp.Or(cmp.Compare(depth(b.Path), depth(a.Path)), strings.Compare(a.Path, b.Path), strings.Compare(a.ID, b.ID))
+			return cmp.Or(cmp.Compare(mediapath.Depth(b.Path), mediapath.Depth(a.Path)), strings.Compare(a.Path, b.Path), strings.Compare(a.ID, b.ID))
 		})
 		targets = targets[:min(len(targets), limit)]
 		for start := 0; start < len(targets); start += orphanBatch {

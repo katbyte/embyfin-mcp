@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -65,7 +66,7 @@ func norm(s string) string {
 // in a script that writes its vowels as marks it is part of the word and
 // kept. word is false for punctuation, symbols and spaces.
 func wordRune(r rune, afterLatin bool) (spelling string, word bool) {
-	if folded := foldLetter(r); folded != "" {
+	if folded := naming.FoldLetter(r); folded != "" {
 		return folded, true
 	}
 	switch {
@@ -78,24 +79,6 @@ func wordRune(r rune, afterLatin bool) (spelling string, word bool) {
 	}
 
 	return "", false
-}
-
-// foldLetter is the plain-ASCII spelling of an accented Latin letter, or
-// nothing for a rune that is not one.
-func foldLetter(r rune) string {
-	for ascii, accented := range foldTable {
-		if strings.ContainsRune(accented, r) {
-			return ascii
-		}
-	}
-
-	return ""
-}
-
-var foldTable = map[string]string{
-	"a": "àáâãäåāąă", "ae": "æ", "c": "çćčċ", "d": "ďđð", "e": "èéêëēęěė", "g": "ğģ",
-	"i": "ìíîïīıį", "l": "łļľ", "n": "ñńňņ", "o": "òóôõöøōőœ", "r": "řŗ", "s": "šşśș", "ss": "ß",
-	"t": "ťţț", "th": "þ", "u": "ùúûüūůűų", "y": "ýÿ", "z": "žźż",
 }
 
 // spellingCounts gathers, per field, every spelling of every value and how
@@ -718,7 +701,7 @@ func holdsMusic(ctx context.Context, client *embyfin.Client, library string) (bo
 		return f.CollectionType == "music" || f.CollectionType == "" || f.CollectionType == "mixed"
 	}
 	if library != "" {
-		folder, err := resolveLibrary(ctx, client, library)
+		folder, err := client.ResolveLibrary(ctx, library)
 		if err != nil || folder == nil {
 			return folder == nil && err == nil, err
 		}
@@ -848,7 +831,7 @@ func registerSpellingTools(r *registry) {
 		case fieldStudios:
 			opts.Studios = []string{from}
 		}
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, renameOut{}, err
 		}

@@ -486,3 +486,51 @@ func TestDatesThatCannotBeRead(t *testing.T) {
 		t.Errorf("an episode dated 20-01-2008 = %v, %v, want an error", run, err)
 	}
 }
+
+// The titles TMDB lists and finds are kept an hour, as every other fact is,
+// and Clear forgets them with the rest.
+func TestTitlesAreKeptAnHour(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	f, calls := newTMDB(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/3/search/movie":
+			_, _ = w.Write([]byte(`{"results":[{"id":1,"title":"Zzyzx","original_title":"Zzyzx","release_date":"1999-01-01"}]}`))
+		case "/3/movie/1/alternative_titles":
+			_, _ = w.Write([]byte(`{"id":1,"titles":[{"iso_3166_1":"DE","title":"Zzyzx Again","type":""}]}`))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	f.now = func() time.Time { return now }
+	ask := func() {
+		if hits, err := f.Search(t.Context(), "movie", "Zzyzx", 1999); err != nil || len(hits) != 1 || hits[0].Title != "Zzyzx" || hits[0].Year != 1999 {
+			t.Fatalf("search = %v, %v", hits, err)
+		}
+		if alts, err := f.AlternativeTitles(t.Context(), "movie", "1"); err != nil || !slices.Equal(alts, []string{"Zzyzx Again"}) {
+			t.Fatalf("alternative titles = %v, %v", alts, err)
+		}
+	}
+	ask()
+	now = now.Add(59 * time.Minute)
+	ask()
+	if n := atomic.LoadInt32(calls); n != 2 {
+		t.Errorf("after 59 minutes TMDB was asked %d times, want the first 2 only", n)
+	}
+	if !f.Asked("movie", "Zzyzx", 1999) || f.Asked("movie", "Zzyzx", 2000) {
+		t.Error("Asked does not say what was searched for")
+	}
+	now = now.Add(2 * time.Minute)
+	ask()
+	if n := atomic.LoadInt32(calls); n != 4 {
+		t.Errorf("after an hour TMDB was asked %d times in all, want 4: both answers asked again", n)
+	}
+	if n := f.Clear(); n != 2 {
+		t.Errorf("Clear forgot %d answers, want 2", n)
+	}
+	ask()
+	if n := atomic.LoadInt32(calls); n != 6 {
+		t.Errorf("after Clear TMDB was asked %d times in all, want 6", n)
+	}
+}

@@ -35,7 +35,7 @@ func TestAJellyfinMoveThatLosesEntriesNamesThem(t *testing.T) {
 	c.settle, c.saveGrain = time.Millisecond, time.Millisecond
 
 	err := c.MovePlaylistEntry(t.Context(), "p1", "u1", "c", "c", "", 1)
-	if err == nil || !strings.Contains(err.Error(), "putting them back failed, so they are gone from the playlist until added again (playlist_add, in this order): Cube (c), Blade Runner (b)") {
+	if err == nil || !strings.Contains(err.Error(), "putting them back failed, so they are gone from the playlist until added again (playlist_edit add_items, in this order): Cube (c), Blade Runner (b)") {
 		t.Errorf("a move whose put-back failed = %v", err)
 	}
 	if !slices.Equal(held, []string{"a"}) {

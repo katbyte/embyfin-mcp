@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 )
 
 // C18: the call to make before writing. A bulk import that does not read the
@@ -308,7 +310,7 @@ type fakeDisk struct {
 // unreadable says whether a path is a hidden folder or inside one, or inside
 // a blank one: what the path check cannot find.
 func (d *fakeDisk) unreadable(p string) bool {
-	for dir := p; dir != ""; dir = parentDir(dir) {
+	for dir := p; dir != ""; dir = mediapath.Dir(dir) {
 		if d.hidden[dir] || dir != p && d.blank[dir] {
 			return true
 		}
@@ -323,7 +325,7 @@ func (d *fakeDisk) serve(t *testing.T, f *fakeServer) {
 	dirs := func() map[string]bool {
 		out := map[string]bool{}
 		for p := range d.files {
-			for dir := parentDir(p); dir != ""; dir = parentDir(dir) {
+			for dir := mediapath.Dir(p); dir != ""; dir = mediapath.Dir(dir) {
 				out[dir] = true
 			}
 		}
@@ -346,13 +348,13 @@ func (d *fakeDisk) serve(t *testing.T, f *fakeServer) {
 			return
 		}
 		for p := range d.files {
-			if parentDir(p) == folder {
-				entries = append(entries, map[string]any{"Name": baseName(p), "Path": p, "Type": "File"})
+			if mediapath.Dir(p) == folder {
+				entries = append(entries, map[string]any{"Name": mediapath.Base(p), "Path": p, "Type": "File"})
 			}
 		}
 		for p := range dirs() {
-			if parentDir(p) == folder {
-				entries = append(entries, map[string]any{"Name": baseName(p), "Path": p, "Type": "Directory"})
+			if mediapath.Dir(p) == folder {
+				entries = append(entries, map[string]any{"Name": mediapath.Base(p), "Path": p, "Type": "Directory"})
 			}
 		}
 		writeJSON(t, w, entries)

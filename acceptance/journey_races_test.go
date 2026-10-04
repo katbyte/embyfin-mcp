@@ -10,6 +10,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // Journeys against work that is still going on: a bulk edit that stops at a
@@ -21,8 +25,8 @@ func heldPaths(t *testing.T, library string) []string {
 	t.Helper()
 
 	var out []string
-	for _, it := range rowsOf(call(t, "library_items", map[string]any{"library": library, "types": "Movie", "limit": 200})["items"]) {
-		out = append(out, str(it["path"]))
+	for _, it := range acc.RowsOf(suite.Call(t, "library_items", map[string]any{"library": library, "types": "Movie", "limit": 200})["items"]) {
+		out = append(out, acc.Str(it["path"]))
 	}
 
 	return out
@@ -48,10 +52,10 @@ func TestABulkEditStoppedPartWay(t *testing.T) {
 	for _, id := range []string{arrival, dune} {
 		keepFiles(t, itemFolder(t, id))
 	}
-	putBack(t, "item_edit", map[string]any{"ids": []any{arrival, dune}, "remove_tags": []any{"zzyzx-bulk"}})
+	suite.PutBack(t, "item_edit", map[string]any{"ids": []any{arrival, dune}, "remove_tags": []any{"zzyzx-bulk"}})
 	tagged := func(id string) int {
 		n := 0
-		for _, tag := range strs(t, call(t, "item_get", map[string]any{"id": id})["tags"], "tags") {
+		for _, tag := range acc.Strs(t, suite.Call(t, "item_get", map[string]any{"id": id})["tags"], "tags") {
 			if tag == "zzyzx-bulk" {
 				n++
 			}
@@ -60,7 +64,7 @@ func TestABulkEditStoppedPartWay(t *testing.T) {
 	}
 
 	bad := missingID()
-	msg := callErr(t, "item_edit", map[string]any{"ids": []any{arrival, bad, dune}, "add_tags": []any{"zzyzx-bulk"}})
+	msg := suite.CallErr(t, "item_edit", map[string]any{"ids": []any{arrival, bad, dune}, "add_tags": []any{"zzyzx-bulk"}})
 	if !strings.Contains(msg, bad+": ") || !strings.Contains(msg, "1 of the 3 items were already changed: Arrival ("+arrival+")") || !strings.Contains(msg, "run the same call again to finish") {
 		t.Errorf("the edit stopped at the bad id with: %s", msg)
 	}
@@ -69,8 +73,8 @@ func TestABulkEditStoppedPartWay(t *testing.T) {
 	}
 
 	for range 2 {
-		out := call(t, "item_edit", map[string]any{"ids": []any{arrival, dune}, "add_tags": []any{"zzyzx-bulk"}})
-		if num(t, out["updated"], "updated") != 2 || !slices.Equal(names(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
+		out := suite.Call(t, "item_edit", map[string]any{"ids": []any{arrival, dune}, "add_tags": []any{"zzyzx-bulk"}})
+		if acc.Num(t, out["updated"], "updated") != 2 || !slices.Equal(names(t, out["items"], "items"), []string{"Arrival", "Dune"}) {
 			t.Errorf("the edit again = %v", out)
 		}
 		if a, d := tagged(arrival), tagged(dune); a != 1 || d != 1 {
@@ -92,13 +96,13 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 		restoreLater(t, id)
 	}
 	unmarkLater(t, "alice", blade)
-	call(t, "item_set_state", map[string]any{"id": blade, "user": "alice", "watched": false, "favourite": false})
+	suite.Call(t, "item_set_state", map[string]any{"id": blade, "user": "alice", "watched": false, "favourite": false})
 
 	// a copy to delete, staged and scanned in first
-	have := movieCount(t, "Messy Movies")
+	have := typeCount(t, "Messy Movies", "Movie")
 	const name = "The Thirteenth Floor (1999)"
-	copied := filepath.Join(dataDir(), "messy-movies", name)
-	copyFixture(t, filepath.Join(dataDir(), "movies", name), copied)
+	copied := filepath.Join(testenv.DataDir(), "messy-movies", name)
+	copyFixture(t, filepath.Join(testenv.DataDir(), "movies", name), copied)
 	t.Cleanup(func() {
 		if err := os.RemoveAll(copied); err != nil {
 			t.Error(err)
@@ -111,9 +115,9 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 	var staged string
-	for _, it := range rows(t, call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Thirteenth", "limit": 50})["items"], "items") {
-		if strings.Contains(str(it["path"]), "/messy-movies/"+name+"/") {
-			staged = str(it["id"])
+	for _, it := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "query": "Thirteenth", "limit": 50})["items"], "items") {
+		if strings.Contains(acc.Str(it["path"]), "/messy-movies/"+name+"/") {
+			staged = acc.Str(it["id"])
 		}
 	}
 	if staged == "" {
@@ -122,12 +126,12 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	idx := candidateFor(t, map[string]any{"id": mononoke, "kind": "movie"}, "128", "tt0119698")
 
 	slowScan(t)
-	if out := call(t, "library_scan", nil); !boolOf(out["started"]) {
+	if out := suite.Call(t, "library_scan", nil); !acc.BoolOf(out["started"]) {
 		t.Fatalf("library_scan = %v", out)
 	}
 	const overview = "Zzyzx: fixed while a scan ran."
-	call(t, "item_edit", map[string]any{"ids": []any{arrival}, "overview": overview})
-	if out := call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx})); !strings.Contains(str(out["note"]), "metadata fetchers off") {
+	suite.Call(t, "item_edit", map[string]any{"ids": []any{arrival}, "overview": overview})
+	if out := suite.Call(t, "item_identify_apply", withCandidateIDs(t, map[string]any{"id": mononoke, "kind": "movie", "candidate": idx})); !strings.Contains(acc.Str(out["note"]), "metadata fetchers off") {
 		t.Errorf("item_identify_apply = %v", out)
 	}
 	// on Jellyfin the scan can undo the change within the second the tool
@@ -137,26 +141,26 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	var marked map[string]any
 	var markErr error
 	if isJellyfin() {
-		marked, markErr = invoke("item_set_state", markArgs)
+		marked, markErr = suite.Invoke("item_set_state", markArgs)
 	} else {
-		marked = call(t, "item_set_state", markArgs)
+		marked = suite.Call(t, "item_set_state", markArgs)
 	}
-	deleted := call(t, "item_delete", map[string]any{"id": staged, "confirm": true})
-	if idle, err := scanIdle(); err != nil || idle {
+	deleted := suite.Call(t, "item_delete", map[string]any{"id": staged, "confirm": true})
+	if idle, err := suite.ScanIdle(); err != nil || idle {
 		t.Fatalf("the scan had finished before the last fix (%v): the fixes raced nothing", err)
 	}
-	if err := waitForScan(); err != nil {
+	if err := suite.WaitForScan(); err != nil {
 		t.Fatal(err)
 	}
 	// the delete says what the scan it raced may do, and so does the change
 	// of alice's state, which a scan saving the item can undo
-	if note := str(deleted["note"]); !strings.Contains(note, "was running: it can list this item again") || !strings.Contains(note, "until a later scan lets it go") {
+	if note := acc.Str(deleted["note"]); !strings.Contains(note, "was running: it can list this item again") || !strings.Contains(note, "until a later scan lets it go") {
 		t.Errorf("item_delete during a scan: note = %q, want it to say a scan was running", note)
 	}
 	switch msg := fmt.Sprint(markErr); {
 	case markErr != nil && (!strings.Contains(msg, "favourite reads false, not true: the server did not keep it") || !strings.Contains(msg, "was running, and saving the item can undo a change")):
 		t.Errorf("item_set_state during a scan failed without naming the favourite and the scan: %v", markErr)
-	case markErr == nil && !strings.Contains(str(marked["note"]), "was running: it may overwrite this change once it finishes; check it afterwards"):
+	case markErr == nil && !strings.Contains(acc.Str(marked["note"]), "was running: it may overwrite this change once it finishes; check it afterwards"):
 		t.Errorf("item_set_state during a scan: note = %q, want it to say a scan was running", marked["note"])
 	}
 
@@ -166,15 +170,15 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	// next as a rule, the one after at most - which the delete's note says.
 	// Everywhere else the copy must be gone, and on Jellyfin after two scans.
 	racedBack := func() bool {
-		_, err := invoke("item_get", map[string]any{"id": staged})
+		_, err := suite.Invoke("item_get", map[string]any{"id": staged})
 		return err == nil
 	}
 	stand := func(when string) {
 		t.Helper()
-		if got := str(call(t, "item_get", map[string]any{"id": arrival})["overview"]); got != overview {
+		if got := acc.Str(suite.Call(t, "item_get", map[string]any{"id": arrival})["overview"]); got != overview {
 			t.Errorf("%s the messy Arrival's overview is %q", when, got)
 		}
-		if ids, _ := call(t, "item_get", map[string]any{"id": mononoke})["metadata_provider_ids"].(map[string]any); str(ids["tmdb"]) != "128" && str(ids["imdb"]) != "tt0119698" {
+		if ids, _ := suite.Call(t, "item_get", map[string]any{"id": mononoke})["metadata_provider_ids"].(map[string]any); acc.Str(ids["tmdb"]) != "128" && acc.Str(ids["imdb"]) != "tt0119698" {
 			t.Errorf("%s the messy Princess Mononoke holds %v, want its own tmdb or imdb id", when, ids)
 		}
 		// a scan saving the item can undo a change made while it ran (seen
@@ -189,7 +193,7 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 				t.Errorf("%s Blade Runner for alice reads favourite, where item_set_state's error said the server did not keep it", when)
 			}
 		case !w || !f:
-			if isJellyfin() && strings.Contains(str(marked["note"]), "was running: it may overwrite this change") {
+			if isJellyfin() && strings.Contains(acc.Str(marked["note"]), "was running: it may overwrite this change") {
 				t.Logf("%s Blade Runner for alice: watched %v favourite %v - the scan undid the change its answer read back as kept, and said a scan could", when, w, f)
 			} else {
 				t.Errorf("%s Blade Runner for alice: watched %v favourite %v", when, w, f)
@@ -215,8 +219,8 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	// with the copy a film of 100 minutes), and must let it go by the
 	// second, as the delete's note says
 	for _, when := range []string{"after another scan", "after the last scan"} {
-		call(t, "library_scan", nil)
-		if err := waitForExpectedScan(); err != nil {
+		suite.Call(t, "library_scan", nil)
+		if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
 			t.Fatal(err)
 		}
 		stand(when)
@@ -236,7 +240,7 @@ func TestAnEditRightAfterARefreshStays(t *testing.T) {
 	settled := func() {
 		t.Helper()
 		last, same := itemEtag(t, id), 0
-		if !eventuallyWithin(time.Minute, func() bool {
+		if !acc.EventuallyWithin(time.Minute, func() bool {
 			if now := itemEtag(t, id); now != last {
 				last, same = now, 0
 			} else {
@@ -249,12 +253,12 @@ func TestAnEditRightAfterARefreshStays(t *testing.T) {
 	}
 	for i := range 6 {
 		tag := fmt.Sprintf("zzyzx-after-refresh-%d", i)
-		if out := call(t, "item_refresh", map[string]any{"id": id, "replace_all": true}); !boolOf(out["landed"]) {
+		if out := suite.Call(t, "item_refresh", map[string]any{"id": id, "replace_all": true}); !acc.BoolOf(out["landed"]) {
 			t.Errorf("try %d: item_refresh = %v, want the refresh seen to land", i, out)
 		}
-		call(t, "item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{tag}})
+		suite.Call(t, "item_edit", map[string]any{"ids": []any{id}, "add_tags": []any{tag}})
 		settled()
-		if tags := strs(t, call(t, "item_get", map[string]any{"id": id})["tags"], "tags"); !slices.Contains(tags, tag) {
+		if tags := acc.Strs(t, suite.Call(t, "item_get", map[string]any{"id": id})["tags"], "tags"); !slices.Contains(tags, tag) {
 			t.Errorf("try %d: the edit made after item_refresh answered was undone by the refresh: tags %v", i, tags)
 		}
 	}

@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 )
 
@@ -282,12 +284,12 @@ func TestTitleFromPathReadsADiscByItsFolder(t *testing.T) {
 		"/m/Zzyzx Road (1999)/BDMV/STREAM/00001.m2ts",
 		`D:\Films\Zzyzx Road (1999)\VIDEO_TS\VTS_02_1.vob`,
 	} {
-		if claimed, score := titleFromPath(path, "Zzyzx Road"); claimed != "Zzyzx Road" || score < seriesConfident {
+		if claimed, score := naming.TitleFromPath(path, "Zzyzx Road"); claimed != "Zzyzx Road" || score < seriesConfident {
 			t.Errorf("%s claims %q (%.2f), want the folder's Zzyzx Road", path, claimed, score)
 		}
 	}
 	// a film named like a number is still its own title
-	if claimed, _ := titleFromPath("/m/1917 (2019)/1917 (2019).mkv", "1917"); claimed != "1917" {
+	if claimed, _ := naming.TitleFromPath("/m/1917 (2019)/1917 (2019).mkv", "1917"); claimed != "1917" {
 		t.Errorf("1917 claims %q", claimed)
 	}
 }
@@ -305,12 +307,12 @@ func TestAuditFilePathReadsAnUnmatchedFilmNamedAfterItsFolder(t *testing.T) {
 		{Type: typeMovie, Name: "Cube (1997)", Path: "/m/Cube (1997)/Cube (1997).mkv"},
 		{Type: typeMovie, Name: "Cube", ProductionYear: 1997, Path: "/m/Cube (1997)/Cube (1997).mkv"},
 	} {
-		if row, _ := checkPath(&it, want); len(row.Problems) != 0 {
+		if row, _ := checkPath(&it, want, embyfin.Emby); len(row.Problems) != 0 {
 			t.Errorf("%s at %s: %v", it.Name, it.Path, row.Problems)
 		}
 	}
 	// a film that really is another stays a finding
-	if row, _ := checkPath(new(embyfin.Item{Type: typeMovie, Name: "Hypercube (2002)", Path: "/m/Cube (1997)/Cube (1997).mkv"}), want); len(row.Problems) != 1 {
+	if row, _ := checkPath(new(embyfin.Item{Type: typeMovie, Name: "Hypercube (2002)", Path: "/m/Cube (1997)/Cube (1997).mkv"}), want, embyfin.Emby); len(row.Problems) != 1 {
 		t.Errorf("Hypercube in Cube's folder: %v", row.Problems)
 	}
 }
@@ -338,7 +340,7 @@ func TestAuditFilePathDiagnosisReadsSpecialsAndSaysWhatItCouldNotAsk(t *testing.
 	byPath := func(out map[string]any) map[string]map[string]any {
 		rows := map[string]map[string]any{}
 		for _, r := range objects(t, out["findings"], "findings") {
-			rows[baseName(text(r["path"]))] = r
+			rows[mediapath.Base(text(r["path"]))] = r
 		}
 
 		return rows
@@ -433,7 +435,7 @@ func TestAuditFilePathTakesATitleWrittenAnotherWay(t *testing.T) {
 		{"Zzyzx Henry V", "/m/Zzyzx Henry (1989)", true},
 		{"Zzyzx Malcolm X", "/m/Zzyzx Malcolm (1992)", true},
 	} {
-		row, _ := checkPath(&embyfin.Item{Type: typeMovie, Name: tc.name, Path: tc.path}, want)
+		row, _ := checkPath(&embyfin.Item{Type: typeMovie, Name: tc.name, Path: tc.path}, want, embyfin.Emby)
 		if got := len(row.Problems) > 0; got != tc.finding {
 			t.Errorf("%q at %s: problems %v, want a finding %v", tc.name, tc.path, row.Problems, tc.finding)
 		}
@@ -449,7 +451,7 @@ func TestAuditFilePathTakesATitleWrittenAnotherWay(t *testing.T) {
 	}
 
 	// an episode's file named with an article the title does not have
-	if row, _ := checkPath(&embyfin.Item{Type: typeEpisode, Name: "Half Loop", SeriesName: "Severance", ParentIndexNumber: new(1), IndexNumber: new(2), Path: "/s/Severance S01E02 - The Half Loop.mkv"}, want); len(row.Problems) != 0 {
+	if row, _ := checkPath(&embyfin.Item{Type: typeEpisode, Name: "Half Loop", SeriesName: "Severance", ParentIndexNumber: new(1), IndexNumber: new(2), Path: "/s/Severance S01E02 - The Half Loop.mkv"}, want, embyfin.Emby); len(row.Problems) != 0 {
 		t.Errorf("an episode's file with an article added = %v", row.Problems)
 	}
 }
@@ -772,7 +774,7 @@ func TestEpisodeTitlesFromFileReadEveryShape(t *testing.T) {
 		{"/s/Zzyzx - 01x05 - Max.mkv", []string{"Max"}, ""},
 		{"/s/S01E10.mkv", nil, ""},
 	} {
-		got, story := episodeTitlesFromFile(tc.path)
+		got, story := naming.EpisodeTitlesFromFile(tc.path)
 		if !slices.Equal(got, tc.want) || story != tc.story {
 			t.Errorf("%s = %q story %q, want %q story %q", tc.path, got, story, tc.want, tc.story)
 		}
@@ -820,12 +822,12 @@ func TestEpisodeTitlesFromFileReadEveryShape(t *testing.T) {
 		{"Pilot (1)", "/s/Zzyzx - 01x01 - Pilot.mkv", false},
 	} {
 		it := &embyfin.Item{Type: typeEpisode, Name: tc.name, SeriesName: "Zzyzx", Path: tc.path}
-		file := parseSegment(baseName(tc.path))
+		file := naming.ParseSegment(mediapath.Base(tc.path))
 		it.ParentIndexNumber, it.IndexNumber = new(file.Season), new(file.Episode)
-		if strings.HasPrefix(baseName(tc.path), "Star Trek") {
+		if strings.HasPrefix(mediapath.Base(tc.path), "Star Trek") {
 			it.SeriesName = "Star Trek Deep Space Nine"
 		}
-		row, _ := checkPath(it, want)
+		row, _ := checkPath(it, want, embyfin.Emby)
 		if got := len(row.Problems) > 0; got != tc.finding {
 			t.Errorf("%q at %s: problems %v, want a finding %v", tc.name, tc.path, row.Problems, tc.finding)
 		}
@@ -909,7 +911,7 @@ func TestAuditFilePathRollsUpAShowThatDisagreesOneWay(t *testing.T) {
 			if text(row["type"]) == "Series" {
 				show = row
 			} else if slices.ContainsFunc(texts(row["problems"]), func(p string) bool { return strings.HasPrefix(p, "series:") }) {
-				loose = append(loose, baseName(text(row["path"])))
+				loose = append(loose, mediapath.Base(text(row["path"])))
 			}
 		}
 		if show == nil || number(t, show["episodes"], "episodes") != 6 || !slices.Equal(texts(show["files"]), datedFiles("Zzyzx Mixed", 6)) ||
@@ -945,7 +947,7 @@ func TestAuditFilePathRollsUpAShowThatDisagreesOneWay(t *testing.T) {
 // A file title is looked up among a series' TMDB episode titles by an index,
 // not compared with each of them: a show of thousands of episodes named by
 // date was minutes of work. The index finds a title wherever comparing every
-// one by sameTitle does, and nowhere else.
+// one by naming.SameTitle does, and nowhere else.
 func TestEpisodeTitlesFindWhatComparingEveryOneFinds(t *testing.T) {
 	t.Parallel()
 
@@ -956,9 +958,9 @@ func TestEpisodeTitlesFindWhatComparingEveryOneFinds(t *testing.T) {
 	}
 	x := indexEpisodes(eps)
 	for _, q := range []string{"alpha", "The Alpha", "Alpha Beta Gamma", "Zzyzx SVU", "Zzyzx Night", "zzyzx night 2", "Gamma Part 2", "Delta Force", "The Delta", "2019 01 01", "Epsilon", "", "Gray Zzyzx Coat", "Zzyzx Q.X's Return"} {
-		want := slices.ContainsFunc(eps, func(e tmdb.Episode) bool { return sameTitle(q, e.Name) })
+		want := slices.ContainsFunc(eps, func(e tmdb.Episode) bool { return naming.SameTitle(q, e.Name) })
 		got, score, _ := x.best(q)
-		if found := score >= seriesConfident; found != want || found && !sameTitle(q, got.Name) {
+		if found := score >= seriesConfident; found != want || found && !naming.SameTitle(q, got.Name) {
 			t.Errorf("%q: the index finds %q at %v, where comparing every one finds one: %v", q, got.Name, score, want)
 		}
 	}
@@ -1066,7 +1068,7 @@ func TestAuditFilePathKeepsASpinOffsFilesNamedForItsParent(t *testing.T) {
 		for _, r := range rows {
 			problems := texts(r["problems"])
 			if !slices.ContainsFunc(problems, func(p string) bool { return strings.HasPrefix(p, `series: the file is named for "Zzyzx Street"`) }) {
-				t.Errorf("token %v: %s = %v, want it named for another series", token, baseName(text(r["path"])), problems)
+				t.Errorf("token %v: %s = %v, want it named for another series", token, mediapath.Base(text(r["path"])), problems)
 			}
 			if strings.Contains(text(r["path"]), "S01E04") && !slices.ContainsFunc(problems, func(p string) bool { return strings.HasPrefix(p, "title:") }) {
 				t.Errorf("token %v: the file with a title = %v, want its title problem kept beside", token, problems)

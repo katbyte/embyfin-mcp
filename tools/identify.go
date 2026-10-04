@@ -3,11 +3,11 @@ package tools
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -313,10 +313,10 @@ func nfoWarning(ctx context.Context, client *embyfin.Client, it *embyfin.Item, f
 // has already landed when this is asked, so a failed read is said in the
 // answer rather than failing it.
 func nfoBeside(ctx context.Context, client *embyfin.Client, it *embyfin.Item) (name, unread string) {
-	if it.Path == "" || !onDisk(it.Path) {
+	if it.Path == "" || !mediapath.OnDisk(it.Path) {
 		return "", ""
 	}
-	dir, want := parentDir(it.Path), []string{"movie.nfo", strings.TrimSuffix(baseName(it.Path), filepath.Ext(baseName(it.Path))) + ".nfo"}
+	dir, want := mediapath.Dir(it.Path), []string{"movie.nfo", mediapath.Stem(it.Path) + ".nfo"}
 	if it.Type == "Series" || it.Type == "Season" {
 		dir, want = it.Path, []string{"tvshow.nfo", "season.nfo"}
 	}

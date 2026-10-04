@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -32,8 +33,6 @@ import (
 
 // pathChecks are the checks, in the order a row lists what it found.
 var pathChecks = []string{"series", "season", "episode", "title", "year", "lookalike"}
-
-var pathYearRe = regexp.MustCompile(`\((19|20)\d\d\)`)
 
 type pathIn struct {
 	Library string   `json:"library,omitempty" jsonschema:"one library by name or id"`
@@ -87,7 +86,7 @@ type pathRow struct {
 	// row's series, which left its series problem standing
 	tmdbErr, seriesAskErr error
 	// read is the title the path's title check read, which TitleInFile
-	// quotes read whole when words follow the path's year (see pathClaim)
+	// quotes read whole when words follow the path's year (see naming.Claim)
 	read string
 }
 
@@ -110,10 +109,6 @@ func registerFilePathAudit(r *registry) {
 	// row by row (see tmdb.Breaker)
 	guarded := tmdb.Guarded(r.opts.ProviderTransport)
 	provider := r.tmdbFacts(guarded)
-	titles := newProviderTitlesVia(r.opts, guarded)
-	if titles != nil {
-		r.remember(titles)
-	}
 
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_file_path",
@@ -130,7 +125,7 @@ func registerFilePathAudit(r *registry) {
 			"A name spelled with a letter of another script that only looks Latin (a Cyrillic A, U+0410, spelling a Latin title) is a lookalike row naming the letter and the plain spelling, because no search for the plain title finds it. " +
 			"The path is what was placed on disk and the metadata what a provider or an edit set, so a row says which to fix by what it holds. item_identify or item_edit set the metadata right; a rename fixes the path. ids checks a handful of items without a sweep.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in pathIn) (*mcp.CallToolResult, pathOut, error) {
-		out, err := auditFilePath(ctx, client, provider, titles, in)
+		out, err := auditFilePath(ctx, client, provider, in)
 
 		return nil, out, err
 	})
@@ -157,7 +152,7 @@ func pathChecksWanted(s string) (map[string]bool, error) {
 	return want, nil
 }
 
-func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.Facts, titles *providerTitles, in pathIn) (pathOut, error) {
+func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.Facts, in pathIn) (pathOut, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 100
@@ -198,11 +193,11 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 	// another film (wholeFilm), as the version and duplicate warnings ask
 	type whole struct {
 		row   pathRow
-		claim pathClaim
+		claim naming.Claim
 	}
 	var wholes []whole
 	check := func(it *embyfin.Item) {
-		row, unnamed := checkPath(it, want)
+		row, unnamed := checkPath(it, want, client.Backend())
 		if unnamed {
 			out.Unnamed++
 		}
@@ -215,7 +210,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 			if want["title"] && it.Name != "" && !unnamed {
 				tally.named++
 			}
-			if f := parseSegment(baseName(it.Path)); f.Title != "" && f.Episode > 0 {
+			if f := naming.ParseSegment(mediapath.Base(it.Path)); f.Title != "" && f.Episode > 0 {
 				tally.marked++
 			}
 		}
@@ -224,7 +219,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 
 			return
 		}
-		if claim, ok := wholeClaim(it, it.Path); ok && titles != nil && want["title"] {
+		if claim, ok := wholeClaim(it, it.Path); ok && provider != nil && want["title"] {
 			wholes = append(wholes, whole{row, claim})
 		}
 	}
@@ -273,7 +268,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 	// a file named for the series by its original title, its sort name or a
 	// title TMDB lists for it is named for this series
 	var seriesRead string
-	findings, seriesRead, err = clearSeriesTitles(ctx, client, titles, findings)
+	findings, seriesRead, err = clearSeriesTitles(ctx, client, provider, findings)
 	if err != nil {
 		return pathOut{}, err
 	}
@@ -293,12 +288,12 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 	// a title TMDB lists for the item is one it goes by. TMDB failing to
 	// answer leaves that row as the server alone makes it, and says so on
 	// it: the rest are still asked (see tmdbNote)
-	if titles != nil {
+	if provider != nil {
 		kept := findings[:0]
 		for i := range findings {
 			trial := findings[i]
-			if err := clearAlternativeTitle(ctx, titles, &trial); err != nil {
-				couldNotAsk(&findings[i], "which titles TMDB lists for the item", err)
+			if err := clearAlternativeTitle(ctx, provider, &trial); err != nil {
+				couldNotAsk(&findings[i], "which provider TMDB lists for the item", err)
 			} else {
 				findings[i] = trial
 			}
@@ -315,7 +310,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 	// asked go before films TMDB failed to answer before, so a few it keeps
 	// failing on do not stand in front of the rest of the library; what was
 	// not asked, and why, is said
-	if titles != nil && len(wholes) > 0 {
+	if provider != nil && len(wholes) > 0 {
 		var asked []whole
 		var retry []int
 		// pending counts the films left for a later call, and pendingRetry
@@ -335,9 +330,9 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 		}
 		for i := range wholes {
 			switch {
-			case titles.asked("movie", wholes[i].claim.whole, 0):
+			case provider.Asked("movie", wholes[i].claim.Whole, 0):
 				asked = append(asked, wholes[i])
-			case titles.failedBefore("movie", wholes[i].claim.whole, 0):
+			case provider.FailedBefore("movie", wholes[i].claim.Whole, 0):
 				retry = append(retry, i)
 			default:
 				take(i, false)
@@ -351,7 +346,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 		// asking, which the next call asks as never asked
 		failed, failedOn := 0, 0
 		var firstErr error
-		for i, r := range askWholes(ctx, titles, len(asked), func(i int) (pathClaim, *embyfin.Item) { return asked[i].claim, &asked[i].row.item }) {
+		for i, r := range askWholes(ctx, provider, len(asked), func(i int) (naming.Claim, *embyfin.Item) { return asked[i].claim, &asked[i].row.item }) {
 			w := &asked[i]
 			switch {
 			case r.found != nil:
@@ -363,7 +358,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 			case r.err != nil:
 				failed++
 				firstErr = cmp.Or(firstErr, r.err)
-				if titles.failedBefore("movie", w.claim.whole, 0) {
+				if provider.FailedBefore("movie", w.claim.Whole, 0) {
 					failedOn++
 				}
 			}
@@ -390,7 +385,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 	}
 
 	// the plainest disagreements first: a number the file and the server
-	// read differently, then the titles least alike, then years
+	// read differently, then the provider least alike, then years
 	slices.SortFunc(findings, func(a, b pathRow) int {
 		if a.rank != b.rank {
 			return a.rank - b.rank
@@ -405,8 +400,8 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 
 		return strings.Compare(a.Path, b.Path)
 	})
-	if titles != nil {
-		findings = diagnoseTitlesByTMDB(ctx, provider, titles, findings, limit)
+	if provider != nil {
+		findings = diagnoseTitlesByTMDB(ctx, provider, findings, limit)
 	}
 	for i := range findings {
 		for _, p := range findings[i].Problems {
@@ -442,7 +437,7 @@ func auditFilePath(ctx context.Context, client *embyfin.Client, provider *tmdb.F
 // editionEntry says whether TMDB's entry h, named by a path, is one the title
 // check reads as maybe an edition of the item (entryOf): titled the item's
 // and an edition's words alone.
-func editionEntry(it *embyfin.Item, h titleHit) bool {
+func editionEntry(it *embyfin.Item, h tmdb.Hit) bool {
 	rest, ok := titleRest(it, h)
 
 	return ok && restNumber(rest) == "" && editionRest(rest)
@@ -463,7 +458,7 @@ type wholeAnswer struct {
 
 // askWholes asks TMDB about n files read whole, wholeAsks at a time, each
 // given by at, and answers in their order.
-func askWholes(ctx context.Context, titles *providerTitles, n int, at func(int) (pathClaim, *embyfin.Item)) []wholeAnswer {
+func askWholes(ctx context.Context, titles *tmdb.Facts, n int, at func(int) (naming.Claim, *embyfin.Item)) []wholeAnswer {
 	answers := make([]wholeAnswer, n)
 	slots := make(chan struct{}, wholeAsks)
 	var wg sync.WaitGroup
@@ -484,11 +479,11 @@ func askWholes(ctx context.Context, titles *providerTitles, n int, at func(int) 
 // another film by its title read whole (wholeFilm): another film matched to
 // this one's ids, or an entry TMDB lists of its own that may be an edition of
 // it.
-func wholeRow(ctx context.Context, facts *tmdb.Facts, row *pathRow, claim pathClaim, found *wholeFinding) {
+func wholeRow(ctx context.Context, facts *tmdb.Facts, row *pathRow, claim naming.Claim, found *wholeFinding) {
 	v := found.verdict(&row.item, claim)
 	h, own := found.hit, providerID(&row.item, "tmdb")
-	row.TitleInFile, row.TitleOnServer, row.rank = claim.whole, row.item.Name, 1
-	row.Score, _ = titleScore(claim.whole, row.item.Name)
+	row.TitleInFile, row.TitleOnServer, row.rank = claim.Whole, row.item.Name, 1
+	row.Score, _ = naming.Score(claim.Whole, row.item.Name)
 	row.PathTMDB, row.ItemTMDB = fmt.Sprintf("%d %s (%d)", h.ID, h.Title, h.Year), own
 	if v.says == saysOwnEntry {
 		row.Problems = append(row.Problems, "title: "+v.why)
@@ -503,7 +498,7 @@ func wholeRow(ctx context.Context, facts *tmdb.Facts, row *pathRow, claim pathCl
 
 // checkPath runs the wanted checks over one item. unnamed reports an episode
 // file whose name claims no title, which the title check cannot judge.
-func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed bool) {
+func checkPath(it *embyfin.Item, want map[string]bool, backend embyfin.Backend) (row pathRow, unnamed bool) {
 	row = pathRow{
 		ID: it.ID, Type: it.Type, Name: episodeOrItemName(it), Path: it.Path,
 		Series: it.SeriesName, Season: it.ParentIndexNumber, Episode: it.IndexNumber, seriesID: it.SeriesID, item: *it, rank: 2,
@@ -515,14 +510,14 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 	// a letter of another script drawn like a Latin one: the name reads
 	// right and no search finds it. The title checks below compare the
 	// plain spelling, so the one fault is reported once
-	letters, plain := lookalikeLetters(it.Name)
+	letters, plain := naming.LookalikeLetters(it.Name)
 	if want["lookalike"] && len(letters) > 0 {
 		problem("lookalike", fmt.Sprintf("%q is spelled with %s, so it only looks like %q and a search for %q does not find it: item_edit name %q puts it right", it.Name, strings.Join(letters, " and "), plain, plain, plain))
 		row.rank = min(row.rank, 1)
 	}
 
 	if it.Type == typeEpisode {
-		file := parseSegment(baseName(it.Path))
+		file := naming.ParseSegment(mediapath.Base(it.Path))
 		// the series and the numbers are only what the file itself says: a
 		// bare "S01E01.mkv" under a series folder claims nothing about the
 		// series, and the server took the folder's word too. Nor does a name
@@ -531,7 +526,7 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 		// title to the parser, and read as a series name every one of them
 		// was a file from another show.
 		if want["series"] && file.Title != "" && file.Episode > 0 && it.SeriesName != "" {
-			if score, _ := titleScore(file.Title, it.SeriesName); score < seriesConfident {
+			if score, _ := naming.Score(file.Title, it.SeriesName); score < seriesConfident {
 				problem("series", fmt.Sprintf("the file is named for %q, the server holds it under %q: a file from another series written to this path", file.Title, it.SeriesName))
 				row.rank = 0
 				row.fileSeries = file.Title
@@ -547,7 +542,7 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 				row.rank = 0
 			}
 			if want["episode"] {
-				if detail := episodeRunProblem(file, it); detail != "" {
+				if detail := episodeRunProblem(file, it, backend); detail != "" {
 					problem("episode", detail)
 					row.rank = 0
 				}
@@ -558,18 +553,18 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 			// do: the part of a serial, one of two titles of a run joined by
 			// "&". A serial's story alone only against a title that is the
 			// story and nothing more: part 1 filed as part 2 is a finding
-			claimed, story := episodeTitlesFromFile(it.Path)
-			matches := slices.ContainsFunc(claimed, func(c string) bool { return sameTitle(c, plain) }) ||
-				story != "" && sameName(story, plain)
+			claimed, story := naming.EpisodeTitlesFromFile(it.Path)
+			matches := slices.ContainsFunc(claimed, func(c string) bool { return naming.SameTitle(c, plain) }) ||
+				story != "" && naming.SameName(story, plain)
 			switch {
 			case len(claimed) == 0:
 				unnamed = true
 			case !matches:
-				score, _ := titleScore(claimed[0], plain)
+				score, _ := naming.Score(claimed[0], plain)
 				// one title with words added is an edition, a subtitle, or
 				// another episode, and the names alone can't say which
 				detail := ""
-				if w, longer, ok := wordsAdded(formOf(claimed[0]), formOf(plain)); ok && judgeTitles(formOf(claimed[0]), formOf(plain)) == titlesDifferent {
+				if w, longer, ok := naming.WordsAdded(naming.FormOf(claimed[0]), naming.FormOf(plain)); ok && naming.Judge(naming.FormOf(claimed[0]), naming.FormOf(plain)) == naming.Different {
 					detail = fmt.Sprintf(": the server's title is the file's with %q added: an edition, a subtitle, or another episode - can't tell from the names", w)
 					if longer == 1 {
 						detail = fmt.Sprintf(": the file's title is the server's with %q added: an edition, a subtitle, or another episode - can't tell from the names", w)
@@ -595,16 +590,16 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 	// holding a number in words ("Seven Zzyzx") reads a scene name in the
 	// original title's words ("Shichinin.no.Zzyzx.1956") as numbered apart,
 	// and its year as none. The year is what a title's reading dates the
-	// file by (titleAndYearFromPath), and never a number of any title the
+	// file by (naming.TitleAndYearFromPath), and never a number of any title the
 	// item goes by: a sort name "Zzyzx" cut "Zzyzx.2012" at the name's 2012
 	var titles []string
 	for _, k := range knownTitles(it) {
-		titles = append(titles, k.title)
+		titles = append(titles, k.Title)
 	}
-	titleNumbers := numbersOf(titles...)
+	titleNumbers := naming.NumbersOf(titles...)
 	nameYear := 0
 	for _, k := range knownTitles(it) {
-		if _, _, y := titleAndYearFromPath(it.Path, k.title, titleNumbers); y != 0 && !titleNumbers[y] {
+		if _, _, y := naming.TitleAndYearFromPath(it.Path, k.Title, titleNumbers); y != 0 && !titleNumbers[y] {
 			nameYear = y
 
 			break
@@ -616,44 +611,44 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 		// and one the server holds by its English one is the same film
 		claimed, score, as, variant := "", -1.0, "", ""
 		matched := false
-		apart := map[titleVerdict]string{} // verdict -> the first title the path is that to
-		partOneOff, folderYear := "", 0    // a title the path is but for a part 1, a year off
-		added, addedLonger := "", 0        // words one title has beyond the other
+		apart := map[naming.Verdict]string{} // verdict -> the first title the path is that to
+		partOneOff, folderYear := "", 0      // a title the path is but for a part 1, a year off
+		added, addedLonger := "", 0          // words one title has beyond the other
 		for _, k := range knownTitles(it) {
-			c, s, cutYear := titleAndYearFromPath(it.Path, k.title, titleNumbers)
-			fc, fk := formOf(c), formOf(k.title)
+			c, s, cutYear := naming.TitleAndYearFromPath(it.Path, k.Title, titleNumbers)
+			fc, fk := naming.FormOf(c), naming.FormOf(k.Title)
 			if titleNumbers[cutYear] {
 				cutYear = 0 // a number of a title the item goes by dates nothing
 			}
-			year := cmp.Or(pathYear(it.Path), cutYear)
+			year := cmp.Or(naming.PathYear(it.Path), cutYear)
 			// the verdict, not the score: a part or a number on one side
 			// and not the other is another film however alike the rest, and
 			// a closing letter on one side alone is a numeral or a name
-			v := judgeTitles(fc, fk)
+			v := naming.Judge(fc, fk)
 			// a part 1 on one side alone is the first part only when the
 			// folder is dated the item's year, or not at all: a year on, it
 			// may be the second part filed under the first
-			if v == titlesSame && partOneApart(fc, fk) && year != 0 && it.ProductionYear != 0 && year != it.ProductionYear {
+			if v == naming.Same && naming.PartOneApart(fc, fk) && year != 0 && it.ProductionYear != 0 && year != it.ProductionYear {
 				if partOneOff == "" {
-					partOneOff, folderYear = k.title, year
+					partOneOff, folderYear = k.Title, year
 				}
-				v = titlesCantTell
-			} else if v != titlesSame && apart[v] == "" {
-				apart[v] = k.title
+				v = naming.CantTell
+			} else if v != naming.Same && apart[v] == "" {
+				apart[v] = k.Title
 			}
-			if w, longer, ok := wordsAdded(fc, fk); ok && v == titlesDifferent && added == "" {
+			if w, longer, ok := naming.WordsAdded(fc, fk); ok && v == naming.Different && added == "" {
 				added, addedLonger = w, longer
 			}
-			same := v == titlesSame
+			same := v == naming.Same
 			if same && !matched || !matched && s > score {
-				claimed, score, as = c, s, k.as
+				claimed, score, as = c, s, k.As
 			}
 			matched = matched || same
 			// the same title written another way - spaced, an article, a
 			// number in words, one letter spelled otherwise, a part 1 named
 			// on one side alone - says how
-			if how, ok := variantOf(fc, fk); ok && same && (s < seriesConfident || fc.qualifier != fk.qualifier) && variant == "" {
-				variant = fmt.Sprintf("%s: %s", k.as, how)
+			if how, ok := naming.VariantOf(fc, fk); ok && same && (s < seriesConfident || fc.Qualifier != fk.Qualifier) && variant == "" {
+				variant = fmt.Sprintf("%s: %s", k.As, how)
 			}
 		}
 		// the words after a (year) are part of the path's title when the
@@ -663,23 +658,23 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 		// against every title the item goes by, as the reading was; the
 		// reading stays what TMDB's search asks by after it (read)
 		read := claimed
-		if whole, before := yearParts(baseName(titledPath(it.Path))); !matched && partOneOff == "" && claimed != "" && whole != "" &&
-			!slices.ContainsFunc(heldTitles(it), func(h string) bool { return titleLike(before, h) }) {
+		if whole, before := naming.YearParts(mediapath.Base(naming.TitledPath(it.Path))); !matched && partOneOff == "" && claimed != "" && whole != "" &&
+			!slices.ContainsFunc(heldTitles(it), func(h string) bool { return naming.Like(before, h) }) {
 			claimed, score = whole, -1
-			apart, added, addedLonger = map[titleVerdict]string{}, "", 0
+			apart, added, addedLonger = map[naming.Verdict]string{}, "", 0
 			for _, k := range knownTitles(it) {
-				fc, fk := formOf(whole), formOf(k.title)
-				v := judgeTitles(fc, fk)
-				if s, _ := titleScore(whole, k.title); s > score {
+				fc, fk := naming.FormOf(whole), naming.FormOf(k.Title)
+				v := naming.Judge(fc, fk)
+				if s, _ := naming.Score(whole, k.Title); s > score {
 					score = s
 				}
 				switch {
-				case v == titlesSame:
-					matched, as = true, k.as
+				case v == naming.Same:
+					matched, as = true, k.As
 				case apart[v] == "":
-					apart[v] = k.title
+					apart[v] = k.Title
 				}
-				if w, longer, ok := wordsAdded(fc, fk); ok && v == titlesDifferent && added == "" {
+				if w, longer, ok := naming.WordsAdded(fc, fk); ok && v == naming.Different && added == "" {
 					added, addedLonger = w, longer
 				}
 			}
@@ -705,12 +700,12 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 			row.partOneYearOff = true
 		case matched && variant != "":
 			row.TitleMatched = variant
-		case matched && as != titleAsName:
+		case matched && as != naming.AsName:
 			row.TitleMatched = as
 		case matched:
-		case apart[titlesCantTell] != "":
+		case apart[naming.CantTell] != "":
 			titleProblem(": alike, but one closes on a letter or a country the other does not - a sequel's numeral, another country's version, or part of the name: can't tell which")
-		case apart[titlesNumberedApart] != "":
+		case apart[naming.NumberedApart] != "":
 			titleProblem(": alike but numbered apart, a part or a number on one and not the other - " + numberedApart)
 		case added != "" && addedLonger == 1:
 			titleProblem(fmt.Sprintf(": the path's title is the item's with %q added: an edition, a subtitle, or another %s - can't tell from the names", added, what))
@@ -727,10 +722,10 @@ func checkPath(it *embyfin.Item, want map[string]bool) (row pathRow, unnamed boo
 			// alone would say what the names can't. When the other reading
 			// is dated the item's year, its title is another: the title or
 			// the year disagrees
-			if a, b, ok := twoReadings(it.Path, titleNumbers); ok && a.year == nameYear {
-				detail = fmt.Sprintf("the path reads as %q dated %d, or %q dated %d, can't tell which; neither is %d", a.title, a.year, b.title, b.year, it.ProductionYear)
-				if abs(b.year-it.ProductionYear) <= 1 {
-					detail = fmt.Sprintf("the path reads as %q dated %d, or %q dated %d: the title or the year disagrees, can't tell which", a.title, a.year, b.title, b.year)
+			if a, b, ok := naming.TwoReadings(it.Path, titleNumbers); ok && a.Year == nameYear {
+				detail = fmt.Sprintf("the path reads as %q dated %d, or %q dated %d, can't tell which; neither is %d", a.Title, a.Year, b.Title, b.Year, it.ProductionYear)
+				if abs(b.Year-it.ProductionYear) <= 1 {
+					detail = fmt.Sprintf("the path reads as %q dated %d, or %q dated %d: the title or the year disagrees, can't tell which", a.Title, a.Year, b.Title, b.Year)
 				}
 			}
 			problem("year", detail)
@@ -803,7 +798,7 @@ func rollUpShows(rows []pathRow, shows map[string]*showTally) []pathRow {
 			if namedOther[r.seriesID] == nil {
 				namedOther[r.seriesID] = map[string][]int{}
 			}
-			key := normaliseTitle(r.fileSeries)
+			key := naming.Normalise(r.fileSeries)
 			namedOther[r.seriesID][key] = append(namedOther[r.seriesID][key], i)
 		}
 	}
@@ -824,7 +819,7 @@ func rollUpShows(rows []pathRow, shows map[string]*showTally) []pathRow {
 			first := rows[other[0]]
 			show := showRow(id, tally, rows, other, 0,
 				fmt.Sprintf("series: %d of the %d files named for a series are named for %q, none of the titles %q goes by (the first, %s): the files may be another show's, or the show's match may be wrong - compare them before changing either",
-					len(other), tally.marked, first.fileSeries, tally.name, baseName(first.Path)))
+					len(other), tally.marked, first.fileSeries, tally.name, mediapath.Base(first.Path)))
 			for _, i := range other {
 				if err := rows[i].seriesAskErr; err != nil && show.tmdbErr == nil {
 					couldNotAsk(&show, "which titles TMDB lists for the series", err)
@@ -884,10 +879,10 @@ func rollUpShows(rows []pathRow, shows map[string]*showTally) []pathRow {
 // showRow is the one row a show's disagreeing episode rows become, listing
 // their files under the folder they share.
 func showRow(id string, tally *showTally, rows []pathRow, of []int, rank int, problem string) pathRow {
-	folder := parentDir(rows[of[0]].Path)
+	folder := mediapath.Dir(rows[of[0]].Path)
 	for _, i := range of[1:] {
-		for folder != "" && !within(rows[i].Path, folder) {
-			folder = parentDir(folder)
+		for folder != "" && !mediapath.Within(rows[i].Path, folder) {
+			folder = mediapath.Dir(folder)
 		}
 	}
 	files := make([]string, 0, len(of))
@@ -910,7 +905,7 @@ func showRow(id string, tally *showTally, rows []pathRow, of []int, rank int, pr
 // A series whose TMDB titles could not be read leaves its rows' series
 // problem standing, and each row says so (seriesAskErr, then rollUpShows).
 // changed is what the read of the series saw of the library changing.
-func clearSeriesTitles(ctx context.Context, client *embyfin.Client, titles *providerTitles, rows []pathRow) (kept []pathRow, changed string, err error) {
+func clearSeriesTitles(ctx context.Context, client *embyfin.Client, titles *tmdb.Facts, rows []pathRow) (kept []pathRow, changed string, err error) {
 	ids := map[string]bool{}
 	for i := range rows {
 		if rows[i].fileSeries != "" {
@@ -927,10 +922,10 @@ func clearSeriesTitles(ctx context.Context, client *embyfin.Client, titles *prov
 			for i := range items {
 				it := &items[i]
 				for _, k := range knownTitles(it) {
-					known[it.ID] = append(known[it.ID], k.title)
+					known[it.ID] = append(known[it.ID], k.Title)
 				}
 				if id := providerID(it, "tmdb"); id != "" && titles != nil {
-					alts, aerr := titles.alternatives(ctx, "tv", id)
+					alts, aerr := titles.AlternativeTitles(ctx, "tv", id)
 					if aerr != nil {
 						// the series' own titles are still compared; its
 						// rows say what TMDB could not be asked
@@ -953,7 +948,7 @@ func clearSeriesTitles(ctx context.Context, client *embyfin.Client, titles *prov
 	kept = rows[:0]
 	for i := range rows {
 		r := rows[i]
-		if r.fileSeries != "" && slices.ContainsFunc(known[r.seriesID], func(t string) bool { return sameName(r.fileSeries, t) }) {
+		if r.fileSeries != "" && slices.ContainsFunc(known[r.seriesID], func(t string) bool { return naming.SameName(r.fileSeries, t) }) {
 			r.Problems = slices.DeleteFunc(r.Problems, func(p string) bool { return strings.HasPrefix(p, "series:") })
 			r.fileSeries = ""
 			r.rank = rankOf(r.Problems)
@@ -972,9 +967,11 @@ func clearSeriesTitles(ctx context.Context, client *embyfin.Client, titles *prov
 // episodeRunProblem compares the episode number, or the run of them, a file
 // claims with the one the server holds. A file holding two episodes that
 // the server lists as one has the second's content on disk while the server
-// calls it missing; a server holding a run the file does not claim has
-// metadata that says more than the file.
-func episodeRunProblem(file release, it *embyfin.Item) string {
+// calls it missing - and when the file spells its run in a style the server
+// does not read (naming.RunStyleRead), that is why, and the fix is the name;
+// a server holding a run the file does not claim has metadata that says more
+// than the file.
+func episodeRunProblem(file naming.Release, it *embyfin.Item, backend embyfin.Backend) string {
 	name := func(first, last int) string {
 		if last > first {
 			return fmt.Sprintf("E%02d-E%02d", first, last)
@@ -993,212 +990,17 @@ func episodeRunProblem(file release, it *embyfin.Item) string {
 	}
 	switch {
 	case file.Episode == held && fileEnd > serverEnd:
+		// a run the server does not read is why it holds the first alone
+		if w := runWarning(file, backend); w != "" {
+			return fmt.Sprintf("the file holds %s, the server holds %s alone: %s", name(file.Episode, fileEnd), name(held, serverEnd), w)
+		}
+
 		return fmt.Sprintf("the file holds %s, the server holds %s alone: the rest of the run is on disk while the server lists it missing", name(file.Episode, fileEnd), name(held, serverEnd))
 	case file.Episode == held:
 		return fmt.Sprintf("the server holds %s, the file claims %s: the metadata says a run the file name does not", name(held, serverEnd), name(file.Episode, fileEnd))
 	default:
 		return fmt.Sprintf("the file says %s, the server holds %s", name(file.Episode, fileEnd), name(held, serverEnd))
 	}
-}
-
-// titleFromPath reads the title a film's or a series' path claims and how
-// close it is to the name held (see titleAndYearFromPath).
-func titleFromPath(path, name string) (claimed string, score float64) {
-	claimed, score, _ = titleAndYearFromPath(path, name, numbersOf(name))
-
-	return claimed, score
-}
-
-// namingSegment is the segment of a path that names a film or a series: the
-// last, without its extension, or the folder above a disc's own files.
-func namingSegment(path string) string {
-	// the path is the server's, so split on either separator: one on Windows
-	// answers with backslashes, whatever this runs on
-	base := fileExtension.ReplaceAllString(baseName(path), "")
-	// a disc's own files name nothing, nor do the folders a disc keeps them
-	// in: the folder above those is the one named for the film. Read as a
-	// title, VTS_01_1.VOB was "VTS 01 1", and every loose DVD a mismatch.
-	for (discFile.MatchString(base) || isDiscFolder(base)) && parentDir(path) != "" {
-		path = parentDir(path)
-		base = baseName(path)
-	}
-
-	return base
-}
-
-// yearReading is one way to read a scene name: the title before a year,
-// and that year.
-type yearReading struct {
-	title string
-	year  int
-}
-
-// twoReadings are the two ways a scene name opening on two years side by
-// side reads when the earlier is no number of a title the item goes by
-// (own): the title dated by the first ("Zzyzx Race" 2000), or the title
-// through the first dated by the second ("Zzyzx Race 2000" 1975). The names
-// alone can't tell which. ok is false for any other name, or one with a
-// bracketed year.
-func twoReadings(path string, own map[int]bool) (first, second yearReading, ok bool) {
-	base := namingSegment(path)
-	if pathYear(path) != 0 || bracketedYear.MatchString(base) {
-		return first, second, false
-	}
-	years := releaseYears(base, latestReleaseYear())
-	if len(years) < 2 || years[1].word != years[0].word+1 || own[yearAt(base, years[0].at)] {
-		return first, second, false
-	}
-	title := func(s string) string {
-		return strings.Trim(strings.TrimSpace(spaceRun.ReplaceAllString(strings.NewReplacer(".", " ", "_", " ").Replace(s), " ")), " -_([{")
-	}
-	first = yearReading{title(base[:years[0].at]), yearAt(base, years[0].at)}
-	second = yearReading{title(base[:years[1].at]), yearAt(base, years[1].at)}
-
-	return first, second, first.title != ""
-}
-
-// numbersOf are the numbers the titles carry, as years: those of every title
-// an item goes by are its own, and date no file.
-func numbersOf(titles ...string) map[int]bool {
-	out := map[int]bool{}
-	for _, title := range titles {
-		for _, n := range formOf(title).numbers {
-			if y, err := strconv.Atoi(n); err == nil {
-				out[y] = true
-			}
-		}
-	}
-
-	return out
-}
-
-// titleAndYearFromPath reads the title a film's or a series' path claims,
-// how close it is to the name held, and the year it was cut at, 0 for none:
-// the last segment, cut at its (year) when it has one, else at a bare year a
-// scene name gives ("Title.2011.1080p"), else at the encode's words. A title
-// that is itself a year, or ends in one (2012, Blade Runner 2049), is tried
-// uncut too, and the reading numbered as the name, then the closer, wins.
-// own are the numbers of the titles the item goes by (numbersOf): of two
-// years side by side the earlier is the title's own only when it is one of
-// them ("Blade.Runner.2049.2017"), and otherwise the first dates the file
-// ("Zzyzx.1982.2021").
-func titleAndYearFromPath(path, name string, own map[int]bool) (claimed string, score float64, year int) {
-	base := namingSegment(path)
-	// of two readings, the one numbered as the name is wins, then the closer:
-	// "Blade.Runner.2049.2017" read up to its first year is "Blade Runner",
-	// alike but numbered apart
-	best, bestScore, bestNumbered, bestYear, pairedYear := "", -1.0, false, 0, 0
-	try := func(candidate string, cutAt int) {
-		candidate = strings.Trim(strings.TrimSpace(spaceRun.ReplaceAllString(strings.NewReplacer(".", " ", "_", " ").Replace(candidate), " ")), " -_([{")
-		if candidate == "" {
-			return
-		}
-		score, _ := titleScore(candidate, name)
-		numbered := sameNumbering(candidate, name)
-		if numbered != bestNumbered && numbered || numbered == bestNumbered && score > bestScore {
-			best, bestScore, bestNumbered, bestYear = candidate, score, numbered, cutAt
-		}
-	}
-	latest := latestReleaseYear()
-	if m := bracketedYear.FindStringSubmatchIndex(base); m != nil {
-		// a bracketed year later than next year sets the title apart but
-		// dates nothing ("Zzyzx (2049)")
-		y := yearAt(base, m[2])
-		if y > latest {
-			y = 0
-		}
-		try(base[:m[0]], y)
-		// "Franchise (1971) - Title": the title follows the year, and the
-		// name without the year is the franchise's and the title's
-		if rest := base[m[1]:]; strings.TrimSpace(rest) != "" {
-			try(rest, y)
-			try(base[:m[0]]+" "+rest, y)
-		}
-	} else {
-		// cut at the year that dates the release: the first, or of two
-		// side by side the later when the earlier is a number of a title
-		// the item goes by ("Zzyzx.Race.2000.1975" of "Zzyzx Race 2000").
-		// The release reader takes the later of any two, blind to the
-		// titles; read so, "Zzyzx.1982.2021" of "Zzyzx" (1982) was
-		// numbered apart and dated 2021
-		if years := releaseYears(base, latest); len(years) > 0 {
-			at := years[0].at
-			for i, y := range years {
-				if i+1 < len(years) && years[i+1].word == y.word+1 && own[yearAt(base, y.at)] {
-					// the later dates the file whatever the reading: the
-					// one before it is the title's own
-					at = years[i+1].at
-					pairedYear = yearAt(base, at)
-
-					break
-				}
-			}
-			try(base[:at], yearAt(base, at))
-		}
-		rel := parseSegment(base)
-		try(rel.Title, rel.Year)
-	}
-	// a title ending in a year the reading cut off ("Zzyzx Race 2000.mkv",
-	// "Blade.Runner.2049.1080p"): read whole, up to the encode's words, it
-	// is the name's, and the year its own
-	if best == "" || !bestNumbered {
-		words := strings.Fields(strings.NewReplacer(".", " ", "_", " ").Replace(base))
-		try(strings.Join(words[:encodeStarts(words)], " "), 0)
-	}
-	if best == "" {
-		try(base, 0)
-	}
-	// a cut at a year is the release year only when the reading it leaves
-	// is numbered as the name: a cut that took the title's own year off
-	// ("Blade Runner" of "Blade Runner 2049") dated nothing
-	if !bestNumbered {
-		bestYear = 0
-	}
-
-	return best, bestScore, cmp.Or(pairedYear, bestYear)
-}
-
-// yearAt is the four-digit year a name holds at an index, 0 for none.
-func yearAt(s string, at int) int {
-	if at < 0 || at+4 > len(s) {
-		return 0
-	}
-	year, err := strconv.Atoi(s[at : at+4])
-	if err != nil {
-		return 0
-	}
-
-	return year
-}
-
-// yearDigits is a run of four digits that could be a year.
-var yearDigits = regexp.MustCompile(`(?:19|20)\d{2}`)
-
-// discFile is a disc's own stream or title-set file, which names nothing:
-// VTS_01_1.VOB, VIDEO_TS.IFO, 00000.m2ts.
-var discFile = regexp.MustCompile(`(?i)^(vts_\d+_\d+|video_ts|\d{5})(\.(ifo|bup))?$`)
-
-// isDiscFolder is a folder a disc keeps its files in (see discStructures),
-// or a Blu-ray's STREAM folder inside BDMV.
-func isDiscFolder(name string) bool {
-	return strings.EqualFold(name, "STREAM") || slices.ContainsFunc(discStructures, func(s string) bool { return strings.EqualFold(name, s) })
-}
-
-// pathYear is the last (year) in a path, 0 for none: the item's own, as
-// checkYearMismatch reads it. One later than next year is none - a title's
-// own or a number ("Zzyzx (2049)") - and no year above it stands in: a
-// collection's folder carries its first film's.
-func pathYear(path string) int {
-	years := pathYearRe.FindAllString(path, -1)
-	if len(years) == 0 {
-		return 0
-	}
-	year, err := strconv.Atoi(strings.Trim(years[len(years)-1], "()"))
-	if err != nil || year > latestReleaseYear() {
-		return 0
-	}
-
-	return year
 }
 
 // checkYearMismatch compares the year in an item's path with its metadata
@@ -1212,7 +1014,7 @@ func checkYearMismatch(it *embyfin.Item, bare int) (string, bool) {
 	if it.Path == "" || it.ProductionYear == 0 {
 		return "", false
 	}
-	year := cmp.Or(pathYear(it.Path), bare)
+	year := cmp.Or(naming.PathYear(it.Path), bare)
 	if year == 0 {
 		return "", false
 	}
@@ -1221,150 +1023,6 @@ func checkYearMismatch(it *embyfin.Item, bare int) (string, bool) {
 	}
 
 	return "", false
-}
-
-// episodeTitlesFromFile reads the titles a file name claims, which are
-// whatever follows the season and episode marker once the extension and the
-// encode's words are off: "Show - 01x01 - The DVD.mkv" claims "The DVD". The
-// first is the one to show; the rest are other readings of the same name,
-// any of which the server's title may be. story is a serial's story alone,
-// when the name gives its part number, which counts only against a server
-// title that gives no part number of its own. It returns nothing for a name
-// that claims no title, which is most of a tidy library.
-//
-// Read as one string, four shapes of name were titles no episode has:
-//   - a story's number in brackets after the marker, and the part of a
-//     serial after its story: "02x18 (013) - The Story (3) - The Part" read
-//     as "013) - The". The number is dropped, and the part and the story
-//     with its part number are each a title it claims
-//   - a run of episodes numbered the NxNN way, "02x47-48 - A & B", read as
-//     "48 - A & B": the second number is the run's, not the title's
-//   - a file holding a run, titled "A & B": each of A and B is a title it
-//     claims, so it matches either episode's. Only a run: "Pride & Zzyzx"
-//     is one title, and its "Pride" is not
-//   - release words after the title that no encode mark follows, "Half Loop
-//     PROPER": the title without them is a reading too, though not the one
-//     shown, since titles end on such words as well ("The DVD")
-func episodeTitlesFromFile(path string) (titles []string, story string) {
-	name := fileExtension.ReplaceAllString(baseName(path), "")
-	run := parseSegment(name).EpisodeEnd > 0
-
-	var after string
-	for _, re := range releaseMarkers {
-		m := re.FindStringIndex(name)
-		if m == nil {
-			continue
-		}
-		after = name[m[1]:]
-		// the NN of NxNN-NN, which the marker's separator stopped short of
-		if m[1] > 0 && name[m[1]-1] == '-' && runContinuation.MatchString(after) {
-			after = runContinuation.ReplaceAllString(after, "")
-			run = true
-		}
-
-		break
-	}
-	after = strings.TrimLeft(after, " -_.")
-	after = strings.TrimLeft(storyNumber.ReplaceAllString(after, ""), " -_.")
-	if after == "" {
-		return nil, ""
-	}
-
-	// the same cleanup a release name gets: dots and underscores are spaces,
-	// and the encode's words end a title
-	words := strings.Fields(strings.NewReplacer(".", " ", "_", " ").Replace(after))
-	words = words[:encodeStarts(words)]
-	title := strings.Trim(strings.Join(words, " "), " -_([{")
-	if title == "" {
-		return nil, ""
-	}
-
-	titles = []string{title}
-	add := func(t string) {
-		if t = strings.Trim(strings.TrimSpace(t), " -_([{"); t != "" && !slices.Contains(titles, t) {
-			titles = append(titles, t)
-		}
-	}
-	// the title without the release words it ends on is the one shown, the
-	// first word kept and never an article alone; the whole is a reading too
-	bare := len(words)
-	for bare > 1 && encodeWord(words[bare-1]) {
-		bare--
-	}
-	if lone := strings.ToLower(words[0]); bare < len(words) && (bare > 1 || lone != "the" && lone != "a" && lone != "an") {
-		titles = []string{strings.Trim(strings.Join(words[:bare], " "), " -_([{"), title}
-	}
-	for _, t := range slices.Clone(titles) {
-		if m := serialPart.FindStringSubmatch(t); len(m) > 3 && !slices.Contains(titles, m[3]) {
-			// the part is what a server calls the episode, most often
-			titles = append([]string{m[3]}, titles...)
-			add(m[1] + " (" + m[2] + ")")
-			story = m[1]
-		}
-	}
-	if run {
-		for _, t := range slices.Clone(titles) {
-			if parts := strings.Split(t, "&"); len(parts) == 2 {
-				add(parts[0])
-				add(parts[1])
-			}
-		}
-	}
-
-	return titles, story
-}
-
-var (
-	// runContinuation is the second number of a run numbered NxNN-NN
-	runContinuation = regexp.MustCompile(`(?i)^\d{1,3}(?:[^a-z0-9]|$)`)
-	// storyNumber is a story's or a production number in brackets, set
-	// before an episode's title: "(013)"
-	storyNumber = regexp.MustCompile(`^[(\[]\d{1,4}[)\]]`)
-	// serialPart is a serial's story, its part number, and the part's own
-	// title: "The Story (3) - The Part"
-	serialPart = regexp.MustCompile(`^(.+?)\s*\((\d{1,2})\)\s*-\s*(.+)$`)
-)
-
-// encodeMarks are the words of an encode that no title ends on: a
-// resolution, a codec, a source, a sound. The rest of the encode's words
-// (releaseJunk) are words titles have too - The Web Planet, The DVD, Max -
-// and only end a title when an encode mark follows them.
-var encodeMarks = map[string]bool{}
-
-func init() {
-	for _, w := range []string{
-		"480p", "540p", "576p", "720p", "1080p", "1080i", "2160p", "4k", "uhd",
-		"hdtv", "pdtv", "webrip", "web-dl", "webdl", "bluray", "blu-ray", "brrip", "bdrip", "dvdrip", "hdrip", "remux",
-		"x264", "x265", "h264", "h265", "hevc", "avc", "xvid", "divx", "av1", "vp9", "10bit", "8bit", "hi10p",
-		"aac", "aac2", "ac3", "eac3", "ddp", "ddp5", "dd5", "dts", "dts-hd", "truehd", "atmos", "flac",
-	} {
-		encodeMarks[w] = true
-	}
-}
-
-// encodeStarts is where the encode's words begin in a file's title words, or
-// len(words) when they do not: at the first encode mark, or at an earlier run
-// of the encode's words that only such words follow, one of them a mark.
-func encodeStarts(words []string) int {
-	mark := func(w string) bool {
-		w = strings.ToLower(strings.Trim(w, "()[]-"))
-		if encodeMarks[w] || encodeParts(w, encodeMarks) {
-			return true
-		}
-		i := strings.LastIndex(w, "-")
-
-		return i > 0 && encodeMarks[w[:i]]
-	}
-	first := slices.IndexFunc(words, mark)
-	if first < 0 {
-		return len(words)
-	}
-	start := first
-	for start > 0 && encodeWord(words[start-1]) {
-		start--
-	}
-
-	return start
 }
 
 // diagnoseByTMDB looks each reported episode's file title up in TMDB's list
@@ -1436,8 +1094,8 @@ func joinCodes(eps []tmdb.Episode) string {
 }
 
 // episodeTitles is a series' TMDB episodes by their titles, each read once
-// (formOf), for a sweep's file titles to be looked up in with the very rule
-// sameTitle judges titles by. Every file title scored against every episode
+// (naming.FormOf), for a sweep's file titles to be looked up in with the very rule
+// naming.SameTitle judges titles by. Every file title scored against every episode
 // title was minutes of work for one show of thousands of episodes named by
 // date, and scored raw it missed titles TMDB spells otherwise ("Part I" for
 // "(1)", "12" for "Twelve", "Gray" for "Grey"). A title alike to another
@@ -1447,7 +1105,7 @@ func joinCodes(eps []tmdb.Episode) string {
 // sharing one are compared.
 type episodeTitles struct {
 	eps    []tmdb.Episode
-	forms  []titleForm
+	forms  []naming.Form
 	exact  map[string]int   // words spelled alike -> the first episode of them
 	joined map[string][]int // an unnumbered title's words run together -> episodes
 	byWord map[string][]int // first and second word -> episodes, in order
@@ -1458,22 +1116,22 @@ type episodeTitles struct {
 
 // indexEpisodes reads a series' episodes into an episodeTitles.
 func indexEpisodes(eps []tmdb.Episode) *episodeTitles {
-	x := &episodeTitles{eps: eps, forms: make([]titleForm, len(eps)), exact: map[string]int{}, joined: map[string][]int{}, byWord: map[string][]int{}, byStory: map[string][]int{}}
+	x := &episodeTitles{eps: eps, forms: make([]naming.Form, len(eps)), exact: map[string]int{}, joined: map[string][]int{}, byWord: map[string][]int{}, byStory: map[string][]int{}}
 	for i := range eps {
-		f := formOf(eps[i].Name)
+		f := naming.FormOf(eps[i].Name)
 		x.forms[i] = f
-		if _, seen := x.exact[f.canon]; !seen && f.canon != "" {
-			x.exact[f.canon] = i
+		if _, seen := x.exact[f.Canon]; !seen && f.Canon != "" {
+			x.exact[f.Canon] = i
 		}
-		if !f.numbered && len(f.words) > 0 {
-			key := strings.Join(f.words, "")
+		if !f.Numbered && len(f.Words) > 0 {
+			key := strings.Join(f.Words, "")
 			x.joined[key] = append(x.joined[key], i)
 		}
-		for _, w := range leadWords(f.words) {
+		for _, w := range leadWords(f.Words) {
 			x.byWord[w] = append(x.byWord[w], i)
 		}
-		if n := len(f.words); n > 1 && isNumber(f.words[n-1]) {
-			story := strings.Join(f.words[:n-1], " ")
+		if n := len(f.Words); n > 1 && naming.IsNumber(f.Words[n-1]) {
+			story := strings.Join(f.Words[:n-1], " ")
 			x.byStory[story] = append(x.byStory[story], i)
 		}
 	}
@@ -1481,13 +1139,13 @@ func indexEpisodes(eps []tmdb.Episode) *episodeTitles {
 	return x
 }
 
-// leadWords are a title's first and second words, as titleWords spells them.
+// leadWords are a title's first and second words, as naming.Words spells them.
 func leadWords(words []string) []string {
 	return words[:min(len(words), 2)]
 }
 
 // best is the episode whose title is the file's (see alike), and how close
-// (titleScore over the words spelled alike, and at least seriesConfident for
+// (naming.Score over the words spelled alike, and at least seriesConfident for
 // a title written another way): of two alike, the first. A score below
 // seriesConfident says only that none is alike. parts, when set, are the
 // episodes TMDB gives a file's bare story to only with a part number: two
@@ -1497,12 +1155,12 @@ func (x *episodeTitles) best(title string) (episode tmdb.Episode, score float64,
 	if x == nil {
 		return tmdb.Episode{}, 0, nil
 	}
-	q := formOf(title)
-	if i, ok := x.exact[q.canon]; ok && alike(q, x.forms[i]) {
+	q := naming.FormOf(title)
+	if i, ok := x.exact[q.Canon]; ok && naming.Alike(q, x.forms[i]) {
 		return x.eps[i], 1, nil
 	}
-	if !q.numbered {
-		if stories := x.byStory[q.canon]; len(stories) > 1 || len(stories) == 1 && x.forms[stories[0]].numbers[len(x.forms[stories[0]].numbers)-1] != "1" {
+	if !q.Numbered {
+		if stories := x.byStory[q.Canon]; len(stories) > 1 || len(stories) == 1 && x.forms[stories[0]].Numbers[len(x.forms[stories[0]].Numbers)-1] != "1" {
 			for _, i := range stories {
 				parts = append(parts, x.eps[i])
 			}
@@ -1511,18 +1169,18 @@ func (x *episodeTitles) best(title string) (episode tmdb.Episode, score float64,
 		}
 	}
 	var candidates []int
-	for _, w := range leadWords(q.words) {
+	for _, w := range leadWords(q.Words) {
 		candidates = append(candidates, x.byWord[w]...)
 	}
-	if !q.numbered {
-		candidates = append(candidates, x.joined[strings.Join(q.words, "")]...)
+	if !q.Numbered {
+		candidates = append(candidates, x.joined[strings.Join(q.Words, "")]...)
 	}
 	slices.Sort(candidates)
 	for _, i := range slices.Compact(candidates) {
-		if !alike(q, x.forms[i]) {
+		if !naming.Alike(q, x.forms[i]) {
 			continue
 		}
-		s, _ := foldedScore(q.canon, x.forms[i].canon)
+		s, _ := naming.FoldedScore(q.Canon, x.forms[i].Canon)
 		s = max(s, seriesConfident)
 		if s > score {
 			episode, score = x.eps[i], s
@@ -1567,18 +1225,18 @@ func namesAnotherTitle(row *pathRow) bool {
 // say more about - and what the path claims, to search by. A show's own row
 // (rollUpShows) is its episode files' finding, and its path a folder they
 // share, not a title to search by.
-func pathDisputed(row *pathRow) (pathClaim, bool) {
+func pathDisputed(row *pathRow) (naming.Claim, bool) {
 	if row.Episodes > 0 || tmdbKind(row.Type) == "" || !slices.ContainsFunc(row.Problems, func(p string) bool {
 		return strings.HasPrefix(p, "title:") || strings.HasPrefix(p, "year:")
 	}) {
-		return pathClaim{}, false
+		return naming.Claim{}, false
 	}
-	claim, ok := claimOf(row.Path, heldTitles(&row.item))
-	if !ok || claim.title == "" {
-		return pathClaim{}, false
+	claim, ok := naming.ClaimOf(row.Path, heldTitles(&row.item))
+	if !ok || claim.Title == "" {
+		return naming.Claim{}, false
 	}
 	if row.read != "" {
-		claim.title = row.read
+		claim.Title = row.read
 	}
 
 	return claim, true
@@ -1587,7 +1245,7 @@ func pathDisputed(row *pathRow) (pathClaim, bool) {
 // clearAlternativeTitle drops a film's or a series' title problem when the
 // path's title is one TMDB lists for the item's id: the name it went by in
 // another country, or in another language.
-func clearAlternativeTitle(ctx context.Context, titles *providerTitles, row *pathRow) error {
+func clearAlternativeTitle(ctx context.Context, titles *tmdb.Facts, row *pathRow) error {
 	// a part 1 whose folder is dated a year off: an alternative title that
 	// is the plain title ("Dune" of "Dune: Part One") names the film or its
 	// series alike, and settles nothing (diagnoseRow asks which part)
@@ -1598,7 +1256,7 @@ func clearAlternativeTitle(ctx context.Context, titles *providerTitles, row *pat
 	if id == "" {
 		return nil
 	}
-	alts, err := titles.alternatives(ctx, tmdbKind(row.Type), id)
+	alts, err := titles.AlternativeTitles(ctx, tmdbKind(row.Type), id)
 	if err != nil {
 		return err
 	}
@@ -1606,7 +1264,7 @@ func clearAlternativeTitle(ctx context.Context, titles *providerTitles, row *pat
 	// the year and the words before it are none the item goes by, and the
 	// words before it too, as a title TMDB lists ("Mononoke-hime (1997)
 	// Remastered") is one the item goes by whatever edition follows
-	terms := searchTerms(row.Path, heldTitles(&row.item), row.read)
+	terms := naming.SearchTerms(row.Path, heldTitles(&row.item), row.read)
 	for _, alt := range alts {
 		if !slices.ContainsFunc(terms, func(term string) bool { return termLike(slices.Index(terms, term), term, alt) }) {
 			continue
@@ -1634,9 +1292,9 @@ func clearAlternativeTitle(ctx context.Context, titles *providerTitles, row *pat
 // or sort name - is one TMDB gives the title of its TMDB id: one TMDB lists
 // for it, the title or original title of a search hit for that id when there
 // is one to hand, or found as that id by TMDB's search for the name and year.
-func nameKnown(ctx context.Context, titles *providerTitles, row *pathRow, id string, hit *titleHit) (bool, error) {
+func nameKnown(ctx context.Context, titles *tmdb.Facts, row *pathRow, id string, hit *tmdb.Hit) (bool, error) {
 	kind := tmdbKind(row.Type)
-	known, err := titles.alternatives(ctx, kind, id)
+	known, err := titles.AlternativeTitles(ctx, kind, id)
 	if err != nil {
 		return false, err
 	}
@@ -1646,17 +1304,17 @@ func nameKnown(ctx context.Context, titles *providerTitles, row *pathRow, id str
 	held := heldTitles(&row.item)
 	for _, h := range held {
 		for _, k := range known {
-			if k != "" && sameTitle(h, k) {
+			if k != "" && naming.SameTitle(h, k) {
 				return true, nil
 			}
 		}
 	}
-	hits, err := titles.search(ctx, kind, row.item.Name, row.item.ProductionYear)
+	hits, err := titles.Search(ctx, kind, row.item.Name, row.item.ProductionYear)
 	if err != nil {
 		return false, err
 	}
 
-	return slices.ContainsFunc(hits, func(h titleHit) bool { return strconv.Itoa(h.ID) == id }), nil
+	return slices.ContainsFunc(hits, func(h tmdb.Hit) bool { return strconv.Itoa(h.ID) == id }), nil
 }
 
 // nameWrong keeps a row whose path names the item's own title by TMDB's
@@ -1740,7 +1398,7 @@ func couldNotAsk(row *pathRow, what string, err error) {
 // which film the path names, beside the id the item carries, with the file's
 // runtime against both; finding nothing says so. A row TMDB could not be
 // asked about stays as it was, saying so.
-func diagnoseTitlesByTMDB(ctx context.Context, facts *tmdb.Facts, titles *providerTitles, rows []pathRow, limit int) []pathRow {
+func diagnoseTitlesByTMDB(ctx context.Context, facts *tmdb.Facts, rows []pathRow, limit int) []pathRow {
 	kept := make([]pathRow, 0, len(rows))
 	for i := range rows {
 		row := rows[i]
@@ -1755,7 +1413,7 @@ func diagnoseTitlesByTMDB(ctx context.Context, facts *tmdb.Facts, titles *provid
 		// judged on a copy, so a read failing part way leaves the row as the
 		// server alone made it
 		trial := row
-		drop, err := diagnoseRow(ctx, facts, titles, &trial, claim)
+		drop, err := diagnoseRow(ctx, facts, &trial, claim)
 		if err != nil {
 			couldNotAsk(&row, "what the path's title and year name", err)
 			kept = append(kept, row)
@@ -1765,7 +1423,7 @@ func diagnoseTitlesByTMDB(ctx context.Context, facts *tmdb.Facts, titles *provid
 		if drop {
 			continue
 		}
-		// the search answered where the read of the titles TMDB lists for
+		// the search answered where the read of the facts TMDB lists for
 		// the item had failed: a title it settled needs them no more, and
 		// what it says of one it did not stands beside what it cannot rule
 		// out
@@ -1777,7 +1435,7 @@ func diagnoseTitlesByTMDB(ctx context.Context, facts *tmdb.Facts, titles *provid
 				}
 				trial.tmdbErr = nil
 			case trial.Diagnosis != row.Diagnosis:
-				trial.Diagnosis += fmt.Sprintf("; but TMDB could not be asked which titles it lists for the item (%v), and the path's may be one of them", row.tmdbErr)
+				trial.Diagnosis += fmt.Sprintf("; but TMDB could not be asked which facts it lists for the item (%v), and the path's may be one of them", row.tmdbErr)
 			}
 		}
 		kept = append(kept, trial)
@@ -1791,10 +1449,10 @@ func diagnoseTitlesByTMDB(ctx context.Context, facts *tmdb.Facts, titles *provid
 // and duplicate warnings ask it (searchPath), so the two never tell one file
 // two ways: by the path's title read whole first when words follow its year
 // and the words before it are none the item goes by, then by the title read.
-func diagnoseRow(ctx context.Context, facts *tmdb.Facts, titles *providerTitles, row *pathRow, claim pathClaim) (drop bool, err error) {
+func diagnoseRow(ctx context.Context, facts *tmdb.Facts, row *pathRow, claim naming.Claim) (drop bool, err error) {
 	kind := tmdbKind(row.Type)
 	own := providerID(&row.item, "tmdb")
-	found, err := searchPath(ctx, titles, kind, own, claim.terms(heldTitles(&row.item)), claim.year)
+	found, err := searchPath(ctx, facts, kind, own, claim.Terms(heldTitles(&row.item)), claim.Year)
 	if err != nil {
 		return false, err
 	}
@@ -1812,7 +1470,7 @@ func diagnoseRow(ctx context.Context, facts *tmdb.Facts, titles *providerTitles,
 		// the file's runtime says which of the two the file is
 		sibling, ok := siblingPart(found.hits, claim, own)
 		if !ok {
-			row.Diagnosis = fmt.Sprintf("TMDB's search finds no other part of it dated %d: can't tell whether the file is part 1 or another part filed under it", claim.year)
+			row.Diagnosis = fmt.Sprintf("TMDB's search finds no other part of it dated %d: can't tell whether the file is part 1 or another part filed under it", claim.Year)
 
 			return false, nil
 		}
@@ -1828,7 +1486,7 @@ func diagnoseRow(ctx context.Context, facts *tmdb.Facts, titles *providerTitles,
 		// right and the name is what is wrong (a film renamed by hand to
 		// another film's title read as clean)
 		if namesAnotherTitle(row) {
-			known, err := nameKnown(ctx, titles, row, own, found.own)
+			known, err := nameKnown(ctx, facts, row, own, found.own)
 			if err != nil {
 				return false, err
 			}
@@ -1838,7 +1496,7 @@ func diagnoseRow(ctx context.Context, facts *tmdb.Facts, titles *providerTitles,
 				return false, nil
 			}
 		}
-		dropTitle(row, fmt.Sprintf("a title TMDB's search finds it by: %q (%d) is its TMDB %s", term, claim.year, own))
+		dropTitle(row, fmt.Sprintf("a title TMDB's search finds it by: %q (%d) is its TMDB %s", term, claim.Year, own))
 		if len(row.Problems) == 0 {
 			return true, nil
 		}
@@ -1853,7 +1511,7 @@ func diagnoseRow(ctx context.Context, facts *tmdb.Facts, titles *providerTitles,
 		// what the search did find - never "no film" when it found one: the
 		// item's own film under another title, numbered otherwise than the
 		// path or not, or others
-		inYear := func(h titleHit) bool { return claim.year == 0 || h.Year == 0 || abs(h.Year-claim.year) <= 1 }
+		inYear := func(h tmdb.Hit) bool { return claim.Year == 0 || h.Year == 0 || abs(h.Year-claim.Year) <= 1 }
 		switch {
 		case found.own != nil && !numberedAs(term, *found.own):
 			h := found.own
@@ -1861,9 +1519,9 @@ func diagnoseRow(ctx context.Context, facts *tmdb.Facts, titles *providerTitles,
 			row.Diagnosis = fmt.Sprintf("TMDB's search finds this very %s, TMDB %s %s (%d), %s: another part of it, or the wrong match", what, own, h.Title, h.Year, numberedOtherwise(term, h.Title))
 		case found.own != nil:
 			row.ItemTMDB = own
-			row.Diagnosis = fmt.Sprintf("TMDB's search by the path's title and year, %q (%d), answers with this very %s, TMDB %s %s (%d), but under no title like the path's: its search matches loosely, so the path may name another %s, or this one by a title TMDB does not list - check the file", term, claim.year, what, own, found.own.Title, found.own.Year, what)
+			row.Diagnosis = fmt.Sprintf("TMDB's search by the path's title and year, %q (%d), answers with this very %s, TMDB %s %s (%d), but under no title like the path's: its search matches loosely, so the path may name another %s, or this one by a title TMDB does not list - check the file", term, claim.Year, what, own, found.own.Title, found.own.Year, what)
 		default:
-			if at := slices.IndexFunc(found.hits, func(h titleHit) bool { return inYear(h) && !numberedAs(term, h) }); at >= 0 {
+			if at := slices.IndexFunc(found.hits, func(h tmdb.Hit) bool { return inYear(h) && !numberedAs(term, h) }); at >= 0 {
 				h := found.hits[at]
 				row.Diagnosis = fmt.Sprintf("TMDB's search by the path's title and year finds only %ss numbered otherwise than the path, the nearest TMDB %d %s (%d), %s: another part of a series, or named by hand", what, h.ID, h.Title, h.Year, numberedOtherwise(term, h.Title))
 
@@ -1939,21 +1597,21 @@ func diagnoseRow(ctx context.Context, facts *tmdb.Facts, titles *providerTitles,
 // siblingPart is the search hit that is another part of what the path names
 // - its title the path's with a part number other than 1 after it - dated
 // the path's own year, which is not the item.
-func siblingPart(hits []titleHit, claim pathClaim, own string) (titleHit, bool) {
-	story := formOf(claim.title).words
+func siblingPart(hits []tmdb.Hit, claim naming.Claim, own string) (tmdb.Hit, bool) {
+	story := naming.FormOf(claim.Title).Words
 	for _, h := range hits {
-		if h.Year != claim.year || strconv.Itoa(h.ID) == own {
+		if h.Year != claim.Year || strconv.Itoa(h.ID) == own {
 			continue
 		}
 		for _, t := range []string{h.Title, h.Original} {
-			words := formOf(t).words
-			if n := len(words); n > 1 && isNumber(words[n-1]) && words[n-1] != "1" && slices.Equal(withoutPartOne(words), story) {
+			words := naming.FormOf(t).Words
+			if n := len(words); n > 1 && naming.IsNumber(words[n-1]) && words[n-1] != "1" && slices.Equal(naming.WithoutPartOne(words), story) {
 				return h, true
 			}
 		}
 	}
 
-	return titleHit{}, false
+	return tmdb.Hit{}, false
 }
 
 // numberedOtherwise says how a title TMDB found is numbered against the
@@ -1961,7 +1619,7 @@ func siblingPart(hits []titleHit, claim pathClaim, own string) (titleHit, bool) 
 // path says 1".
 func numberedOtherwise(path, found string) string {
 	of := func(numbers []string) string { return strings.Join(numbers, " ") }
-	p, f := numbering(path), numbering(found)
+	p, f := naming.Numbering(path), naming.Numbering(found)
 	switch {
 	case len(f) == 0:
 		return "not numbered, where the path says " + of(p)
@@ -1977,15 +1635,15 @@ func numberedOtherwise(path, found string) string {
 // one name, which only the file can tell apart. Only exactly: a sequel's
 // title is its first film's and a number ("Zzyzx" and "Zzyzx 2"), and scored
 // alike it read as the same name.
-func homonym(row *pathRow, hit titleHit) bool {
+func homonym(row *pathRow, hit tmdb.Hit) bool {
 	return homonymOf(&row.item, hit)
 }
 
 // homonymOf is homonym for an item.
-func homonymOf(it *embyfin.Item, hit titleHit) bool {
+func homonymOf(it *embyfin.Item, hit tmdb.Hit) bool {
 	for _, held := range heldTitles(it) {
 		for _, t := range []string{hit.Title, hit.Original} {
-			if t != "" && normaliseTitle(held) == normaliseTitle(t) {
+			if t != "" && naming.Normalise(held) == naming.Normalise(t) {
 				return true
 			}
 		}

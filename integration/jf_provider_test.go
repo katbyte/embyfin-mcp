@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // The endpoints that make the server ask a provider: remote images, remote
@@ -51,7 +52,7 @@ func TestJFRemoteImages(t *testing.T) {
 	}
 	poster := ""
 	if os.Getenv("EMBYFIN_TEST_DATA") != "" {
-		poster = filepath.Join(dataDir(), "movies", "Alien (1979)", "poster.jpg")
+		poster = filepath.Join(testenv.DataDir(), "movies", "Alien (1979)", "poster.jpg")
 		if _, err := os.Stat(poster); err != nil {
 			t.Fatalf("the fixture's poster: %v", err)
 		}

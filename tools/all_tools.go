@@ -90,25 +90,25 @@ var Toolsets = map[string][]string{
 	// and refresh, the metadata, artwork and subtitle editors, and the
 	// listings a curation session reads
 	"curation": {
-		"audit_all", "audit_missing_metadata_provider", "audit_missing_poster", "audit_missing_overview",
+		"audit_all", "audit_missing_metadata",
 		"audit_file_path", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_whitespace", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_duplicate_series", "audit_disc_folders", "audit_anime_ids", "audit_provider", "provider_cache_clear", "quality_compare", "plan_check",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_whitespace", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_disc_folders", "audit_anime_ids", "audit_provider", "provider_cache_clear", "quality_compare", "plan_check",
 		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes_exist", "show_missing", "show_resolve",
-		"library_episodes", "library_export", "library_recent", "library_genres", "library_filters", "person_get",
+		"library_episodes", "library_export", "library_filters", "person_get",
 	},
 	// who watched what, and keeping watch state right: the users, their
 	// history, what is next and in progress, favourites, played flags
 	"watching": {
 		"user_list", "user_get", "user_history", "user_next_up", "user_stats",
-		"item_watch_history", "item_last_watched", "item_set_state",
+		"item_last_watched", "item_set_state",
 		"item_instant_mix",
 	},
 	// group things: shared collections and per-user playlists
 	"organise": {
-		"collection_list", "collection_get", "collection_create", "collection_edit", "collection_add", "collection_remove", "collection_delete",
-		"playlist_list", "playlist_get", "playlist_create", "playlist_edit", "playlist_add", "playlist_remove", "playlist_delete",
+		"collection_list", "collection_get", "collection_create", "collection_edit", "collection_delete",
+		"playlist_list", "playlist_get", "playlist_create", "playlist_edit", "playlist_delete",
 	},
 	// the devices playing right now, and driving them
 	"remote": {
@@ -118,7 +118,7 @@ var Toolsets = map[string][]string{
 	// scheduled tasks, scans, libraries, what a removed library leaves behind,
 	// and the tools that remove things
 	"admin": {
-		"server_stats", "server_activity", "server_devices", "server_logs", "server_log",
+		"server_stats", "server_activity", "server_devices", "server_log",
 		"task_list", "task_run", "library_scan", "library_create", "library_edit", "library_delete", "item_delete", "audit_orphans", "item_orphans_delete",
 	},
 }
@@ -242,15 +242,11 @@ var changeHints = map[string]hints{
 	// the first collection made on a server starts a scan of every library
 	// (seen on Emby 4.11 and Jellyfin 12.1)
 	"collection_create": {destructive: true},
-	// items added to a list
-	"playlist_add":   {},
-	"collection_add": {idempotent: true},
 	// entries taken out, a name written over, a Jellyfin move that takes
-	// entries out and puts them back
-	"playlist_remove":   {destructive: true},
-	"playlist_edit":     {destructive: true},
-	"collection_remove": {destructive: true, idempotent: true},
-	"collection_edit":   {destructive: true, idempotent: true},
+	// entries out and puts them back; an item appended again is another
+	// entry, where a collection holds an item once
+	"playlist_edit":   {destructive: true},
+	"collection_edit": {destructive: true, idempotent: true},
 }
 
 // hostWriters are the read tools that write a file on the machine
@@ -398,7 +394,6 @@ func queueTools(r *registry) {
 	registerLanguageAudit(r)
 	registerDuplicateEpisodesAudit(r)
 	registerFilePathAudit(r)
-	registerDuplicateSeriesAudit(r)
 	registerDiscAudit(r)
 	registerAnimeAudit(r)
 	registerProviderCheckAudit(r)
@@ -713,16 +708,6 @@ func FamilyNames() []string {
 const (
 	typeMovie   = "Movie"
 	typeEpisode = "Episode"
-)
-
-// activityPage is how many activity log entries one request reads, and
-// activityScanMax the most a history tool reads in all. The server filters
-// the log to the period, so reading it to the end covers the period; the
-// ceiling stops a long period on a busy server from reading without end, and
-// an answer it cuts short says how far back it got (see readActivity).
-const (
-	activityPage    = 1000
-	activityScanMax = 20000
 )
 
 // sortDescending is the MediaBrowser SortOrder for newest/most-recent first.

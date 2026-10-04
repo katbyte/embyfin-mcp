@@ -119,7 +119,7 @@ func auditDuplicateEpisodes(ctx context.Context, client *embyfin.Client, in dupT
 	// as people are shown them: two files Emby shows as one episode's
 	// versions are one episode (audit_multiple_versions), where a sweep of
 	// what it stores holds each as an entry carrying the same title
-	items, note, placing, err := shownItems(ctx, client, opts)
+	items, note, placing, err := client.Shown(ctx, opts)
 	if err != nil {
 		return dupTitlesOut{}, err
 	}
@@ -230,7 +230,7 @@ func titleGroupOf(seriesID string, seasonNumber int, items []embyfin.Item, membe
 		runtime := int(it.RunTimeTicks / ticksPerSecond)
 		group.Episodes = append(group.Episodes, titleRow{
 			ID: it.ID, Episode: it.IndexNumber, Title: it.Name, Path: it.Path,
-			RuntimeS: runtime, Unprobed: !probed(it), Size: q.Size, Bitrate: q.Bitrate, Height: q.Height, Audio: q.Audio,
+			RuntimeS: runtime, Unprobed: !it.Probed(), Size: q.Size, Bitrate: q.Bitrate, Height: q.Height, Audio: q.Audio,
 		})
 		if runtime > 0 && (shortest == 0 || runtime < shortest) {
 			shortest = runtime
@@ -281,10 +281,10 @@ const palSpeedup = 25.0 * 1001 / 24000
 // gives every episode of a sitcom its 22 minutes) is not the file's, and two
 // of them agreeing says nothing about the files.
 func fileRuntime(it *embyfin.Item) int64 {
-	if !probed(it) {
+	if !it.Probed() {
 		return 0
 	}
-	if best := bestSource(it); best != nil && best.RunTimeTicks > 0 {
+	if best := it.BestSource(); best != nil && best.RunTimeTicks > 0 {
 		return best.RunTimeTicks
 	}
 

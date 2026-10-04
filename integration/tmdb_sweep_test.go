@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/providerproxy"
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 )
 
@@ -64,13 +65,13 @@ var tmdbCases = func() map[string]sweepCase {
 func TestTMDBSweep(t *testing.T) {
 	mode, token := providerproxy.Replay, "replay" // the proxy leaves api_key out of a match
 	switch {
-	case recording(), verifying():
+	case testenv.Recording(), testenv.Verifying():
 		token = cmp.Or(os.Getenv("EMBYFIN_TMDB_TOKEN"), os.Getenv("EMBYFIN_TMDB_KEY"))
 		if token == "" {
 			t.Skip("recording TMDB needs EMBYFIN_TMDB_TOKEN")
 		}
 		mode = providerproxy.Record
-		if verifying() {
+		if testenv.Verifying() {
 			mode = providerproxy.Verify
 		}
 	}

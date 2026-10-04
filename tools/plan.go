@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -128,12 +128,12 @@ func registerPlanTools(r *registry) {
 		// a path the server cannot place is one nothing can be said about,
 		// and "nothing there" would be the wrong thing to say
 		for i, entry := range in.Entries {
-			if !onDisk(strings.TrimSpace(entry.Path)) {
+			if !mediapath.OnDisk(strings.TrimSpace(entry.Path)) {
 				return nil, planOut{}, fmt.Errorf("entry %d: %q is not a full path: give each destination as the server sees it, from the top of its disk", i+1, entry.Path)
 			}
 		}
 
-		folder, err := resolveLibrary(ctx, client, in.Library)
+		folder, err := client.ResolveLibrary(ctx, in.Library)
 		if err != nil {
 			return nil, planOut{}, err
 		}
@@ -155,11 +155,11 @@ func registerPlanTools(r *registry) {
 		joins := make([]*embyfin.Item, len(in.Entries))
 		bySeries := map[string][]int{}
 		for i, entry := range in.Entries {
-			path := filepath.Clean(entry.Path)
+			path := mediapath.Clean(entry.Path)
 			best := -1
 			for j := range index.items {
 				folder := index.items[j].Path
-				if folder == "" || !strings.HasPrefix(path, strings.TrimSuffix(folder, "/")+"/") {
+				if !mediapath.Inside(path, folder) {
 					continue
 				}
 				if best < 0 || len(folder) > len(index.items[best].Path) {
@@ -200,7 +200,7 @@ func registerPlanTools(r *registry) {
 		// and the disk, which holds what no scan has reached yet
 		paths := make([]string, 0, len(in.Entries))
 		for _, entry := range in.Entries {
-			paths = append(paths, filepath.Clean(entry.Path))
+			paths = append(paths, mediapath.Clean(entry.Path))
 		}
 		// what the library holds: its files, and its series folders
 		library := slices.Collect(maps.Keys(held))
@@ -247,7 +247,7 @@ func registerPlanTools(r *registry) {
 		samePath := map[string][]int{}
 		sameEpisode := map[string][]int{}
 		for i, entry := range in.Entries {
-			samePath[filepath.Clean(entry.Path)] = append(samePath[filepath.Clean(entry.Path)], i)
+			samePath[mediapath.Clean(entry.Path)] = append(samePath[mediapath.Clean(entry.Path)], i)
 			if entry.Series != "" && entry.Episode > 0 {
 				key := fmt.Sprintf("%s|s%02de%02d", strings.ToLower(entry.Series), entry.Season, entry.Episode)
 				sameEpisode[key] = append(sameEpisode[key], i)
@@ -256,7 +256,7 @@ func registerPlanTools(r *registry) {
 
 		out := planOut{Entries: make([]planRow, 0, len(in.Entries))}
 		for i, entry := range in.Entries {
-			path := filepath.Clean(entry.Path)
+			path := mediapath.Clean(entry.Path)
 			d := disk[path]
 			row := planRow{Path: entry.Path, Checked: true, InLibrary: new(false)}
 			if !d.unknown {
@@ -370,11 +370,11 @@ const planSearchMax = 200
 func itemPaths(it *embyfin.Item) []string {
 	var out []string
 	if it.Path != "" {
-		out = append(out, filepath.Clean(it.Path))
+		out = append(out, mediapath.Clean(it.Path))
 	}
 	for i := range it.MediaSources {
-		if p := it.MediaSources[i].Path; p != "" && !slices.Contains(out, filepath.Clean(p)) {
-			out = append(out, filepath.Clean(p))
+		if p := it.MediaSources[i].Path; p != "" && !slices.Contains(out, mediapath.Clean(p)) {
+			out = append(out, mediapath.Clean(p))
 		}
 	}
 
@@ -395,13 +395,13 @@ func lookUpOutsideSeries(ctx context.Context, client *embyfin.Client, entries []
 	unknown := map[int]string{}
 	var locations []string
 	for i, entry := range entries {
-		path := filepath.Clean(entry.Path)
+		path := mediapath.Clean(entry.Path)
 		if joins[i] != nil || held[path] != nil {
 			continue
 		}
 
 		opts := embyfin.SearchOptions{Path: entry.Path, Fields: planFields, Limit: 1}
-		title := parseRelease(path).Title
+		title := naming.ParseRelease(path).Title
 		if client.Backend() != embyfin.Emby {
 			opts = embyfin.SearchOptions{SearchTerm: title, Fields: planFields, Limit: planSearchMax}
 		}
@@ -432,7 +432,7 @@ func lookUpOutsideSeries(ctx context.Context, client *embyfin.Client, entries []
 			}
 		}
 		inside := slices.ContainsFunc(locations, func(folder string) bool {
-			return folder != "" && strings.HasPrefix(path, strings.TrimSuffix(filepath.Clean(folder), "/")+"/")
+			return mediapath.Inside(path, folder)
 		})
 		if inside {
 			unknown[i] = fmt.Sprintf("which item holds a file here is not known: Jellyfin cannot look an item up by its path, and a search for the title the path names (%q) found none at it - an item filed under another title would not be found - so exists is true only when the server's disk has a file here, and null otherwise", title)
@@ -506,11 +506,11 @@ func onServerDisk(ctx context.Context, client *embyfin.Client, paths, library []
 		// the walk stops at the library's folder the path is in, or the root
 		bound := ""
 		for _, l := range locations {
-			if within(folder, l) && len(trimSep(l)) > len(bound) {
-				bound = trimSep(l)
+			if mediapath.Within(folder, l) && len(mediapath.Trim(l)) > len(bound) {
+				bound = mediapath.Trim(l)
 			}
 		}
-		for child, parent := folder, parentDir(folder); ; child, parent = parent, parentDir(parent) {
+		for child, parent := folder, mediapath.Dir(folder); ; child, parent = parent, mediapath.Dir(parent) {
 			if child == bound || parent == "" {
 				note := fmt.Sprintf("the server could not read %s, nor any folder above it up to %s: whether a file is at this path is not known", folder, child)
 				if child == folder {
@@ -531,9 +531,11 @@ func onServerDisk(ctx context.Context, client *embyfin.Client, paths, library []
 				// empty is how a share gone offline, or a folder the
 				// server may not read, lists: no proof of anything
 				return diskEntry{unknown: true, note: fmt.Sprintf("the server lists nothing in %s: an empty folder, or one its process cannot read (a share gone offline), so whether a file is at this path is not known", parent)}, nil
-			case slices.ContainsFunc(l.entries, func(e embyfin.FolderEntry) bool { return cmp.Or(e.Name, baseName(e.Path)) == baseName(child) }):
+			case slices.ContainsFunc(l.entries, func(e embyfin.FolderEntry) bool {
+				return cmp.Or(e.Name, mediapath.Base(e.Path)) == mediapath.Base(child)
+			}):
 				return diskEntry{unknown: true, note: fmt.Sprintf("the server's disk lists the folder %s, but the server could not read it: whether a file is at this path is not known", child)}, nil
-			case slices.ContainsFunc(library, func(p string) bool { return within(p, child) }):
+			case slices.ContainsFunc(library, func(p string) bool { return mediapath.Within(p, child) }):
 				return diskEntry{unknown: true, note: fmt.Sprintf("the server's disk does not list %s, yet the library holds items there: the server cannot see its own library folder, so whether a file is at this path is not known", child)}, nil
 			}
 
@@ -543,7 +545,7 @@ func onServerDisk(ctx context.Context, client *embyfin.Client, paths, library []
 
 	byFolder := map[string][]string{}
 	for _, p := range paths {
-		byFolder[parentDir(p)] = append(byFolder[parentDir(p)], p)
+		byFolder[mediapath.Dir(p)] = append(byFolder[mediapath.Dir(p)], p)
 	}
 	out := make(map[string]diskEntry, len(paths))
 	for _, folder := range slices.Sorted(maps.Keys(byFolder)) {
@@ -579,10 +581,10 @@ func onServerDisk(ctx context.Context, client *embyfin.Client, paths, library []
 
 				continue
 			}
-			name := baseName(p)
+			name := mediapath.Base(p)
 			var same, folded *embyfin.FolderEntry
 			for i := range l.entries {
-				switch n := cmp.Or(l.entries[i].Name, baseName(l.entries[i].Path)); {
+				switch n := cmp.Or(l.entries[i].Name, mediapath.Base(l.entries[i].Path)); {
 				case n == name:
 					same = &l.entries[i]
 				case strings.EqualFold(n, name):
@@ -612,10 +614,6 @@ func onServerDisk(ctx context.Context, client *embyfin.Client, paths, library []
 	return out, nil
 }
 
-// seriesNameYear is the year a library writes into a series' own name to tell
-// two of them apart: "Doctor Who (1963)".
-var seriesNameYear = regexp.MustCompile(`\s*[(\[]((?:19|20)\d{2})[)\]]\s*$`)
-
 // claimScore is how well the series a caller claims matches the series a
 // path falls under, scored the way a name is resolved to a series: the
 // claim's title and year against the series' title and year. Scoring the bare
@@ -624,11 +622,11 @@ var seriesNameYear = regexp.MustCompile(`\s*[(\[]((?:19|20)\d{2})[)\]]\s*$`)
 // as nearly the same one.
 func claimScore(claim string, series *embyfin.Item) float64 {
 	named := *series
-	if m := seriesNameYear.FindStringSubmatch(named.Name); m != nil {
+	if m := naming.SeriesNameYear.FindStringSubmatch(named.Name); m != nil {
 		named.Name = strings.TrimSpace(strings.TrimSuffix(named.Name, m[0]))
 		named.ProductionYear = cmp.Or(named.ProductionYear, atoi(m[1]))
 	}
-	score, _ := scoreSeries(parseRelease(claim), &named)
+	score, _ := scoreSeries(naming.ParseRelease(claim), &named)
 
 	return score
 }

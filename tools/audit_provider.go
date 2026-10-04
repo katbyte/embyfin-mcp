@@ -178,7 +178,7 @@ func auditAgainstProvider(ctx context.Context, client *embyfin.Client, provider 
 		}
 		opts.IDs = strings.Join(ids, ",")
 	} else {
-		folder, libErr := resolveLibrary(ctx, client, in.Library)
+		folder, libErr := client.ResolveLibrary(ctx, in.Library)
 		if libErr != nil {
 			return providerAuditOut{}, libErr
 		}

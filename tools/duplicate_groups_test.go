@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/naming"
+	"github.com/katbyte/embyfin-mcp/lib/tmdb"
 )
 
 // ids names the members of each group, for a test to compare.
@@ -329,8 +331,8 @@ func TestVersionWarningReadsTitlesAsTheFilePathAuditDoes(t *testing.T) {
 	t.Parallel()
 
 	withTMDB := &titleCheck{titles: newProviderTitles(Options{TMDBKey: "k", ProviderTransport: titlesTMDB(t)})}
-	film := func(name string, year int, tmdb string, versions ...string) *embyfin.Item {
-		it := &embyfin.Item{Type: typeMovie, Name: name, ProductionYear: year, ProviderIDs: map[string]string{"Tmdb": tmdb}}
+	film := func(name string, year int, tmdbID string, versions ...string) *embyfin.Item {
+		it := &embyfin.Item{Type: typeMovie, Name: name, ProductionYear: year, ProviderIDs: map[string]string{"Tmdb": tmdbID}}
 		for _, v := range versions {
 			it.MediaSources = append(it.MediaSources, embyfin.MediaSource{Path: v})
 		}
@@ -364,7 +366,7 @@ func TestVersionWarningReadsTitlesAsTheFilePathAuditDoes(t *testing.T) {
 	}
 
 	// the file path audit reads the same file the same way
-	if row, _ := checkPath(&embyfin.Item{ID: "x", Type: typeMovie, Name: "Alien", ProductionYear: 1979, Path: "/m/Alien Collection/Alien Collection (1979) - Alien.avi"}, map[string]bool{"title": true, "year": true}); len(row.Problems) != 0 {
+	if row, _ := checkPath(&embyfin.Item{ID: "x", Type: typeMovie, Name: "Alien", ProductionYear: 1979, Path: "/m/Alien Collection/Alien Collection (1979) - Alien.avi"}, map[string]bool{"title": true, "year": true}, embyfin.Emby); len(row.Problems) != 0 {
 		t.Errorf("audit_file_path on the franchise's file = %v", row.Problems)
 	}
 
@@ -421,11 +423,11 @@ func franchiseTMDB(t *testing.T) http.RoundTripper {
 func TestAFranchiseTitleIsReadWhole(t *testing.T) {
 	t.Parallel()
 
-	if got := wholeTitle("Zzyzx (2016) Unlimited - Mechs.mkv"); got != "Zzyzx Unlimited - Mechs" {
+	if got := naming.WholeTitle("Zzyzx (2016) Unlimited - Mechs.mkv"); got != "Zzyzx Unlimited - Mechs" {
 		t.Errorf("the whole title = %q", got)
 	}
 	for _, name := range []string{"Zzyzx (2016).mkv", "Zzyzx (2016) - 1080p.mkv", "Zzyzx (2016) 360p.mkv", "Zzyzx (2016) [Bluray-1080p].mkv", "Zzyzx (2016) {imdb-tt0000001}.mkv", "Zzyzx 2016.mkv"} {
-		if got := wholeTitle(name); got != "" {
+		if got := naming.WholeTitle(name); got != "" {
 			t.Errorf("wholeTitle(%q) = %q, want nothing past the year to read", name, got)
 		}
 	}
@@ -488,9 +490,11 @@ func TestAuditDuplicateSeriesKeepsNumbersApart(t *testing.T) {
 		{id: "e", name: "Zzyzx Show", path: "/tv/Zzyzx Show Part 1"},
 		{id: "f", name: "Zzyzx Show", path: "/tv/Zzyzx Show Part 2"},
 	}
-	out := mustCall(t, session(t, tvServer(t, shows...), Options{}), "audit_duplicate_series", map[string]any{})
-	if n := number(t, out["total_findings"], "total_findings"); n != 0 {
-		t.Errorf("shows a number apart grouped: %v", out["groups"])
+	f := tvServer(t, shows...)
+	adminView(t, f)
+	out := mustCall(t, session(t, f, Options{}), "audit_duplicates", map[string]any{})
+	if n := number(t, out["total_findings"], "total_findings"); n != 0 || len(objects(t, out["folder_groups"], "folder_groups")) != 0 {
+		t.Errorf("shows a number apart grouped: %v", out["folder_groups"])
 	}
 }
 
@@ -603,8 +607,8 @@ func filePathRows(t *testing.T, opts Options, films ...map[string]any) []map[str
 }
 
 // versionsOfFilm is a film held in the files given, the first its own.
-func versionsOfFilm(name string, year int, tmdb string, paths ...string) *embyfin.Item {
-	it := &embyfin.Item{Type: typeMovie, Name: name, ProductionYear: year, ProviderIDs: map[string]string{"Tmdb": tmdb}, Path: paths[0]}
+func versionsOfFilm(name string, year int, tmdbID string, paths ...string) *embyfin.Item {
+	it := &embyfin.Item{Type: typeMovie, Name: name, ProductionYear: year, ProviderIDs: map[string]string{"Tmdb": tmdbID}, Path: paths[0]}
 	for _, p := range paths {
 		it.MediaSources = append(it.MediaSources, embyfin.MediaSource{Path: p})
 	}
@@ -625,9 +629,9 @@ func versionsOfFilm(name string, year int, tmdb string, paths ...string) *embyfi
 func TestAnEditionAfterTheYearIsNotTheTitle(t *testing.T) {
 	t.Parallel()
 
-	film := func(id, name, original string, year int, tmdb, file string) map[string]any {
+	film := func(id, name, original string, year int, tmdbID, file string) map[string]any {
 		return map[string]any{
-			"Id": id, "Name": name, "OriginalTitle": original, "Type": "Movie", "ProductionYear": year, "ProviderIds": map[string]any{"Tmdb": tmdb},
+			"Id": id, "Name": name, "OriginalTitle": original, "Type": "Movie", "ProductionYear": year, "ProviderIds": map[string]any{"Tmdb": tmdbID},
 			"Path": "/zz/films/" + file + "/" + file + ".mkv", "RunTimeTicks": 117 * ticksPerMinute,
 		}
 	}
@@ -752,9 +756,9 @@ func TestAFileNamedForAnotherFilmAfterTheYear(t *testing.T) {
 	}
 
 	// audit_file_path reads the files alike, with the same asking
-	film := func(id, file string, year int, tmdb string) map[string]any {
+	film := func(id, file string, year int, tmdbID string) map[string]any {
 		return map[string]any{
-			"Id": id, "Name": "Zzyzx", "Type": "Movie", "ProductionYear": year, "ProviderIds": map[string]any{"Tmdb": tmdb},
+			"Id": id, "Name": "Zzyzx", "Type": "Movie", "ProductionYear": year, "ProviderIds": map[string]any{"Tmdb": tmdbID},
 			"Path": "/zz/films/" + file + "/" + file + ".mkv", "RunTimeTicks": 117 * ticksPerMinute,
 		}
 	}
@@ -896,7 +900,7 @@ func TestACollectionsPartsDecodeWithTheirTitles(t *testing.T) {
 		t.Fatal(err)
 	}
 	titles := newProviderTitles(Options{TMDBKey: "k", ProviderTransport: rewrite{target}})
-	parts, err := titles.collectionParts(t.Context(), "348")
+	parts, err := titles.CollectionParts(t.Context(), "348")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -920,11 +924,11 @@ func TestACollectionsPartsDecodeWithTheirTitles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := parts[i]; w.Title == "" || got != (titleHit{ID: w.ID, Title: w.Title, Original: w.OriginalTitle, Year: year}) {
+		if got := parts[i]; w.Title == "" || got != (tmdb.Hit{ID: w.ID, Title: w.Title, Original: w.OriginalTitle, Year: year}) {
 			t.Errorf("part %d = %+v, want %d %q (%q, %d)", i, got, w.ID, w.Title, w.OriginalTitle, year)
 		}
 	}
-	if !slices.ContainsFunc(parts, func(h titleHit) bool { return h.ID == 679 && h.Title == "Aliens" }) {
+	if !slices.ContainsFunc(parts, func(h tmdb.Hit) bool { return h.ID == 679 && h.Title == "Aliens" }) {
 		t.Errorf("parts = %v, want Aliens among them", parts)
 	}
 }
@@ -944,18 +948,18 @@ func TestAnEntrysNumberPastTheFilmsTitle(t *testing.T) {
 		"Zzyzx 2049": "", "Zzyzx: The Two Towers": "", "Zzyzx Six Feet Under": "", "Zzyzx Two: The Return": "", "Zzyzx Ten Commandments": "", "Zzyzx One": "", "Zzyzx X": "",
 		"Zzyzx: Ultimate Edition": "", "Zzyzx: Director's Cut": "", "Zzyzx v Quux": "", "Zzyzx X Quux": "", "Quux 2": "",
 	} {
-		if got := entryNumber(zzyzx, titleHit{Title: title}); got != want {
+		if got := entryNumber(zzyzx, tmdb.Hit{Title: title}); got != want {
 			t.Errorf("entryNumber(Zzyzx, %q) = %q, want %q", title, got, want)
 		}
 	}
-	if got := entryNumber(&embyfin.Item{Name: "Zzyzx: Part One"}, titleHit{Title: "Zzyzx: Part One Extended"}); got != "" {
+	if got := entryNumber(&embyfin.Item{Name: "Zzyzx: Part One"}, tmdb.Hit{Title: "Zzyzx: Part One Extended"}); got != "" {
 		t.Errorf("a number the item's title carries too = %q", got)
 	}
 	for title, want := range map[string]bool{
 		"Zzyzx: Ultimate Edition": true, "Zzyzx: The Director's Cut": true, "Zzyzx: 25th Anniversary Edition": true, "Zzyzx: The Final Cut": true, "Zzyzx Redux": true, "Zzyzx (IMAX)": true,
 		"Zzyzx in the Air": false, "Zzyzx: Part Two": false, "Zzyzx Returns": false, "Zzyzx: Special Forces": false,
 	} {
-		rest, _ := titleRest(zzyzx, titleHit{Title: title})
+		rest, _ := titleRest(zzyzx, tmdb.Hit{Title: title})
 		if got := editionRest(rest); got != want {
 			t.Errorf("editionRest(Zzyzx, %q) = %v, want %v", title, got, want)
 		}
@@ -1036,10 +1040,10 @@ func TestTheWholeTitleAFileNameReads(t *testing.T) {
 		{"Zzyzx (2016) Unlimited - Mechs.mkv", &embyfin.Item{Type: typeMovie, Name: "Zzyzx v Quux: Dawn", ProductionYear: 2016}, 2016, "Zzyzx Unlimited - Mechs", false},
 		{"Alien Collection (1979) - Alien.avi", alien, 1979, "Alien Collection Alien", false},
 	} {
-		if got := segmentYear(fileExtension.ReplaceAllString(tc.file, "")); got != tc.year {
+		if got := naming.SegmentYear(naming.FileExtension.ReplaceAllString(tc.file, "")); got != tc.year {
 			t.Errorf("%s: year %d, want %d", tc.file, got, tc.year)
 		}
-		if got := wholeTitle(tc.file); got != tc.whole {
+		if got := naming.WholeTitle(tc.file); got != tc.whole {
 			t.Errorf("%s: whole title %q, want %q", tc.file, got, tc.whole)
 		}
 		if _, asked := wholeClaim(tc.it, "/m/"+tc.file); asked != tc.asked {
@@ -1146,9 +1150,9 @@ func TestTheWholeTitleAskingSaysWhatItCouldNotAsk(t *testing.T) {
 	t.Parallel()
 
 	transport, asked := editionTMDB(t)
-	film := func(id, file string, year int, tmdb string) map[string]any {
+	film := func(id, file string, year int, tmdbID string) map[string]any {
 		return map[string]any{
-			"Id": id, "Name": "Zzyzx", "Type": "Movie", "ProductionYear": year, "ProviderIds": map[string]any{"Tmdb": tmdb},
+			"Id": id, "Name": "Zzyzx", "Type": "Movie", "ProductionYear": year, "ProviderIds": map[string]any{"Tmdb": tmdbID},
 			"Path": "/zz/films/" + file + "/" + file + ".mkv", "RunTimeTicks": 117 * ticksPerMinute,
 		}
 	}
@@ -1171,7 +1175,7 @@ func TestTheWholeTitleAskingSaysWhatItCouldNotAsk(t *testing.T) {
 
 	titles := newProviderTitles(Options{TMDBKey: "k", ProviderTransport: transport})
 	for _, id := range []string{"90050", "90053"} {
-		parts, err := titles.collectionParts(t.Context(), id)
+		parts, err := titles.CollectionParts(t.Context(), id)
 		if err != nil || len(parts) != 3 {
 			t.Fatalf("collectionParts(%s) = %v, %v", id, parts, err)
 		}
@@ -1184,7 +1188,7 @@ func TestTheWholeTitleAskingSaysWhatItCouldNotAsk(t *testing.T) {
 	broken := newProviderTitles(Options{TMDBKey: "k", ProviderTransport: calls})
 	var last error
 	for i := range 5 {
-		_, last = broken.search(t.Context(), "movie", fmt.Sprintf("Zzyzx %d", i), 0)
+		_, last = broken.Search(t.Context(), "movie", fmt.Sprintf("Zzyzx %d", i), 0)
 	}
 	// the breaker (tmdb.Breaker) counts reads, each tried triesPerRead
 	// times before it fails: three failed reads, and the rest are not sent
@@ -1295,11 +1299,11 @@ func TestACancelledAskDoesNotTripTheBreaker(t *testing.T) {
 	gone, cancel := context.WithCancel(t.Context())
 	cancel()
 	for i := range 2 * breakerReads {
-		if _, err := titles.search(gone, "movie", fmt.Sprintf("Zzyzx %d", i), 0); err == nil {
+		if _, err := titles.Search(gone, "movie", fmt.Sprintf("Zzyzx %d", i), 0); err == nil {
 			t.Fatal("a cancelled ask answered")
 		}
 	}
-	_, err := titles.search(t.Context(), "movie", "Zzyzx live", 0)
+	_, err := titles.Search(t.Context(), "movie", "Zzyzx live", 0)
 	if err == nil || strings.Contains(err.Error(), "TMDB not asked") || calls.n.Load() == 0 {
 		t.Errorf("a live ask after cancelled ones = %v, with %d reaching TMDB; want TMDB asked", err, calls.n.Load())
 	}

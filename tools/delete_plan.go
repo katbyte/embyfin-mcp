@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 )
 
 // What a delete takes off the disk.
@@ -91,10 +92,10 @@ func isExtra(name string) bool {
 // planDelete works out what deleting an item takes off the disk. versions
 // are the paths of every version of it the server holds.
 func planDelete(ctx context.Context, client *embyfin.Client, it *embyfin.Item, versions []string) (deletePlan, error) {
-	if it.Path == "" || !onDisk(it.Path) {
+	if it.Path == "" || !mediapath.OnDisk(it.Path) {
 		return deletePlan{note: "the item has no file or folder on disk: the delete removes the server's record of it"}, nil
 	}
-	parent := parentDir(it.Path)
+	parent := mediapath.Dir(it.Path)
 	entries, found, lerr := client.ListFolder(ctx, parent)
 	switch {
 	case lerr != nil:
@@ -105,7 +106,7 @@ func planDelete(ctx context.Context, client *embyfin.Client, it *embyfin.Item, v
 		return deletePlan{note: "the server cannot find the folder holding the item: the delete removes its record, and nothing on disk"}, nil
 	}
 
-	self := slices.IndexFunc(entries, func(e embyfin.FolderEntry) bool { return trimSep(e.Path) == trimSep(it.Path) })
+	self := slices.IndexFunc(entries, func(e embyfin.FolderEntry) bool { return mediapath.Trim(e.Path) == mediapath.Trim(it.Path) })
 	if self >= 0 && entries[self].IsDir {
 		// a series, a season, an album, an artist, a disc kept as its
 		// folder, a folder of a mixed library: the item is a folder
@@ -126,13 +127,13 @@ func planDelete(ctx context.Context, client *embyfin.Client, it *embyfin.Item, v
 	plan := deletePlan{watch: parent, before: entries}
 	own := map[string]bool{it.Path: true}
 	for _, v := range versions {
-		if parentDir(v) == parent {
+		if mediapath.Dir(v) == parent {
 			own[v] = true
 		}
 	}
 	sidecar := sidecarFiles[client.Backend()]
 	stem := func(path string) string {
-		return strings.ToLower(strings.TrimSuffix(baseName(path), filepath.Ext(path)))
+		return strings.ToLower(mediapath.Stem(path))
 	}
 	// the other media files' names, which say whose a sidecar taken by the
 	// name alone really is: "Blade II.nfo" is Blade II's, and goes with Blade
@@ -192,11 +193,11 @@ func sharedFolder(ctx context.Context, client *embyfin.Client, it *embyfin.Item,
 	if it.Type == typeEpisode {
 		return true, nil
 	}
-	libs, err := libraryPaths(ctx, client)
+	libs, err := client.LibraryPaths(ctx)
 	if err != nil {
 		return false, fmt.Errorf("could not read the libraries' folders, so whether the delete takes %s's whole folder is not known: %w", it.Name, err)
 	}
-	if slices.ContainsFunc(libs, func(l libraryPath) bool { return trimSep(l.path) == trimSep(parent) }) {
+	if slices.ContainsFunc(libs, func(l embyfin.LibraryPath) bool { return mediapath.Trim(l.Path) == mediapath.Trim(parent) }) {
 		// never a library's own folder
 		return true, nil
 	}
@@ -204,7 +205,7 @@ func sharedFolder(ctx context.Context, client *embyfin.Client, it *embyfin.Item,
 		if e.IsDir || !mediaExtensions.MatchString(e.Name) || isExtra(e.Name) {
 			continue
 		}
-		if trimSep(e.Path) == trimSep(it.Path) || slices.ContainsFunc(versions, func(v string) bool { return trimSep(v) == trimSep(e.Path) }) {
+		if mediapath.Trim(e.Path) == mediapath.Trim(it.Path) || slices.ContainsFunc(versions, func(v string) bool { return mediapath.Trim(v) == mediapath.Trim(e.Path) }) {
 			continue
 		}
 
@@ -263,10 +264,10 @@ func listTree(ctx context.Context, client *embyfin.Client, root string) (tree []
 // worked out takes nothing it can name.
 func (p deletePlan) takes(path string) bool {
 	if p.folder != "" {
-		return within(path, p.folder)
+		return mediapath.Within(path, p.folder)
 	}
 
-	return slices.ContainsFunc(p.files, func(f string) bool { return trimSep(f) == trimSep(path) })
+	return slices.ContainsFunc(p.files, func(f string) bool { return mediapath.Trim(f) == mediapath.Trim(path) })
 }
 
 // notForItemDelete are the kinds item_delete refuses, each with what does
@@ -354,7 +355,7 @@ func (r *registry) afterFailedDelete(ctx context.Context, plan deletePlan, it *e
 	case plan.unknown:
 		// the folder was not read before, so there is nothing to compare
 		disk = "what it took from the disk is not known, since the folder holding it could not be read before; " + r.ownFileNow(ctx, it.Path)
-	case plan.watch == "" && onDisk(it.Path):
+	case plan.watch == "" && mediapath.OnDisk(it.Path):
 		disk = "the server could not find the folder holding it before, so nothing on disk was to go; " + r.ownFileNow(ctx, it.Path)
 	case plan.watch == "":
 		disk = "it had nothing on disk to take"
@@ -407,7 +408,7 @@ func (r *registry) removedBy(ctx context.Context, plan deletePlan, itemPath stri
 			break
 		}
 		after = entries
-		ownGone := !slices.ContainsFunc(entries, func(e embyfin.FolderEntry) bool { return trimSep(e.Path) == trimSep(itemPath) })
+		ownGone := !slices.ContainsFunc(entries, func(e embyfin.FolderEntry) bool { return mediapath.Trim(e.Path) == mediapath.Trim(itemPath) })
 		if plan.folder == "" && ownGone {
 			break
 		}
@@ -433,10 +434,10 @@ func (r *registry) removedBy(ctx context.Context, plan deletePlan, itemPath stri
 	}
 	left := map[string]bool{}
 	for _, e := range after {
-		left[trimSep(e.Path)] = true
+		left[mediapath.Trim(e.Path)] = true
 	}
 	for _, e := range plan.before {
-		if !left[trimSep(e.Path)] {
+		if !left[mediapath.Trim(e.Path)] {
 			removed = append(removed, removedPath{Path: e.Path, Folder: e.IsDir})
 		}
 	}

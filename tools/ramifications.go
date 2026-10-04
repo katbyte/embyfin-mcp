@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 )
 
 // What a change reaches beyond the item it names. A tool that takes items
@@ -46,7 +47,7 @@ func identityOf(it *embyfin.Item) identity {
 	return out
 }
 
-// sameTitle says whether two identities name one title: no id held before is
+// naming.SameTitle says whether two identities name one title: no id held before is
 // gone or different after. An id added where there was none fills a gap in
 // the same title, as a refresh with the fetchers on does.
 func (a identity) sameTitle(b identity) bool {
@@ -246,7 +247,7 @@ func libraryItemsUnder(ctx context.Context, client *embyfin.Client, library *emb
 	read, err := client.ReadAll(ctx, embyfin.SearchOptions{ParentID: library.ItemID, ExcludeItemTypes: containerTypes, Fields: "Path"}, embyfin.ToAct, func(items []embyfin.Item) bool {
 		for i := range items {
 			for _, folder := range folders {
-				if within(items[i].Path, folder) {
+				if mediapath.Within(items[i].Path, folder) {
 					out[folder] = append(out[folder], items[i])
 				}
 			}
@@ -292,12 +293,12 @@ func nfoUnseen(folder *embyfin.VirtualFolder) string {
 // nothing on disk has no folder, "" and nothing; one whose folder the server
 // cannot find has the folder and nothing.
 func filesBeside(ctx context.Context, client *embyfin.Client, it *embyfin.Item) (string, []embyfin.FolderEntry, error) {
-	if it.Path == "" || !onDisk(it.Path) {
+	if it.Path == "" || !mediapath.OnDisk(it.Path) {
 		return "", nil, nil
 	}
-	dir := parentDir(it.Path)
+	dir := mediapath.Dir(it.Path)
 	if it.IsFolder {
-		dir = trimSep(it.Path)
+		dir = mediapath.Trim(it.Path)
 	}
 	entries, found, err := client.ListFolder(ctx, dir)
 	if err != nil || !found {
@@ -322,7 +323,7 @@ func besideAfter(ctx context.Context, client *embyfin.Client, dir string, had []
 		now = nil
 	}
 	in := func(list []embyfin.FolderEntry, path string) bool {
-		return slices.ContainsFunc(list, func(e embyfin.FolderEntry) bool { return trimSep(e.Path) == trimSep(path) })
+		return slices.ContainsFunc(list, func(e embyfin.FolderEntry) bool { return mediapath.Trim(e.Path) == mediapath.Trim(path) })
 	}
 	for _, e := range had {
 		if !in(now, e.Path) {

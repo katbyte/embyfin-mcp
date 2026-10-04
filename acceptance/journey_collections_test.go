@@ -5,6 +5,8 @@ package acceptance
 import (
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 )
 
 // A collection deleted straight after it was made. Jellyfin refreshes a
@@ -19,18 +21,18 @@ import (
 // back, and gets a few seconds' watch.
 func TestDeletingACollectionJustMade(t *testing.T) {
 	alien := findItem(t, "Movies", "Movie", "Alien")
-	id := str(call(t, "collection_create", map[string]any{"name": "Zzyzx Just Made", "item_ids": []any{alien}})["id"])
+	id := acc.Str(suite.Call(t, "collection_create", map[string]any{"name": "Zzyzx Just Made", "item_ids": []any{alien}})["id"])
 	t.Cleanup(func() {
-		if _, err := invoke("collection_get", map[string]any{"collection": id}); err == nil {
-			undo(t, "collection_delete", map[string]any{"collection": id})
+		if _, err := suite.Invoke("collection_get", map[string]any{"collection": id}); err == nil {
+			suite.Undo(t, "collection_delete", map[string]any{"collection": id})
 		} else if !strings.Contains(err.Error(), "no collection named") {
 			t.Errorf("reading whether the collection %s is still there: %v", id, err)
 		}
 	})
 
-	out := call(t, "collection_delete", map[string]any{"collection": id})
-	watched, note := num(t, out["watched_s"], "watched_s"), str(out["note"])
-	if str(out["deleted"]) != "Zzyzx Just Made" {
+	out := suite.Call(t, "collection_delete", map[string]any{"collection": id})
+	watched, note := acc.Num(t, out["watched_s"], "watched_s"), acc.Str(out["note"])
+	if acc.Str(out["deleted"]) != "Zzyzx Just Made" {
 		t.Errorf("collection_delete = %v", out)
 	}
 	if isJellyfin() {
@@ -44,14 +46,14 @@ func TestDeletingACollectionJustMade(t *testing.T) {
 
 	// and it stays gone
 	gone := func() bool {
-		for _, c := range rowsOf(call(t, "collection_list", nil)["collections"]) {
-			if str(c["id"]) == id {
+		for _, c := range acc.RowsOf(suite.Call(t, "collection_list", nil)["collections"]) {
+			if acc.Str(c["id"]) == id {
 				return false
 			}
 		}
 		return true
 	}
-	if !holds(gone) {
+	if !acc.Holds(gone) {
 		t.Error("the collection is listed again after collection_delete answered")
 	}
 }

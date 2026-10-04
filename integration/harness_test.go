@@ -37,9 +37,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +45,7 @@ import (
 	"github.com/katbyte/embyfin-mcp/lib/client"
 	"github.com/katbyte/embyfin-mcp/lib/emby"
 	"github.com/katbyte/embyfin-mcp/lib/jf"
-	"github.com/katbyte/embyfin-mcp/lib/providerproxy"
+	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
 
 // scanPatience is how long a library scan is given to settle. Three minutes
@@ -211,41 +209,16 @@ var (
 	jfc   *jf.Client
 
 	adminID, aliceID, password string
-	proxy                      *providerproxy.Proxy
-	proxyMisses                []string
-	proxyDrifts                []providerproxy.Drift
+	proxy                      *testenv.Proxy
 )
-
-// recording reports whether this run should call the real providers for
-// what the cassettes lack, rather than replay them: EMBYFIN_TEST_RECORD=1
-// fills in only the missing answers, and =all (make record) fetches every
-// answer again (see providerproxy.Rerecord).
-func recording() bool { return os.Getenv("EMBYFIN_TEST_RECORD") != "" }
-
-// verifying reports whether to check the cassettes against the live
-// providers without rewriting them.
-func verifying() bool { return os.Getenv("EMBYFIN_TEST_VERIFY") != "" }
-
-// configured reports whether the container environment is present.
-func configured() bool {
-	return os.Getenv("EMBYFIN_SERVER") != "" && os.Getenv("EMBYFIN_TOKEN") != "" && os.Getenv("EMBYFIN_BACKEND") != ""
-}
-
-// dataDir is the host path the container's /media is bind-mounted from, so
-// a test can add files and rescan.
-func dataDir() string { return filepath.Join(os.Getenv("EMBYFIN_TEST_DATA"), "media") }
-
-// cassetteDir is where this backend's recordings live: Emby and Jellyfin ask
-// the providers different questions, so each has its own set.
-func cassetteDir() string { return filepath.Join("testdata", "cassettes", backend) }
 
 // runSuite connects, starts the provider proxy, runs the tests, removes the
 // libraries they created, and returns the exit code.
 func runSuite(m *testing.M) int {
-	if !configured() {
+	if !testenv.Configured() {
 		return m.Run() // every test skips
 	}
-	backend = os.Getenv("EMBYFIN_BACKEND")
+	backend = testenv.Backend()
 	adminID, aliceID, password = os.Getenv("EMBYFIN_TEST_ADMIN_ID"), os.Getenv("EMBYFIN_TEST_USER_ID"), os.Getenv("EMBYFIN_TEST_PASSWORD")
 
 	var err error
@@ -261,107 +234,28 @@ func runSuite(m *testing.M) int {
 		fmt.Fprintln(os.Stderr, "sdk client:", err)
 		return 1
 	}
-	if err := startProxy(); err != nil {
+	proxy, err = testenv.StartProxy(context.Background(), testenv.CassetteDir(backend))
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "provider proxy:", err)
 		return 1
 	}
 
 	code := m.Run()
 	removeLibraries()
-	stopProxy()
-
-	// a replay miss means a test ran against a 502 rather than a recording,
-	// so say so loudly even when the assertions happened to survive it
-	if misses := proxyMisses; len(misses) > 0 {
-		fmt.Fprintf(os.Stderr, "\nprovider proxy: %d request(s) had no recording:\n", len(misses))
-		for _, m := range misses {
-			fmt.Fprintln(os.Stderr, "  "+m)
-		}
-		fmt.Fprintln(os.Stderr, "run `make record` to capture them")
-		if code == 0 {
-			code = 1
-		}
+	if err := proxy.Stop(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
-	// drift is only collected under EMBYFIN_TEST_VERIFY: the providers still
-	// answer, but no longer in the shape the server decodes
-	if drifts := proxyDrifts; len(drifts) > 0 {
-		fmt.Fprintf(os.Stderr, "\nprovider proxy: %d response(s) changed shape since recording:\n", len(drifts))
-		for _, d := range drifts {
-			fmt.Fprintln(os.Stderr, "  "+d.String())
-		}
-		fmt.Fprintln(os.Stderr, "\nreview the changes, then run `make record` to accept them")
+
+	// a replay miss, or an answer that changed shape, is said loudly even
+	// when the assertions happened to survive it
+	if report := proxy.Report(); report != "" {
+		fmt.Fprint(os.Stderr, report)
 		if code == 0 {
 			code = 1
 		}
 	}
 
 	return code
-}
-
-// startProxy brings up the record/replay proxy the container's HTTPS_PROXY
-// already points at, signing with the CA scripts/testenv.sh minted and
-// mounted into the container.
-func startProxy() error {
-	port := 18080
-	if v := os.Getenv("EMBYFIN_TEST_PROXY_PORT"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return fmt.Errorf("EMBYFIN_TEST_PROXY_PORT=%q: %w", v, err)
-		}
-		port = n
-	}
-
-	mode := providerproxy.Replay
-	switch {
-	case recording():
-		mode = providerproxy.Record
-	case verifying():
-		mode = providerproxy.Verify
-	}
-
-	opts := providerproxy.Options{
-		Mode:        mode,
-		CassetteDir: cassetteDir(),
-		// every interface and both stacks: the container reaches this through
-		// host.docker.internal, which docker maps to the host gateway, and a
-		// runner that hands the container an IPv6 route as well would find
-		// nothing listening on an IPv4-only socket
-		Addr: ":" + strconv.Itoa(port),
-		// no API key may decide a cassette match or be committed with it:
-		// an operator's own (TMDB's api_key) or the one a media server
-		// carries for a provider (OMDb's apikey, which is Emby's and
-		// Jellyfin's to rotate, not ours to publish)
-		RedactQuery: []string{"api_key", "apikey"},
-		// a provider's login answers with a bearer token for the media
-		// server's own account; replay never needs one
-		RedactBodyFields: []string{"token"},
-		// the media server reaching itself is not provider traffic
-		// Emby asks ipify, then its own service, for its public address on
-		// startup, which is nobody's business and not part of any recording
-		IgnoreHosts: append(containerAddresses(), "api.ipify.org", "api64.ipify.org", "connect.emby.media"),
-	}
-	if ca := os.Getenv("EMBYFIN_TEST_PROXY_CA"); ca != "" {
-		opts.CACert, opts.CAKey = filepath.Join(ca, "ca.pem"), filepath.Join(ca, "ca.key")
-	}
-	p, err := providerproxy.New(opts)
-	if err != nil {
-		return err
-	}
-	proxy = p
-
-	return checkProxyReachable(port)
-}
-
-func stopProxy() {
-	if proxy == nil {
-		return
-	}
-	proxyMisses = proxy.Misses()
-	proxyDrifts = proxy.Drifts()
-	if err := proxy.Close(); err != nil {
-		fmt.Fprintln(os.Stderr, "provider proxy close:", err)
-	}
-	proxy = nil
 }
 
 // removeLibraries deletes every library the suite created, after the last
@@ -537,7 +431,7 @@ func scratchDir(t *testing.T) string {
 func layOut(t *testing.T, under string, films ...string) string {
 	t.Helper()
 
-	data := dataDir()
+	data := testenv.DataDir()
 	if data == filepath.Join("", "media") {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
@@ -576,51 +470,4 @@ func layOut(t *testing.T, under string, films ...string) string {
 // isScanTask picks the library scan out of the task list on either server.
 func isScanTask(key, name string) bool {
 	return key == "RefreshLibrary" || strings.Contains(strings.ToLower(name), "scan media library")
-}
-
-// containerAddresses are the addresses the media server reaches itself on:
-// Emby pings its own container address at startup, which goes through the
-// proxy because NO_PROXY is set before docker hands the container an address.
-// The proxy answers those without a cassette (Options.IgnoreHosts).
-func containerAddresses() []string {
-	name := os.Getenv("EMBYFIN_TEST_CONTAINER")
-	if name == "" {
-		return nil
-	}
-	out, err := exec.Command("docker", "inspect", "-f",
-		"{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}{{.Config.Hostname}}", name).Output()
-	if err != nil {
-		return nil // not our container to ask about
-	}
-
-	return strings.Fields(string(out))
-}
-
-// checkProxyReachable proves, from inside the container, that the media server
-// can reach the provider proxy. A server that cannot fails every provider
-// lookup with a timeout of its own, which reads as dozens of unrelated
-// assertion failures rather than the one plumbing problem it is - so say it
-// plainly, once, before the suite runs.
-func checkProxyReachable(port int) error {
-	name := os.Getenv("EMBYFIN_TEST_CONTAINER")
-	if name == "" {
-		return nil // not a container this suite started
-	}
-	// exit 3 says the image has no probe tool, which is not a failure. The
-	// hosts entries come too: a container handed an IPv6 route to the host
-	// gateway can reach the proxy with one address and not the other.
-	script := fmt.Sprintf(
-		"grep -i host.docker.internal /etc/hosts; echo \"proxy env: ${HTTPS_PROXY:-unset}\"; "+
-			"command -v nc >/dev/null || exit 3; nc -z -w 5 host.docker.internal %d", port)
-	out, err := exec.Command("docker", "exec", name, "sh", "-c", script).CombinedOutput()
-	fmt.Fprintf(os.Stderr, "container network: %s\n", strings.TrimSpace(string(out)))
-	switch {
-	case err == nil:
-		return nil
-	case strings.Contains(err.Error(), "exit status 3"):
-		return nil
-	default:
-		return fmt.Errorf("%s cannot reach the provider proxy on host.docker.internal:%d, so every provider lookup will time out: %w: %s",
-			name, port, err, out)
-	}
 }

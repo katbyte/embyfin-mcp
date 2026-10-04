@@ -5,6 +5,8 @@ package acceptance
 import (
 	"strings"
 	"testing"
+
+	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 )
 
 // Every tool taking a series id refuses the id of a film or an episode, and
@@ -15,7 +17,7 @@ import (
 func TestSeriesIDsNameASeries(t *testing.T) {
 	film := findItem(t, "Movies", "Movie", "Arrival")
 	series := findItem(t, "Shows", "Series", "Breaking Bad")
-	pilot := str(rows(t, call(t, "library_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"])
+	pilot := acc.Str(acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": series, "season": 1})["episodes"], "episodes")[0]["id"])
 
 	isFilm := film + " is a film, Arrival (2016), not a series"
 	isEpisode := pilot + " is an episode, Breaking Bad S01E01 Pilot, not a series: its series is Breaking Bad, id " + series
@@ -34,21 +36,21 @@ func TestSeriesIDsNameASeries(t *testing.T) {
 		{"library_episodes", map[string]any{"series_id": film}, isFilm},
 		{"library_episodes", map[string]any{"series_id": pilot}, isEpisode},
 	} {
-		if msg := callErr(t, tc.tool, tc.args); !strings.Contains(msg, tc.want) {
+		if msg := suite.CallErr(t, tc.tool, tc.args); !strings.Contains(msg, tc.want) {
 			t.Errorf("%s %v = %q, want %q", tc.tool, tc.args, msg, tc.want)
 		}
 	}
 	// a batch answers the film's row with the refusal and goes on
-	out := call(t, "show_episodes_exist", map[string]any{"queries": []any{
+	out := suite.Call(t, "show_episodes_exist", map[string]any{"queries": []any{
 		map[string]any{"series_id": film, "episodes": one},
 		map[string]any{"series_id": series, "episodes": one},
 	}})
-	results := rows(t, out["results"], "results")
-	if len(results) != 2 || !strings.Contains(str(results[0]["error"]), isFilm) || results[1]["error"] != nil {
+	results := acc.Rows(t, out["results"], "results")
+	if len(results) != 2 || !strings.Contains(acc.Str(results[0]["error"]), isFilm) || results[1]["error"] != nil {
 		t.Errorf("a batch with a film's id = %v", results)
 	}
 	// and the series' own id is answered as ever
-	if got := call(t, "show_seasons", map[string]any{"series_id": series}); str(got["series"]) != "Breaking Bad" {
+	if got := suite.Call(t, "show_seasons", map[string]any{"series_id": series}); acc.Str(got["series"]) != "Breaking Bad" {
 		t.Errorf("show_seasons of the series = %v", got)
 	}
 }
