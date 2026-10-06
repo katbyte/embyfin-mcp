@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/client"
-	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/embyfin-mcp/sdk/emby"
 )
 
 // TestEmbyDeleteItem removes a movie the test laid out itself, in a library

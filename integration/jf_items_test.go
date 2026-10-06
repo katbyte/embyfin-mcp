@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/client"
-	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/embyfin-mcp/sdk/jf"
 	"github.com/katbyte/go-kt/pointer"
 )
 

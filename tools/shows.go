@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	apiclient "github.com/katbyte/embyfin-mcp/lib/client"
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/naming"
-	"github.com/katbyte/embyfin-mcp/lib/tmdb"
+	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

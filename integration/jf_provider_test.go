@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/jf"
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
+	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
 
 // The endpoints that make the server ask a provider: remote images, remote

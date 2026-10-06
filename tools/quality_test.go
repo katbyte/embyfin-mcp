@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // The class a frame belongs on. Both of these were got wrong in the field, in

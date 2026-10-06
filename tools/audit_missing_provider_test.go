@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // What a caller can name, and what it comes back as.

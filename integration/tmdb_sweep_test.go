@@ -26,7 +26,7 @@ import (
 
 	"github.com/katbyte/embyfin-mcp/lib/providerproxy"
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
-	"github.com/katbyte/embyfin-mcp/lib/tmdb"
+	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 )
 
 // The ids the sweep starts from, which TMDB's own documentation uses: Fight

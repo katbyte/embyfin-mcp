@@ -13,8 +13,8 @@ import (
 
 	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // What the read tools answer about the files behind an item, its numbers and

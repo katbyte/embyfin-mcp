@@ -12,8 +12,8 @@ import (
 
 	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 
-	"github.com/katbyte/embyfin-mcp/lib/emby"
-	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/sdk/emby"
+	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
 
 func TestServerInfo(t *testing.T) {

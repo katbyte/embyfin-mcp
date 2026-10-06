@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/naming"
-	"github.com/katbyte/embyfin-mcp/lib/tmdb"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 )
 
 // The title rules, every pair any review has raised, with what each pair

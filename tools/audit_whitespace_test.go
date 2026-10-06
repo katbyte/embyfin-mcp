@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // Every problem on its own, as a name, a file name and an original title

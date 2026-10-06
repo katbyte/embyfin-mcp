@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/go-kt/pointer"
 )
 

@@ -2,7 +2,7 @@ package tools
 
 import (
 	"github.com/katbyte/embyfin-mcp/lib/naming"
-	"github.com/katbyte/embyfin-mcp/lib/tmdb"
+	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 )
 
 // newProviderTitles is what a title check reads a film's or a series' other

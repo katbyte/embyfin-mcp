@@ -49,9 +49,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/internal/pandorest/config"
-	"github.com/katbyte/embyfin-mcp/internal/pandorest/definitions"
-	"github.com/katbyte/embyfin-mcp/lib/client"
+	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/embyfin-mcp/sdk/pandorest/config"
+	"github.com/katbyte/embyfin-mcp/sdk/pandorest/definitions"
 )
 
 // sweepCase is how the sweep treats one operation.

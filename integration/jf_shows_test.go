@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
 
 //nolint:paralleltest // the tests share one server and its libraries

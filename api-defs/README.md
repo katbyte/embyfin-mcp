@@ -6,8 +6,8 @@ The vendored OpenAPI documents, the definitions imported from them, and what eac
 
 The two backends and TMDB publish OpenAPI documents, vendored at the top of
 `api-defs/` as `<server>-openapi-<version>.json`, the reference for
-`lib/emby`, `lib/jf` and `lib/tmdb` - and, unlike Audiobookshelf's, they are
-build inputs. `internal/pandorest` (see its [README](../internal/pandorest/README.md))
+`sdk/emby`, `sdk/jf` and `sdk/tmdb` - and, unlike Audiobookshelf's, they are
+build inputs. `sdk/pandorest` (see its [README](../sdk/pandorest/README.md))
 imports each into checked-in definitions under `api-defs/<server>-<version>/` beside it,
 fixing the document's known bugs with named workarounds on the way, and
 generates the two clients from those definitions. `make generate` runs both
@@ -42,7 +42,7 @@ server, and the quirks they found are recorded below.
 ## Where the specs are wrong
 
 These are shape bugs, fixed in the generated clients by the importer's
-workarounds (`internal/pandorest/importer/workarounds`, listed in each
+workarounds (`sdk/pandorest/importer/workarounds`, listed in each
 `api-defs/<server>-<version>/Service.json`). Each checks its bug is still in the
 document and fails the import once it is not.
 
@@ -111,12 +111,12 @@ repeated keys), Emby's comma-separated.
   a user, so anything user-scoped (watch state, favourites, next up, resume)
   takes a user id.
 - TMDB takes its API Read Access Token, a JWT, as an `Authorization: Bearer`
-  header, and the older API Key as the `api_key` query parameter; `lib/tmdb`
+  header, and the older API Key as the `api_key` query parameter; `sdk/tmdb`
   sends whichever it is given the way TMDB reads it.
 - Both servers descend from the same MediaBrowser codebase, so the item
   model (`BaseItemDto`), the `/Items` query, sessions, playlists and
   collections are the same shape. The differences the neutral layer
-  (`lib/embyfin`) hides:
+  (`sdk/embyfin`) hides:
   - Emby scopes user context by path (`/Users/{id}/Items`), Jellyfin dropped
     those routes in 10.9 and takes `userId` as a query parameter.
   - Emby 4.10 lists libraries through the paged

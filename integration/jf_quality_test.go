@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/sdk/jf"
 	"github.com/katbyte/go-kt/pointer"
 )
 

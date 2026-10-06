@@ -14,6 +14,10 @@
 - `runtime_multiple` and `season_median_runtime_s` are gone from `library_episodes` and `show_episodes_exist`
 - `audit_provider` checks episodes too by default (`types` is Movie, Episode or both)
 
+### Changed
+
+- the SDKs and their generator live under `sdk/`: `sdk/emby`, `sdk/jf` and `sdk/tmdb` (generated), `sdk/client` (the base client they share), `sdk/embyfin` (the layer that makes both servers answer alike) and `sdk/pandorest` (the generator), so a Go program importing them uses the new paths
+
 ### Added
 
 - `show_resolve` and `audit_file_path` read a file holding a run of episodes in every form the servers read and the common ones they do not (`S01E01-E02`, `S01E01E02`, `01x02-03`, `S01E01+E02`, up to twenty a file), say the file's `run_style`, and warn (`run_warning`) when the server it runs against does not read that style as a run: the file is then listed as its first episode and the rest read as missing, and the warning names the form to rename it to

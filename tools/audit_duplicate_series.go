@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/mediapath"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // Two folders for one show: audit_duplicates' folder_groups.

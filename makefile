@@ -97,22 +97,22 @@ docker: ## Build the embyfin-mcp container image with version info from git
 
 tools: $(ACTIONLINT) $(GOFUMPT) $(GOLANGCI_LINT) $(GOLANGCI_LINT_MODULES) $(SHELLCHECK) $(YAMLLINT) $(ZIZMOR) ## Install all pinned dev tools into .tools/bin
 
-##@ SDK generation (internal/pandorest)
-generate: pandorest-import pandorest-generate ## Import each service's highest-versioned spec into api-defs/<service>-<version>/, then generate lib/emby, lib/jf and lib/tmdb
+##@ SDK generation (sdk/pandorest)
+generate: pandorest-import pandorest-generate ## Import each service's highest-versioned spec into api-defs/<service>-<version>/, then generate sdk/emby, sdk/jf and sdk/tmdb
 
 pandorest-import: ## Import api-defs/<service>-openapi-<version>.json (the highest version of each) into api-defs/<service>-<version>/, applying the workarounds
 	@echo "==> importing the OpenAPI specs into api-defs/<service>-<version>/..."
-	go run ./internal/pandorest import
+	go run ./sdk/pandorest import
 
-pandorest-generate: ## Generate lib/emby, lib/jf and lib/tmdb from api-defs/<service>-<version>/
-	@echo "==> generating lib/emby, lib/jf and lib/tmdb from api-defs/<service>-<version>/..."
-	go run ./internal/pandorest generate
+pandorest-generate: ## Generate sdk/emby, sdk/jf and sdk/tmdb from api-defs/<service>-<version>/
+	@echo "==> generating sdk/emby, sdk/jf and sdk/tmdb from api-defs/<service>-<version>/..."
+	go run ./sdk/pandorest generate
 
 spec-refresh: ## Pull the latest server images, vendor each server's current OpenAPI document and TMDB's as of today under its version, regenerate, and print the API diff
 	@scripts/spec-refresh.sh
 
 pandorest-diff: ## Report what the vendored specs change against their checked-in definitions
-	@go run ./internal/pandorest diff -quiet
+	@go run ./sdk/pandorest diff -quiet
 
 ##@ Formatting
 fmt: $(GOFUMPT) $(GOLANGCI_LINT) ## Fix Go formatting (gofmt, gofumpt, goimports)
@@ -153,13 +153,13 @@ zizmor: $(ZIZMOR) ## Audit GitHub workflows for security issues with zizmor
 	@$(ZIZMOR) .
 
 gencheck: generate ## Check that the definitions and generated SDKs match the specs (regenerate, then diff)
-	@test -z "$$(git status --porcelain -- api-defs lib/emby lib/jf lib/tmdb)" || \
-		(git status --short -- api-defs lib/emby lib/jf lib/tmdb; echo; \
-		echo "api-defs/, lib/emby, lib/jf or lib/tmdb is stale. Run 'make generate' and commit."; exit 1)
+	@test -z "$$(git status --porcelain -- api-defs sdk/emby sdk/jf sdk/tmdb)" || \
+		(git status --short -- api-defs sdk/emby sdk/jf sdk/tmdb; echo; \
+		echo "api-defs/, sdk/emby, sdk/jf or sdk/tmdb is stale. Run 'make generate' and commit."; exit 1)
 
-apicheck: ## Check that the definitions match the specs and every operation has a method in lib/emby, lib/jf and lib/tmdb
-	@echo "==> Checking API coverage of lib/emby, lib/jf and lib/tmdb..."
-	@go run ./internal/pandorest check -quiet
+apicheck: ## Check that the definitions match the specs and every operation has a method in sdk/emby, sdk/jf and sdk/tmdb
+	@echo "==> Checking API coverage of sdk/emby, sdk/jf and sdk/tmdb..."
+	@go run ./sdk/pandorest check -quiet
 
 depscheck: ## Check that go.mod/go.sum and vendor/ are in sync
 	@echo "==> Checking source code with go mod tidy..."
@@ -192,7 +192,7 @@ test: build ## Run tests
 # target below runs for both unless BACKENDS narrows it: make testacc BACKENDS=jellyfin
 BACKENDS?=emby jellyfin
 
-test-integration: ## Run the SDK tests against an already-running server (lib/emby or lib/jf), and the TMDB sweep (lib/tmdb, recorded)
+test-integration: ## Run the SDK tests against an already-running server (sdk/emby or sdk/jf), and the TMDB sweep (sdk/tmdb, recorded)
 	@[ -n "${EMBYFIN_SERVER}" ] && [ -n "${EMBYFIN_TOKEN}" ] && [ -n "${EMBYFIN_BACKEND}" ] || \
 		(echo 'EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN must be set; or use "make testacc"'; exit 1)
 	go test -tags integration -count=1 ./integration/... -timeout ${TEST_TIMEOUT} -v
@@ -250,7 +250,7 @@ record-tmdb: ## Record the TMDB sweep against the real API (needs EMBYFIN_TMDB_T
 # third-party merger.
 COVERDIR?=.coverage
 COVERPKG=./tools/...,./lib/...,./cli/...,./internal/...
-SDKS=/lib/emby/\|/lib/jf/\|/lib/tmdb/
+SDKS=/sdk/emby/\|/sdk/jf/\|/sdk/tmdb/
 # (the comma leads each backend's pair: foreach joins its results with spaces, which the
 # recipes strip, so a trailing one would run two backends' directories together)
 COVERDIRS=$(COVERDIR)/unit$(foreach b,$(BACKENDS),,$(COVERDIR)/integration-$(b),$(COVERDIR)/acceptance-$(b))
@@ -266,7 +266,7 @@ cover: ## Run every suite with coverage and report the total
 		$(MAKE) --no-print-directory cover-acceptance-$$b || exit 1; \
 	done
 	@go tool covdata textfmt -i=$(subst $(space),,$(COVERDIRS)) -o=$(COVERDIR)/coverage.all
-	@# lib/emby, lib/jf and lib/tmdb are generated, one mechanical method per operation (997 of
+	@# sdk/emby, sdk/jf and sdk/tmdb are generated, one mechanical method per operation (997 of
 	@# them); the suites exercise the ones the tools rely on, so the total is for the
 	@# hand-written code and the SDKs get a line of their own (the per-package
 	@# figures below include them)

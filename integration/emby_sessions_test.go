@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/sdk/emby"
 )
 
 // TestEmbySessions makes the suite's own session controllable and then sends

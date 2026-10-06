@@ -28,7 +28,7 @@ differences between them live in one package, and every tool is tested against b
 ### What else is in the box
 
 - **78 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about two thousand tokens of context by default rather than thirty thousand.
-- **Three Go SDKs.** `lib/emby`, `lib/jf` and `lib/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents (each package's `APIVersion` says which), standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `lib/embyfin` is the thin layer that makes the two servers answer alike.
+- **Three Go SDKs.** `sdk/emby`, `sdk/jf` and `sdk/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents (each package's `APIVersion` says which), standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `sdk/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
 ### The audits
@@ -281,13 +281,13 @@ It refuses a folder inside a library or holding one, a folder the server can sti
 
 ## Using the clients on their own
 
-`lib/emby` and `lib/jf` are complete Go clients for the Emby and Jellyfin APIs that depend on
-nothing but the standard library, the shared base client in `lib/client` and
+`sdk/emby` and `sdk/jf` are complete Go clients for the Emby and Jellyfin APIs that depend on
+nothing but the standard library, the shared base client in `sdk/client` and
 `go-kt/version`, and know nothing of MCP. If you only want to talk to one of the servers from
 Go, take the package and ignore the rest:
 
 ```go
-import "github.com/katbyte/embyfin-mcp/lib/jf"
+import "github.com/katbyte/embyfin-mcp/sdk/jf"
 
 c, err := jf.New("http://nas:8096", os.Getenv("EMBYFIN_TOKEN"))
 res, err := c.GetItems(ctx, jf.GetItemsOperationOptions{
@@ -298,10 +298,10 @@ for _, it := range res.Model.Items { ... }
 all, err := c.GetItemsComplete(ctx, jf.GetItemsOperationOptions{Recursive: new(true)}) // every page
 ```
 
-`lib/tmdb` is the same for TMDB, generated from TMDB's own OpenAPI document; it takes an API Read Access Token or the older API Key:
+`sdk/tmdb` is the same for TMDB, generated from TMDB's own OpenAPI document; it takes an API Read Access Token or the older API Key:
 
 ```go
-import "github.com/katbyte/embyfin-mcp/lib/tmdb"
+import "github.com/katbyte/embyfin-mcp/sdk/tmdb"
 
 c, err := tmdb.New(tmdb.DefaultBaseURL, os.Getenv("EMBYFIN_TMDB_TOKEN"))
 film, err := c.MovieDetails(ctx, 550, tmdb.MovieDetailsOperationOptions{AppendToResponse: "credits"})
@@ -309,7 +309,7 @@ found, err := c.FindById(ctx, "tt0137523", tmdb.FindByIdOperationOptions{Externa
 ```
 
 They are generated from the servers' own OpenAPI documents (`docs/`, see
-[api-defs/README.md](api-defs/README.md)) by `internal/pandorest`, a generator kept in this
+[api-defs/README.md](api-defs/README.md)) by `sdk/pandorest`, a generator kept in this
 repository and modelled on [hashicorp/pandora](https://github.com/hashicorp/pandora): an
 importer normalises each spec into checked-in definitions (`api-defs/<service>-<version>/`, one file per
 tag) through named workarounds for the spec's known bugs, a differ reports what a spec
@@ -321,9 +321,9 @@ every paged list. `make apicheck` proves the coverage claim against the spec, `m
 (and the unit tests) fail when the generated code is stale, and the integration suite proves
 the shapes **against a running server** - which is the only thing that catches the server
 changing shape underneath a spec that says otherwise. See
-[internal/pandorest/README.md](internal/pandorest/README.md).
+[sdk/pandorest/README.md](sdk/pandorest/README.md).
 
-`lib/embyfin` is the backend-neutral layer the tools use: the handful of item, library, user,
+`sdk/embyfin` is the backend-neutral layer the tools use: the handful of item, library, user,
 session and provider operations a curation session needs, answering the same way on both
 servers. [api-defs/README.md](api-defs/README.md) records where the two servers differ and how it
 hides that.
@@ -340,7 +340,7 @@ make check-all  # build + unit tests + both live suites on both servers (needs d
 `make test` is hermetic and fast. It covers the pure logic - tool registration and toolsets,
 the audit heuristics, the CLI's flags, config files and HTTP auth, the record/replay proxy -
 and, against a canned server, the requests the base client, the two generated clients and the
-neutral `lib/embyfin` build for each server and the answers they decode. It also re-imports
+neutral `sdk/embyfin` build for each server and the answers they decode. It also re-imports
 both specs and regenerates both SDKs to check the checked-in code is current, and applies every
 importer workaround twice to prove each one notices when its bug is fixed.
 
@@ -350,7 +350,7 @@ against both servers; `lib/testenv` is the environment, proxy and container chec
 
 | | Covers | Command |
 |---|---|---|
-| `integration/` | the `lib/emby` and `lib/jf` clients: bespoke tests that the calls the tools rely on decode with their fields populated and do what they say, and a sweep that calls every GET in each document against the server and classifies the ones that cannot answer in a container. `lib/tmdb` gets the same sweep against the real TMDB API, recorded once with a token and replayed with none (`make test-tmdb`, `make record-tmdb`) | `make testacc-integration` |
+| `integration/` | the `sdk/emby` and `sdk/jf` clients: bespoke tests that the calls the tools rely on decode with their fields populated and do what they say, and a sweep that calls every GET in each document against the server and classifies the ones that cannot answer in a container. `sdk/tmdb` gets the same sweep against the real TMDB API, recorded once with a token and replayed with none (`make test-tmdb`, `make record-tmdb`) | `make testacc-integration` |
 | `acceptance/` | the tools: name resolution, projections, audits, provider flows, and journeys that chain them (edits during a library scan and through a refresh, every fixable audit fixed and re-audited, the fixes each audit names with the fetchers on and off, a client's playback reaching the history tools, a series watched through, a user restricted to one library, a library's whole life, deletes letting go of what held their items, writes repeated and made in parallel, copies of a film watched, a genre added, renamed and removed, lookups that must change nothing), and the built binary itself over stdio and HTTP (flags and environment reaching the server, nothing but protocol on stdout, the bearer check, clean shutdown, refusing to start without a token) | `make testacc-acceptance` |
 
 ```bash
@@ -364,7 +364,7 @@ Coverage has to span every suite or it lies: `go test -cover ./...` reports a fr
 `tools/`, because almost everything real happens in the live suites behind the `integration`
 tag. `make cover` runs each into its own binary coverage directory and merges them with
 `go tool covdata` - stdlib tooling, no third-party merger - which is what the badge reports.
-The generated `lib/emby`, `lib/jf` and `lib/tmdb` are left out of the number and reported on a line of
+The generated `sdk/emby`, `sdk/jf` and `sdk/tmdb` are left out of the number and reported on a line of
 their own: they are one method per operation, and the integration suite exercises the ones
 the tools rely on rather than all 997.
 

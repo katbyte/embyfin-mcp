@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/sdk/emby"
 )
 
 //nolint:paralleltest // the tests share one server and its libraries
@@ -181,7 +181,7 @@ func TestEmbyCollections(t *testing.T) {
 		t.Errorf("after removing members = %v", got)
 	}
 	// removing an item the collection does not hold is answered 204 and
-	// changes nothing, which is why lib/embyfin checks membership first
+	// changes nothing, which is why sdk/embyfin checks membership first
 	if _, err := embyc.DeleteCollectionsByIdItems(ctx, id, emby.DeleteCollectionsByIdItemsOperationOptions{Ids: a.Id}); err != nil {
 		t.Errorf("removing a non-member = %v", err)
 	}

@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/sdk/emby"
 )
 
 //nolint:paralleltest // the tests share one server and its libraries

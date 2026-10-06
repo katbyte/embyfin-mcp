@@ -15,8 +15,8 @@ import (
 
 	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // What a removed library leaves behind, and removing it.

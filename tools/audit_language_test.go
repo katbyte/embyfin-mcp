@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // The same language is written three ways, and a German track written "ger"

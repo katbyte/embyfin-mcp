@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
 
 // TestJFReadSweep calls every Jellyfin GET against the fixtures (see

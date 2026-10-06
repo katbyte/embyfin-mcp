@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 	"github.com/katbyte/go-kt/clog"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )

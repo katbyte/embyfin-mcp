@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
-	"github.com/katbyte/embyfin-mcp/lib/tmdb"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

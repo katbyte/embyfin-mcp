@@ -19,9 +19,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/naming"
-	"github.com/katbyte/embyfin-mcp/lib/tmdb"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 )
 
 // ids names the members of each group, for a test to compare.

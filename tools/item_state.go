@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // What item_set_state reaches, and what it was.

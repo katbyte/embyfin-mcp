@@ -13,5 +13,5 @@
 //
 // The package is pure: it reads strings and answers with strings, numbers and
 // verdicts. What a server holds for an item, and what TMDB knows of it, is
-// the tools' and lib/tmdb's to bring.
+// the tools' and sdk/tmdb's to bring.
 package naming

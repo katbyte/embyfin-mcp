@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/emby"
+	"github.com/katbyte/embyfin-mcp/sdk/emby"
 )
 
 // TestEmbyReadSweep calls every Emby GET against the fixtures (see

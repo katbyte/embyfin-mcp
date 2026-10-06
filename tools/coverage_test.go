@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // The tools the live suite exercises but nothing pinned against the canned
@@ -759,7 +759,7 @@ func TestUserNextUp(t *testing.T) {
 		t.Errorf("next up query = %v", q)
 	}
 	// the resume list is read a page at a time and the limit applied to
-	// what is left once the padding is dropped (lib/embyfin's
+	// what is left once the padding is dropped (sdk/embyfin's
 	// TestEmbyResumeLimit)
 	if q := lastQuery(t, f, "/Users/u1/Items/Resume"); q.Get("Recursive") != "true" || q.Get("MediaTypes") != "Video" || q.Get("EnableUserData") != "true" || q.Get("Limit") != "50" {
 		t.Errorf("resume query = %v", q)

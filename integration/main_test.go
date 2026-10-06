@@ -1,14 +1,14 @@
 //go:build integration
 
 // Package integration runs the generated SDKs against what they talk to:
-// lib/emby and lib/jf against a real server in Docker, and lib/tmdb against
+// sdk/emby and sdk/jf against a real server in Docker, and sdk/tmdb against
 // TMDB's recorded answers. It tests one thing: that every request the
 // generated params structs build is one the server accepts, and that what it
 // answers decodes into the generated types without losing what it carries.
 // The bespoke tests check the answers the tools rely on field by field, and
 // the read sweep calls every other GET and holds its answer to less (see
 // sweep_test.go for what). Nothing here is about the tools or the neutral
-// lib/embyfin layer; ../acceptance covers those.
+// sdk/embyfin layer; ../acceptance covers those.
 //
 // The two server SDKs are different packages with different types, so their
 // tests are two parallel sets sharing one harness: emby_*_test.go runs when

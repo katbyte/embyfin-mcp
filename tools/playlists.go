@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

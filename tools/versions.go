@@ -10,9 +10,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
 	"github.com/katbyte/embyfin-mcp/lib/naming"
-	"github.com/katbyte/embyfin-mcp/lib/tmdb"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 )
 
 // versionRow is one file an item is shown in.

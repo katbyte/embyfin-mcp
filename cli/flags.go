@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 	"github.com/katbyte/embyfin-mcp/tools"
 	"github.com/katbyte/go-kt/clog"
 	"github.com/spf13/cobra"

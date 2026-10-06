@@ -19,7 +19,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 # current NAME - the version, document and definitions a service is at now
-current() { go run ./internal/pandorest resolve -service "$1" 2>/dev/null | cut -f2-; }
+current() { go run ./sdk/pandorest resolve -service "$1" 2>/dev/null | cut -f2-; }
 
 # fetch_server BACKEND PORT PATH - the document a freshly started server serves
 fetch_server() {
@@ -69,7 +69,7 @@ for row in "${refreshed[@]}"; do
   if [ -n "$have_defs" ] && [ "$have_defs" != "$new_defs" ]; then
     echo
     echo "==> $svc: $have_version -> $version"
-    go run ./internal/pandorest diff -old "$have_defs" -new "$new_defs" || true
+    go run ./sdk/pandorest diff -old "$have_defs" -new "$new_defs" || true
     git rm -q -r "$have_defs" "$have_spec"
     echo "removed $have_spec and $have_defs (git holds them)"
   elif [ -n "$have_defs" ]; then

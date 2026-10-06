@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/client"
-	"github.com/katbyte/embyfin-mcp/lib/jf"
+	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
 
 //nolint:paralleltest // the tests share one server and its libraries
@@ -35,7 +35,7 @@ func TestJFPlaylists(t *testing.T) {
 	if _, err := jfc.GetPlaylistUsers(ctx, id); client.StatusCode(err) != 400 {
 		t.Errorf("GetPlaylistUsers with an API key = %v, want a 400", err)
 	}
-	// and so do the playlist's own update and move, which lib/embyfin works
+	// and so do the playlist's own update and move, which sdk/embyfin works
 	// around with the item update and a remove and re-add
 	if _, err := jfc.UpdatePlaylist(ctx, id, jf.UpdatePlaylistDto{Name: "SDK Renamed"}); client.StatusCode(err) != 400 {
 		t.Errorf("UpdatePlaylist with an API key = %v, want a 400", err)
@@ -88,7 +88,7 @@ func TestJFPlaylists(t *testing.T) {
 
 // TestJFCollections covers a collection's create, add and removal. A library
 // scan's refresh of a collection writes its saved members over any added
-// meanwhile (lib/embyfin re-sends for this; the behaviour is in
+// meanwhile (sdk/embyfin re-sends for this; the behaviour is in
 // api-defs/README.md), so the create waits out a scan first.
 //
 //nolint:paralleltest // the tests share one server and its libraries
@@ -132,7 +132,7 @@ func TestJFCollections(t *testing.T) {
 		t.Fatalf("after CreateCollection members = %v, want %s and %s", got, alien, aliens)
 	}
 	// Jellyfin loses an add or a removal made while it is still refreshing
-	// the collection after the change before (lib/embyfin re-sends for this),
+	// the collection after the change before (sdk/embyfin re-sends for this),
 	// so one that has not landed in a third of the patience is sent once more:
 	// the same call, so one that never works still fails
 	change := func(step string, send func() error, want ...string) {
@@ -160,7 +160,7 @@ func TestJFCollections(t *testing.T) {
 		return err
 	}, b.Id, c.Id)
 	// removing an item the collection does not hold is answered 204 and
-	// changes nothing, which is why lib/embyfin checks membership first
+	// changes nothing, which is why sdk/embyfin checks membership first
 	if _, err := jfc.RemoveFromCollection(ctx, id, jf.RemoveFromCollectionOperationOptions{Ids: []string{a.Id}}); err != nil {
 		t.Errorf("removing a non-member = %v", err)
 	}

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/embyfin"
+	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 )
 
 // The path arithmetic the orphan tools stand on. The near miss is the shape a
