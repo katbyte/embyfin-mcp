@@ -38,6 +38,8 @@
 - alternative titles, translations and searches from TMDB are kept an hour, not until a restart
 - `quality_compare` judges a very thinly encoded frame as thin, and gives its bits per pixel to three figures rather than as 0
 - `item_delete`'s note on a scan that was running says Jellyfin can keep the deleted item listed through one more scan, not only until the next
+- `audit_file_path`'s lookalike row no longer says on Jellyfin that a search misses the title: from 12.2 Jellyfin's search reads a lookalike letter as the Latin one (Emby's still does not)
+- `library_edit` says what a rename does to an account given the library alone on Jellyfin 12.2, which moves the account to the library's new id; before 12.2 the account lost the library, and `access_lost` still names any that do
 
 ## 0.3.0 (2026-09-27)
 

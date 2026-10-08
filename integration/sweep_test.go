@@ -31,7 +31,8 @@ package integration
 // or need a fixture the container cannot have, so it is only ever reviewed by
 // hand. Nothing is allowed to answer one way on some runs and another on
 // others: where a server does, the test sets up what makes it answer the
-// same way every time.
+// same way every time. The one way out is a MayBeEmpty case, for an answer
+// that follows the server image rather than anything a test can set up.
 
 import (
 	"bytes"
@@ -68,6 +69,9 @@ type sweepCase struct {
 	// empty list, an object of zero values, a file of no bytes), which the
 	// sweep otherwise fails.
 	Empty string
+	// MayBeEmpty says why the answer has something on one server image and
+	// nothing on the next, so that neither is a failure.
+	MayBeEmpty string
 	// Path and Options supply arguments by parameter name and options field,
 	// beyond what the fixtures resolve.
 	Path    map[string]string
@@ -335,6 +339,8 @@ func checkAnswer(t *testing.T, op *definitions.Operation, c sweepCase, a sweepAn
 	t.Helper()
 
 	switch {
+	case c.MayBeEmpty != "":
+		t.Logf("%s: may answer with nothing (it did: %t): %s", op.Key(), a.empty, c.MayBeEmpty)
 	case a.empty && c.Empty == "":
 		t.Errorf("%s answers with nothing, which decodes into any model and so proves only its status: point it at a fixture that has something, or give it an Empty case", op.Key())
 	case !a.empty && c.Empty != "":

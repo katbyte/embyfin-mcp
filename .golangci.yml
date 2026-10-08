@@ -132,6 +132,7 @@ linters:
         - {name: flag-parameter, disabled: true}           # bool params plumbed from cobra flags are this CLI's architecture
         - {name: unhandled-error, disabled: true}          # errcheck covers this with sane fmt.Print* defaults and nolint support
         - {name: redundant-test-main-exit, disabled: true} # TestMain intentionally uses cleanup-then-os.Exit(code); a bare return could report success on setup failure
+        - {name: multiline-if-init, disabled: true}        # azproviderlint's AZG001 asks for the opposite: an error checked in the if that makes it
     govet:
       enable-all: true # includes nilness and other checks off by default
       disable:

@@ -214,6 +214,7 @@ func TestEmbyReadSweep(t *testing.T) {
 	// a package from the catalogue, and the web strings of the Webhooks
 	// plugin in the language the wizard chose
 	cases["GetPackagesByName"] = sweepCase{Path: map[string]string{"Name": packages[0].Name}}
+	cases["GetPackagesUpdates"] = sweepCase{MayBeEmpty: "the updates are the recorded catalogue's plugins newer than the ones the image ships, and an image newer than the recording has none"}
 	cases["GetWebStrings"] = sweepCase{Options: map[string]any{"PluginId": plugins[webhooks].Id, "Locale": "en-US"}}
 	cases["GetWebStringset"] = sweepCase{Options: map[string]any{"PluginId": plugins[webhooks].Id}}
 	// its notifier is keyed by the id GET /Notifications/Services lists, a

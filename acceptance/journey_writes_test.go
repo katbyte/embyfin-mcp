@@ -207,9 +207,9 @@ func aliceSees(t *testing.T, library string) int {
 
 // A library renamed under an account given it alone: Emby keeps the
 // library's id, and the account keeps it; Jellyfin gives it a new id with
-// the scan the rename starts, and the account, given the old id, sees
-// nothing of it after - which library_edit's answer says, naming the
-// account and the old id.
+// the scan the rename starts, and from 12.2 moves the account to it (before,
+// the account, given the old id, saw nothing of it after). library_edit's
+// answer says the old id, and names nobody as having lost the library.
 func TestRenamingALibraryGivenToOneAccount(t *testing.T) {
 	const name, renamed = "Zzyzx Access", "Zzyzx Access Renamed"
 	dir := filepath.Join(testenv.DataDir(), "access")
@@ -249,12 +249,13 @@ func TestRenamingALibraryGivenToOneAccount(t *testing.T) {
 	now := acc.Str(suite.Call(t, "library_get", map[string]any{"library": renamed})["id"])
 	lost := acc.Strs(t, acc.OrEmptyList(out["access_lost"]), "access_lost")
 	if isJellyfin() {
-		if now == was || acc.Str(out["was_id"]) != was || !slices.Equal(lost, []string{"alice"}) {
-			t.Errorf("the rename on Jellyfin = %v (id %s, was %s), want a new id, the old one said, and alice named", out, now, was)
+		if now == was || acc.Str(out["was_id"]) != was || len(lost) != 0 {
+			t.Errorf("the rename on Jellyfin = %v (id %s, was %s), want a new id, the old one said, and nobody losing it", out, now, was)
 		}
-		if n := aliceSees(t, renamed); n != 0 {
-			t.Errorf("alice sees %d films in the renamed library, want none: she was given the old id", n)
+		if n := aliceSees(t, renamed); n != 1 {
+			t.Errorf("alice sees %d films in the renamed library, want the one: Jellyfin moves her to the new id", n)
 		}
+
 		return
 	}
 	if now != was || out["was_id"] != nil || len(lost) != 0 {

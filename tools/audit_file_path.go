@@ -122,7 +122,7 @@ func registerFilePathAudit(r *registry) {
 			"A file named for its series by the series' original title, its sort name or a title TMDB lists for it is named for its series - that very name, or it written another way as above, never a name with words added, which is how a spin-off's short title reads. " +
 			"A show where five or more files, and at least half, disagree the one way - titles none of the server's that TMDB (asked first) gives to no episode number, or the files naming a series all named for the same other one (the files may be another show's, or the show's match may be wrong) - is one row for the show, episodes saying how many files it stands for and files listing them, rather than a row a file; a file TMDB places at a number, or that gets anything else wrong, keeps its own row. " +
 			"A file holding two episodes (S01E01E02) where the server lists one has the second's content on disk while the server calls it missing, and the reverse means the metadata claims a run the file does not. " +
-			"A name spelled with a letter of another script that only looks Latin (a Cyrillic A, U+0410, spelling a Latin title) is a lookalike row naming the letter and the plain spelling, because no search for the plain title finds it. " +
+			"A name spelled with a letter of another script that only looks Latin (a Cyrillic A, U+0410, spelling a Latin title) is a lookalike row naming the letter and the plain spelling, because it is not the title it reads as: Emby's search for the plain title does not find it, and Jellyfin's does only from 12.2. " +
 			"The path is what was placed on disk and the metadata what a provider or an edit set, so a row says which to fix by what it holds. item_identify or item_edit set the metadata right; a rename fixes the path. ids checks a handful of items without a sweep.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in pathIn) (*mcp.CallToolResult, pathOut, error) {
 		out, err := auditFilePath(ctx, client, provider, in)
@@ -508,11 +508,17 @@ func checkPath(it *embyfin.Item, want map[string]bool, backend embyfin.Backend) 
 	}
 
 	// a letter of another script drawn like a Latin one: the name reads
-	// right and no search finds it. The title checks below compare the
-	// plain spelling, so the one fault is reported once
+	// right and is another name to whatever compares its letters. Emby's
+	// search is one such; Jellyfin's reads the two letters as one from 12.2.
+	// The title checks below compare the plain spelling, so the one fault is
+	// reported once
 	letters, plain := naming.LookalikeLetters(it.Name)
 	if want["lookalike"] && len(letters) > 0 {
-		problem("lookalike", fmt.Sprintf("%q is spelled with %s, so it only looks like %q and a search for %q does not find it: item_edit name %q puts it right", it.Name, strings.Join(letters, " and "), plain, plain, plain))
+		missed := fmt.Sprintf("a search for %q does not find it", plain)
+		if backend == embyfin.Jellyfin {
+			missed = fmt.Sprintf("whatever compares the name letter by letter does not take it for %q (Jellyfin's own search does from 12.2)", plain)
+		}
+		problem("lookalike", fmt.Sprintf("%q is spelled with %s, so it only looks like %q and %s: item_edit name %q puts it right", it.Name, strings.Join(letters, " and "), plain, missed, plain))
 		row.rank = min(row.rank, 1)
 	}
 

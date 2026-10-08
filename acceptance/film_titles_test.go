@@ -95,8 +95,9 @@ func TestAFilmInItsOwnLanguagesFolder(t *testing.T) {
 }
 
 // The messy Arrival renamed with a Cyrillic A (U+0410) where the Latin A belongs: it
-// reads right, and a search for Arrival does not find it. audit_file_path
-// names the letter and the plain spelling, and nothing else about it.
+// reads right, and on Emby a search for Arrival does not find it (Jellyfin
+// reads the two letters as one from 12.2). audit_file_path names the letter
+// and the plain spelling, and nothing else about it.
 func TestALookalikeLetterInAName(t *testing.T) {
 	arrival := findItem(t, "Messy Movies", "Movie", "Arrival")
 	lookalike := "\u0410rrival"
@@ -117,8 +118,8 @@ func TestALookalikeLetterInAName(t *testing.T) {
 		t.Errorf("problems = %v", problems)
 	}
 
-	// what the row is about: the plain title finds it no more, the
-	// lookalike does
+	// what the row is about: on Emby the plain title finds it no more and
+	// the lookalike does; Jellyfin's search finds it under either
 	search := func(query string) bool {
 		for _, row := range acc.Rows(t, suite.Call(t, "library_items", map[string]any{"library": "Messy Movies", "query": query})["items"], "items") {
 			if acc.Str(row["id"]) == arrival {
@@ -127,8 +128,8 @@ func TestALookalikeLetterInAName(t *testing.T) {
 		}
 		return false
 	}
-	if search("Arrival") || !search(lookalike) {
-		t.Errorf("a search for Arrival finds the renamed film %v, for %s %v: want only the lookalike to", search("Arrival"), lookalike, search(lookalike))
+	if plain, same := search("Arrival"), search(lookalike); plain != isJellyfin() || !same {
+		t.Errorf("a search for Arrival finds the renamed film %v, for %s %v: want the lookalike to, and Arrival on Jellyfin alone", plain, lookalike, same)
 	}
 
 	suite.Call(t, "item_edit", map[string]any{"ids": []any{arrival}, "name": "Arrival"})

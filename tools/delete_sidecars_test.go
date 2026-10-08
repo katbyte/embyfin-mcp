@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func TestItemDeleteNamesTheSidecarsTheServerTakes(t *testing.T) {
 	for _, p := range []string{"/zz/", "/zz/films/", dir + "/"} {
 		disk.paths[p] = true
 	}
-	for _, name := range append(append([]string{}, taken...), kept...) {
+	for _, name := range slices.Concat(taken, kept) {
 		disk.paths[dir+"/"+name] = true
 	}
 	f := deleteServer(t, items, disk)

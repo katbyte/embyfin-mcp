@@ -64,7 +64,7 @@ API object (`BaseItemDto` runs to 150 fields; `item_get` returns about 15).
 go install github.com/katbyte/embyfin-mcp@latest
 ```
 
-Tested against Emby 4.10 and Jellyfin 12.1; both servers' current stable images are what the
+Tested against Emby 4.10 and Jellyfin 12.2; both servers' current stable images are what the
 live suites run.
 
 ## Configuration

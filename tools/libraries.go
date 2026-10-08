@@ -302,7 +302,7 @@ func registerLibraryTools(r *registry) {
 		Changed    []string        `json:"changed"                   jsonschema:"what was done, in order"`
 		Removed    []removedFolder `json:"removed_folders,omitempty" jsonschema:"each folder taken out, and what the library held under it before"`
 		WasID      string          `json:"was_id,omitempty"          jsonschema:"the library's id before a rename that gave it another"`
-		AccessLost []string        `json:"access_lost,omitempty"     jsonschema:"the accounts given this library alone, by its old id, that no longer see it"`
+		AccessLost []string        `json:"access_lost,omitempty"     jsonschema:"the accounts given this library alone, by its old id, that no longer see it (Jellyfin before 12.2)"`
 		Note       string          `json:"note,omitempty"            jsonschema:"what the answer could not read back, and what may still happen"`
 	}
 	add(r, writeTool, &mcp.Tool{
@@ -310,7 +310,7 @@ func registerLibraryTools(r *registry) {
 		Description: "Rename a library (to a name no other library has, apart from case too), add and take out the folders it is built from, or switch save_nfo: " + saveNfoSchema + ". " +
 			"A folder taken out (remove_paths) drops every item the library holds under it - on Emby the moment the folder leaves, on Jellyfin with the scan of every library the change starts - and with them " + goneWithItems + ". The files stay on disk. It needs --enable-delete, and the answer says for each folder how many items it held and how many a playlist or collection held. " +
 			"A folder added is read at the library's next scan on Emby (library_scan), and by the scan of every library the change starts on Jellyfin. " +
-			"A rename keeps the library's id on Emby. On Jellyfin it gives the library a new id, with the scan of every library it starts (the answer waits for it), and an account given this library by its old id rather than every library no longer sees it until an administrator gives it the library again, which no tool here does: access_lost names them. " +
+			"A rename keeps the library's id on Emby. On Jellyfin it gives the library a new id, with the scan of every library it starts (the answer waits for it), and Jellyfin 12.2 moves an account given this library by its old id, rather than every library, over to the new one. Before 12.2 such an account no longer sees the library until an administrator gives it again, which no tool here does: access_lost names the accounts that lost it. " +
 			"On Jellyfin every folder change and rename starts a scan of every library, because a scan of one library does not see a changed folder: that scan drops items whose files are gone anywhere on the server and cancels a scan under way.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in editIn) (*mcp.CallToolResult, editOut, error) {
 		if in.Library == "" {

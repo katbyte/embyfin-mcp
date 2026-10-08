@@ -249,7 +249,7 @@ record-tmdb: ## Record the TMDB sweep against the real API (needs EMBYFIN_TMDB_T
 # directory and covdata merges them, which is stdlib tooling rather than a
 # third-party merger.
 COVERDIR?=.coverage
-COVERPKG=./tools/...,./lib/...,./cli/...,./internal/...
+COVERPKG=./tools/...,./lib/...,./cli/...,./sdk/...
 SDKS=/sdk/emby/\|/sdk/jf/\|/sdk/tmdb/
 # (the comma leads each backend's pair: foreach joins its results with spaces, which the
 # recipes strip, so a trailing one would run two backends' directories together)
@@ -259,7 +259,7 @@ cover: ## Run every suite with coverage and report the total
 	@rm -rf $(COVERDIR)
 	@mkdir -p $(COVERDIR)/unit $(foreach b,$(BACKENDS),$(COVERDIR)/integration-$(b) $(COVERDIR)/acceptance-$(b))
 	@echo "==> unit..."
-	@go test -count=1 -coverpkg=$(COVERPKG) ./tools/ ./cli/ ./lib/... ./internal/... \
+	@go test -count=1 -coverpkg=$(COVERPKG) ./tools/ ./cli/ ./lib/... ./sdk/... \
 		-args -test.gocoverdir=$(CURDIR)/$(COVERDIR)/unit >/dev/null
 	@for b in $(BACKENDS); do \
 		$(MAKE) --no-print-directory cover-integration-$$b || exit 1; \

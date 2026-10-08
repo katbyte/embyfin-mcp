@@ -48,10 +48,16 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 		bare  = "The Lord of the Rings The Two Towers (2002)" // no nfo, no ids
 		known = "The Thirteenth Floor (1999)"                 // the clean copy's nfo and ids
 	)
+	// staged under names no other test stages: Jellyfin keeps a removed
+	// film's watched mark and favourite under an id made from its path, and
+	// hands them to the next film scanned in there - which, removed in turn,
+	// passes them to a film of the same ids in its library (seen on 12.2).
+	// The two films here are removed marked, which is the point of the test
+	staged := func(name string) string { return name + " [720p]" }
 	renamed := func(name string) string { return name + " [1080p]" }
 	have := typeCount(t, "Messy Movies", "Movie")
 	t.Cleanup(func() {
-		for _, name := range []string{bare, known, renamed(bare), renamed(known)} {
+		for _, name := range []string{staged(bare), staged(known), renamed(bare), renamed(known)} {
 			if err := os.RemoveAll(filepath.Join(messy, name)); err != nil {
 				t.Error(err)
 			}
@@ -60,9 +66,9 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(messy, bare))
-	acc.MediaWrite(t, filepath.Join(messy, bare, bare+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
-	copyFixture(t, filepath.Join(testenv.DataDir(), "movies", known), filepath.Join(messy, known))
+	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(messy, staged(bare)))
+	acc.MediaWrite(t, filepath.Join(messy, staged(bare), staged(bare)+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
+	copyFixture(t, filepath.Join(testenv.DataDir(), "movies", known), filepath.Join(messy, staged(known)))
 	if err := scanUntil("Messy Movies", have+2); err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +80,8 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 		}
 		return "", nil
 	}
-	bareID, _ := find(bare)
-	knownID, _ := find(known)
+	bareID, _ := find(staged(bare))
+	knownID, _ := find(staged(known))
 	if bareID == "" || knownID == "" {
 		t.Fatalf("the staged films were not both scanned in: %q %q", bareID, knownID)
 	}
@@ -100,18 +106,18 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 
 	// the folders renamed, and the file in the one with ids too
 	for _, name := range []string{bare, known} {
-		if err := os.Rename(filepath.Join(messy, name), filepath.Join(messy, renamed(name))); err != nil {
+		if err := os.Rename(filepath.Join(messy, staged(name)), filepath.Join(messy, renamed(name))); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.Rename(filepath.Join(messy, renamed(known), known+".mp4"), filepath.Join(messy, renamed(known), renamed(known)+".mp4")); err != nil {
+	if err := os.Rename(filepath.Join(messy, renamed(known), staged(known)+".mp4"), filepath.Join(messy, renamed(known), renamed(known)+".mp4")); err != nil {
 		t.Fatal(err)
 	}
 	rescanOrReport(t, "Messy Movies", func() bool {
 		a, _ := find(renamed(bare))
 		b, _ := find(renamed(known))
-		c, _ := find(bare)
-		d, _ := find(known)
+		c, _ := find(staged(bare))
+		d, _ := find(staged(known))
 		return a != "" && b != "" && c == "" && d == ""
 	})
 	if t.Failed() {

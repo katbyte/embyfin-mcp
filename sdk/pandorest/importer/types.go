@@ -213,7 +213,7 @@ func (im *importer) constant(name, schemaName string, s *openapi.Schema) *defini
 // discriminator to decode on, so the model is raw JSON and names them.
 func unionModel(name, schemaName string, s *openapi.Schema) *definitions.Model {
 	m := &definitions.Model{Name: name, SchemaName: schemaName, Description: cleanText(s.Description)}
-	for _, v := range append(append([]*openapi.Schema{}, s.OneOf...), s.AnyOf...) {
+	for _, v := range slices.Concat(s.OneOf, s.AnyOf) {
 		if ref := v.RefName(); ref != "" {
 			m.Union = append(m.Union, typeName(ref))
 		} else {
