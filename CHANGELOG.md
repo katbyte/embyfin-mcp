@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 (2026-10-09)
+
+### Fixed
+
+- the release build takes its images from Google's mirror of Docker Hub. Docker Hub turned the 0.4.0 build away every time it was tried, so 0.4.0 was tagged and never published: this release is what 0.4.0 was to be
+
 ## 0.4.0 (2026-10-09)
 
 ### Breaking
