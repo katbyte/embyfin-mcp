@@ -1,53 +1,48 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-09)
 
 ### Breaking
 
-- `collection_add` and `collection_remove` are `collection_edit`'s `add_items` and `remove_items`; `playlist_add` and `playlist_remove` are `playlist_edit`'s `add_items` and `remove_entries`. One call can rename, add and remove; a move still goes in a call of its own
+- `collection_add` and `collection_remove` are `collection_edit`'s `add_items` and `remove_items`; `playlist_add` and `playlist_remove` are `playlist_edit`'s `add_items` and `remove_entries`
 - `library_recent` is `library_items` with `added_since`; `library_genres` is `library_filters`
-- `server_logs` is gone: `server_log` lists every log file in `files` beside the newest one's tail
-- `audit_missing_metadata_provider`, `audit_missing_poster` and `audit_missing_overview` are one audit, `audit_missing_metadata`: `problems` picks which to look for (all three by default), each finding names the problems its item has, `by_problem` counts each, and `audit_all` has a row a problem
-- `audit_duplicate_series` is `audit_duplicates`' `folder_groups`, counted in `total_findings` and in `total_folder_groups`; `audit_all`'s duplicates row counts both
-- `item_watch_history` is `server_activity` with `item`; `server_activity` also takes `user`, reads only what the server keeps (Jellyfin's retention), and says `complete` and `days` like the history tools
-- `audit_runtime` reports only runtimes no film or episode can have: under 2 minutes, or 12 hours or more; it no longer compares a file with its season, and `tolerance_percent` is gone
-- `runtime_multiple` and `season_median_runtime_s` are gone from `library_episodes` and `show_episodes_exist`
-- `audit_provider` checks episodes too by default (`types` is Movie, Episode or both)
-
-### Changed
-
-- the SDKs and their generator live under `sdk/`: `sdk/emby`, `sdk/jf` and `sdk/tmdb` (generated), `sdk/client` (the base client they share), `sdk/embyfin` (the layer that makes both servers answer alike) and `sdk/pandorest` (the generator), so a Go program importing them uses the new paths
-- the spelling and whitespace checks are go-kt's, shared with abs-mcp; `lib/naming.FoldLetter` is gone, and go-kt's `spelling.FoldLetter` is the same table
-- serving, choosing which tools a session gets, the locks that keep two edits of one item apart, and the tests' recording proxy and suite are go-kt v0.4.0's, shared with the other MCP servers. The tools, their names and what each tells a client are unchanged; `lib/providerproxy` is gone
-- over HTTP, a session its client left open and stopped using is closed after half an hour
+- `server_logs` is gone: `server_log` lists every log file beside the newest one's tail
+- the three missing-metadata audits are one, `audit_missing_metadata`, with `problems` to pick from
+- `audit_duplicate_series` is `audit_duplicates`' `folder_groups`
+- `item_watch_history` is `server_activity` with `item`
+- `audit_runtime` reports only runtimes no film or episode can have: under 2 minutes, or 12 hours or more. `tolerance_percent`, `runtime_multiple` and `season_median_runtime_s` are gone
+- `audit_provider` checks episodes too by default
+- the SDKs and their generator moved under `sdk/`, so a Go program importing them uses the new paths
 
 ### Added
 
-- `show_resolve` and `audit_file_path` read a file holding a run of episodes in every form the servers read and the common ones they do not (`S01E01-E02`, `S01E01E02`, `01x02-03`, `S01E01+E02`, up to twenty a file), say the file's `run_style`, and warn (`run_warning`) when the server it runs against does not read that style as a run: the file is then listed as its first episode and the rest read as missing, and the warning names the form to rename it to
-- `server_activity` entries carry `item_id`, and about an item or a user the answer says how far back it could read
+- `audit_previews` finds missing, damaged or wrong-length preview thumbnails, and `item_previews_regenerate` makes them again (Emby only so far)
+- `audit_spelling` checks album and artist names
+- a file holding a run of episodes is read in every common form, and `run_warning` says when the server will not read it as a run
+- `audit_provider` checks each episode's runtime against TMDB's
+- `provider_cache_clear` forgets the TMDB answers the tools keep
+- `server_activity` takes `item` and `user`, carries `item_id`, and says how far back it could read
 - `audit_missing_metadata` on a music library looks at the albums' covers alone
-- `audit_provider` checks each episode's runtime against TMDB's for that episode, names the TMDB episode it compared with, and counts what it could not judge in `runtime_not_judged`
-- `audit_anime_ids` says in `note` when an older copy of the anime list answered because it could not be read again
-- `audit_spelling` reads album and artist names off a music library's tracks: an album spelled two ways by one album artist, an artist with and without `The`; `metadata_rename` refuses them, as they are the files' tags
-- `provider_cache_clear` forgets the TMDB answers the tools keep, so the next read asks TMDB again
-- `audit_previews` finds videos whose preview thumbnails - the frames over the seek bar, one BIF file a video on Emby - are missing, damaged or the wrong length, reading each file as it is on disk now; Emby's scheduled task can pass over a video it made them for before, so a file deleted since can stay missing. `item_previews_regenerate` makes them again one video at a time, by id or working through a library, and names anything else the refresh changed. Emby only so far
+- `audit_anime_ids` says when an older copy of the anime list answered
+- 80 tools: 56 read, 19 write, 5 delete
+
+### Changed
+
+- serving, choosing which tools a session gets, the locks that keep two edits of one item apart, the spelling and whitespace checks, and the tests' recording proxy are go-kt's, shared with the other MCP servers
+- over HTTP, a session its client left open and stopped using is closed after half an hour
 
 ### Fixed
 
-- a date from TMDB or the server that can't be read is an error naming the item, not a missing date or a guess
-- stopping the HTTP server with a client still connected is immediate and clean: it waited ten seconds and exited with an error
-- a failed server read while finding a show by name, or while checking a folder, is reported instead of dropped
-- a number in the anime list that can't be read is an error naming the entry, not an episode dropped
-- `audit_missing_episodes` judges a show in two folders named alike as one show, rather than reporting as missing what the other folder holds
-- `audit_missing_episodes` reads Jellyfin's records of episodes it has no file for (kept with the TheTVDB plugin), which its sweep never asked for
-- alternative titles, translations and searches from TMDB are kept an hour, not until a restart
-- `quality_compare` judges a very thinly encoded frame as thin, and gives its bits per pixel to three figures rather than as 0
-- `item_delete`'s note on a scan that was running says Jellyfin can keep the deleted item listed through several more scans, not only until the next
-- `audit_file_path` no longer reports a film named after its own folder when its title holds a dotted acronym with a number after it (`Q.R.S.1`): the acronym folds the same with its dots as with the spaces a path is read with
-- `audit_runtime` leaves a disc image (`.iso`) unjudged and counts it in `disc_images`: the runtime a server holds for one can be a single title's or a menu's, and it was reported as an incomplete or broken file
-- `quality_compare` says a film or episode the server has listed and not read yet has no frame size to compare, rather than that it "is a movie, which has no frame of its own"
-- `audit_file_path`'s lookalike row no longer says on Jellyfin that a search misses the title: from 12.2 Jellyfin's search reads a lookalike letter as the Latin one (Emby's still does not)
-- `library_edit` says what a rename does to an account given the library alone on Jellyfin 12.2, which moves the account to the library's new id; before 12.2 the account lost the library, and `access_lost` still names any that do
+- stopping the HTTP server with a client still connected no longer takes ten seconds and exits with an error
+- a date or a number from TMDB, the server or the anime list that can't be read is an error, not a guess
+- a failed server read while finding a show or checking a folder is reported instead of dropped
+- `audit_missing_episodes` judges a show in two folders named alike as one show, and reads Jellyfin's records of episodes it has no file for
+- TMDB titles and searches are kept an hour, not until a restart
+- `quality_compare` judges a thinly encoded frame as thin, and says when the server has not read a file yet
+- `item_delete` says Jellyfin can keep an item deleted during a scan listed through several more scans
+- `audit_file_path` no longer misreads a dotted acronym with a number after it (`Q.R.S.1`), nor says a Jellyfin search misses a lookalike letter
+- `audit_runtime` leaves a disc image (`.iso`) unjudged
+- `library_edit` says what a rename does to an account given that library alone on Jellyfin 12.2
 
 ## 0.3.0 (2026-09-27)
 
