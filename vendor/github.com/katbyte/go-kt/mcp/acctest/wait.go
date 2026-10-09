@@ -1,4 +1,4 @@
-package acceptance
+package acctest
 
 import "time"
 
@@ -25,8 +25,7 @@ func Eventually(check func() bool) bool {
 }
 
 // EventuallyWithin is Eventually with its own patience, for work a server
-// queues behind whatever else it is doing: a refresh that asks the providers
-// can wait on a scan's.
+// queues behind whatever else it is doing: a refresh can wait on a scan's.
 func EventuallyWithin(patience time.Duration, check func() bool) bool {
 	for range int(patience / waitPoll) {
 		if check() {

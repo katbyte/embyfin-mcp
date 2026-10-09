@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -128,7 +129,7 @@ func readOffTheirFiles(t *testing.T, series string, episodes [][2]int) {
 
 		return size > 0 && len(streams) > 0
 	}
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool {
+	if !acc.EventuallyWithin(scanPatience, func() bool {
 		return !slices.ContainsFunc(ids, func(id string) bool { return !read(fullItem(t, id)) })
 	}) {
 		t.Fatalf("%s's staged episodes %v were never read off their files", series, episodes)
@@ -238,7 +239,7 @@ func TestAuditDiscFoldersCountsOneFilmOnce(t *testing.T) {
 	}
 	nfos := map[string][]byte{"00000.nfo": movieNfo("Pi", 1998, "473", "tt0138704"), "00001.nfo": movieNfo("Arrival", 2016, "329865", "tt2543164"), "00002.nfo": movieNfo("Pi", 1998, "473", "")}
 	for file, raw := range nfos {
-		acc.MediaWrite(t, filepath.Join(dir, file), raw)
+		env.WriteFile(t, filepath.Join(dir, file), raw)
 	}
 	// the staged folder's removal takes them when the test ends
 	for _, id := range ids {

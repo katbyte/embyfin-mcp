@@ -12,7 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -137,7 +138,7 @@ func TestIdentifyingAnUnmatchedShow(t *testing.T) {
 			return nil
 		})
 		for path, raw := range sidecars {
-			acc.MediaWrite(t, path, raw)
+			env.WriteFile(t, path, raw)
 		}
 		// the files re-read, the episodes numbered as they were, and the
 		// show unmatched again
@@ -237,7 +238,7 @@ func TestAMismatchedIDPutRight(t *testing.T) {
 	// the apply replaces what the nfo gave the film (its genres, its people)
 	// with TMDB's, so the whole item goes back as it was, and the nfo with it
 	t.Cleanup(func() {
-		acc.MediaWrite(t, nfo, sidecar)
+		env.WriteFile(t, nfo, sidecar)
 		updateItem(t, blade, before)
 	})
 	if err := os.Remove(nfo); err != nil {
@@ -332,7 +333,7 @@ func TestAFilmWithASeriesIDPutRight(t *testing.T) {
 	}
 	original := fullItem(t, memento)["ProviderIds"]
 	t.Cleanup(func() {
-		acc.MediaWrite(t, nfo, sidecar)
+		env.WriteFile(t, nfo, sidecar)
 		updateItem(t, memento, map[string]any{"ProviderIds": original})
 		if !acc.Eventually(holding("", series)) {
 			t.Errorf("Memento was not put back to the series' id alone: %v", ids())
@@ -408,7 +409,7 @@ func TestAFilmWithASeriesIDPutRight(t *testing.T) {
 	// added - and the ids hold through a refresh
 	right := strings.ReplaceAll(string(sidecar), series, film)
 	right = strings.Replace(right, "</movie>", "  <tmdbid>77</tmdbid>\n  <uniqueid type=\"tmdb\" default=\"true\">77</uniqueid>\n</movie>", 1)
-	acc.MediaWrite(t, nfo, []byte(right))
+	env.WriteFile(t, nfo, []byte(right))
 	updateItem(t, memento, map[string]any{"ProviderIds": map[string]any{"Tmdb": "77", "Imdb": film}})
 	suite.Call(t, "item_refresh", map[string]any{"id": memento})
 	if !acc.Holds(holding("77", film)) {

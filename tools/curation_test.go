@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	spell "github.com/katbyte/go-kt/spelling"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -138,7 +139,7 @@ func TestRenameValue(t *testing.T) {
 func TestSpellingReport(t *testing.T) {
 	t.Parallel()
 
-	if got := norm("  Sci-Fi / Fantasy & Amélie.  "); got != "sci fi fantasy amelie" {
+	if got := spell.Key("  Sci-Fi / Fantasy & Amélie.  "); got != "sci fi fantasy amelie" {
 		t.Errorf("norm = %q", got)
 	}
 	for _, tc := range []struct {
@@ -152,11 +153,11 @@ func TestSpellingReport(t *testing.T) {
 		{"science fiction", "science fictoin", true},
 		{"martial arts film", "martial arts flim", true},
 	} {
-		if got := typoApart(norm(tc.a), norm(tc.b)); got != tc.want {
-			t.Errorf("typoApart(%q, %q) = %v", tc.a, tc.b, got)
+		if got := spell.TypoApart(spell.Key(tc.a), spell.Key(tc.b)); got != tc.want {
+			t.Errorf("spell.TypoApart(%q, %q) = %v", tc.a, tc.b, got)
 		}
 	}
-	if !truncationOf("warner bros", "warner bros pictures") || truncationOf("a24", "a24 films") || truncationOf("warner", "warnerbros") {
+	if !spell.TruncationOf("warner bros", "warner bros pictures") || spell.TruncationOf("a24", "a24 films") || spell.TruncationOf("warner", "warnerbros") {
 		t.Error("truncationOf is wrong")
 	}
 

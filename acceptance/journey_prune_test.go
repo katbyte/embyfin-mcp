@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -70,9 +71,9 @@ func TestPruningOneCopyOfAFilm(t *testing.T) {
 			}
 			stageWorse := func() {
 				dir := filepath.Join(messy, worse)
-				acc.MediaMkdir(t, testenv.DataDir(), dir)
-				acc.MediaWrite(t, filepath.Join(dir, worse+".mp4"), fixtureVideo(t, "messy-movies", messyAlien, messyAlien+".mp4"))
-				acc.MediaWrite(t, filepath.Join(dir, "movie.nfo"), fixtureVideo(t, "movies", "Aliens (1986)", "movie.nfo"))
+				env.Mkdir(t, testenv.DataDir(), dir)
+				env.WriteFile(t, filepath.Join(dir, worse+".mp4"), fixtureVideo(t, "messy-movies", messyAlien, messyAlien+".mp4"))
+				env.WriteFile(t, filepath.Join(dir, "movie.nfo"), fixtureVideo(t, "movies", "Aliens (1986)", "movie.nfo"))
 			}
 			first, second := stageBetter, stageWorse
 			if c.worseFirst {
@@ -169,7 +170,7 @@ func TestPruningOneCopyOfAFilm(t *testing.T) {
 			if !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || strings.Contains(msg, better) || strings.Contains(msg, "/media/movies/") {
 				t.Errorf("the refusal names more than the worse copy's folder: %s", msg)
 			}
-			kept := acc.FilesUnder(t, filepath.Join(messy, better), filepath.Join(testenv.DataDir(), "movies", "Aliens (1986)"))
+			kept := env.FilesUnder(t, filepath.Join(messy, better), filepath.Join(testenv.DataDir(), "movies", "Aliens (1986)"))
 			out := suite.Call(t, "item_delete", map[string]any{"id": prune, "confirm": true})
 			got := removedPaths(t, out)
 			if !slices.Contains(got, server+"/") || !slices.Contains(got, server+"/"+worse+".mp4") {
@@ -180,7 +181,7 @@ func TestPruningOneCopyOfAFilm(t *testing.T) {
 					t.Errorf("removed names %s, outside the worse copy's folder", p)
 				}
 			}
-			acc.StillOnDisk(t, testenv.DataDir(), kept, "the worse copy's delete")
+			env.StillOnDisk(t, testenv.DataDir(), kept, "the worse copy's delete")
 			if _, err := os.Stat(filepath.Join(messy, worse)); !os.IsNotExist(err) {
 				t.Errorf("the worse copy's folder is still on disk: %v", err)
 			}
@@ -256,8 +257,8 @@ func TestDeletingWhatIsAlreadyGone(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	acc.MediaMkdir(t, testenv.DataDir(), dir)
-	acc.MediaWrite(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
+	env.Mkdir(t, testenv.DataDir(), dir)
+	env.WriteFile(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
 	if err := scanUntil("Messy Movies", have+1); err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +275,7 @@ func TestDeletingWhatIsAlreadyGone(t *testing.T) {
 	if err := os.RemoveAll(dir); err != nil {
 		t.Fatal(err)
 	}
-	rest := acc.FilesUnder(t, messy)
+	rest := env.FilesUnder(t, messy)
 	const gone = "the server cannot find the folder holding the item: the delete removes its record, and nothing on disk"
 	if msg := suite.CallErr(t, "item_delete", map[string]any{"id": id}); !strings.Contains(msg, "nothing was deleted") || !strings.Contains(msg, gone) {
 		t.Errorf("the refusal: %s", msg)
@@ -286,7 +287,7 @@ func TestDeletingWhatIsAlreadyGone(t *testing.T) {
 	if msg := suite.CallErr(t, "item_get", map[string]any{"id": id}); !strings.Contains(msg, "no item") {
 		t.Errorf("item_get after the delete: %s", msg)
 	}
-	acc.StillOnDisk(t, testenv.DataDir(), rest, "the record's delete")
+	env.StillOnDisk(t, testenv.DataDir(), rest, "the record's delete")
 	if n := typeCount(t, "Messy Movies", "Movie"); n != have {
 		t.Errorf("the library holds %d films, want the %d it held before the staging", n, have)
 	}
@@ -299,7 +300,7 @@ func TestDeletingWhatIsAlreadyGone(t *testing.T) {
 func TestDeletingASeason(t *testing.T) {
 	root := filepath.Join(testenv.DataDir(), "seasons")
 	const show = "Star Trek Deep Space Nine (1993)"
-	acc.CopyTree(t, testenv.DataDir(), filepath.Join(testenv.DataDir(), "messy-shows", show), filepath.Join(root, show))
+	env.CopyTree(t, testenv.DataDir(), filepath.Join(testenv.DataDir(), "messy-shows", show), filepath.Join(root, show))
 	t.Cleanup(func() {
 		if err := os.RemoveAll(root); err != nil {
 			t.Error(err)
@@ -323,7 +324,7 @@ func TestDeletingASeason(t *testing.T) {
 		slices.Sort(out)
 		return out
 	}
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool {
+	if !acc.EventuallyWithin(scanPatience, func() bool {
 		out, err := suite.Invoke("library_items", map[string]any{"library": library, "types": "Series"})
 		if items := acc.RowsOf(out["items"]); err == nil && len(items) == 1 {
 			series = acc.Str(items[0]["id"])
@@ -347,7 +348,7 @@ func TestDeletingASeason(t *testing.T) {
 	if msg := suite.CallErr(t, "item_delete", map[string]any{"id": seasons[3]}); !strings.Contains(msg, "would remove the folder "+server+" with everything in it") || strings.Contains(msg, "Season 01") {
 		t.Errorf("the refusal for a season: %s", msg)
 	}
-	kept := acc.FilesUnder(t, filepath.Join(root, show, "Season 01"))
+	kept := env.FilesUnder(t, filepath.Join(root, show, "Season 01"))
 	kept[filepath.Join(root, show, "tvshow.nfo")] = fixtureVideo(t, "seasons", show, "tvshow.nfo")
 	out := suite.Call(t, "item_delete", map[string]any{"id": seasons[3], "confirm": true})
 	got := removedPaths(t, out)
@@ -361,7 +362,7 @@ func TestDeletingASeason(t *testing.T) {
 			t.Errorf("removed names %s, outside the season's folder", p)
 		}
 	}
-	acc.StillOnDisk(t, testenv.DataDir(), kept, "the season's delete")
+	env.StillOnDisk(t, testenv.DataDir(), kept, "the season's delete")
 
 	// the show holds the season left, now and after a scan
 	want := []string{"/media/seasons/" + show + "/Season 01/Star Trek Deep Space Nine S01E01.mp4"}

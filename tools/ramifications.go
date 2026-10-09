@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/go-kt/parallel"
 )
 
 // What a change reaches beyond the item it names. A tool that takes items
@@ -118,7 +118,7 @@ func readMemberships(ctx context.Context, client *embyfin.Client) (memberships, 
 		}
 	}
 	members := make([][]string, len(lists))
-	if err := eachAtOnce(ctx, len(lists), func(ctx context.Context, i int) error {
+	if err := parallel.Each(ctx, len(lists), readsAtOnce, func(ctx context.Context, i int) error {
 		var err error
 		if lists[i].Kind == "playlist" {
 			members[i], err = client.PlaylistMembers(ctx, lists[i].ID)
@@ -144,46 +144,6 @@ func readMemberships(ctx context.Context, client *embyfin.Client) (memberships, 
 
 // readsAtOnce is how many reads a sweep of every list makes at once.
 const readsAtOnce = 8
-
-// eachAtOnce calls fn for every index below n, readsAtOnce at a time, and
-// returns the first error; once one has failed, the calls not yet begun are
-// not made.
-func eachAtOnce(ctx context.Context, n int, fn func(ctx context.Context, i int) error) error {
-	inner, cancel := context.WithCancel(ctx)
-	defer cancel()
-	var (
-		wg    sync.WaitGroup
-		mu    sync.Mutex
-		first error
-	)
-	slots := make(chan struct{}, readsAtOnce)
-	for i := range n {
-		select {
-		case slots <- struct{}{}:
-		case <-inner.Done():
-		}
-		if inner.Err() != nil {
-			break
-		}
-		wg.Go(func() {
-			defer func() { <-slots }()
-			if err := fn(inner, i); err != nil {
-				mu.Lock()
-				if first == nil {
-					first = err
-					cancel()
-				}
-				mu.Unlock()
-			}
-		})
-	}
-	wg.Wait()
-	if first != nil {
-		return first
-	}
-
-	return ctx.Err()
-}
 
 // holding is the lists holding any of ids, each with how many of them,
 // collections first, by name.

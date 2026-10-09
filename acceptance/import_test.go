@@ -10,7 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -263,8 +264,8 @@ func TestAuditDuplicateEpisodes(t *testing.T) {
 		_ = os.Remove(base + ".nfo")
 		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 5); return !there })
 	})
-	acc.MediaWrite(t, base+".mp4", fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E02.mp4"))
-	acc.MediaWrite(t, base+".nfo", episodeNfo("Half Loop", 1, 5))
+	env.WriteFile(t, base+".mp4", fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E02.mp4"))
+	env.WriteFile(t, base+".nfo", episodeNfo("Half Loop", 1, 5))
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 5); return there })
 
 	// two pairs across the server; a limit of one lists one and counts both
@@ -370,7 +371,7 @@ func TestAuditDuplicateSeries(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	acc.CopyTree(t, testenv.DataDir(), src, dst)
+	env.CopyTree(t, testenv.DataDir(), src, dst)
 	if err := scanUntil("Messy Shows", have+1); err != nil {
 		t.Fatal(err)
 	}

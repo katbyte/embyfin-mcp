@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
 )
 
 // Journeys in another user's name: a restricted user's own playlists, what a

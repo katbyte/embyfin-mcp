@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	mcpregistry "github.com/katbyte/go-kt/mcp/registry"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -116,12 +117,12 @@ func (f *fakeServer) client(t *testing.T) *embyfin.Client {
 func hostRegistry(t *testing.T, r *registry) *mcp.ClientSession {
 	t.Helper()
 
-	r.server = mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
-	for _, p := range r.pending {
-		p.register()
+	srv := mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
+	if _, err := r.queued().Register(srv, mcpregistry.Selection{EnableDelete: true}); err != nil {
+		t.Fatal(err)
 	}
 
-	return connect(t, r.server)
+	return connect(t, srv)
 }
 
 // connect opens an in-memory MCP client on a server.

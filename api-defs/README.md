@@ -310,7 +310,7 @@ repeated keys), Emby's comma-separated.
 - Both servers call the metadata providers themselves (TMDB, TheTVDB, OMDb,
   the image CDNs) and honour `HTTPS_PROXY`; on Linux they trust the
   certificates in `SSL_CERT_FILE`, which is how the tests intercept those
-  calls (see `lib/providerproxy`). A call that times out makes Emby refuse
+  calls (see go-kt's `test/replayproxy`). A call that times out makes Emby refuse
   later calls to that host (`Cancelling connection ... due to a previous
   timeout`), so a replay miss can fail tests that come after it. The refusal that follows a fetch that failed as the container started, before the suite's proxy was listening (the package catalogue's), passes after about half a minute.
 

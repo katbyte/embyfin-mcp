@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -52,9 +53,9 @@ func TestAuditDiscFolders(t *testing.T) {
 	dir := filepath.Join(testenv.DataDir(), "messy-movies", name)
 	server := "/media/messy-movies/" + name
 	streams := []string{"00000.m2ts", "00001.m2ts"}
-	acc.MediaMkdir(t, testenv.DataDir(), dir)
+	env.Mkdir(t, testenv.DataDir(), dir)
 	for _, s := range streams {
-		acc.MediaWrite(t, filepath.Join(dir, s), fixtureVideo(t, "disc-src", s))
+		env.WriteFile(t, filepath.Join(dir, s), fixtureVideo(t, "disc-src", s))
 	}
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
@@ -112,7 +113,7 @@ func TestAuditDiscFolders(t *testing.T) {
 	// least one of them is wrong
 	nfos := map[string][]byte{"00000.nfo": movieNfo("Pi", 1998, "473", "tt0138704"), "00001.nfo": movieNfo("Arrival", 2016, "329865", "tt2543164")}
 	for file, raw := range nfos {
-		acc.MediaWrite(t, filepath.Join(dir, file), raw)
+		env.WriteFile(t, filepath.Join(dir, file), raw)
 	}
 	for _, id := range ids {
 		suite.Call(t, "item_refresh", map[string]any{"id": id})
@@ -140,7 +141,7 @@ func TestAuditDiscFolders(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	acc.MediaWrite(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
+	env.WriteFile(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
 	if err := scanUntil("Messy Movies", have+1); err != nil {
 		t.Fatal(err)
 	}

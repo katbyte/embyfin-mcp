@@ -1,31 +1,28 @@
-// Package providerproxy is a record/replay HTTP proxy for the metadata
-// providers Emby and Jellyfin call out to.
+// Package replayproxy is a record/replay HTTP proxy for what a server under
+// test fetches from the internet: a media server's metadata providers, a
+// podcast feed, an artwork CDN.
 //
-// embyfin-mcp rarely talks to TMDB, TheTVDB, OMDb or the image CDNs itself:
-// it asks the media server to (identify, refresh, remote images), and the
-// server - a .NET app in a container - makes those calls. That puts them out
-// of reach of anything that hooks Go's http.RoundTripper, so go-vcr and
-// friends cannot see them. The only layer that can is a proxy in front of the
-// container.
+// A tool that asks its server to look something up never makes the call
+// itself: the server, in a container, does. That puts the call out of reach of
+// anything that hooks Go's http.RoundTripper, so go-vcr and friends cannot see
+// it. The only layer that can is a proxy in front of the container.
 //
-// .NET honours HTTPS_PROXY, and on Linux it trusts whatever SSL_CERT_FILE
-// points at, so the container is started with both: the proxy address, and
-// a CA certificate the proxy signs its per-host certificates with (Options.CA;
-// scripts/testenv.sh mints it and mounts it into the container). In replay
-// mode - the default, and what CI uses - the responses are served from the
-// cassettes on disk and no network is touched. Record mode calls the real
-// provider for a request no cassette holds and writes what comes back, leaving
-// every recording already there alone; Rerecord mode (make record) refreshes
-// those too.
+// The container is started with HTTPS_PROXY naming this proxy and made to
+// trust the certificates it signs: a .NET server on Linux trusts whatever
+// SSL_CERT_FILE points at, so it is handed the authority in Options.CACert,
+// and a Node server can be told not to check (NODE_TLS_REJECT_UNAUTHORIZED=0,
+// safe in a throwaway container). In Replay mode - the default, and what CI
+// uses - the answers are served from the cassettes on disk and no network is
+// touched. Record mode calls the real service for a request no cassette holds
+// and writes what comes back, leaving every recording already there alone;
+// Rerecord mode refreshes those too, and Verify mode holds each recording
+// against what the service answers now without writing anything.
 //
-// The calls embyfin-mcp makes to a provider itself, when a tool checks the
-// library against TMDB, go through the same proxy in the tests: the tools are
-// handed a transport that trusts the CA and sends every request to the proxy.
-package providerproxy
+// A client in the same process, such as an SDK under test, goes through the
+// same proxy with Transport.
+package replayproxy
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -35,11 +32,14 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/big"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -49,34 +49,34 @@ import (
 	"time"
 )
 
-// Mode selects whether the proxy calls the real providers.
+// Mode selects whether the proxy calls the real services.
 type Mode int
 
 const (
 	// Replay serves from the cassettes and never reaches the network. A
 	// request with no recording is a loud failure, not an empty response.
 	Replay Mode = iota
-	// Record calls the real provider for a request no cassette holds and
+	// Record calls the real service for a request no cassette holds and
 	// writes what comes back; a request already recorded is served from its
-	// recording, so recording a new test's lookups (EMBYFIN_TEST_RECORD=1)
-	// leaves every other recording as it was.
+	// recording, so recording a new test's lookups leaves every other
+	// recording as it was.
 	Record
-	// Verify calls the real provider and compares the shape of what comes
+	// Verify calls the real service and compares the shape of what comes
 	// back against the cassette, without writing. The recorded response is
 	// still what gets served, so a test outcome never depends on what a
-	// provider happened to return today - drift is reported separately.
+	// service happened to return today - drift is reported separately.
 	Verify
-	// Rerecord is Record refreshing what is recorded as well (make record):
-	// the first time the proxy sees a request it calls the real provider and
-	// the answer replaces the recording, and the same request again in that
-	// run is served the fresh answer without another call.
+	// Rerecord is Record refreshing what is recorded as well: the first time
+	// the proxy sees a request it calls the real service and the answer
+	// replaces the recording, and the same request again in that run is
+	// served the fresh answer without another call.
 	Rerecord
 )
 
-// RecordEnv is the variable the suites record with: set, they run the proxy
-// in Record mode, and set to "all" (as make record does) New makes that a
-// Rerecord.
-const RecordEnv = "EMBYFIN_TEST_RECORD"
+const (
+	schemeHTTP  = "http"
+	schemeHTTPS = "https"
+)
 
 // Proxy is a MITM HTTP proxy backed by cassettes.
 type Proxy struct {
@@ -84,6 +84,8 @@ type Proxy struct {
 	redact     []string
 	redactBody []string
 	ignore     []string
+	trim       map[string]func([]byte) ([]byte, error)
+	recordHint string
 
 	tunnelsMu sync.Mutex
 	tunnels   map[string]bool
@@ -97,8 +99,11 @@ type Proxy struct {
 	certMu sync.Mutex
 	certs  map[string]*tls.Certificate
 
-	// upstream reaches the real providers, in every mode but Replay
+	// upstream reaches the real services, in every mode but Replay
 	upstream *http.Transport
+
+	localMu sync.RWMutex
+	local   map[string]http.Handler
 
 	missMu sync.Mutex
 	misses []string
@@ -116,13 +121,16 @@ type Proxy struct {
 type Options struct {
 	// Mode defaults to Replay.
 	Mode Mode
-	// CassetteDir holds one JSON file per provider host.
+	// CassetteDir holds one JSON file per host.
 	CassetteDir string
 	// Addr to listen on. Must be reachable from the container, so bind all
-	// interfaces (e.g. "0.0.0.0:18080").
+	// interfaces (e.g. ":18080").
 	Addr string
 	// Logger receives replay misses and record notices; defaults to stderr.
 	Logger *log.Logger
+	// RecordHint ends the line logged for a request with no recording, saying
+	// how this suite records one ("record it with APP_TEST_RECORD=1").
+	RecordHint string
 	// CACert and CAKey are PEM files holding the certificate authority the
 	// proxy signs its per-host certificates with. When both are set the
 	// files are loaded (created first if they do not exist), so the same
@@ -130,39 +138,43 @@ type Options struct {
 	// proxy. When empty an in-memory authority is minted for this process.
 	CACert, CAKey string
 	// RedactQuery names query parameters dropped from every request before
-	// it is keyed and recorded: an API key such as TMDB's api_key changes
-	// from one operator to the next and must not decide whether a cassette
-	// matches, nor be committed with it.
+	// it is keyed and recorded: an API key changes from one operator to the
+	// next, and a version or an architecture from one machine to the next,
+	// and none of them may decide whether a cassette matches, nor be
+	// committed with it.
 	RedactQuery []string
 	// RedactBodyFields names JSON fields whose string value is replaced in a
-	// recorded response body. A provider's login answers with a bearer token
-	// for the media server's own account, which is a credential the
-	// repository must not carry; replay needs none of it, because the proxy
-	// answers the calls that token would authorise.
+	// recorded response body. A service's login answers with a bearer token
+	// for the server's own account, which is a credential the repository must
+	// not carry; replay needs none of it, because the proxy answers the calls
+	// that token would authorise.
 	RedactBodyFields []string
 	// IgnoreHosts are hosts this proxy answers 204 for and never records: the
-	// media server talking to itself. Emby pings its own container address on
-	// startup, which NO_PROXY cannot exclude because the address is only
-	// known once the container is running, and which is no part of what these
-	// cassettes are about.
+	// server talking to itself on its own container address, which NO_PROXY
+	// cannot exclude because the address is only known once the container is
+	// running, or to a service whose answers are no part of what these
+	// cassettes are about (a clock, a news feed, a what-is-my-address).
 	IgnoreHosts []string
+	// Trim cuts a response down before it is recorded, keyed by host and
+	// path ("lists.example.org/v1/everything"): a service's list of
+	// everything it knows runs to megabytes, of which a suite reads the few
+	// entries for its own fixtures. Only a 200 is trimmed. The trimmed body
+	// is what is stored and served, in Record and Verify alike, so replay
+	// sees the same.
+	Trim map[string]func(body []byte) ([]byte, error)
 }
 
 // New starts a proxy and returns it. Close stops it and, when it records,
 // flushes the cassettes.
 func New(opts Options) (*Proxy, error) {
 	if opts.CassetteDir == "" {
-		return nil, errors.New("providerproxy: CassetteDir is required")
+		return nil, errors.New("replayproxy: CassetteDir is required")
 	}
 	if opts.Addr == "" {
 		opts.Addr = "0.0.0.0:0"
 	}
 	if opts.Logger == nil {
-		opts.Logger = log.New(os.Stderr, "providerproxy: ", 0)
-	}
-	// the suites pick Record whenever the variable is set, whatever its value
-	if opts.Mode == Record && strings.EqualFold(os.Getenv(RecordEnv), "all") {
-		opts.Mode = Rerecord
+		opts.Logger = log.New(os.Stderr, "replayproxy: ", 0)
 	}
 
 	st, err := newStore(opts.CassetteDir)
@@ -180,11 +192,14 @@ func New(opts Options) (*Proxy, error) {
 		redact:     opts.RedactQuery,
 		redactBody: opts.RedactBodyFields,
 		ignore:     opts.IgnoreHosts,
+		trim:       opts.Trim,
+		recordHint: opts.RecordHint,
 		store:      st,
 		logger:     opts.Logger,
 		ca:         ca,
 		caKey:      caKey,
 		certs:      map[string]*tls.Certificate{},
+		local:      map[string]http.Handler{},
 		fresh:      map[string]bool{},
 		upstream: &http.Transport{
 			Proxy:                 nil, // go straight out; we are the proxy
@@ -203,7 +218,7 @@ func New(opts Options) (*Proxy, error) {
 	}
 	p.listener = ln
 	p.srv = &http.Server{
-		Handler:           http.HandlerFunc(p.serve),
+		Handler:           http.HandlerFunc(p.dispatch),
 		ReadHeaderTimeout: 30 * time.Second,
 	}
 	go func() {
@@ -226,7 +241,7 @@ func (p *Proxy) Transport() *http.Transport {
 	pool.AddCert(p.ca)
 
 	return &http.Transport{
-		Proxy:           http.ProxyURL(&url.URL{Scheme: "http", Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(p.Port()))}),
+		Proxy:           http.ProxyURL(&url.URL{Scheme: schemeHTTP, Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(p.Port()))}),
 		TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12},
 	}
 }
@@ -250,22 +265,51 @@ func (p *Proxy) Misses() []string {
 	return append([]string(nil), p.misses...)
 }
 
+// Serve answers every request for host with h instead of a cassette, until
+// the returned func is called. It is for the hosts a test plays itself - a
+// podcast feed whose episodes it adds as it goes - which have no service to
+// record: nothing for such a host is recorded, replayed or counted as a miss.
+// The host needs no DNS: the container sends the whole url to the proxy.
+func (p *Proxy) Serve(host string, h http.Handler) (stop func()) {
+	host = strings.ToLower(host)
+	p.localMu.Lock()
+	p.local[host] = h
+	p.localMu.Unlock()
+
+	return func() {
+		p.localMu.Lock()
+		delete(p.local, host)
+		p.localMu.Unlock()
+	}
+}
+
+// localHandler is the handler a test put in front of host, if any.
+func (p *Proxy) localHandler(host string) http.Handler {
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	p.localMu.RLock()
+	defer p.localMu.RUnlock()
+
+	return p.local[strings.ToLower(host)]
+}
+
 // Close stops the proxy, writing any newly recorded cassettes.
 func (p *Proxy) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = p.srv.Shutdown(ctx)
 
-	if p.mode == Record || p.mode == Rerecord {
+	if p.recording() {
 		return p.store.flush()
 	}
 
 	return nil
 }
 
-// serve handles both a CONNECT tunnel (https, which is everything the
-// providers use) and a plain proxied request.
-func (p *Proxy) serve(w http.ResponseWriter, r *http.Request) {
+// dispatch handles both a CONNECT tunnel (https, which is nearly everything
+// a server fetches) and a plain proxied request.
+func (p *Proxy) dispatch(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodConnect {
 		p.tunnel(w, r)
 		return
@@ -301,7 +345,7 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 
 	cert, err := p.certFor(host)
 	if err != nil {
-		p.logger.Printf("cert for %s: %v", host, err)
+		p.logger.Printf("cert for %s: %s", logSafe(host), logSafe(err.Error()))
 		return
 	}
 	conn := tls.Server(raw, &tls.Config{
@@ -312,21 +356,21 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 	// the tunnel and then sent nothing, which is silence in the log exactly
 	// where an answer is needed
 	if err := raw.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
-		p.logger.Printf("deadline for %s: %v", host, err)
+		p.logger.Printf("deadline for %s: %s", logSafe(host), logSafe(err.Error()))
 		return
 	}
 	if err := conn.HandshakeContext(r.Context()); err != nil {
-		// the client hung up or refused our certificate; with SSL_CERT_FILE
-		// pointing at our CA the latter should not happen, so say so rather
-		// than leave a media server timing out against a silent proxy
-		p.logger.Printf("tls handshake with %s: %v", host, err)
+		// the client hung up or refused our certificate; in a container set
+		// up to trust it the latter should not happen, so say so rather than
+		// leave a server timing out against a silent proxy
+		p.logger.Printf("tls handshake with %s: %s", logSafe(host), logSafe(err.Error()))
 		return
 	}
 	defer func() { _ = conn.Close() }()
 	defer dropReader(conn)
 
 	if err := raw.SetDeadline(time.Time{}); err != nil {
-		p.logger.Printf("clearing the deadline for %s: %v", host, err)
+		p.logger.Printf("clearing the deadline for %s: %s", logSafe(host), logSafe(err.Error()))
 		return
 	}
 
@@ -341,7 +385,7 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 			// EOF is the peer closing a finished tunnel; anything else, on a
 			// tunnel that carried nothing, is worth saying out loud
 			if served == 0 {
-				p.logger.Printf("tunnel to %s carried no request: %v", host, err)
+				p.logger.Printf("tunnel to %s carried no request: %s", logSafe(host), logSafe(err.Error()))
 			}
 
 			return
@@ -349,7 +393,7 @@ func (p *Proxy) tunnel(w http.ResponseWriter, r *http.Request) {
 		served++
 		rec := &connResponse{conn: conn}
 		p.respond(rec, req, host)
-		if rec.closed || req.Close {
+		if rec.closed || rec.last || req.Close {
 			return
 		}
 	}
@@ -362,7 +406,18 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 	if r.Body != nil {
 		defer func() { _ = r.Body.Close() }()
 	}
+	if h := p.localHandler(host); h != nil {
+		// buffered, so it goes out with a length: inside a tunnel nothing
+		// else would tell the client where the body ends
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, r)
+		maps.Copy(w.Header(), rec.Header())
+		w.Header().Set("Content-Length", strconv.Itoa(rec.Body.Len()))
+		w.WriteHeader(rec.Code)
+		_, _ = w.Write(rec.Body.Bytes())
 
+		return
+	}
 	if p.ignored(host) {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -383,17 +438,17 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 		if p.recording() && i.redacted() {
 			live, err := p.fetch(r, host, k, path)
 			if err == nil {
-				p.logger.Printf("live %s -> %d (its recording holds a redacted credential)", k, live.Status)
+				p.logger.Printf("live %s -> %d (its recording holds a redacted credential)", logSafe(k), live.Status)
 				writeInteraction(w, live)
 				return
 			}
-			p.logger.Printf("live %s: %v, replaying the recording", k, err)
+			p.logger.Printf("live %s: %s, replaying the recording", logSafe(k), logSafe(err.Error()))
 		}
-		p.logger.Printf("replay %s -> %d", k, i.Status)
+		p.logger.Printf("replay %s -> %d", logSafe(k), i.Status)
 		if p.mode == Verify {
 			live, err := p.fetch(r, host, k, path)
 			if err != nil {
-				p.logger.Printf("verify %s: %v", k, err)
+				p.logger.Printf("verify %s: %s", logSafe(k), logSafe(err.Error()))
 			} else {
 				// held against the recording as the recording holds it
 				live.redact(p.redactBody)
@@ -408,23 +463,34 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 		p.missMu.Lock()
 		p.misses = append(p.misses, k)
 		p.missMu.Unlock()
-		p.logger.Printf("REPLAY MISS %s (record it with %s=1, which records only what is missing)", k, RecordEnv)
-		http.Error(w, "providerproxy: no recording for "+k, http.StatusBadGateway)
+		if p.recordHint != "" {
+			p.logger.Printf("REPLAY MISS %s (%s)", logSafe(k), p.recordHint)
+		} else {
+			p.logger.Printf("REPLAY MISS %s", logSafe(k))
+		}
+		http.Error(w, "replayproxy: no recording for "+k, http.StatusBadGateway)
 		return
 	}
 
 	i, err := p.record(r, host, k, path)
 	if err != nil {
-		p.logger.Printf("record %s: %v", k, err)
-		http.Error(w, "providerproxy: "+err.Error(), http.StatusBadGateway)
+		p.logger.Printf("record %s: %s", logSafe(k), logSafe(err.Error()))
+		http.Error(w, "replayproxy: "+err.Error(), http.StatusBadGateway)
 		return
 	}
-	p.logger.Printf("recorded %s -> %d", k, i.Status)
 	writeInteraction(w, i)
 }
 
+// logSafe keeps a value taken off a request to one line of the log: a
+// newline in a url or a host would start a line the proxy never wrote. The
+// reason a request failed goes through it too, because it names the request.
+func logSafe(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+	return strings.ReplaceAll(s, "\r", "")
+}
+
 // ignored reports whether host is one the proxy answers for without a
-// cassette: the media server reaching itself, which is not provider traffic.
+// cassette: the server reaching itself, or a service no recording is about.
 func (p *Proxy) ignored(host string) bool {
 	name, _, err := net.SplitHostPort(host)
 	if err != nil {
@@ -452,11 +518,11 @@ func (p *Proxy) sawTunnel(host string) {
 		return
 	}
 	p.tunnels[host] = true
-	p.logger.Printf("tunnel to %s", host)
+	p.logger.Printf("tunnel to %s", logSafe(host))
 }
 
 // redactQuery strips the RedactQuery parameters from the request, so they are
-// neither keyed on nor written to a cassette. The real provider still needs
+// neither keyed on nor written to a cassette. The real service still needs
 // them, so the values are kept aside and put back by fetch.
 func (p *Proxy) redactQuery(r *http.Request) {
 	if len(p.redact) == 0 {
@@ -482,14 +548,14 @@ func (p *Proxy) redactQuery(r *http.Request) {
 
 // redactedHeader carries the stripped parameters from redactQuery to fetch,
 // on the request itself so nothing else has to know.
-const redactedHeader = "X-Providerproxy-Redacted"
+const redactedHeader = "X-Replayproxy-Redacted"
 
-// fetch calls the real provider and returns what it sent back, without
+// fetch calls the real service and returns what it sent back, without
 // storing it.
 func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, error) {
-	target := &url.URL{Scheme: "https", Host: host, Path: path, RawQuery: r.URL.RawQuery}
-	if r.TLS == nil && r.URL.Scheme == "http" {
-		target.Scheme = "http"
+	target := &url.URL{Scheme: schemeHTTPS, Host: host, Path: path, RawQuery: r.URL.RawQuery}
+	if r.TLS == nil && r.URL.Scheme == schemeHTTP {
+		target.Scheme = schemeHTTP
 	}
 	if kept := r.Header.Get(redactedHeader); kept != "" {
 		r.Header.Del(redactedHeader)
@@ -505,7 +571,12 @@ func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, erro
 		return nil, err
 	}
 	for name, vals := range r.Header {
-		if strings.EqualFold(name, "Proxy-Connection") {
+		// Accept-Encoding is left to the transport, which then asks for gzip
+		// alone and decodes it, dropping Content-Encoding: the cassette holds
+		// the answer as text a diff, a grep and Verify can read, a credential
+		// in it can be redacted, and no service is offered an encoding
+		// nothing here could decode
+		if strings.EqualFold(name, "Proxy-Connection") || strings.EqualFold(name, "Accept-Encoding") {
 			continue
 		}
 		for _, v := range vals {
@@ -524,15 +595,9 @@ func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, erro
 	if err != nil {
 		return nil, err
 	}
-
-	// a gzipped answer is stored decoded: the cassette stays a readable
-	// diff, a credential in it can be redacted, and Verify has JSON to
-	// compare rather than two blobs
-	headers := resp.Header.Clone()
-	if strings.EqualFold(headers.Get("Content-Encoding"), "gzip") {
-		if plain, err := gunzip(body); err == nil {
-			body = plain
-			headers.Del("Content-Encoding")
+	if trim := p.trim[strings.ToLower(host)+path]; trim != nil && resp.StatusCode == http.StatusOK {
+		if body, err = trim(body); err != nil {
+			return nil, fmt.Errorf("trimming %s%s: %w", host, path, err)
 		}
 	}
 
@@ -543,39 +608,37 @@ func (p *Proxy) fetch(r *http.Request, host, k, path string) (*interaction, erro
 		Path:    path,
 		Query:   r.URL.RawQuery,
 		Status:  resp.StatusCode,
-		Headers: keepHeaders(headers),
+		Headers: keepHeaders(resp.Header),
 	}
-	i.setBody(body, headers.Get("Content-Type"))
+	i.setBody(body, resp.Header.Get("Content-Type"))
 
 	return i, nil
-}
-
-// gunzip decodes a gzipped body.
-func gunzip(b []byte) ([]byte, error) {
-	zr, err := gzip.NewReader(bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = zr.Close() }()
-
-	return io.ReadAll(zr)
 }
 
 // record fetches and stores, replacing any recording of the same request.
 // fetch alone is what Verify uses, so that a verification run never writes to
 // the cassettes.
 //
-// What is stored is redacted and what is answered is not: the media server
-// is the one that asked, and a login it is handed with its token blanked
-// out is a login it cannot use. TheTVDB answered every call after a login
-// recorded that way with a 401, and those 401s were what went into the
-// cassettes. Replay hands the redacted token back, which is harmless there,
-// because every call it would authorise is answered from the recording; a
-// recording run fetches it again instead (respond).
+// What is stored is redacted and what is answered is not: the server is the
+// one that asked, and a login it is handed with its token blanked out is a
+// login it cannot use. One service answered every call after a login recorded
+// that way with a 401, and those 401s were what went into the cassettes.
+// Replay hands the redacted token back, which is harmless there, because
+// every call it would authorise is answered from the recording; a recording
+// run fetches it again instead (respond).
+//
+// A rate limit or a server error is passed on but not stored: it says
+// nothing about the service's answer, and a recording of one would be
+// replayed as if it did.
 func (p *Proxy) record(r *http.Request, host, k, path string) (*interaction, error) {
 	i, err := p.fetch(r, host, k, path)
 	if err != nil {
 		return nil, err
+	}
+	if i.Status == http.StatusTooManyRequests || i.Status >= http.StatusInternalServerError {
+		p.logger.Printf("not recording %s: the service answered %d", logSafe(k), i.Status)
+
+		return i, nil
 	}
 	stored := i.clone()
 	stored.redact(p.redactBody)
@@ -583,6 +646,7 @@ func (p *Proxy) record(r *http.Request, host, k, path string) (*interaction, err
 	p.freshMu.Lock()
 	p.fresh[k] = true
 	p.freshMu.Unlock()
+	p.logger.Printf("recorded %s -> %d", logSafe(k), i.Status)
 
 	return i, nil
 }
@@ -609,7 +673,7 @@ func writeInteraction(w http.ResponseWriter, i *interaction) {
 	}
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.WriteHeader(i.Status)
-	_, _ = w.Write(body) //nolint:gosec // a provider's answer relayed to the media server that asked for it, which is what the proxy is for
+	_, _ = w.Write(body) //nolint:gosec // a service's answer relayed to the server that asked for it, which is what the proxy is for
 }
 
 // loadOrNewCA returns the authority in the given PEM files, minting and
@@ -647,7 +711,7 @@ func loadOrNewCA(certFile, keyFile string) (*x509.Certificate, *ecdsa.PrivateKey
 func parseCA(certPEM, keyPEM []byte) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode(certPEM)
 	if block == nil || block.Type != "CERTIFICATE" {
-		return nil, nil, errors.New("providerproxy: CA cert file holds no CERTIFICATE block")
+		return nil, nil, errors.New("replayproxy: CA cert file holds no CERTIFICATE block")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
@@ -655,7 +719,7 @@ func parseCA(certPEM, keyPEM []byte) (*x509.Certificate, *ecdsa.PrivateKey, erro
 	}
 	kb, _ := pem.Decode(keyPEM)
 	if kb == nil {
-		return nil, nil, errors.New("providerproxy: CA key file holds no PEM block")
+		return nil, nil, errors.New("replayproxy: CA key file holds no PEM block")
 	}
 	var key *ecdsa.PrivateKey
 	switch kb.Type {
@@ -667,11 +731,11 @@ func parseCA(certPEM, keyPEM []byte) (*x509.Certificate, *ecdsa.PrivateKey, erro
 		if err == nil {
 			var ok bool
 			if key, ok = k.(*ecdsa.PrivateKey); !ok {
-				err = errors.New("providerproxy: CA key is not an EC key")
+				err = errors.New("replayproxy: CA key is not an EC key")
 			}
 		}
 	default:
-		err = errors.New("providerproxy: CA key file holds a " + kb.Type + " block, want EC PRIVATE KEY")
+		err = errors.New("replayproxy: CA key file holds a " + kb.Type + " block, want EC PRIVATE KEY")
 	}
 	if err != nil {
 		return nil, nil, err
@@ -708,7 +772,7 @@ func newCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "embyfin-mcp provider proxy CA"},
+		Subject:               pkix.Name{CommonName: "go-kt replay proxy CA"},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(30 * 24 * time.Hour),
 		IsCA:                  true,
@@ -727,7 +791,7 @@ func newCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	return cert, k, nil
 }
 
-// certFor mints (and caches) a leaf certificate for one provider hostname.
+// certFor mints (and caches) a leaf certificate for one hostname.
 func (p *Proxy) certFor(host string) (*tls.Certificate, error) {
 	p.certMu.Lock()
 	defer p.certMu.Unlock()

@@ -1,4 +1,4 @@
-package providerproxy
+package replayproxy
 
 import (
 	"bytes"
@@ -17,60 +17,82 @@ import (
 	"unicode/utf8"
 )
 
-// maxBodyBytes caps what a cassette stores. It is generous because a TMDB
-// search page or a TheTVDB episode list runs to hundreds of kilobytes and has
-// to replay intact or the server will not decode it; what must never be
+// maxBodyBytes caps what a cassette stores. It is generous because a search
+// page, an episode list or a podcast feed runs to hundreds of kilobytes and
+// has to replay intact or the server will not decode it; what must never be
 // committed is media, which elideTypes catches regardless of size.
 const maxBodyBytes = 4 << 20
 
 // elideTypes are the content types stored as a placeholder however small they
-// are: committing a provider's artwork or video to the repository is never
-// right, and neither is what these tests assert on. A binary blob under
-// application/octet-stream (a plugin's dll, an installer) is elided the same
-// way, told by the NUL bytes text never holds; the text a server fetches
-// under that type (a list of studio names, in whatever encoding) is kept.
+// are: committing a service's artwork, audio or video to the repository is
+// never right, and neither is what these tests assert on. A binary blob under
+// application/octet-stream (a plugin's dll, an installer, a CDN serving an
+// episode that way) is elided the same way, told by the NUL bytes text never
+// holds; the text a server fetches under that type (a list of names, in
+// whatever encoding) is kept.
 var elideTypes = []string{"audio/", "video/", "image/", "application/x-msdownload"}
 
 // volatileHeaders change on every response and would make a re-record a large
-// meaningless diff. Dropping them is not sanitizing: these are public APIs and
-// nothing here is a secret.
+// meaningless diff. Most are not secret, but a CDN's request ids can carry the
+// edge address and metro area of the machine that recorded, which has no
+// business in a repository either.
 var volatileHeaders = map[string]bool{
 	"age":                            true,
+	"akamai-cache-status":            true,
+	"akamai-grn":                     true,
+	"akamai-request-bc":              true,
 	"alt-svc":                        true,
+	"apple-seq":                      true,
+	"apple-tk":                       true,
+	"b3":                             true,
 	"cf-cache-status":                true,
 	"cf-ray":                         true,
 	"connection":                     true,
 	"content-length":                 true, // recomputed from the body we serve
 	"date":                           true,
+	"etag":                           true,
 	"expires":                        true,
 	"keep-alive":                     true,
+	"last-modified":                  true,
 	"nel":                            true,
 	"report-to":                      true,
 	"reporting-endpoints":            true,
 	"server-timing":                  true,
 	"set-cookie":                     true,
 	"transfer-encoding":              true,
+	"via":                            true,
 	"x-amz-cf-id":                    true,
 	"x-amz-cf-pop":                   true,
+	"x-amz-date":                     true,
+	"x-amz-id-2":                     true,
+	"x-amz-ir-id":                    true,
 	"x-amz-request-id":               true,
+	"x-amz-rid":                      true,
+	"x-amz-version-id":               true,
+	"x-amzn-requestid":               true,
+	"x-apple-application-instance":   true,
+	"x-apple-application-site":       true,
+	"x-apple-jingle-correlation-key": true,
+	"x-apple-orig-url":               true,
+	"x-apple-request-uuid":           true,
+	"x-b3-spanid":                    true,
+	"x-b3-traceid":                   true,
 	"x-cache":                        true,
-	"x-request-id":                   true,
-	"x-served-by":                    true,
-	"x-timer":                        true,
 	"x-cache-hits":                   true,
+	"x-daiquiri-debug-worker-pid":    true,
+	"x-daiquiri-instance":            true,
 	"x-memc":                         true,
 	"x-memc-age":                     true,
 	"x-memc-expires":                 true,
 	"x-memc-key":                     true,
+	"x-ratelimit-remaining":          true,
+	"x-ratelimit-reset":              true,
+	"x-request-id":                   true,
+	"x-responding-instance":          true,
+	"x-served-by":                    true,
 	"x-task-id":                      true,
-	"etag":                           true,
-	"last-modified":                  true,
-	"x-apple-jingle-correlation-key": true,
-	"apple-seq":                      true,
-	"apple-tk":                       true,
-	"x-apple-orig-url":               true,
-	"x-apple-application-instance":   true,
-	"x-apple-application-site":       true,
+	"x-timer":                        true,
+	"x-webobjects-loadaverage":       true,
 }
 
 // interaction is one recorded request/response pair.
@@ -102,7 +124,7 @@ func (i *interaction) bytes() []byte {
 		case strings.HasPrefix(i.ElidedType, "image/"):
 			return tinyJPEG
 		default:
-			return []byte("elided by the provider proxy")
+			return []byte(elidedBody)
 		}
 	case i.BodyBase64 != "":
 		b, err := base64.StdEncoding.DecodeString(i.BodyBase64)
@@ -147,8 +169,8 @@ func (i *interaction) clone() *interaction {
 }
 
 // redact replaces the value of each named JSON field in the body, and the
-// same value wherever a header carries it: TMDB answers a new request token
-// in the body and again in a link in Authentication-Callback.
+// same value wherever a header carries it: one service answers a new request
+// token in the body and again in a link in a header.
 func (i *interaction) redact(fields []string) {
 	var secrets []string
 	i.Body, secrets = redactJSONFields(i.Body, fields)
@@ -166,7 +188,7 @@ func (i *interaction) redacted() bool {
 	return strings.Contains(i.Body, redactedValue)
 }
 
-// cassette is every interaction recorded for one provider host.
+// cassette is every interaction recorded for one host.
 type cassette struct {
 	Host         string         `json:"host"`
 	Interactions []*interaction `json:"interactions"`
@@ -321,11 +343,17 @@ func keepHeaders(h http.Header) map[string]string {
 
 // redactedValue replaces a credential in a recorded body. It is not valid for
 // anything, which is the point: a cassette that is replayed never needs one.
+// The wording is the one the cassettes recorded before this package was
+// shared already hold, which is how a recording is told to be redacted.
 const redactedValue = "redacted by the provider proxy"
+
+// elidedBody is what is served for an elided body that is no image, worded
+// as it always was so replay answers what it did.
+const elidedBody = "elided by the provider proxy"
 
 // redactJSONFields replaces the string value of each named field in a JSON
 // body, leaving every other byte where it was so a re-record is a small diff
-// and the key order the provider sent is kept. A value carrying an escaped
+// and the key order the service sent is kept. A value carrying an escaped
 // quote is matched too. Nothing is parsed: a body that is not JSON has no
 // field to match and comes back unchanged.
 func redactJSONFields(body string, fields []string) (redacted string, secrets []string) {

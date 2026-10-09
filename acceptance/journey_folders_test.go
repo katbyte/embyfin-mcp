@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -66,8 +67,8 @@ func TestRenamingAFilmsFolder(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(messy, staged(bare)))
-	acc.MediaWrite(t, filepath.Join(messy, staged(bare), staged(bare)+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
+	env.Mkdir(t, testenv.DataDir(), filepath.Join(messy, staged(bare)))
+	env.WriteFile(t, filepath.Join(messy, staged(bare), staged(bare)+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
 	copyFixture(t, filepath.Join(testenv.DataDir(), "movies", known), filepath.Join(messy, staged(known)))
 	if err := scanUntil("Messy Movies", have+2); err != nil {
 		t.Fatal(err)
@@ -172,8 +173,8 @@ func TestSwappingALibrarysFolder(t *testing.T) {
 		bare  = "The Lord of the Rings The Fellowship of the Ring (2001)" // no nfo, no ids
 		known = messyInterstellar                                         // its nfo and ids
 	)
-	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(from, bare))
-	acc.MediaWrite(t, filepath.Join(from, bare, bare+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
+	env.Mkdir(t, testenv.DataDir(), filepath.Join(from, bare))
+	env.WriteFile(t, filepath.Join(from, bare, bare+".mp4"), fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4"))
 	copyFixture(t, filepath.Join(testenv.DataDir(), "messy-movies", known), filepath.Join(from, known))
 	t.Cleanup(func() {
 		for _, dir := range []string{from, to} {
@@ -208,7 +209,7 @@ func TestSwappingALibrarysFolder(t *testing.T) {
 		return bareID, knownID
 	}
 	var bareID, knownID string
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool { bareID, knownID = holding("/media/swap-a"); return bareID != "" && knownID != "" }) {
+	if !acc.EventuallyWithin(scanPatience, func() bool { bareID, knownID = holding("/media/swap-a"); return bareID != "" && knownID != "" }) {
 		t.Fatal("the library never held its two films")
 	}
 	if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {

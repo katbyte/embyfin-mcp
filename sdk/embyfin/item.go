@@ -737,7 +737,7 @@ func interleave(lists [][]Item, limit int) []Item {
 // season's own record is what is waited on: the refresh reaches the episodes
 // under it after. An edit of the item from this process waits for it.
 func (c *Client) RefreshItem(ctx context.Context, id string, replaceAll bool) (bool, error) {
-	unlock := c.items.lock(id)
+	unlock := c.lockItem(id)
 	defer unlock()
 
 	_, before, err := c.unsavedFor(ctx, id)
@@ -885,11 +885,11 @@ func (c *Client) UpdateItem(ctx context.Context, itemID string, full map[string]
 // EditItem changes an item the way FullItem and UpdateItem do, holding the
 // item for the whole round so that edits made at the same time (an MCP client
 // calls tools in parallel) apply one after the other rather than each posting
-// back what it read (see keyedLocks). edit changes the map and reports
+// back what it read (see lockItem). edit changes the map and reports
 // whether it changed anything; nothing is posted when it did not. The map is
 // returned as edited.
 func (c *Client) EditItem(ctx context.Context, userID, itemID string, edit func(full map[string]any) (bool, error)) (map[string]any, error) {
-	unlock := c.items.lock(itemID)
+	unlock := c.lockItem(itemID)
 	defer unlock()
 
 	full, err := c.FullItem(ctx, userID, itemID)

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -156,17 +155,17 @@ func TestEveryWriteToolIsHinted(t *testing.T) {
 		}
 		switch kinds[tool.Name] {
 		case "read":
-			if a.ReadOnlyHint == hostWriters[tool.Name] || *a.DestructiveHint {
+			if a.ReadOnlyHint == toolHints[tool.Name].WritesHere || *a.DestructiveHint {
 				t.Errorf("%s: read-only %v, destructive %v", tool.Name, a.ReadOnlyHint, *a.DestructiveHint)
 			}
 		case "write":
 			seen[tool.Name] = true
-			h, ok := changeHints[tool.Name]
+			h, ok := toolHints[tool.Name]
 			if !ok {
 				t.Errorf("%s is a write tool with no hints of its own", tool.Name)
 				continue
 			}
-			if a.ReadOnlyHint || *a.DestructiveHint != h.destructive || a.IdempotentHint != h.idempotent {
+			if a.ReadOnlyHint || *a.DestructiveHint == h.Additive || a.IdempotentHint != h.Idempotent || h.WritesHere {
 				t.Errorf("%s: read-only %v, destructive %v, idempotent %v; want %+v", tool.Name, a.ReadOnlyHint, *a.DestructiveHint, a.IdempotentHint, h)
 			}
 		case "delete":
@@ -177,21 +176,25 @@ func TestEveryWriteToolIsHinted(t *testing.T) {
 			t.Errorf("%s has no kind", tool.Name)
 		}
 	}
-	for name := range changeHints {
-		if !seen[name] {
-			t.Errorf("changeHints names %s, which is no write tool", name)
+	for name, h := range toolHints {
+		switch {
+		case h.WritesHere:
+			// library_export writes a file here: not read-only, and additive
+			if kinds[name] != "read" {
+				t.Errorf("%s is a %s tool; it changes nothing on the server", name, kinds[name])
+			}
+		case !seen[name]:
+			t.Errorf("toolHints names %s, which is no write tool", name)
+		default:
 		}
 	}
 	for _, name := range []string{"library_edit", "task_run", "item_artwork_set", "metadata_rename", "item_set_state", "item_identify_apply", "item_refresh", "library_scan"} {
-		if !changeHints[name].destructive {
+		if h, ok := toolHints[name]; !ok || h.Additive {
 			t.Errorf("%s can remove or overwrite what was there, and is marked additive", name)
 		}
 	}
-	// library_export writes a file here: not read-only, and additive
-	for name := range hostWriters {
-		if kinds[name] != "read" {
-			t.Errorf("%s is a %s tool; it changes nothing on the server", name, kinds[name])
-		}
+	if !toolHints["library_export"].WritesHere || !toolHints["session_message"].Additive {
+		t.Error("library_export writes a file here and session_message takes nothing away; one of them no longer says so")
 	}
 }
 
@@ -391,52 +394,6 @@ func TestDescribe(t *testing.T) {
 	}
 	if sets := ToolsetNames(); !slices.Contains(sets, "core") || !slices.IsSorted(sets) {
 		t.Errorf("toolset names = %v", sets)
-	}
-}
-
-func TestMatchPattern(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		pattern, name string
-		want          bool
-	}{
-		{"item_get", "item_get", true},
-		{"item_get", "item_gets", false},
-		{"item_*", "item_get", true},
-		{"item_*", "library_items", false},
-		{"*_delete", "item_delete", true},
-		// the documented way to turn every destructive tool off has to reach this one
-		{"*_delete", "item_orphans_delete", true},
-		{"*", "anything", true},
-	} {
-		if got := matchPattern(tc.pattern, tc.name); got != tc.want {
-			t.Errorf("matchPattern(%q, %q) = %v", tc.pattern, tc.name, got)
-		}
-	}
-}
-
-// A nil slice in a result must serialise as [], so a client can tell "none"
-// from "not fetched".
-func TestEmptyNilSlices(t *testing.T) {
-	t.Parallel()
-
-	type inner struct{ Tags []string }
-	type out struct {
-		Items  []inner
-		Ptr    *inner
-		Names  []string
-		Nested [][]string
-		Keep   []string
-	}
-	v := out{Items: []inner{{}}, Ptr: &inner{}, Keep: []string{"x"}}
-	emptyNilSlices(reflect.ValueOf(&v).Elem())
-
-	if v.Names == nil || v.Nested == nil || v.Items[0].Tags == nil || v.Ptr.Tags == nil {
-		t.Errorf("nil slices survived: %+v", v)
-	}
-	if len(v.Keep) != 1 {
-		t.Error("a populated slice was touched")
 	}
 }
 

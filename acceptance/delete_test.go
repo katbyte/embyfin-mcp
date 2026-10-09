@@ -11,7 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -83,10 +84,10 @@ func TestItemDelete(t *testing.T) {
 	})
 	stage := func(t *testing.T) string {
 		t.Helper()
-		acc.MediaMkdir(t, testenv.DataDir(), dir)
-		acc.MediaWrite(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
-		acc.MediaWrite(t, filepath.Join(dir, "movie.nfo"), movieNfo("Primer", 2004, "14337", "tt0390384"))
-		acc.MediaWrite(t, filepath.Join(dir, "poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
+		env.Mkdir(t, testenv.DataDir(), dir)
+		env.WriteFile(t, filepath.Join(dir, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
+		env.WriteFile(t, filepath.Join(dir, "movie.nfo"), movieNfo("Primer", 2004, "14337", "tt0390384"))
+		env.WriteFile(t, filepath.Join(dir, "poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
 		if err := scanUntil("Messy Movies", have+1); err != nil {
 			t.Fatal(err)
 		}
@@ -208,17 +209,17 @@ func TestDeletingAFilmSharingItsFolder(t *testing.T) {
 				t.Error(err)
 			}
 		})
-		acc.MediaMkdir(t, testenv.DataDir(), dir)
+		env.Mkdir(t, testenv.DataDir(), dir)
 		video := fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4")
 		srt := fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt")
 		for _, f := range films {
-			acc.MediaWrite(t, filepath.Join(dir, f.name+".mp4"), video)
-			acc.MediaWrite(t, filepath.Join(dir, f.name+".nfo"), movieNfo(f.title, f.year, f.tmdb, f.imdb))
-			acc.MediaWrite(t, filepath.Join(dir, f.name+".eng.srt"), srt)
-			acc.MediaWrite(t, filepath.Join(dir, f.name+"-poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
+			env.WriteFile(t, filepath.Join(dir, f.name+".mp4"), video)
+			env.WriteFile(t, filepath.Join(dir, f.name+".nfo"), movieNfo(f.title, f.year, f.tmdb, f.imdb))
+			env.WriteFile(t, filepath.Join(dir, f.name+".eng.srt"), srt)
+			env.WriteFile(t, filepath.Join(dir, f.name+"-poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
 		}
 		for _, e := range extra {
-			acc.MediaWrite(t, filepath.Join(dir, e), video)
+			env.WriteFile(t, filepath.Join(dir, e), video)
 		}
 		if err := scanUntil("Messy Movies", have+len(films)); err != nil {
 			t.Fatal(err)
@@ -256,12 +257,12 @@ func TestDeletingAFilmSharingItsFolder(t *testing.T) {
 		for _, p := range want {
 			gone = append(gone, hostPath(p))
 		}
-		keep := acc.TreeOf(t, dir, gone...)
+		keep := env.TreeOf(t, dir, gone...)
 		out := suite.Call(t, "item_delete", map[string]any{"id": id, "confirm": true})
 		if got := removedPaths(t, out); !slices.Equal(got, want) {
 			t.Errorf("removed = %v, want %v", got, want)
 		}
-		acc.SameTree(t, testenv.DataDir(), keep, acc.TreeOf(t, dir))
+		env.SameTree(t, testenv.DataDir(), keep, env.TreeOf(t, dir))
 		if msg := suite.CallErr(t, "item_get", map[string]any{"id": id}); !strings.Contains(msg, "no item") {
 			t.Errorf("item_get of the deleted film: %s", msg)
 		}
@@ -334,10 +335,10 @@ func TestDeletingAFilmLooseInALibrarysFolder(t *testing.T) {
 	const library, name = "Loose Films", "Blade (1998)"
 	root := filepath.Join(testenv.DataDir(), "loose-films")
 	server := "/media/loose-films"
-	acc.MediaMkdir(t, testenv.DataDir(), root)
-	acc.MediaWrite(t, filepath.Join(root, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
-	acc.MediaWrite(t, filepath.Join(root, name+".nfo"), movieNfo("Blade", 1998, "36647", "tt0120611"))
-	acc.MediaWrite(t, filepath.Join(root, name+".eng.srt"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
+	env.Mkdir(t, testenv.DataDir(), root)
+	env.WriteFile(t, filepath.Join(root, name+".mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
+	env.WriteFile(t, filepath.Join(root, name+".nfo"), movieNfo("Blade", 1998, "36647", "tt0120611"))
+	env.WriteFile(t, filepath.Join(root, name+".eng.srt"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
 	t.Cleanup(func() {
 		removeLibrary(t, library)
 		if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
@@ -381,7 +382,7 @@ func TestWhatADeleteWouldTake(t *testing.T) {
 	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
-	before := acc.TreeOf(t, testenv.DataDir())
+	before := env.TreeOf(t, testenv.DataDir())
 	messy, clean := "/media/messy-movies/", "/media/movies/"
 
 	would := func(t *testing.T, id, wantFolder string, want []string) {
@@ -446,5 +447,5 @@ func TestWhatADeleteWouldTake(t *testing.T) {
 		would(t, episode(t, "Star Trek The Next Generation", 1), "", []string{base + ".mp4", base + ".nfo"})
 	})
 
-	acc.SameTree(t, testenv.DataDir(), before, acc.TreeOf(t, testenv.DataDir()))
+	env.SameTree(t, testenv.DataDir(), before, env.TreeOf(t, testenv.DataDir()))
 }

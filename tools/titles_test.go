@@ -13,7 +13,6 @@ import (
 
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // What a film's path names, against every title the item goes by. A folder
@@ -400,8 +399,7 @@ func TestProviderCacheClear(t *testing.T) {
 	}
 
 	f := newFakeServer(t)
-	srv := mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)
-	r := &registry{server: srv, client: f.client(t), opts: Options{Toolsets: []string{"all"}, TMDBKey: "k", ProviderTransport: titlesTMDB(t)}}
+	r := &registry{client: f.client(t), opts: Options{Toolsets: []string{"all"}, TMDBKey: "k", ProviderTransport: titlesTMDB(t)}}
 	queueTools(r)
 	if len(r.providerCaches) == 0 {
 		t.Fatal("no TMDB cache was kept for provider_cache_clear")

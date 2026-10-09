@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
 )
 
 // The 2025 series Asterix & Obelix: The Big Fight, its tvshow.nfo carrying

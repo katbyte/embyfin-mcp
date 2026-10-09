@@ -15,7 +15,7 @@
 # tools are exercised rather than bypassed.
 #
 # The container is pointed at the record/replay proxy the tests run (see
-# lib/providerproxy): the media server, not embyfin-mcp, is what calls TMDB,
+# go-kt's test/replayproxy): the media server, not embyfin-mcp, is what calls TMDB,
 # TheTVDB, OMDb and the image CDNs, so intercepting those calls has to happen
 # at its edge. Both servers are .NET apps, which honour HTTPS_PROXY and, on
 # Linux, trust whatever SSL_CERT_FILE names - so the proxy's certificate
@@ -914,7 +914,7 @@ fixtures() {
 
 # proxy_ca mints the certificate authority the tests' provider proxy signs
 # with, once, so every container started here trusts the same one. The tests
-# load these files (providerproxy.Options.CACert/CAKey) rather than minting
+# load these files (replayproxy.Options.CACert/CAKey) rather than minting
 # their own.
 proxy_ca() {
   [ -f "${PROXY_CA}/ca.pem" ] && [ -f "${PROXY_CA}/ca.key" ] && return 0

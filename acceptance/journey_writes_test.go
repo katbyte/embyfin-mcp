@@ -14,7 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -230,7 +231,7 @@ func TestRenamingALibraryGivenToOneAccount(t *testing.T) {
 		}
 	})
 	suite.Call(t, "library_create", map[string]any{"name": name, "type": "movies", "paths": []any{"/media/access"}, "scan": true, "save_nfo": false})
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool { return typeCount(t, name, "Movie") == 1 }) {
+	if !acc.EventuallyWithin(scanPatience, func() bool { return typeCount(t, name, "Movie") == 1 }) {
 		t.Fatal("the library never held its film")
 	}
 	if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
@@ -343,7 +344,7 @@ func TestThePosterBesideAFilm(t *testing.T) {
 	fixturePoster := fixture(t, "messy-movies/Blade Runner (1982)/poster.jpg")
 	layBack := func() {
 		t.Helper()
-		acc.MediaWrite(t, poster, fixturePoster)
+		env.WriteFile(t, poster, fixturePoster)
 		if !refreshed(t, id) {
 			t.Fatal("the refresh that reads the poster back never ran")
 		}
@@ -573,7 +574,7 @@ func TestArtworkSavedBesideTheMedia(t *testing.T) {
 	restoreLater(t, id)
 	poster := filepath.Join(folder, "poster.jpg")
 	fixturePoster := fixture(t, "messy-movies/Blade Runner (1982)/poster.jpg")
-	acc.MediaWrite(t, poster, fixturePoster)
+	env.WriteFile(t, poster, fixturePoster)
 	if !refreshed(t, id) {
 		t.Fatal("the refresh that reads the poster never ran")
 	}

@@ -14,7 +14,6 @@ on:
       - 'scripts/testenv.sh'
       - 'acceptance/**'
       - 'integration/**'
-      - 'lib/providerproxy/**'
       # sdk/pandorest's tests re-import the specs and regenerate the SDKs,
       # failing when api-defs/, sdk/emby or sdk/jf are stale
       - 'api-defs/**'

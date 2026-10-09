@@ -8,11 +8,10 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/go-kt/whitespace"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -28,8 +27,6 @@ import (
 // item's own title beside the path, and what the title holds where the name
 // has the gap when the two line up: the fix may be putting it back rather
 // than closing the gap.
-
-var whitespaceProblemOrder = []string{"odd_space", "double_space", "edge_space", "space_before_extension", "space_before_colon"}
 
 var whitespaceWhereOrder = []string{"name", "sort_name", "original_title", "genre", "tag", "studio", "person", "folder", "file"}
 
@@ -67,227 +64,6 @@ func personFix(backend embyfin.Backend) string {
 
 	return "not item_edit: renaming a person on Jellyfin takes them off every item that credits them. Put the name right where it came from - the nfo beside an item crediting them - and item_refresh that item, then check the credit: a refresh does not always replace the name an item already credits"
 }
-
-var (
-	// wsRun is two or more spaces in a row
-	wsRun = regexp.MustCompile(` {2,}`)
-	// wsColon is a space before a colon or the look-alike U+A789 a renamer
-	// writes for one, "Title ꞉ Subtitle" where the library has "Title꞉
-	// Subtitle"
-	wsColon = regexp.MustCompile(` +([:꞉])`)
-)
-
-// oddSpace is a space that is not the ordinary one: a tab, a line break, a
-// non-breaking or typographic space. The ideographic space, U+3000, is not
-// one: Japanese titles use it as written.
-func oddSpace(r rune) bool {
-	switch r {
-	case '\t', '\n', '\r', '\v', '\f', 0x85, 0xA0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F:
-		return true
-	}
-
-	return r >= 0x2000 && r <= 0x200A
-}
-
-// typographicSpace is a no-break or narrow space a language's own typography
-// sets on purpose: French puts one before a colon ("Titre : Sous-titre").
-func typographicSpace(r rune) bool {
-	return r == 0xA0 || r == 0x202F || (r >= 0x2000 && r <= 0x200A)
-}
-
-// anySpace is an ordinary space or an odd one.
-func anySpace(r rune) bool { return r == ' ' || oddSpace(r) }
-
-// spaceText is what a text is, which decides what is wrong with its spaces.
-type spaceText int
-
-const (
-	// spaceName is a name or a value: every problem
-	spaceName spaceText = iota
-	// spaceFile is a file name, read as a stem and an extension
-	spaceFile
-	// spaceForeign is an original title, written in its own language: the
-	// space before a colon and the typographic spaces that language's
-	// typography sets are left alone, and only the rest is a problem
-	spaceForeign
-)
-
-// odd is whether a rune is a space out of place in this kind of text.
-func (k spaceText) odd(r rune) bool {
-	return oddSpace(r) && (k != spaceForeign || !typographicSpace(r))
-}
-
-func startsWithSpace(s string) bool {
-	r, _ := utf8.DecodeRuneInString(s)
-	return anySpace(r)
-}
-
-func endsWithSpace(s string) bool {
-	r, _ := utf8.DecodeLastRuneInString(s)
-	return anySpace(r)
-}
-
-// splitExt parts a file name into its stem and its extension; a name whose
-// last dot starts no plausible extension is all stem.
-func splitExt(name string) (stem, ext string) {
-	ext = path.Ext(name)
-	if ext == "" || ext == name || len(ext) > 6 || strings.ContainsFunc(ext, anySpace) {
-		return name, ""
-	}
-
-	return strings.TrimSuffix(name, ext), ext
-}
-
-// whitespaceProblems is what is wrong with the spaces in one text, in
-// whitespaceProblemOrder.
-func whitespaceProblems(name string, k spaceText) []string {
-	var out []string
-	if strings.ContainsFunc(name, k.odd) {
-		out = append(out, "odd_space")
-	}
-	if strings.Contains(name, "  ") {
-		out = append(out, "double_space")
-	}
-	stem, ext := name, ""
-	if k == spaceFile {
-		stem, ext = splitExt(name)
-	}
-	// an odd space at an end is at the end all the same
-	if startsWithSpace(name) || endsWithSpace(name) {
-		out = append(out, "edge_space")
-	}
-	if ext != "" && endsWithSpace(stem) {
-		out = append(out, "space_before_extension")
-	}
-	if k != spaceForeign && wsColon.MatchString(name) {
-		out = append(out, "space_before_colon")
-	}
-
-	return out
-}
-
-// whitespaceVisible writes a text with the offending spaces made visible: ␣
-// for a space in a run, at an end, before a colon or before the extension,
-// and [U+00A0] for a space that is not the ordinary one.
-func whitespaceVisible(name string, k spaceText) string {
-	runes := []rune(name)
-	extAt := len(runes)
-	if k == spaceFile {
-		if _, ext := splitExt(name); ext != "" {
-			extAt = len(runes) - utf8.RuneCountInString(ext)
-		}
-	}
-	var b strings.Builder
-	for i := 0; i < len(runes); {
-		r := runes[i]
-		if k.odd(r) {
-			fmt.Fprintf(&b, "[U+%04X]", r)
-			i++
-
-			continue
-		}
-		if r != ' ' {
-			b.WriteRune(r)
-			i++
-
-			continue
-		}
-		end := i
-		for end < len(runes) && runes[end] == ' ' {
-			end++
-		}
-		colon := k != spaceForeign && end < len(runes) && (runes[end] == ':' || runes[end] == '꞉')
-		mark := end-i > 1 || i == 0 || end == len(runes) || end == extAt || colon
-		for ; i < end; i++ {
-			if mark {
-				b.WriteRune('␣')
-			} else {
-				b.WriteRune(' ')
-			}
-		}
-	}
-
-	return b.String()
-}
-
-// whitespaceFixed is a text with its spaces put right: an odd space made an
-// ordinary one, runs made one, the ends and the space before a colon or the
-// extension dropped.
-func whitespaceFixed(name string, k spaceText) string {
-	s := strings.Map(func(r rune) rune {
-		if k.odd(r) {
-			return ' '
-		}
-		return r
-	}, name)
-	stem, ext := s, ""
-	if k == spaceFile {
-		stem, ext = splitExt(s)
-	}
-	stem = wsRun.ReplaceAllString(stem, " ")
-	if k != spaceForeign {
-		stem = wsColon.ReplaceAllString(stem, "$1")
-	}
-
-	return strings.TrimFunc(stem, anySpace) + ext
-}
-
-// droppedAt is what a title holds where a name has two spaces in a row, when
-// the words either side of the gap are in the title too: ":" for "Dune  Part
-// Two" against "Dune: Part Two", the asterisks of a censored word. "" when
-// the two do not line up, or the title holds nothing there, or more than a
-// few words - which is another name rather than a character a renamer
-// dropped.
-func droppedAt(name, title string) string {
-	gap := wsRun.FindStringIndex(name)
-	if gap == nil {
-		return ""
-	}
-	before, after := strings.Fields(name[:gap[0]]), strings.Fields(name[gap[1]:])
-	if len(before) == 0 || len(after) == 0 {
-		return ""
-	}
-	last, next := before[len(before)-1], after[0]
-	at := indexWord(title, last)
-	if at < 0 {
-		return ""
-	}
-	rest := title[at+len(last):]
-	end := indexWord(rest, next)
-	if end < 0 {
-		return ""
-	}
-	between := strings.TrimFunc(rest[:end], anySpace)
-	if between == "" || len(strings.Fields(between)) > 3 || utf8.RuneCountInString(between) > 24 {
-		return ""
-	}
-
-	return between
-}
-
-// indexWord is where word first stands in s as a word of its own, and not
-// inside a longer one ("IV" in "Episode IV", not in "DIVE"); -1 when it does
-// not.
-func indexWord(s, word string) int {
-	for from := 0; from <= len(s)-len(word); {
-		i := strings.Index(s[from:], word)
-		if i < 0 {
-			return -1
-		}
-		i += from
-		before, _ := utf8.DecodeLastRuneInString(s[:i])
-		after, _ := utf8.DecodeRuneInString(s[i+len(word):])
-		if (i == 0 || !wordChar(before)) && (i+len(word) == len(s) || !wordChar(after)) {
-			return i
-		}
-		from = i + 1
-	}
-
-	return -1
-}
-
-// wordChar is a letter or a digit, of any script.
-func wordChar(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
 
 // sortNameSet is an item's sort name as set by hand or by an nfo, "" when
 // the server made it from the name, and whether it was set. Jellyfin's
@@ -394,11 +170,11 @@ func newWhitespaceSweep(want map[string]bool, libraries []embyfin.LibraryPath, b
 // check reports each problem with one text on the row for item it at path,
 // but those in except. A shared text, key set, is reported once however many
 // items carry it.
-func (w *whitespaceSweep) check(it *embyfin.Item, where, text, key string, k spaceText, at string, except ...string) {
+func (w *whitespaceSweep) check(it *embyfin.Item, where, text, key string, k whitespace.Text, at string, except ...string) {
 	if !w.want[where] {
 		return
 	}
-	for _, problem := range whitespaceProblems(text, k) {
+	for _, problem := range whitespace.Problems(text, k) {
 		if slices.Contains(except, problem) {
 			continue
 		}
@@ -412,14 +188,14 @@ func (w *whitespaceSweep) check(it *embyfin.Item, where, text, key string, k spa
 			w.shared[seen] = len(w.rows)
 		}
 		row := whitespaceRow{
-			Where: where, Problem: problem, Text: whitespaceVisible(text, k), Value: text, Suggest: whitespaceFixed(text, k),
+			Where: where, Problem: problem, Text: whitespace.Visible(text, k), Value: text, Suggest: whitespace.Fixed(text, k),
 			ID: it.ID, Type: it.Type, Title: episodeOrItemName(it), Path: at, Fix: whitespaceFixes[where],
 		}
 		if key != "" {
 			row.Items = 1
 		}
 		if where == "file" && problem == "double_space" {
-			row.Dropped = droppedAt(strings.TrimSuffix(text, path.Ext(text)), it.Name)
+			row.Dropped = whitespace.DroppedAt(strings.TrimSuffix(text, path.Ext(text)), it.Name)
 		}
 		w.rows = append(w.rows, row)
 	}
@@ -428,7 +204,7 @@ func (w *whitespaceSweep) check(it *embyfin.Item, where, text, key string, k spa
 // add reads one item's names and its path.
 func (w *whitespaceSweep) add(it *embyfin.Item) {
 	w.scanned++
-	w.check(it, "name", it.Name, "", spaceName, it.Path)
+	w.check(it, "name", it.Name, "", whitespace.Name, it.Path)
 	// a sort name set by hand is judged whole: it no longer follows the
 	// name, so putting the name right leaves it as it is. One Emby made from
 	// the name keeps the name's spaces, which the name's row says, and is
@@ -436,14 +212,14 @@ func (w *whitespaceSweep) add(it *embyfin.Item) {
 	// of the name, with two spaces where it drops a dash, and not judged
 	switch sort, set := sortNameSet(it, w.backend); {
 	case set:
-		w.check(it, "sort_name", sort, "", spaceName, it.Path)
+		w.check(it, "sort_name", sort, "", whitespace.Name, it.Path)
 	case sort != "" && w.backend == embyfin.Emby:
-		w.check(it, "sort_name", sort, "", spaceName, it.Path, whitespaceProblems(it.Name, spaceName)...)
+		w.check(it, "sort_name", sort, "", whitespace.Name, it.Path, whitespace.Problems(it.Name, whitespace.Name)...)
 	}
 	// an original title the same as the name says nothing the name's row
 	// does not; one that differs is written in its own language
 	if it.OriginalTitle != "" && it.OriginalTitle != it.Name {
-		w.check(it, "original_title", it.OriginalTitle, "", spaceForeign, it.Path)
+		w.check(it, "original_title", it.OriginalTitle, "", whitespace.Foreign, it.Path)
 	}
 	w.path(it, it.Path, true)
 	if it.MediaSourceCount > 1 {
@@ -456,7 +232,7 @@ func (w *whitespaceSweep) add(it *embyfin.Item) {
 func (w *whitespaceSweep) vocabulary(it *embyfin.Item) {
 	for where, field := range map[string]string{"genre": fieldGenres, "tag": fieldTags, "studio": fieldStudios} {
 		for _, v := range valuesOf(field, it) {
-			w.check(it, where, v, v, spaceName, it.Path)
+			w.check(it, where, v, v, whitespace.Name, it.Path)
 		}
 	}
 }
@@ -470,7 +246,7 @@ func (w *whitespaceSweep) peopleOf(ctx context.Context, client *embyfin.Client, 
 	var named []embyfin.Item
 	read, err := sweepAll(ctx, client, embyfin.SearchOptions{IncludeItemTypes: "Person", Fields: "SortName"}, embyfin.ToAnswer, func(items []embyfin.Item) {
 		for i := range items {
-			if len(whitespaceProblems(items[i].Name, spaceName)) > 0 {
+			if len(whitespace.Problems(items[i].Name, whitespace.Name)) > 0 {
 				named = append(named, items[i])
 			}
 		}
@@ -490,7 +266,7 @@ func (w *whitespaceSweep) peopleOf(ctx context.Context, client *embyfin.Client, 
 			continue
 		}
 		before := len(w.rows)
-		w.check(new(embyfin.Item{ID: p.ID, Name: p.Name, Type: "Person"}), "person", p.Name, p.ID, spaceName, "")
+		w.check(new(embyfin.Item{ID: p.ID, Name: p.Name, Type: "Person"}), "person", p.Name, p.ID, whitespace.Name, "")
 		// the person is who the fix is for; the item is one crediting them
 		for j := before; j < len(w.rows); j++ {
 			w.rows[j].Items, w.rows[j].Title, w.rows[j].Path, w.rows[j].Fix = total, episodeOrItemName(&credits[0]), credits[0].Path, w.person
@@ -532,7 +308,7 @@ func (w *whitespaceSweep) path(it *embyfin.Item, p string, own bool) {
 		at = stop
 	}
 	if file {
-		w.check(it, "file", slashed[end+1:], "", spaceFile, p)
+		w.check(it, "file", slashed[end+1:], "", whitespace.File, p)
 	}
 }
 
@@ -550,14 +326,14 @@ func (w *whitespaceSweep) folder(it *embyfin.Item, name, full string, own bool) 
 	case mediapath.Dir(it.Path) == full:
 		rank = 1
 	}
-	for _, problem := range whitespaceProblems(name, spaceName) {
+	for _, problem := range whitespace.Problems(name, whitespace.Name) {
 		key := "folder|" + problem + "|" + full
 		at, seen := w.shared[key]
 		if !seen {
 			at = len(w.rows)
 			w.shared[key] = at
 			w.rows = append(w.rows, whitespaceRow{
-				Where: "folder", Problem: problem, Text: whitespaceVisible(name, spaceName), Value: name, Suggest: whitespaceFixed(name, spaceName),
+				Where: "folder", Problem: problem, Text: whitespace.Visible(name, whitespace.Name), Value: name, Suggest: whitespace.Fixed(name, whitespace.Name),
 				Path: full, Fix: renamedOnDisk,
 			})
 			w.named[at] = -1
@@ -573,7 +349,7 @@ func (w *whitespaceSweep) folder(it *embyfin.Item, name, full string, own bool) 
 			row := &w.rows[at]
 			row.ID, row.Type, row.Title = it.ID, it.Type, episodeOrItemName(it)
 			if problem == "double_space" {
-				row.Dropped = droppedAt(name, it.Name)
+				row.Dropped = whitespace.DroppedAt(name, it.Name)
 			}
 		}
 	}
@@ -611,7 +387,7 @@ func (w *whitespaceSweep) report(limit int) whitespaceOut {
 	slices.SortStableFunc(rows, func(a, b whitespaceRow) int {
 		return cmp.Or(
 			cmp.Compare(slices.Index(whitespaceWhereOrder, a.Where), slices.Index(whitespaceWhereOrder, b.Where)),
-			cmp.Compare(slices.Index(whitespaceProblemOrder, a.Problem), slices.Index(whitespaceProblemOrder, b.Problem)),
+			cmp.Compare(slices.Index(whitespace.ProblemOrder, a.Problem), slices.Index(whitespace.ProblemOrder, b.Problem)),
 			cmp.Compare(a.Path, b.Path),
 			cmp.Compare(a.Text, b.Text),
 			cmp.Compare(a.ID, b.ID),

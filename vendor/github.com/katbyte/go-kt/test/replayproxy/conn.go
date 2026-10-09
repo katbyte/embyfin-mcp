@@ -1,4 +1,4 @@
-package providerproxy
+package replayproxy
 
 import (
 	"bufio"
@@ -47,6 +47,9 @@ type connResponse struct {
 	header http.Header
 	closed bool
 	wrote  bool
+	// last says the answer went out with no length, so it ends where the
+	// connection does and the tunnel must close behind it
+	last bool
 }
 
 func (c *connResponse) Header() http.Header {
@@ -62,6 +65,15 @@ func (c *connResponse) WriteHeader(status int) {
 		return
 	}
 	c.wrote = true
+
+	// an answer with no length ends where the connection does (http.Error
+	// writes one), and the tunnel is otherwise held open for the next
+	// request: the client would wait out the tunnel's idle minute for the
+	// end of a one-line body. Say this one closes, and close it (tunnel)
+	if c.Header().Get("Content-Length") == "" && bodyAllowed(status) {
+		c.Header().Set("Connection", "close")
+		c.last = true
+	}
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "HTTP/1.1 %d %s\r\n", status, http.StatusText(status))
@@ -82,6 +94,11 @@ func (c *connResponse) WriteHeader(status int) {
 	if _, err := c.conn.Write([]byte(b.String())); err != nil {
 		c.closed = true
 	}
+}
+
+// bodyAllowed reports whether an answer with this status can carry a body.
+func bodyAllowed(status int) bool {
+	return status >= http.StatusOK && status != http.StatusNoContent && status != http.StatusNotModified
 }
 
 func (c *connResponse) Write(p []byte) (int, error) {

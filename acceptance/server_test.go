@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
 
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
@@ -250,7 +250,7 @@ func TestTasks(t *testing.T) {
 	if acc.Str(run["started"]) != acc.Str(scan["name"]) {
 		t.Errorf("task_run started %v, want %v", run["started"], scan["name"])
 	}
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool { at, _ := taskRun(t, acc.Str(scan["name"])); return at.After(was) }) {
+	if !acc.EventuallyWithin(scanPatience, func() bool { at, _ := taskRun(t, acc.Str(scan["name"])); return at.After(was) }) {
 		t.Errorf("the scan task's last run is still %v after task_run", was)
 	}
 	if err := suite.WaitForScan(); err != nil {

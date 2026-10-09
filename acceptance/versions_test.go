@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -43,8 +44,8 @@ func searchKey(query string) string {
 func stageFile(t *testing.T, path string, data []byte) {
 	t.Helper()
 
-	acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(path))
-	acc.MediaWrite(t, path, data)
+	env.Mkdir(t, testenv.DataDir(), filepath.Dir(path))
+	env.WriteFile(t, path, data)
 	t.Cleanup(func() { _ = os.Remove(path) })
 }
 

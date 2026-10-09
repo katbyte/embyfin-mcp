@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
 )
 
 // The tools a folder reconcile leans on, against real servers. The unit tests

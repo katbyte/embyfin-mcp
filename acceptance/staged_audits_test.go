@@ -9,7 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -78,7 +79,7 @@ func TestAuditQualityCannotReadATruncatedFile(t *testing.T) {
 	_, before, _ := audit()
 
 	whole := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
-	acc.MediaWrite(t, file, whole[:4096])
+	env.WriteFile(t, file, whole[:4096])
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 6); return there })
 
 	row, total, found := audit()
@@ -111,7 +112,7 @@ func TestAFolderRenamedWithAYear(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	acc.CopyTree(t, testenv.DataDir(), src, dst)
+	env.CopyTree(t, testenv.DataDir(), src, dst)
 	if err := scanUntil("Messy Shows", have+1); err != nil {
 		t.Fatal(err)
 	}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/katbyte/go-kt/mcp/acctest"
 )
 
 // ScanPatience is how long a library scan is given: quick on a quiet
@@ -28,7 +30,7 @@ func (s *Suite) TypeCount(library, kind string) (int, error) {
 		return 0, nil
 	}
 
-	return NumOr0(counts[kind]), nil
+	return acctest.NumOr0(counts[kind]), nil
 }
 
 // TypeCounts is a library's type_counts right now, empty when it cannot be
@@ -41,7 +43,7 @@ func (s *Suite) TypeCounts(library string) map[string]int {
 	}
 	if raw, ok := out["type_counts"].(map[string]any); ok {
 		for k, v := range raw {
-			counts[k] = NumOr0(v)
+			counts[k] = acctest.NumOr0(v)
 		}
 	}
 
@@ -150,8 +152,8 @@ func (s *Suite) ScanIdle() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	for _, row := range RowsOf(out["tasks"]) {
-		if strings.Contains(strings.ToLower(Str(row["name"])), "scan media library") && Str(row["state"]) != "Idle" {
+	for _, row := range acctest.RowsOf(out["tasks"]) {
+		if strings.Contains(strings.ToLower(acctest.Str(row["name"])), "scan media library") && acctest.Str(row["state"]) != "Idle" {
 			return false, nil
 		}
 	}

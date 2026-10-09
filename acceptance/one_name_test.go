@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
 )
 
 // Limitless is a film of 2011 in the clean movie library and a series of

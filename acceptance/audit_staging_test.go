@@ -9,7 +9,8 @@ import (
 	"slices"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -94,8 +95,8 @@ func stage(t *testing.T, want func(before holdings) holdings, files map[string][
 	// in a stable order, so a failure reads the same each run
 	for _, rel := range slices.Sorted(maps.Keys(files)) {
 		path := filepath.Join(testenv.DataDir(), rel)
-		acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(path))
-		acc.MediaWrite(t, path, files[rel])
+		env.Mkdir(t, testenv.DataDir(), filepath.Dir(path))
+		env.WriteFile(t, path, files[rel])
 	}
 	after := want(before)
 	rescanUntil(t, "the staged files in the libraries", func() bool { return messyHoldings(t) == after })

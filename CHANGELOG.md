@@ -17,6 +17,9 @@
 ### Changed
 
 - the SDKs and their generator live under `sdk/`: `sdk/emby`, `sdk/jf` and `sdk/tmdb` (generated), `sdk/client` (the base client they share), `sdk/embyfin` (the layer that makes both servers answer alike) and `sdk/pandorest` (the generator), so a Go program importing them uses the new paths
+- the spelling and whitespace checks are go-kt's, shared with abs-mcp; `lib/naming.FoldLetter` is gone, and go-kt's `spelling.FoldLetter` is the same table
+- serving, choosing which tools a session gets, the locks that keep two edits of one item apart, and the tests' recording proxy and suite are go-kt v0.4.0's, shared with the other MCP servers. The tools, their names and what each tells a client are unchanged; `lib/providerproxy` is gone
+- over HTTP, a session its client left open and stopped using is closed after half an hour
 
 ### Added
 
@@ -32,6 +35,7 @@
 ### Fixed
 
 - a date from TMDB or the server that can't be read is an error naming the item, not a missing date or a guess
+- stopping the HTTP server with a client still connected is immediate and clean: it waited ten seconds and exited with an error
 - a failed server read while finding a show by name, or while checking a folder, is reported instead of dropped
 - a number in the anime list that can't be read is an error naming the entry, not an episode dropped
 - `audit_missing_episodes` judges a show in two folders named alike as one show, rather than reporting as missing what the other folder holds

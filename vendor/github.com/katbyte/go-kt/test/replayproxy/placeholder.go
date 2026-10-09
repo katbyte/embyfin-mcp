@@ -1,13 +1,13 @@
-package providerproxy
+package replayproxy
 
 import "encoding/base64"
 
-// Media bodies are never committed: a poster is hundreds of kilobytes and a
-// trailer is tens of megabytes, and neither is what these tests are about.
-// They are elided at record time and replaced on replay by the smallest valid
-// file of the same kind, so the media server still gets something it can
-// decode and save - which is the behaviour under test - without the
-// repository carrying a provider's artwork.
+// Media bodies are never committed: a poster or a cover is hundreds of
+// kilobytes and a trailer or an episode is tens of megabytes, and neither is
+// what these tests are about. They are elided at record time and replaced on
+// replay by the smallest valid file of the same kind, so the server still
+// gets something it can decode and save - which is the behaviour under test -
+// without the repository carrying a service's artwork.
 //
 // Both are 2x2 grey, produced with:
 //
@@ -20,7 +20,7 @@ var (
 func mustDecode(s string) []byte {
 	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		panic("providerproxy: bad placeholder image: " + err.Error())
+		panic("replayproxy: bad placeholder image: " + err.Error())
 	}
 
 	return b

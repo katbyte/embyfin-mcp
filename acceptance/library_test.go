@@ -14,7 +14,8 @@ import (
 	"testing"
 	"time"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -518,8 +519,8 @@ func TestLibraryScanPicksUpNewFiles(t *testing.T) {
 	raw := fixtureVideo(t, "movies", "Princess Mononoke (1997)", "Princess Mononoke (1997).mp4")
 	stageFilm := func(library, title string) string {
 		dir := filepath.Join(testenv.DataDir(), library, title)
-		acc.MediaMkdir(t, testenv.DataDir(), dir)
-		acc.MediaWrite(t, filepath.Join(dir, title+".mp4"), raw)
+		env.Mkdir(t, testenv.DataDir(), dir)
+		env.WriteFile(t, filepath.Join(dir, title+".mp4"), raw)
 		return dir
 	}
 	collateral := stageFilm("movies", "Collateral (2004)")
@@ -592,8 +593,8 @@ func TestLibraryLifecycle(t *testing.T) {
 	lay := func(folder string, titles ...string) {
 		for _, title := range titles {
 			dir := filepath.Join(testenv.DataDir(), folder, title)
-			acc.MediaMkdir(t, testenv.DataDir(), dir)
-			acc.MediaWrite(t, filepath.Join(dir, title+".mp4"), raw)
+			env.Mkdir(t, testenv.DataDir(), dir)
+			env.WriteFile(t, filepath.Join(dir, title+".mp4"), raw)
 		}
 		t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(testenv.DataDir(), folder)) })
 	}
@@ -754,7 +755,7 @@ func TestLibraryCreateKinds(t *testing.T) {
 	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
-	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(testenv.DataDir(), "kinds-empty"))
+	env.Mkdir(t, testenv.DataDir(), filepath.Join(testenv.DataDir(), "kinds-empty"))
 	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(testenv.DataDir(), "kinds-empty")) })
 
 	// Emby calls a mixed library mixed; Jellyfin gives it no kind at all
@@ -804,7 +805,7 @@ func TestLibraryEditRefusals(t *testing.T) {
 	if testenv.DataDir() == "" {
 		t.Skip("EMBYFIN_TEST_DATA is not set")
 	}
-	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(testenv.DataDir(), "edit-empty"))
+	env.Mkdir(t, testenv.DataDir(), filepath.Join(testenv.DataDir(), "edit-empty"))
 	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(testenv.DataDir(), "edit-empty")) })
 	const name = "Zzyzx Edits"
 	t.Cleanup(func() {
@@ -844,7 +845,7 @@ func TestLibraryEditRefusals(t *testing.T) {
 	}
 	// the new folder's two streams are films of the library once it is scanned
 	suite.Call(t, "library_scan", map[string]any{"library": id})
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool { return suite.TypeCounts(name)["Movie"] == 2 }) {
+	if !acc.EventuallyWithin(scanPatience, func() bool { return suite.TypeCounts(name)["Movie"] == 2 }) {
 		t.Errorf("%s never held the two streams: %v", name, suite.TypeCounts(name))
 	}
 	if err := suite.WaitForScan(); err != nil {
@@ -861,8 +862,8 @@ func TestLibraryNfoSaving(t *testing.T) {
 	}
 	raw := fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4")
 	dir := filepath.Join(testenv.DataDir(), "nfo-saving", "Triangle (2009)")
-	acc.MediaMkdir(t, testenv.DataDir(), dir)
-	acc.MediaWrite(t, filepath.Join(dir, "Triangle (2009).mp4"), raw)
+	env.Mkdir(t, testenv.DataDir(), dir)
+	env.WriteFile(t, filepath.Join(dir, "Triangle (2009).mp4"), raw)
 	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(testenv.DataDir(), "nfo-saving")) })
 	const name = "Nfo Saving"
 	t.Cleanup(func() {

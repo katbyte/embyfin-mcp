@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/go-kt/parallel"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -319,7 +320,7 @@ func previewProblem(p *embyfin.Preview, it *embyfin.Item) (problem, detail strin
 // once. A request that fails ends the read and names the video.
 func readPreviews(ctx context.Context, client *embyfin.Client, videos []previewVideo) ([]embyfin.Preview, error) {
 	previews := make([]embyfin.Preview, len(videos))
-	err := eachAtOnce(ctx, len(videos), func(ctx context.Context, i int) error {
+	err := parallel.Each(ctx, len(videos), readsAtOnce, func(ctx context.Context, i int) error {
 		p, err := client.PreviewOf(ctx, videos[i].item.ID)
 		if err != nil {
 			return fmt.Errorf("reading the preview thumbnails of %s (%s): %w", episodeOrItemName(&videos[i].item), videos[i].item.ID, err)

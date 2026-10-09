@@ -203,7 +203,7 @@ func (c *Client) remoteSearchJF(ctx context.Context, kind, itemID, name string, 
 // and ids that change to something else and stay so are an error naming what
 // the server kept. An edit of the item from this process waits for it.
 func (c *Client) ApplyRemoteSearchResult(ctx context.Context, itemID string, result RemoteSearchResult, replaceAllImages bool) (*Item, error) {
-	unlock := c.items.lock(itemID)
+	unlock := c.lockItem(itemID)
 	defer unlock()
 
 	// on Emby, once the item has gone a second unsaved, so the refresh's

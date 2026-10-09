@@ -54,10 +54,10 @@ func (c *Client) CreateCollection(ctx context.Context, name string, itemIDs []st
 // Jellyfin saves a collection's members as a list it reads and writes back,
 // so two adds at once lose one (a journey saw five parallel adds keep four);
 // changes to one collection from this process are made one at a time (see
-// keyedLocks), and an add that a scan's refresh of the collection wrote over
+// lockItem), and an add that a scan's refresh of the collection wrote over
 // is sent once more before it is an error, as a removal is.
 func (c *Client) AddToCollection(ctx context.Context, collectionID string, itemIDs []string) error {
-	unlock := c.items.lock(collectionID)
+	unlock := c.lockItem(collectionID)
 	defer unlock()
 
 	missing := itemIDs
@@ -79,7 +79,7 @@ func (c *Client) AddToCollection(ctx context.Context, collectionID string, itemI
 // a scan's, can save it without them, as it can an add. Items it lost are
 // sent once more before it is an error.
 func (c *Client) KeepMembers(ctx context.Context, collectionID string, itemIDs []string) error {
-	unlock := c.items.lock(collectionID)
+	unlock := c.lockItem(collectionID)
 	defer unlock()
 
 	missing, err := c.collectionMissing(ctx, collectionID, itemIDs)
@@ -153,7 +153,7 @@ func (c *Client) addMembers(ctx context.Context, collectionID string, itemIDs []
 // scan), as it can drop an add: an item asked for that has not left, or came
 // back, is sent once more, alone, before it is an error.
 func (c *Client) RemoveFromCollection(ctx context.Context, collectionID string, itemIDs []string) error {
-	unlock := c.items.lock(collectionID)
+	unlock := c.lockItem(collectionID)
 	defer unlock()
 
 	held, err := c.CollectionMembers(ctx, collectionID)

@@ -12,7 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -241,7 +242,7 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 			t.Errorf("after a refresh the film holds tmdb %s, want the nfo's 438631 back, as warned", got)
 		}
 		// the nfo made to agree, the match holds
-		acc.MediaWrite(t, nfo, retag(original, map[string]string{"tmdb": "438631", "imdb": "tt1160419"}, map[string]string{"tmdb": "841", "imdb": "tt0087182"}))
+		env.WriteFile(t, nfo, retag(original, map[string]string{"tmdb": "438631", "imdb": "tt1160419"}, map[string]string{"tmdb": "841", "imdb": "tt0087182"}))
 		matchLynch()
 		if !refreshed(t, dune) {
 			t.Fatal("the refresh never ran")
@@ -249,7 +250,7 @@ func TestMatchingAgainstAnNfo(t *testing.T) {
 		if got := tmdb(); got != "841" {
 			t.Errorf("with the nfo naming Lynch's film, after a refresh the film holds tmdb %s", got)
 		}
-		acc.MediaWrite(t, nfo, original)
+		env.WriteFile(t, nfo, original)
 	}
 
 	// undone by the tools: the 2021 film's match

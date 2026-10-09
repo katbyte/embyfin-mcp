@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
 )
 
 func TestCollections(t *testing.T) {

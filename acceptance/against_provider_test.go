@@ -10,7 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -74,9 +75,9 @@ func TestAuditProviderIDs(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	acc.MediaMkdir(t, testenv.DataDir(), dir)
-	acc.MediaWrite(t, filepath.Join(dir, "The Machinist (2004).mp4"), raw)
-	acc.MediaWrite(t, filepath.Join(dir, "movie.nfo"), []byte(`<?xml version="1.0" encoding="utf-8"?>
+	env.Mkdir(t, testenv.DataDir(), dir)
+	env.WriteFile(t, filepath.Join(dir, "The Machinist (2004).mp4"), raw)
+	env.WriteFile(t, filepath.Join(dir, "movie.nfo"), []byte(`<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>The Machinist</title>
   <year>2004</year>

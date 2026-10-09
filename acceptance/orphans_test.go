@@ -13,7 +13,8 @@ import (
 	"testing"
 	"time"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
@@ -83,7 +84,7 @@ func TestOrphans(t *testing.T) {
 	// a folder on disk that no library reads: what is under it is real, so
 	// the delete refuses it
 	present := filepath.Join(testenv.DataDir(), "orphans-present")
-	acc.MediaMkdir(t, testenv.DataDir(), present)
+	env.Mkdir(t, testenv.DataDir(), present)
 	t.Cleanup(func() { _ = os.RemoveAll(present) })
 	for folder, want := range map[string]string{
 		"/media/movies":                "inside the Movies library",
@@ -109,8 +110,8 @@ func TestOrphans(t *testing.T) {
 	kept := filepath.Join(testenv.DataDir(), "orphans-kept")
 	films := map[string]string{"The Matrix (1999)": removed, "The Matrix Reloaded (2003)": removed, "The Matrix Revolutions (2003)": kept}
 	for title, dir := range films {
-		acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(dir, title))
-		acc.MediaWrite(t, filepath.Join(dir, title, title+".mp4"), raw)
+		env.Mkdir(t, testenv.DataDir(), filepath.Join(dir, title))
+		env.WriteFile(t, filepath.Join(dir, title, title+".mp4"), raw)
 	}
 	const name, again = "Orphans Live", "Orphans Kept"
 	t.Cleanup(func() {
@@ -142,7 +143,7 @@ func TestOrphans(t *testing.T) {
 		t.Fatal(err)
 	}
 	// the live library beside it, to hold to what it was
-	live := acc.TreeOf(t, filepath.Join(testenv.DataDir(), "movies"))
+	live := env.TreeOf(t, filepath.Join(testenv.DataDir(), "movies"))
 
 	if !isJellyfin() {
 		// one folder taken out of the library, with no scan asked for, and
@@ -165,7 +166,7 @@ func TestOrphans(t *testing.T) {
 		if got := typeCount(t, "Movies", "Movie"); got != movies {
 			t.Errorf("Movies holds %d films, %d before", got, movies)
 		}
-		acc.SameTree(t, testenv.DataDir(), live, acc.TreeOf(t, filepath.Join(testenv.DataDir(), "movies")))
+		env.SameTree(t, testenv.DataDir(), live, env.TreeOf(t, filepath.Join(testenv.DataDir(), "movies")))
 		return
 	}
 
@@ -294,7 +295,7 @@ func TestOrphans(t *testing.T) {
 	if got := typeCount(t, "Movies", "Movie"); got != movies {
 		t.Errorf("Movies holds %d films after the delete, %d before", got, movies)
 	}
-	acc.SameTree(t, testenv.DataDir(), live, acc.TreeOf(t, filepath.Join(testenv.DataDir(), "movies")))
+	env.SameTree(t, testenv.DataDir(), live, env.TreeOf(t, filepath.Join(testenv.DataDir(), "movies")))
 
 	// what held The Matrix let it go, and is still there with the film that
 	// stays
@@ -352,10 +353,10 @@ func TestOrphansManyAtOnce(t *testing.T) {
 	const name, folder, count = "Orphans Show", "/media/orphans-show", 60
 	root := filepath.Join(testenv.DataDir(), "orphans-show")
 	season := filepath.Join(root, "DuckTales (1987)", "Season 01")
-	acc.MediaMkdir(t, testenv.DataDir(), season)
+	env.Mkdir(t, testenv.DataDir(), season)
 	ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
 	for n := 1; n <= count; n++ {
-		acc.MediaWrite(t, filepath.Join(season, fmt.Sprintf("DuckTales S01E%02d.mp4", n)), ep)
+		env.WriteFile(t, filepath.Join(season, fmt.Sprintf("DuckTales S01E%02d.mp4", n)), ep)
 	}
 	t.Cleanup(func() {
 		_ = os.RemoveAll(root)
@@ -452,8 +453,8 @@ func TestDeleteItemsInOneRequest(t *testing.T) {
 	raw := fixtureVideo(t, "movies", "Arrival (2016)", "Arrival (2016).mp4")
 	films := []string{"The Matrix (1999)", "The Matrix Reloaded (2003)"}
 	for _, f := range films {
-		acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(root, f))
-		acc.MediaWrite(t, filepath.Join(root, f, f+".mp4"), raw)
+		env.Mkdir(t, testenv.DataDir(), filepath.Join(root, f))
+		env.WriteFile(t, filepath.Join(root, f, f+".mp4"), raw)
 	}
 	t.Cleanup(func() {
 		removeLibrary(t, name)

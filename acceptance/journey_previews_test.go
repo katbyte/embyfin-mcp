@@ -11,8 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 )
 
 // previewOptions turns a library's preview thumbnails on or off the way the
@@ -100,7 +101,7 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 	})
 	// its fetchers off: what a refresh fills, it fills from the nfo beside the film
 	suite.Call(t, "library_create", map[string]any{"name": library, "type": "movies", "paths": []any{"/media/previews"}, "scan": true, "save_nfo": false, "providers": false})
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool { return typeCount(t, library, "Movie") == len(films) }) {
+	if !acc.EventuallyWithin(scanPatience, func() bool { return typeCount(t, library, "Movie") == len(films) }) {
 		t.Fatal("the library never held its films")
 	}
 	if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
@@ -166,7 +167,7 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 		t.Helper()
 		was, _ := taskRun(t, task)
 		suite.Call(t, "task_run", map[string]any{"task": task})
-		if !acc.EventuallyWithin(acc.ScanPatience, func() bool {
+		if !acc.EventuallyWithin(scanPatience, func() bool {
 			at, row := taskRun(t, task)
 
 			return at.After(was) && acc.Str(row["state"]) == "Idle"
@@ -194,7 +195,7 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 
 	// the film by id: its file is made beside it, and nothing else there
 	// is touched
-	before := acc.TreeOf(t, filepath.Join(dir, bruno))
+	before := env.TreeOf(t, filepath.Join(dir, bruno))
 	out, rows = regenerate(map[string]any{"ids": []any{ids[bruno]}})
 	if len(rows) != 1 || acc.Num(t, out["made"], "made") != 1 || acc.Num(t, out["videos_checked"], "videos_checked") != 1 || out["stopped"] != nil || out["note"] != nil {
 		t.Fatalf("item_previews_regenerate for one film = %v", out)
@@ -206,7 +207,7 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 	if made, err := os.Stat(file(bruno)); err != nil || made.Size() < 10_000 {
 		t.Fatalf("the film's thumbnails are not beside it as %s: %v", filepath.Base(file(bruno)), err)
 	}
-	acc.SameTree(t, filepath.Join(dir, bruno), before, acc.TreeOf(t, filepath.Join(dir, bruno), file(bruno)))
+	env.SameTree(t, filepath.Join(dir, bruno), before, env.TreeOf(t, filepath.Join(dir, bruno), file(bruno)))
 	if got := problems(); len(got) != 0 {
 		t.Errorf("made, the audit still finds %v", got)
 	}
@@ -243,7 +244,7 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 		if err := os.Remove(file(limitless)); err != nil {
 			t.Fatal(err)
 		}
-		acc.MediaWrite(t, file(limitless), c.bytes)
+		env.WriteFile(t, file(limitless), c.bytes)
 		_, found := audit(map[string]any{"ids": []any{ids[limitless]}})
 		if len(found) != 1 || acc.Str(found[0]["problem"]) != c.problem || !strings.Contains(acc.Str(found[0]["detail"]), c.detail) || acc.Str(found[0]["id"]) != ids[limitless] {
 			t.Errorf("a file %s is found as %v, want %s: %s", c.what, found, c.problem, c.detail)
@@ -316,8 +317,8 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 	// a video Emby cannot read: the refresh runs, and none is made
 	const cut = "Arrival (2016)"
 	whole := fixtureVideo(t, "movies", cut, cut+".mp4")
-	acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(dir, cut))
-	acc.MediaWrite(t, filepath.Join(dir, cut, cut+".mp4"), whole[:4096])
+	env.Mkdir(t, testenv.DataDir(), filepath.Join(dir, cut))
+	env.WriteFile(t, filepath.Join(dir, cut, cut+".mp4"), whole[:4096])
 	var cutID string
 	scanUntilTrue(t, library, func() bool {
 		for path, it := range itemsUnder(t, library, "/media/previews/"+cut) {

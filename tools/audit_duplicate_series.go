@@ -9,6 +9,7 @@ import (
 
 	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	spell "github.com/katbyte/go-kt/spelling"
 )
 
 // Two folders for one show: audit_duplicates' folder_groups.
@@ -35,7 +36,7 @@ func folderKey(name string) string {
 	for _, r := range strings.ToLower(name) {
 		spelling, word := string(r), r >= 'a' && r <= 'z' || r >= '0' && r <= '9'
 		if r >= utf8.RuneSelf {
-			spelling, word = wordRune(r, latin)
+			spelling, word = spell.WordRune(r, latin)
 		}
 		switch {
 		case !word:

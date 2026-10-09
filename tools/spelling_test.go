@@ -7,44 +7,8 @@ import (
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	spell "github.com/katbyte/go-kt/spelling"
 )
-
-// A value in another script keeps its letters. Folding them away made
-// "Zzyzx Studio α" and "Zzyzx Studio β" one spelling of one studio, with a
-// merge advised, and left a value written wholly in another script out of
-// the audit altogether.
-func TestNormKeepsEveryScript(t *testing.T) {
-	t.Parallel()
-
-	for _, pair := range [][2]string{
-		{"進撃の巨人", "鬼滅の刃"},
-		{"Zzyzx Studio α", "Zzyzx Studio β"},
-		{"Тихий дом", "Тихий сад"},
-	} {
-		a, b := norm(pair[0]), norm(pair[1])
-		if a == "" || b == "" || a == b {
-			t.Errorf("%q and %q are different values: %q against %q", pair[0], pair[1], a, b)
-		}
-	}
-	for in, want := range map[string]string{
-		"ТИХИЙ ДОМ":         "тихий дом",
-		"Zzyzx Studio Α":    "zzyzx studio α",
-		"星の森\u3000特集":       "星の森 特集", // an ideographic space is a space
-		"Amélie":            "amelie",
-		"Ame\u0301lie":      "amelie", // the accent written as a separate mark
-		"  Sci-Fi / Drama ": "sci fi drama",
-	} {
-		if got := norm(in); got != want {
-			t.Errorf("norm(%q) = %q, want %q", in, got, want)
-		}
-	}
-
-	// a length is counted in letters: two ideographs are too short to call
-	// a typo apart, however many bytes they take
-	if typoApart(norm("星光"), norm("月光")) || truncationOf(norm("東星"), norm("東星 映画")) {
-		t.Error("two-letter values were judged as long ones")
-	}
-}
 
 // The report over values in other scripts: two spellings of one tag in
 // Cyrillic are one group, and two studios a Greek letter apart are never
@@ -103,8 +67,8 @@ func TestSpellingKeepsWordsAndMarksApart(t *testing.T) {
 		{"teenage love", "teenage lve", true},
 		{"coming of age", "coming of ace", false}, // a short word changed: another word
 	} {
-		if got := typoApart(norm(tc.a), norm(tc.b)); got != tc.want {
-			t.Errorf("typoApart(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		if got := spell.TypoApart(spell.Key(tc.a), spell.Key(tc.b)); got != tc.want {
+			t.Errorf("spell.TypoApart(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
 		}
 	}
 

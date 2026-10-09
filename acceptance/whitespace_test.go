@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 )
 
 // wsRow is one audit_whitespace row as a test compares it.
@@ -287,7 +288,7 @@ func TestAuditWhitespacePersonFix(t *testing.T) {
 	}
 	// and what it says to do: the name put right in the nfo, the film
 	// refreshed, the credit checked
-	acc.MediaWrite(t, hostPath("/media/"+folder+"/Aliens (1986).nfo"), nfo("James Cameron"))
+	env.WriteFile(t, hostPath("/media/"+folder+"/Aliens (1986).nfo"), nfo("James Cameron"))
 	if out := suite.Call(t, "item_refresh", map[string]any{"id": aliens}); !acc.BoolOf(out["landed"]) {
 		t.Fatalf("the refresh never landed: %v", out)
 	}

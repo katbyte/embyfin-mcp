@@ -1,4 +1,4 @@
-package acceptance
+package env
 
 import (
 	"bytes"
@@ -10,19 +10,19 @@ import (
 	"testing"
 )
 
-// Files under the media tree the server's container reads, bind-mounted
-// from root on this machine.
+// Files under the tree the server's container reads, bind-mounted from root
+// on this machine (Env.DataDir).
 
-// MediaMkdir makes a directory under the bind-mounted media tree at root
-// that the media server's own user can write in, and MediaWrite writes a
-// file there. The mode asked of MkdirAll and WriteFile is filtered by the
-// process umask, which on Linux leaves a directory nobody but the test can
-// write to - so the server (uid 2 in Emby's image, root in Jellyfin's)
-// cannot delete a file the test laid out, and item_delete fails. chmod is
-// not filtered by the umask, so the mode asked for is the mode applied.
-// Docker Desktop hides this by mapping every file to the container's user,
-// which is why it only bites in CI.
-func MediaMkdir(t *testing.T, root, dir string) {
+// Mkdir makes a directory under the bind-mounted tree at root that the
+// server's own user can write in, and WriteFile writes a file there. The mode
+// asked of MkdirAll and WriteFile is filtered by the process umask, which on
+// Linux leaves a directory nobody but the test can write to - so a server
+// running as another user in its container cannot delete a file the test laid
+// out, and a tool that asks it to fails. chmod is not filtered by the umask,
+// so the mode asked for is the mode applied. Docker Desktop hides this by
+// mapping every file to the container's user, which is why it only bites in
+// CI.
+func Mkdir(t *testing.T, root, dir string) {
 	t.Helper()
 
 	if err := os.MkdirAll(dir, 0o777); err != nil { //nolint:gosec // the container reads it as another user
@@ -35,9 +35,9 @@ func MediaMkdir(t *testing.T, root, dir string) {
 	}
 }
 
-// MediaWrite writes a file the media server's own user can write over or
-// remove (see MediaMkdir).
-func MediaWrite(t *testing.T, path string, data []byte) {
+// WriteFile writes a file the server's own user can write over or remove (see
+// Mkdir).
+func WriteFile(t *testing.T, path string, data []byte) {
 	t.Helper()
 
 	if err := os.WriteFile(path, data, 0o666); err != nil { //nolint:gosec // the container reads it as another user
@@ -48,8 +48,8 @@ func MediaWrite(t *testing.T, path string, data []byte) {
 	}
 }
 
-// CopyTree copies a folder under the media tree at root, and everything
-// under it, to a new place.
+// CopyTree copies a folder under the tree at root, and everything under it,
+// to a new place.
 func CopyTree(t *testing.T, root, src, dst string) {
 	t.Helper()
 
@@ -59,7 +59,7 @@ func CopyTree(t *testing.T, root, src, dst string) {
 		}
 		to := filepath.Join(dst, strings.TrimPrefix(path, src))
 		if d.IsDir() {
-			MediaMkdir(t, root, to)
+			Mkdir(t, root, to)
 
 			return nil
 		}
@@ -67,7 +67,7 @@ func CopyTree(t *testing.T, root, src, dst string) {
 		if rerr != nil {
 			return rerr
 		}
-		MediaWrite(t, to, raw)
+		WriteFile(t, to, raw)
 
 		return nil
 	}); err != nil {
@@ -112,16 +112,28 @@ func TreeOf(t *testing.T, root string, skip ...string) map[string][]byte {
 func SameTree(t *testing.T, root string, before, after map[string][]byte) {
 	t.Helper()
 
+	for _, problem := range treeChanges(root, before, after) {
+		t.Error(problem)
+	}
+}
+
+// treeChanges names every path that differs between two reads of a tree, in
+// order.
+func treeChanges(root string, before, after map[string][]byte) []string {
+	var out []string
 	for path, raw := range before {
 		if now, ok := after[path]; !ok || !bytes.Equal(now, raw) {
-			t.Errorf("%s changed or went", strings.TrimPrefix(path, root))
+			out = append(out, strings.TrimPrefix(path, root)+" changed or went")
 		}
 	}
 	for path := range after {
 		if _, ok := before[path]; !ok {
-			t.Errorf("%s appeared", strings.TrimPrefix(path, root))
+			out = append(out, strings.TrimPrefix(path, root)+" appeared")
 		}
 	}
+	slices.Sort(out)
+
+	return out
 }
 
 // FilesUnder reads every file under the folders, to hold them to later
@@ -155,9 +167,21 @@ func FilesUnder(t *testing.T, dirs ...string) map[string][]byte {
 func StillOnDisk(t *testing.T, root string, files map[string][]byte, after string) {
 	t.Helper()
 
+	for _, problem := range filesChanged(root, files, after) {
+		t.Error(problem)
+	}
+}
+
+// filesChanged names every file that is no longer on disk as it was read,
+// in order.
+func filesChanged(root string, files map[string][]byte, after string) []string {
+	var out []string
 	for path, raw := range files {
 		if now, err := os.ReadFile(path); err != nil || !bytes.Equal(now, raw) { //nolint:gosec // a fixture under the test data dir
-			t.Errorf("%s went or changed with %s: %v", strings.TrimPrefix(path, root), after, err)
+			out = append(out, strings.TrimPrefix(path, root)+" went or changed with "+after)
 		}
 	}
+	slices.Sort(out)
+
+	return out
 }

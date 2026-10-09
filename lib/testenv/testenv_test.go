@@ -1,16 +1,15 @@
 package testenv
 
 import (
-	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/lib/providerproxy"
+	"github.com/katbyte/go-kt/test/replayproxy"
 )
 
-// The environment is read as scripts/testenv.sh writes it: a data dir that
-// is not set is "", not ./media, so a test that lays files out skips rather
-// than writing into the checkout; the proxy port is 18080 unless set, and a
-// port that is no number is refused.
+// The environment is read as scripts/testenv.sh writes it, under this
+// application's own names: a data dir that is not set is "", not ./media, so
+// a test that lays files out skips rather than writing into the checkout, and
+// a backend is part of being configured.
 func TestEnvironment(t *testing.T) {
 	t.Setenv("EMBYFIN_TEST_DATA", "")
 	if got := DataDir(); got != "" {
@@ -24,67 +23,42 @@ func TestEnvironment(t *testing.T) {
 		t.Errorf("CassetteDir(jellyfin) = %q", got)
 	}
 
-	t.Setenv("EMBYFIN_TEST_PROXY_PORT", "")
-	if port, err := ProxyPort(); err != nil || port != 18080 {
-		t.Errorf("ProxyPort() unset = %d, %v", port, err)
+	for k, v := range map[string]string{"EMBYFIN_SERVER": "http://x", "EMBYFIN_TOKEN": "t", "EMBYFIN_BACKEND": ""} {
+		t.Setenv(k, v)
 	}
-	t.Setenv("EMBYFIN_TEST_PROXY_PORT", "18280")
-	if port, err := ProxyPort(); err != nil || port != 18280 {
-		t.Errorf("ProxyPort() = %d, %v", port, err)
+	if Configured() {
+		t.Error("Configured() with no backend")
 	}
-	t.Setenv("EMBYFIN_TEST_PROXY_PORT", "many")
-	if _, err := ProxyPort(); err == nil || !strings.Contains(err.Error(), `EMBYFIN_TEST_PROXY_PORT="many"`) {
-		t.Errorf("a port that is no number = %v", err)
+	t.Setenv("EMBYFIN_BACKEND", "emby")
+	if !Configured() || Backend() != "emby" {
+		t.Errorf("Configured() = %v, Backend() = %q", Configured(), Backend())
 	}
-
 	t.Setenv("EMBYFIN_SERVER", "")
 	if Configured() {
 		t.Error("Configured() with no server")
 	}
-	for k, v := range map[string]string{"EMBYFIN_SERVER": "http://x", "EMBYFIN_TOKEN": "t", "EMBYFIN_BACKEND": "emby"} {
-		t.Setenv(k, v)
-	}
-	if !Configured() || Backend() != "emby" {
-		t.Errorf("Configured() = %v, Backend() = %q", Configured(), Backend())
-	}
-	t.Setenv("EMBYFIN_TEST_RECORD", "")
-	t.Setenv("EMBYFIN_TEST_VERIFY", "1")
-	if Recording() || !Verifying() {
-		t.Error("EMBYFIN_TEST_VERIFY alone is verifying, not recording")
-	}
 }
 
-// What a stopped proxy saw is a failure when replay missed a recording or an
-// answer changed shape, and nothing to say otherwise; a proxy never started
-// has nothing to say either.
-func TestProxyReport(t *testing.T) {
-	if got := (*Proxy)(nil).Report(); got != "" {
-		t.Errorf("a nil proxy reported %q", got)
-	}
-	if got := (&Proxy{}).Report(); got != "" {
-		t.Errorf("a clean proxy reported %q", got)
-	}
-	p := &Proxy{Misses: []string{"GET api.themoviedb.org/3/movie/1"}}
-	if got := p.Report(); !strings.Contains(got, "1 request(s) had no recording") || !strings.Contains(got, "make record") {
-		t.Errorf("a miss reported %q", got)
-	}
-	p = &Proxy{Drifts: []providerproxy.Drift{{}}}
-	if got := p.Report(); !strings.Contains(got, "1 response(s) changed shape") {
-		t.Errorf("a drift reported %q", got)
-	}
-	// stopping what was never started is harmless
-	if err := p.Stop(); err != nil {
-		t.Error(err)
-	}
-	if err := (*Proxy)(nil).Stop(); err != nil {
-		t.Error(err)
-	}
-	// and outside a container there is nothing to check or to ask
-	t.Setenv("EMBYFIN_TEST_CONTAINER", "")
-	if network, err := CheckProxyReachable(t.Context(), 18080); network != "" || err != nil {
-		t.Errorf("CheckProxyReachable outside a container = %q, %v", network, err)
-	}
-	if got := ContainerAddresses(t.Context()); got != nil {
-		t.Errorf("ContainerAddresses outside a container = %v", got)
+// What a run does with the providers is read from the two variables the
+// suites and make record set.
+func TestMode(t *testing.T) {
+	// set here as well as in the loop, so that this is seen to be a test
+	// that cannot run beside others
+	t.Setenv("EMBYFIN_TEST_RECORD", "")
+	for _, c := range []struct {
+		record, verify string
+		want           replayproxy.Mode
+		recording      bool
+	}{
+		{"", "", replayproxy.Replay, false},
+		{"1", "", replayproxy.Record, true},
+		{"all", "", replayproxy.Rerecord, true},
+		{"", "1", replayproxy.Verify, false},
+	} {
+		t.Setenv("EMBYFIN_TEST_RECORD", c.record)
+		t.Setenv("EMBYFIN_TEST_VERIFY", c.verify)
+		if Mode() != c.want || Recording() != c.recording || Verifying() != (c.verify != "") {
+			t.Errorf("EMBYFIN_TEST_RECORD=%q EMBYFIN_TEST_VERIFY=%q: mode %v, recording %v, verifying %v", c.record, c.verify, Mode(), Recording(), Verifying())
+		}
 	}
 }

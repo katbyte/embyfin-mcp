@@ -10,22 +10,19 @@ package acceptance
 import (
 	"cmp"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"flag"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	mediaacc "github.com/katbyte/embyfin-mcp/lib/acceptance"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 	"github.com/katbyte/embyfin-mcp/tools"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -303,8 +300,11 @@ var (
 	backend embyfin.Backend
 	// suite drives the tools through session; until start connects it, every
 	// call skips
-	suite = &acc.Suite{NotReady: "EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN are not set; run: eval \"$(EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh up)\""}
+	suite = mediaacc.New("EMBYFIN_BACKEND, EMBYFIN_SERVER and EMBYFIN_TOKEN are not set; run: eval \"$(EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh up)\"")
 )
+
+// scanPatience is how long a wait on a library scan is given.
+const scanPatience = mediaacc.ScanPatience
 
 // isJellyfin lets a test say where the two servers legitimately differ;
 // everything else is asserted the same way for both.
@@ -343,28 +343,16 @@ func testMain(m *testing.M) {
 	}
 
 	// every registered tool must have answered something above, not only
-	// refused it. Only a whole-suite run can say that, so a -run filter skips
-	// the check.
-	if f := flag.Lookup("test.run"); f == nil || f.Value.String() == "" {
-		never, onlyRefused, err := suite.Uncovered()
-		switch {
-		case err != nil:
-			fmt.Fprintln(os.Stderr, "\ntool coverage: could not list tools:", err)
+	// refused it. Only a whole-suite run can say that, so a -run or -skip
+	// filter skips the check.
+	if acc.WholeRun() {
+		report, err := suite.CoverageReport()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "\n"+err.Error())
 			code = 1
-		case len(never)+len(onlyRefused) > 0:
-			if len(never) > 0 {
-				fmt.Fprintf(os.Stderr, "\n%d registered tool(s) are never called by this suite:\n", len(never))
-				for _, name := range never {
-					fmt.Fprintln(os.Stderr, "  "+name)
-				}
-			}
-			if len(onlyRefused) > 0 {
-				fmt.Fprintf(os.Stderr, "\n%d registered tool(s) only ever failed in this suite, so nothing shows they work:\n", len(onlyRefused))
-				for _, name := range onlyRefused {
-					fmt.Fprintf(os.Stderr, "  %s (%d failed calls)\n", name, suite.Calls(name).Failed)
-				}
-			}
-			fmt.Fprintln(os.Stderr, "every tool needs a test that it answers; add one or remove the tool")
+		}
+		if report != "" {
+			fmt.Fprint(os.Stderr, report)
 			code = 1
 		}
 	}
@@ -383,27 +371,7 @@ var cannotAnswer = map[string]string{
 // audit_provider, audit_missing_episodes, audit_file_path and show_missing
 // ask) through the proxy, trusting its CA, so they replay like everything
 // else.
-func providerTransport() (http.RoundTripper, error) {
-	proxyURL, err := url.Parse("http://" + proxy.Addr())
-	if err != nil {
-		return nil, err
-	}
-	pool := x509.NewCertPool()
-	if ca := os.Getenv("EMBYFIN_TEST_PROXY_CA"); ca != "" {
-		pem, err := os.ReadFile(filepath.Join(ca, "ca.pem")) //nolint:gosec // the test harness's own CA
-		if err != nil {
-			return nil, err
-		}
-		if !pool.AppendCertsFromPEM(pem) {
-			return nil, fmt.Errorf("%s/ca.pem holds no certificate", ca)
-		}
-	}
-
-	return &http.Transport{
-		Proxy:           http.ProxyURL(proxyURL),
-		TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12},
-	}, nil
-}
+func providerTransport() http.RoundTripper { return proxy.Transport() }
 
 // tmdbKey is the TMDB token the tools are given: audit_provider checks films'
 // ids and runtimes with it, and show_missing reads a series' run. Recording
@@ -426,29 +394,24 @@ func start() error {
 	if err != nil {
 		return err
 	}
-	rt, err := providerTransport()
-	if err != nil {
-		return err
-	}
 
 	ctx = context.Background()
 	srv := mcp.NewServer(&mcp.Implementation{Name: "embyfin-mcp", Version: "test"}, nil)
-	if _, err := tools.RegisterAll(srv, client, tools.Options{EnableDelete: true, TMDBKey: tmdbKey(), ProviderTransport: rt, AnimeList: animeList}); err != nil {
+	if _, err := tools.RegisterAll(srv, client, tools.Options{EnableDelete: true, TMDBKey: tmdbKey(), ProviderTransport: providerTransport(), AnimeList: animeList}); err != nil {
 		return err
 	}
-	st, ct := mcp.NewInMemoryTransports()
-	if _, err := srv.Connect(ctx, st, nil); err != nil {
+	connected, err := acc.Connect(ctx, srv)
+	if err != nil {
 		return err
 	}
-	if session, err = mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil).Connect(ctx, ct, nil); err != nil {
-		return err
-	}
+	session = connected.Session
 	// the preview thumbnail tools read Emby's files, and say so on Jellyfin
 	if isJellyfin() {
 		const why = "Jellyfin keeps trickplay tiles, which the preview thumbnail tools do not read yet: both say so"
 		cannotAnswer["audit_previews"], cannotAnswer["item_previews_regenerate"] = why, why
 	}
-	suite.Ctx, suite.Session, suite.Ready, suite.CannotAnswer = ctx, session, true, cannotAnswer
+	connected.CannotAnswer = cannotAnswer
+	suite.Suite = connected
 
 	return seed()
 }
@@ -515,7 +478,7 @@ func primaryType(library string) string {
 // waitForItems polls library_get until a scan has settled on want items of
 // the library's primary type (see primaryType).
 func waitForItems(library string, want int) error {
-	return suite.WaitForItems(library, primaryType(library), want, acc.ScanPatience)
+	return suite.WaitForItems(library, primaryType(library), want, scanPatience)
 }
 
 // scanUntil asks for a library scan and waits for the library to hold want

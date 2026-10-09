@@ -253,7 +253,7 @@ func (c *Client) RegeneratePreview(ctx context.Context, itemID string, patience 
 	if !c.isEmby() {
 		return Preview{}, false, ErrNoPreviewFiles
 	}
-	unlock := c.items.lock(itemID)
+	unlock := c.lockItem(itemID)
 	defer unlock()
 
 	_, before, err := c.unsavedFor(ctx, itemID)

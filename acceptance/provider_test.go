@@ -11,7 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -170,7 +171,7 @@ func TestItemArtwork(t *testing.T) {
 	poster := filepath.Join(testenv.DataDir(), "movies", "Blade Runner (1982)", "poster.jpg")
 	fixturePoster := fixture(t, "messy-movies/Blade Runner (1982)/poster.jpg")
 	putBack := func() {
-		acc.MediaWrite(t, poster, fixturePoster)
+		env.WriteFile(t, poster, fixturePoster)
 		if _, err := suite.Invoke("item_refresh", map[string]any{"id": id}); err != nil {
 			t.Errorf("refreshing Blade Runner: %v", err)
 		}

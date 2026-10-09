@@ -20,7 +20,8 @@ import (
 	"testing"
 	"time"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -190,8 +191,8 @@ func keepFiles(t *testing.T, dirs ...string) {
 			if now, err := os.ReadFile(path); err == nil && bytes.Equal(now, raw) { //nolint:gosec // same
 				continue
 			}
-			acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(path))
-			acc.MediaWrite(t, path, raw)
+			env.Mkdir(t, testenv.DataDir(), filepath.Dir(path))
+			env.WriteFile(t, path, raw)
 		}
 	})
 }
@@ -285,12 +286,12 @@ func slowScan(t *testing.T) (again func()) {
 		})
 	})
 	raw := fixtureVideo(t, "messy-movies", messyAlien, messyAlien+".mp4")
-	acc.MediaMkdir(t, testenv.DataDir(), dir)
+	env.Mkdir(t, testenv.DataDir(), dir)
 	var files []string
 	lay := func(n int) {
 		for range n {
 			f := filepath.Join(dir, fmt.Sprintf("%s - part%d.mp4", name, len(files)+1))
-			acc.MediaWrite(t, f, raw)
+			env.WriteFile(t, f, raw)
 			files = append(files, f)
 		}
 	}
@@ -1495,7 +1496,7 @@ func copyRenamed(t *testing.T, src, dst, from, to string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	acc.MediaMkdir(t, testenv.DataDir(), dst)
+	env.Mkdir(t, testenv.DataDir(), dst)
 	for _, e := range entries {
 		name := strings.ReplaceAll(e.Name(), from, to)
 		if e.IsDir() {
@@ -1506,7 +1507,7 @@ func copyRenamed(t *testing.T, src, dst, from, to string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		acc.MediaWrite(t, filepath.Join(dst, name), raw)
+		env.WriteFile(t, filepath.Join(dst, name), raw)
 	}
 }
 
@@ -1671,8 +1672,8 @@ func TestDeletesLeaveNothingBehind(t *testing.T) {
 		}
 		dir := filepath.Join(testenv.DataDir(), "ripple", "The Lord of the Rings The Return of the King (2003)")
 		file := filepath.Join(dir, "The Lord of the Rings The Return of the King (2003).mp4")
-		acc.MediaMkdir(t, testenv.DataDir(), dir)
-		acc.MediaWrite(t, file, raw)
+		env.Mkdir(t, testenv.DataDir(), dir)
+		env.WriteFile(t, file, raw)
 		t.Cleanup(func() {
 			if err := os.RemoveAll(filepath.Join(testenv.DataDir(), "ripple")); err != nil {
 				t.Error(err)
@@ -1791,7 +1792,7 @@ func TestAuditFixesWhereTheyPoint(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			acc.MediaWrite(t, nfo, plotless.ReplaceAll(raw, nil))
+			env.WriteFile(t, nfo, plotless.ReplaceAll(raw, nil))
 		}
 		if got := findings(t, missing(t, "overview", map[string]any{"library": "Movies"})); !slices.Equal(got, []string{"Arrival"}) {
 			t.Fatalf("audit_missing_metadata overview = %v, want [Arrival]", got)

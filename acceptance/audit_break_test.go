@@ -10,7 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -169,13 +170,13 @@ func TestAuditFilePathFixedByARename(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		for ext, raw := range moved {
-			acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, "Andor S01E04"+ext), raw)
+			env.WriteFile(t, filepath.Join(testenv.DataDir(), season, "Andor S01E04"+ext), raw)
 			_ = os.Remove(filepath.Join(testenv.DataDir(), season, "Andor S01E05"+ext))
 		}
 		rescanUntil(t, "Andor's S01E04 file back", func() bool { return has("Andor S01E04.mp4") })
 	})
 	for ext, raw := range moved {
-		acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, "Andor S01E05"+ext), raw)
+		env.WriteFile(t, filepath.Join(testenv.DataDir(), season, "Andor S01E05"+ext), raw)
 		if err := os.Remove(filepath.Join(testenv.DataDir(), season, "Andor S01E04"+ext)); err != nil {
 			t.Fatal(err)
 		}
@@ -224,7 +225,7 @@ func TestAuditFilePathAgainstTMDB(t *testing.T) {
 	t.Cleanup(func() {
 		for from, to := range renames {
 			for _, ext := range []string{".mp4", ".nfo"} {
-				acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, from+ext), held[from+ext])
+				env.WriteFile(t, filepath.Join(testenv.DataDir(), season, from+ext), held[from+ext])
 				_ = os.Remove(filepath.Join(testenv.DataDir(), season, to+ext))
 			}
 		}
@@ -232,7 +233,7 @@ func TestAuditFilePathAgainstTMDB(t *testing.T) {
 	})
 	for from, to := range renames {
 		for _, ext := range []string{".mp4", ".nfo"} {
-			acc.MediaWrite(t, filepath.Join(testenv.DataDir(), season, to+ext), held[from+ext])
+			env.WriteFile(t, filepath.Join(testenv.DataDir(), season, to+ext), held[from+ext])
 			if err := os.Remove(filepath.Join(testenv.DataDir(), season, from+ext)); err != nil {
 				t.Fatal(err)
 			}
@@ -540,7 +541,7 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	}
 
 	// the whole episode written over the one cut short
-	acc.MediaWrite(t, filepath.Join(testenv.DataDir(), g+"Season 02/hack Liminality S02E03.mp4"), long)
+	env.WriteFile(t, filepath.Join(testenv.DataDir(), g+"Season 02/hack Liminality S02E03.mp4"), long)
 	rescanUntil(t, "the whole copy read", func() bool {
 		_, named := staged(suite.Call(t, "audit_runtime", map[string]any{"library": "Messy Shows", "limit": 1000}))["hack Liminality S02E03.mp4"]
 		return !named
@@ -556,7 +557,7 @@ func TestAuditRuntimeStaged(t *testing.T) {
 	// audit cannot vouch for: Emby says when a file was last written, so it
 	// lists both written here, and a limit caps that list; Jellyfin does not
 	// say, and the answer says so instead
-	acc.MediaWrite(t, filepath.Join(testenv.DataDir(), g+"Season 02/hack Liminality S02E01.mp4"), long)
+	env.WriteFile(t, filepath.Join(testenv.DataDir(), g+"Season 02/hack Liminality S02E01.mp4"), long)
 	quality := map[string]any{"library": "Messy Shows", "limit": 1}
 	if isJellyfin() {
 		out := suite.Call(t, "audit_quality", quality)
@@ -696,7 +697,7 @@ func TestAuditLanguageStaged(t *testing.T) {
 		t.Helper()
 		path := filepath.Join(folder, name)
 		written = append(written, path)
-		acc.MediaWrite(t, path, line)
+		env.WriteFile(t, path, line)
 		rescanUntil(t, name+" read", func() bool {
 			out, err := suite.Invoke("item_get", map[string]any{"id": restoration})
 			subs, _ := out["subtitles"].([]any)

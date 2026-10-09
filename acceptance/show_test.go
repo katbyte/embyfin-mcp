@@ -10,7 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -518,8 +519,8 @@ func TestStagedShows(t *testing.T) {
 	root := filepath.Join(testenv.DataDir(), "staged-shows")
 	t.Cleanup(func() { _ = os.RemoveAll(root) })
 	lay := func(path string, raw []byte) {
-		acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(filepath.Join(root, path)))
-		acc.MediaWrite(t, filepath.Join(root, path), raw)
+		env.Mkdir(t, testenv.DataDir(), filepath.Dir(filepath.Join(root, path)))
+		env.WriteFile(t, filepath.Join(root, path), raw)
 	}
 	special := fixtureVideo(t, "anime-src", "special.mp4")
 	episode := fixtureVideo(t, "messy-shows", "Star Trek Deep Space Nine (1993)", "Season 01", "Star Trek Deep Space Nine S01E01.mp4")
@@ -554,7 +555,7 @@ func TestStagedShows(t *testing.T) {
 	})
 	suite.Call(t, "library_create", map[string]any{"name": stagedShows, "type": "tvshows", "paths": []any{"/media/staged-shows"}, "scan": true})
 	// three series and the ten episode files between them
-	if !acc.EventuallyWithin(acc.ScanPatience, func() bool {
+	if !acc.EventuallyWithin(scanPatience, func() bool {
 		counts := suite.TypeCounts(stagedShows)
 		return counts["Series"] == 3 && counts["Episode"] == 10
 	}) {

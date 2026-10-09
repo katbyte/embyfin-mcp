@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/katbyte/go-kt/spelling"
 )
 
 // Turning a release name into a series the library holds.
@@ -545,27 +547,8 @@ var initialism = regexp.MustCompile(`(?:\b[a-z]\.){2,}`)
 // library's "S.H.I.E.L.D.", so a run of single letters closes up too.
 var spacedInitialism = regexp.MustCompile(`\b[a-z](?: [a-z])+\b`)
 
-// FoldLetter is the plain-ASCII spelling of an accented Latin letter, or
-// nothing for a rune that is not one: the table the spelling audit and the
-// release reader fold by alike.
-func FoldLetter(r rune) string {
-	for ascii, accented := range foldTable {
-		if strings.ContainsRune(accented, r) {
-			return ascii
-		}
-	}
-
-	return ""
-}
-
-var foldTable = map[string]string{
-	"a": "àáâãäåāąă", "ae": "æ", "c": "çćčċ", "d": "ďđð", "e": "èéêëēęěė", "g": "ğģ",
-	"i": "ìíîïīıį", "l": "łļľ", "n": "ñńňņ", "o": "òóôõöøōőœ", "r": "řŗ", "s": "šşśș", "ss": "ß",
-	"t": "ťţț", "th": "þ", "u": "ùúûüūůűų", "y": "ýÿ", "z": "žźż",
-}
-
-// FoldAccents strips the diacritics off a title, by the same table the
-// spelling audit folds by. Scene naming drops them as reliably as it drops
+// FoldAccents strips the diacritics off a title, by the table the spelling
+// audit folds by (go-kt's spelling.FoldLetter). Scene naming drops them as reliably as it drops
 // apostrophes - "90 Day Fiancé" arrives as "90 Day Fiance" - and the servers'
 // own search folds them too, so a scorer that does not ranks the very series
 // the search just found at 0.5 and refuses to commit to it.
@@ -582,7 +565,7 @@ func FoldAccents(s string) string {
 
 			continue
 		}
-		if folded := FoldLetter(r); folded != "" {
+		if folded := spelling.FoldLetter(r); folded != "" {
 			b.WriteString(folded)
 
 			continue

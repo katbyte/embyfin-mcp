@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/lib/providerproxy"
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
+	"github.com/katbyte/go-kt/test/replayproxy"
 )
 
 // The ids the sweep starts from, which TMDB's own documentation uses: Fight
@@ -63,19 +63,20 @@ var tmdbCases = func() map[string]sweepCase {
 }()
 
 func TestTMDBSweep(t *testing.T) {
-	mode, token := providerproxy.Replay, "replay" // the proxy leaves api_key out of a match
+	mode, token := replayproxy.Replay, "replay" // the proxy leaves api_key out of a match
 	switch {
 	case testenv.Recording(), testenv.Verifying():
 		token = cmp.Or(os.Getenv("EMBYFIN_TMDB_TOKEN"), os.Getenv("EMBYFIN_TMDB_KEY"))
 		if token == "" {
 			t.Skip("recording TMDB needs EMBYFIN_TMDB_TOKEN")
 		}
-		mode = providerproxy.Record
+		// what is missing, or everything afresh (EMBYFIN_TEST_RECORD=all)
+		mode = testenv.Mode()
 		if testenv.Verifying() {
-			mode = providerproxy.Verify
+			mode = replayproxy.Verify
 		}
 	}
-	p, err := providerproxy.New(providerproxy.Options{
+	p, err := replayproxy.New(replayproxy.Options{
 		Mode:        mode,
 		CassetteDir: filepath.Join("testdata", "cassettes", "tmdb"),
 		Addr:        "127.0.0.1:0",

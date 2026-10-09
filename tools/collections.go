@@ -10,6 +10,7 @@ import (
 
 	"github.com/katbyte/embyfin-mcp/lib/mediapath"
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
+	"github.com/katbyte/go-kt/parallel"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -103,7 +104,7 @@ func collectionsNow(ctx context.Context, client *embyfin.Client, asked []string)
 			out[i].firstName = base[:len(base)-len(boxsetFolder)]
 		}
 	}
-	err = eachAtOnce(ctx, len(out), func(ctx context.Context, i int) error {
+	err = parallel.Each(ctx, len(out), readsAtOnce, func(ctx context.Context, i int) error {
 		if out[i].firstName != "" || len(asked) == 0 {
 			return nil
 		}

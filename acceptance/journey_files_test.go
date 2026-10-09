@@ -15,7 +15,8 @@ import (
 	"testing"
 	"time"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -146,8 +147,8 @@ func TestImportingAMissingEpisode(t *testing.T) {
 		_ = os.Remove(nfo)
 		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, tng, 1, 2); return !there })
 	})
-	acc.MediaWrite(t, file, fixtureVideo(t, "messy-shows", show, "Season 01", show+" S01E01.mp4"))
-	acc.MediaWrite(t, nfo, episodeNfo("The Naked Now", 1, 2))
+	env.WriteFile(t, file, fixtureVideo(t, "messy-shows", show, "Season 01", show+" S01E01.mp4"))
+	env.WriteFile(t, nfo, episodeNfo("The Naked Now", 1, 2))
 	// written and not yet scanned: on the disk and in no item, and taken
 	// all the same - a second write there replaces it
 	if mid := plan(); !acc.IsBool(mid["exists"], true) || !acc.IsBool(mid["in_library"], false) || !acc.IsBool(mid["on_disk"], true) {
@@ -203,8 +204,8 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 		_ = os.Remove(nfo)
 		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, messy, 1, 4); return !there })
 	})
-	acc.MediaWrite(t, file, fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4"))
-	acc.MediaWrite(t, nfo, episodeNfo("The You You Are", 1, 4))
+	env.WriteFile(t, file, fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4"))
+	env.WriteFile(t, nfo, episodeNfo("The You You Are", 1, 4))
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, messy, 1, 4); return there })
 	_, rip := held(t, messy, 1, 4)
 
@@ -281,7 +282,7 @@ func TestUpgradingACopyInPlace(t *testing.T) {
 
 	// written over in place: same path, same item, a newer file
 	start := time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339)
-	acc.MediaWrite(t, file, incoming)
+	env.WriteFile(t, file, incoming)
 	if !isJellyfin() {
 		// Emby judges a file by what it read at the last scan, and has not
 		// read this one yet
@@ -388,18 +389,18 @@ func TestHowFarADeleteReaches(t *testing.T) {
 				t.Error(err)
 			}
 		})
-		acc.MediaMkdir(t, testenv.DataDir(), folder)
+		env.Mkdir(t, testenv.DataDir(), folder)
 		cuts := map[string]string{"1080p": "Blade Runner (1982) - 1080p.mp4", "2160p": "Blade Runner (1982) - 2160p.mp4"}
 		for label, src := range cuts {
-			acc.MediaWrite(t, filepath.Join(folder, name+" - "+label+".mp4"), fixtureVideo(t, "messy-movies", messyBladeRunner, src))
+			env.WriteFile(t, filepath.Join(folder, name+" - "+label+".mp4"), fixtureVideo(t, "messy-movies", messyBladeRunner, src))
 		}
 		// everything a film's folder gathers besides the film: its poster, an
 		// nfo (with no ids, which would join it to the messy Dune), a subtitle
 		// and a trailer
-		acc.MediaWrite(t, filepath.Join(folder, "poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
-		acc.MediaWrite(t, filepath.Join(folder, "movie.nfo"), movieNfo("Dune", 1984, "", ""))
-		acc.MediaWrite(t, filepath.Join(folder, name+".eng.srt"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
-		acc.MediaWrite(t, filepath.Join(folder, name+"-trailer.mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
+		env.WriteFile(t, filepath.Join(folder, "poster.jpg"), fixtureVideo(t, "messy-movies", messyBladeRunner, "poster.jpg"))
+		env.WriteFile(t, filepath.Join(folder, "movie.nfo"), movieNfo("Dune", 1984, "", ""))
+		env.WriteFile(t, filepath.Join(folder, name+".eng.srt"), fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
+		env.WriteFile(t, filepath.Join(folder, name+"-trailer.mp4"), fixtureVideo(t, "messy-movies", messyArrival, messyArrival+".mp4"))
 		sidecars := []string{"poster.jpg", "movie.nfo", name + ".eng.srt", name + "-trailer.mp4"}
 		added := 2
 		if versionsMerged() {
@@ -512,9 +513,9 @@ func TestHowFarADeleteReaches(t *testing.T) {
 
 		files := []string{"DuckTales S01E01 - Don't Give Up the Ship (1).mp4", "DuckTales S01E02 - Wronguay in Ronguay (2).mp4"}
 		ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
-		acc.MediaMkdir(t, testenv.DataDir(), filepath.Join(folder, "Season 01"))
+		env.Mkdir(t, testenv.DataDir(), filepath.Join(folder, "Season 01"))
 		for _, f := range files {
-			acc.MediaWrite(t, filepath.Join(folder, "Season 01", f), ep)
+			env.WriteFile(t, filepath.Join(folder, "Season 01", f), ep)
 		}
 		if err := scanUntil("Messy Shows", have+1); err != nil {
 			t.Fatal(err)
@@ -589,14 +590,14 @@ func TestHowFarADeleteReaches(t *testing.T) {
 			_ = os.RemoveAll(folder)
 			scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 2, 1); return !there })
 		})
-		keep := acc.TreeOf(t, show)
+		keep := env.TreeOf(t, show)
 		first := len(acc.Rows(t, suite.Call(t, "library_episodes", map[string]any{"series_id": sev, "season": 1})["episodes"], "episodes"))
 		ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
-		acc.MediaMkdir(t, testenv.DataDir(), folder)
+		env.Mkdir(t, testenv.DataDir(), folder)
 		for n, title := range map[int]string{1: "Hello, Ms. Cobel", 2: "Goodbye, Mrs. Selvig"} {
 			base := filepath.Join(folder, fmt.Sprintf("Severance S02E%02d", n))
-			acc.MediaWrite(t, base+".mp4", ep)
-			acc.MediaWrite(t, base+".nfo", episodeNfo(title, 2, n))
+			env.WriteFile(t, base+".mp4", ep)
+			env.WriteFile(t, base+".nfo", episodeNfo(title, 2, n))
 		}
 		scanUntilTrue(t, "Messy Shows", func() bool {
 			one, _ := held(t, sev, 2, 1)
@@ -627,7 +628,7 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		if got := removedPaths(t, out); !slices.Equal(got, want) {
 			t.Errorf("removed = %v, want %v", got, want)
 		}
-		acc.SameTree(t, testenv.DataDir(), keep, acc.TreeOf(t, show))
+		env.SameTree(t, testenv.DataDir(), keep, env.TreeOf(t, show))
 		for _, e := range episodes {
 			if _, err := suite.Invoke("item_get", map[string]any{"id": acc.Str(e["id"])}); err == nil {
 				t.Errorf("episode %v outlived its season", e["title"])
@@ -660,9 +661,9 @@ func TestHowFarADeleteReaches(t *testing.T) {
 			}
 			scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 5); return !there })
 		})
-		acc.MediaWrite(t, copies[0], fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E02.mp4"))
-		acc.MediaWrite(t, copies[1], episodeNfo("Half Loop", 1, 5))
-		acc.MediaWrite(t, copies[2], fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
+		env.WriteFile(t, copies[0], fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E02.mp4"))
+		env.WriteFile(t, copies[1], episodeNfo("Half Loop", 1, 5))
+		env.WriteFile(t, copies[2], fixtureVideo(t, "movies", "The Thirteenth Floor (1999)", "The Thirteenth Floor (1999).eng.srt"))
 		scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 5); return there })
 		_, original := held(t, sev, 1, 2)
 		_, copied := held(t, sev, 1, 5)
@@ -693,12 +694,12 @@ func TestHowFarADeleteReaches(t *testing.T) {
 		for _, p := range own {
 			gone = append(gone, hostPath(p))
 		}
-		keep := acc.TreeOf(t, season, gone...)
+		keep := env.TreeOf(t, season, gone...)
 		out := suite.Call(t, "item_delete", map[string]any{"id": copied, "confirm": true})
 		if got := removedPaths(t, out); !slices.Equal(got, own) {
 			t.Errorf("removed = %v, want %v", got, own)
 		}
-		acc.SameTree(t, testenv.DataDir(), keep, acc.TreeOf(t, season))
+		env.SameTree(t, testenv.DataDir(), keep, env.TreeOf(t, season))
 
 		if got := pair(); got != nil {
 			t.Errorf("after the delete audit_duplicate_episodes still pairs %v", got)
@@ -815,8 +816,8 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 			_ = os.RemoveAll(dir)
 		}
 		for path, raw := range before {
-			acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(path))
-			acc.MediaWrite(t, path, raw)
+			env.Mkdir(t, testenv.DataDir(), filepath.Dir(path))
+			env.WriteFile(t, path, raw)
 		}
 		if err := scanUntil("Messy Shows", have); err != nil {
 			t.Error(err)
@@ -856,7 +857,7 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	if folder, names := wouldRemove(t, msg); folder != acc.Str(drop["path"]) || !slices.Equal(names, []string{"Season 01"}) || strings.Contains(msg, acc.Str(keep["path"])) {
 		t.Errorf("the refusal for the emptied show would take %q %v: %s", folder, names, msg)
 	}
-	kept := acc.TreeOf(t, folders[0])
+	kept := env.TreeOf(t, folders[0])
 	out := suite.Call(t, "item_delete", map[string]any{"id": dropID, "confirm": true})
 	if got, want := removedPaths(t, out), []string{acc.Str(drop["path"]) + "/", acc.Str(drop["path"]) + "/Season 01/"}; !slices.Equal(got, want) {
 		t.Errorf("removed = %v, want %v", got, want)
@@ -864,7 +865,7 @@ func TestAShowHeldTwicePutBackTogether(t *testing.T) {
 	if _, err := os.Stat(folders[1]); !os.IsNotExist(err) {
 		t.Errorf("the emptied show's folder is still on disk: %v", err)
 	}
-	acc.SameTree(t, testenv.DataDir(), kept, acc.TreeOf(t, folders[0]))
+	env.SameTree(t, testenv.DataDir(), kept, env.TreeOf(t, folders[0]))
 	if err := scanUntil("Messy Shows", have-1); err != nil {
 		t.Fatal(err)
 	}
@@ -953,8 +954,8 @@ func TestAnImportLeavesTheProvidersList(t *testing.T) {
 	}
 
 	ep := fixtureVideo(t, "messy-shows", "Severance", "Season 01", "Severance S01E01.mp4")
-	acc.MediaWrite(t, filepath.Join(season, staged[0]), ep)
-	acc.MediaWrite(t, filepath.Join(season, staged[1]), episodeNfo("The You You Are", 1, 4))
+	env.WriteFile(t, filepath.Join(season, staged[0]), ep)
+	env.WriteFile(t, filepath.Join(season, staged[1]), episodeNfo("The You You Are", 1, 4))
 	scanUntilTrue(t, "Messy Shows", func() bool { there, _ := held(t, sev, 1, 4); return there })
 	if l, m := firstListed(), firstMissing(); l != "S01E05" || m != "S01E05" {
 		t.Errorf("after importing S01E04 TMDB's list starts at %s in the audit and %s in show_missing, want S01E05", l, m)
@@ -962,8 +963,8 @@ func TestAnImportLeavesTheProvidersList(t *testing.T) {
 
 	// one file for the next two, its nfo ending the run at the second: no
 	// title, which neither server needs to number it
-	acc.MediaWrite(t, filepath.Join(season, staged[2]), ep)
-	acc.MediaWrite(t, filepath.Join(season, staged[3]), []byte(`<?xml version="1.0" encoding="utf-8"?>
+	env.WriteFile(t, filepath.Join(season, staged[2]), ep)
+	env.WriteFile(t, filepath.Join(season, staged[3]), []byte(`<?xml version="1.0" encoding="utf-8"?>
 <episodedetails>
   <season>1</season>
   <episode>5</episode>

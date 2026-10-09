@@ -126,7 +126,7 @@ func (c *Client) readPlaylist(ctx context.Context, playlistID, fields string) ([
 // answered, logged and saved, then lost (the first playlist on a server
 // queues such a scan itself). What has not stayed is sent once more before
 // it is an error. Changes to one playlist from this process are made one at a
-// time (see keyedLocks), so a check never sees another change's entries land.
+// time (see lockItem), so a check never sees another change's entries land.
 //
 // Both servers put a folder (a series, a season, an album) in a playlist as
 // the items beneath it rather than as itself, so what is checked is what the
@@ -134,7 +134,7 @@ func (c *Client) readPlaylist(ctx context.Context, playlistID, fields string) ([
 // check for it would send the folder again, putting every item in twice. What
 // is sent again is only what is missing, item by item, never the folder.
 func (c *Client) AddToPlaylist(ctx context.Context, playlistID string, itemIDs []string, userID string) error {
-	unlock := c.items.lock(playlistID)
+	unlock := c.lockItem(playlistID)
 	defer unlock()
 
 	before, err := c.PlaylistHeld(ctx, playlistID)
@@ -169,7 +169,7 @@ func (c *Client) AddToPlaylist(ctx context.Context, playlistID string, itemIDs [
 // server queues saves it as the scan found it. What it lost is sent once
 // more before it is an error.
 func (c *Client) KeepPlaylistEntries(ctx context.Context, playlistID, userID string, itemIDs []string) error {
-	unlock := c.items.lock(playlistID)
+	unlock := c.lockItem(playlistID)
 	defer unlock()
 
 	adds, err := c.playlistAdds(ctx, playlistID, userID, itemIDs)
@@ -422,7 +422,7 @@ type EntriesToRemove struct {
 // left besides those asked for - an id numbered again between the check and
 // the removal names another entry - is an error naming it.
 func (c *Client) RemoveFromPlaylist(ctx context.Context, playlistID string, asked EntriesToRemove) (PlaylistRemoval, error) {
-	unlock := c.items.lock(playlistID)
+	unlock := c.lockItem(playlistID)
 	defer unlock()
 
 	var out PlaylistRemoval
@@ -698,11 +698,11 @@ func (c *Client) RenamePlaylist(ctx context.Context, playlistID, userID, name st
 // are taken out and put back in the new order, which the key may do; the put-back
 // is checked and re-sent as an add is, since a scan's re-read of the
 // playlist file can land between the two and put the old entries back. An
-// add made meanwhile from this process waits for the move (see keyedLocks):
+// add made meanwhile from this process waits for the move (see lockItem):
 // Emby would otherwise see the playlist change under the move, and
 // Jellyfin's put-back would race it.
 func (c *Client) MovePlaylistEntry(ctx context.Context, playlistID, userID, entryID, itemID, fingerprint string, newIndex int) error {
-	unlock := c.items.lock(playlistID)
+	unlock := c.lockItem(playlistID)
 	defer unlock()
 
 	entries, err := c.playlistEntries(ctx, playlistID, []string{entryID}, []string{itemID}, fingerprint)

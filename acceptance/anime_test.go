@@ -11,7 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	acc "github.com/katbyte/embyfin-mcp/lib/acceptance"
+	acc "github.com/katbyte/go-kt/mcp/acctest"
+	"github.com/katbyte/go-kt/test/env"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 )
@@ -91,11 +92,11 @@ func TestAuditAnimeIDs(t *testing.T) {
 	})
 	stage := func(folder string, nfo []byte, files ...string) {
 		dir := filepath.Join(root, folder)
-		acc.MediaMkdir(t, testenv.DataDir(), dir)
-		acc.MediaWrite(t, filepath.Join(dir, "tvshow.nfo"), nfo)
+		env.Mkdir(t, testenv.DataDir(), dir)
+		env.WriteFile(t, filepath.Join(dir, "tvshow.nfo"), nfo)
 		for _, f := range files {
-			acc.MediaMkdir(t, testenv.DataDir(), filepath.Dir(filepath.Join(dir, f)))
-			acc.MediaWrite(t, filepath.Join(dir, f), special)
+			env.Mkdir(t, testenv.DataDir(), filepath.Dir(filepath.Join(dir, f)))
+			env.WriteFile(t, filepath.Join(dir, f), special)
 		}
 	}
 	// the show, by its own ids: its AniDB entry (1530) numbers it straight
@@ -203,7 +204,7 @@ func TestAuditAnimeIDs(t *testing.T) {
 			}
 		}
 		for f, raw := range files {
-			acc.MediaWrite(t, filepath.Join(season0, f), raw)
+			env.WriteFile(t, filepath.Join(season0, f), raw)
 		}
 		rescanUntil(t, "Dragon Ball Z's specials", func() bool { return typeCount(t, "Messy Shows", "Episode") == want })
 	}

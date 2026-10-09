@@ -54,9 +54,6 @@ type Client struct {
 	// saveGrain is how finely Emby tells one save of an item from the next:
 	// to the second (see unsavedFor)
 	saveGrain time.Duration
-	// items serialises this process's changes to one item (an item's
-	// metadata, a playlist's entries): see keyedLocks
-	items keyedLocks
 	// admin is the id of an account that sees everything, chosen once, for
 	// the reads only a user's view answers (see FullViewerID)
 	adminMu sync.Mutex

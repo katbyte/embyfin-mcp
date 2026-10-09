@@ -141,7 +141,7 @@ func TestDuplicatesComeFromTheIndex(t *testing.T) {
 func TestAWriteDropsTheIndex(t *testing.T) {
 	t.Parallel()
 
-	r := &registry{server: mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil)}
+	r := &registry{}
 	stock := func() {
 		r.seriesCache().mu.Lock()
 		r.seriesCache().indexes[""] = &seriesIndex{read: time.Now()}
@@ -159,20 +159,8 @@ func TestAWriteDropsTheIndex(t *testing.T) {
 	}
 	add(r, readTool, &mcp.Tool{Name: "a_read"}, ok)
 	add(r, writeTool, &mcp.Tool{Name: "a_write"}, ok)
-	for _, p := range r.pending {
-		p.register()
-	}
-
-	st, ct := mcp.NewInMemoryTransports()
-	ctx := context.Background()
-	if _, err := r.server.Connect(ctx, st, nil); err != nil {
-		t.Fatal(err)
-	}
-	cs, err := mcp.NewClient(&mcp.Implementation{Name: "c", Version: "0"}, nil).Connect(ctx, ct, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = cs.Close() })
+	cs := hostRegistry(t, r)
+	ctx := t.Context()
 
 	stock()
 	if _, err := cs.CallTool(ctx, &mcp.CallToolParams{Name: "a_read", Arguments: map[string]any{}}); err != nil {

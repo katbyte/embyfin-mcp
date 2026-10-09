@@ -347,7 +347,7 @@ importer workaround twice to prove each one notices when its bug is fixed.
 
 Everything else runs against **a real Emby and a real Jellyfin in Docker**, because a stub can
 only confirm what you already believed. Two suites, each in its own container, each run
-against both servers; `lib/testenv` is the environment, proxy and container checks both share, and `lib/acceptance` drives the tools the way a client does for the acceptance suite (calls that count their coverage, readers of the answers, waits on scans and refreshes, put-backs, files laid out for the container):
+against both servers; the environment, the proxy and the way the tools are driven as a client drives them (calls that count their coverage, readers of the answers, put-backs, files laid out for the container) are go-kt's `test/env`, `test/replayproxy` and `mcp/acctest`, shared with the other MCP servers; `lib/testenv` holds this suite's settings for them and `lib/acceptance` adds the waits on scans:
 
 | | Covers | Command |
 |---|---|---|
@@ -372,7 +372,7 @@ the tools rely on rather than all 997.
 **Every tool is exercised on both servers.** Tool coverage is enforced rather than claimed: the
 acceptance suite records every tool it calls and fails if the server registered one nothing
 called, so a new tool cannot ship untested. The servers' own calls out to TMDB, TheTVDB, OMDb
-and the image CDNs go through a record/replay proxy (`lib/providerproxy`) - the containers are
+and the image CDNs go through a record/replay proxy (go-kt's `test/replayproxy`) - the containers are
 started with `HTTPS_PROXY` pointing at it and trust its certificate authority - so neither suite
 needs a network:
 

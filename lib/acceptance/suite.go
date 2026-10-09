@@ -1,245 +1,31 @@
-// Package acceptance drives an MCP server the way a client does, for a suite
-// that runs against a live one: calls that count what they covered, readers
-// for the decoded answers, waits on what a media server does in the
-// background, put-backs for what a test changed, scans that are asked for
-// until they have taken, and files laid out where the server's container
-// reads them.
+// Package acceptance is what a suite that runs against a live media server
+// adds to go-kt's (mcp/acctest): the waits on a scan, which is asked for
+// until it has taken, and a put-back for an item the test may since have
+// deleted. They are here and not there because they call this application's
+// own tools.
 //
 // The suite under ../../acceptance is what it was written for; nothing here
 // knows its fixtures.
 package acceptance
 
 import (
-	"context"
-	"fmt"
-	"slices"
 	"strings"
-	"sync"
 	"testing"
-	"time"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/katbyte/go-kt/mcp/acctest"
 )
 
-// Suite is one client session to the server under test, and the record of
-// what it was asked.
+// Suite is go-kt's suite - one client session to the server under test, and
+// the record of what it was asked - with what a media server needs beside
+// it.
 type Suite struct {
-	Ctx     context.Context //nolint:containedctx // the run's own context, which every call the suite makes is under
-	Session *mcp.ClientSession
-	// Ready says the server is there to be called; a test that calls when it
-	// is not skips, saying NotReady
-	Ready    bool
-	NotReady string
-	// CannotAnswer are the tools a throwaway server gives nothing to answer
-	// with, so a call that fails is the only one a test can make, and why
-	CannotAnswer map[string]string
-
-	mu     sync.Mutex
-	called map[string]Calls
+	*acctest.Suite
 }
 
-// Calls is how a tool's calls through Invoke went: the ones that answered,
-// and the ones that failed - a refusal the test asked for, or an error it did
-// not.
-type Calls struct {
-	Answered, Failed int
-}
-
-// Calls is how a tool's calls have gone so far.
-func (s *Suite) Calls(name string) Calls {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.called[name]
-}
-
-// Invoke calls a tool and returns its structured result. Every tool call in
-// a suite comes through here, so this is also where coverage is recorded: an
-// answer and a failure are counted apart (see Uncovered).
-func (s *Suite) Invoke(name string, args map[string]any) (map[string]any, error) {
-	out, err := s.callTool(name, args)
-
-	s.mu.Lock()
-	if s.called == nil {
-		s.called = map[string]Calls{}
-	}
-	c := s.called[name]
-	if err != nil {
-		c.Failed++
-	} else {
-		c.Answered++
-	}
-	s.called[name] = c
-	s.mu.Unlock()
-
-	return out, err
-}
-
-func (s *Suite) callTool(name string, args map[string]any) (map[string]any, error) {
-	if args == nil {
-		args = map[string]any{}
-	}
-	res, err := s.Session.CallTool(s.Ctx, &mcp.CallToolParams{Name: name, Arguments: args})
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
-	}
-	if res.IsError {
-		var msgs []string
-		for _, c := range res.Content {
-			if tc, ok := c.(*mcp.TextContent); ok {
-				msgs = append(msgs, tc.Text)
-			}
-		}
-
-		return nil, fmt.Errorf("%s: %s", name, strings.Join(msgs, "; "))
-	}
-	out, ok := res.StructuredContent.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s: structured content is %T", name, res.StructuredContent)
-	}
-
-	return out, nil
-}
-
-// Call invokes a tool, skipping the test when the server is not there and
-// failing it when the tool errors.
-func (s *Suite) Call(t *testing.T, name string, args map[string]any) map[string]any {
-	t.Helper()
-
-	if !s.Ready {
-		t.Skip(s.NotReady)
-	}
-	out, err := s.Invoke(name, args)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return out
-}
-
-// CallErr invokes a tool expecting it to fail, and returns the error message.
-func (s *Suite) CallErr(t *testing.T, name string, args map[string]any) string {
-	t.Helper()
-
-	if !s.Ready {
-		t.Skip(s.NotReady)
-	}
-	out, err := s.Invoke(name, args)
-	if err == nil {
-		t.Fatalf("%s unexpectedly succeeded: %v", name, out)
-	}
-
-	return err.Error()
-}
-
-// ToolNames lists every tool the server registered, so a test can assert
-// that a family is complete rather than only that the tools it knows about
-// work.
-func (s *Suite) ToolNames(t *testing.T) []string {
-	t.Helper()
-
-	if !s.Ready {
-		t.Skip(s.NotReady)
-	}
-	res, err := s.Session.ListTools(s.Ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := make([]string, 0, len(res.Tools))
-	for _, tool := range res.Tools {
-		out = append(out, tool.Name)
-	}
-
-	return out
-}
-
-// Uncovered names the registered tools no test has seen answer: those never
-// called at all, and those whose every call failed. A tool that is only
-// listed is not tested, and nor is one only ever refused - that proves it
-// checks what it is given, not that it does its job - so adding a tool
-// without a test of it working fails the suite rather than quietly widening
-// the untested surface. The few that cannot answer (CannotAnswer) need a
-// call all the same.
-func (s *Suite) Uncovered() (never, onlyFailed []string, err error) {
-	res, err := s.Session.ListTools(s.Ctx, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for _, tool := range res.Tools {
-		c := s.called[tool.Name]
-		switch {
-		case c.Answered > 0:
-		case c.Failed > 0 && s.CannotAnswer[tool.Name] != "":
-		case c.Failed > 0:
-			onlyFailed = append(onlyFailed, tool.Name)
-		default:
-			never = append(never, tool.Name)
-		}
-	}
-	slices.Sort(never)
-	slices.Sort(onlyFailed)
-
-	return never, onlyFailed, nil
-}
-
-// retryWaits is how long Retried waits before each try: backing off, for
-// about a minute in all. Emby refused to remove a library for longer than
-// ten seconds after a scan (seen on 4.11).
-var retryWaits = []time.Duration{0, time.Second, 2 * time.Second, 4 * time.Second, 8 * time.Second, 15 * time.Second, 15 * time.Second, 15 * time.Second}
-
-// Retried calls a tool until it succeeds, backing off for about a minute in
-// all: the servers refuse a write while a refresh holds the item (both
-// answer a 500 then). It returns the last error.
-func (s *Suite) Retried(tool string, args map[string]any) error {
-	return s.retryWith(retryWaits, tool, args)
-}
-
-func (s *Suite) retryWith(waits []time.Duration, tool string, args map[string]any) error {
-	var err error
-	for _, wait := range waits {
-		time.Sleep(wait)
-		if _, err = s.Invoke(tool, args); err == nil {
-			return nil
-		}
-	}
-
-	return err
-}
-
-// PutBack calls a tool once the test ends, to undo what the test changed,
-// and reports one that never succeeds rather than leaving the change for the
-// tests after.
-func (s *Suite) PutBack(t *testing.T, tool string, args map[string]any) {
-	t.Helper()
-
-	t.Cleanup(func() { s.Undo(t, tool, args) })
-}
-
-// Undo is PutBack for a call made in a clean-up already under way.
-func (s *Suite) Undo(t *testing.T, tool string, args map[string]any) {
-	t.Helper()
-
-	if err := s.Retried(tool, args); err != nil {
-		t.Errorf("putting back with %s %v: %v", tool, args, err)
-	}
-}
-
-// DeleteLaterIfThere deletes what a test made once it ends, unless the test
-// deleted it itself: an answer that it is gone (gone, e.g. "no collection
-// named") is no failure. Any other is reported, as PutBack does.
-func (s *Suite) DeleteLaterIfThere(t *testing.T, tool string, args map[string]any, gone string) {
-	t.Helper()
-
-	t.Cleanup(func() {
-		if _, err := s.Invoke(tool, args); err == nil || strings.Contains(err.Error(), gone) {
-			return
-		}
-		s.Undo(t, tool, args)
-	})
+// New is a suite that skips every call, saying notReady, until its session
+// is connected.
+func New(notReady string) *Suite {
+	return &Suite{Suite: &acctest.Suite{NotReady: notReady}}
 }
 
 // UndoIfThere is Undo for a change to an item the test may since have

@@ -1,4 +1,4 @@
-package providerproxy
+package replayproxy
 
 import (
 	"encoding/json"
@@ -10,10 +10,10 @@ import (
 // Drift is one recorded interaction whose live response no longer has the
 // shape the cassette captured.
 //
-// Only the shape is compared, never the values: which film TMDB ranks first
-// this week is none of our business, but a field appearing, vanishing or
-// changing type is exactly what breaks the server's decoding, and with it
-// every identify and refresh the tools depend on.
+// Only the shape is compared, never the values: which result a service ranks
+// first this week is none of our business, but a field appearing, vanishing or
+// changing type is exactly what breaks decoding, in the server or in a client
+// of ours, and with it everything that depends on the lookup.
 type Drift struct {
 	Key           string
 	StatusWas     int

@@ -12,19 +12,14 @@
 package tools
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"net/http"
-	"reflect"
-	"runtime/debug"
-	"slices"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
-	"github.com/katbyte/go-kt/clog"
+	mcpregistry "github.com/katbyte/go-kt/mcp/registry"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -133,28 +128,24 @@ var EssentialTools = []string{
 	"item_set_state",
 }
 
-type toolKind int
-
+// The kinds a tool is added with, in go-kt's registry's terms: a read tool
+// never changes what the server holds, a write tool does, and a delete tool
+// removes what cannot be put back.
 const (
-	readTool toolKind = iota
-	writeTool
-	deleteTool
+	readTool   = mcpregistry.Read
+	writeTool  = mcpregistry.Write
+	deleteTool = mcpregistry.Delete
 )
 
-type pending struct {
-	name        string
-	kind        toolKind
-	description string
-	register    func()
-}
-
-// registry collects tool registrations so the allow/deny patterns can be
-// validated against the full tool list before anything is added.
+// registry is this application's tools and what they share. Which of them a
+// session gets, and what each tells a client about itself, is go-kt's
+// registry's work (tools), so the allow and deny patterns are checked
+// against every tool before any is registered.
 type registry struct {
-	server  *mcp.Server
-	client  *embyfin.Client
-	opts    Options
-	pending []pending
+	client *embyfin.Client
+	opts   Options
+	// tools holds every tool queued, made when the first is (see queued)
+	tools *mcpregistry.Registry
 
 	// the library's series, read once and shared by every call; see
 	// series_index.go
@@ -193,198 +184,129 @@ func (r *registry) pause(ctx context.Context) error {
 	}
 }
 
-// hints are what a tool that changes something tells a client about the
-// change, beyond its kind, in the MCP annotations' terms: destructive when it
-// can change or take away what was there - a value written over, a file
-// deleted or rewritten, a watch history cleared, a scan that drops items -
-// rather than only add; idempotent when calling it again with the same
+// toolHints are what a tool tells a client about itself beyond its kind, in
+// the MCP annotations' terms. A write tool is destructive when it can change
+// or take away what was there - a value written over, a file deleted or
+// rewritten, a watch history cleared, a scan that drops items - and additive
+// when it only ever adds; idempotent when calling it again with the same
 // arguments changes nothing more.
-type hints struct{ destructive, idempotent bool }
-
-// changeHints are every write tool's hints, each decided on its own rather
-// than taken from the kind: marked all alike, library_edit (a folder removed
-// drops its items), task_run (a task can delete files), item_artwork_set
-// (Emby deletes the poster file it replaces) and item_set_state (unwatched
-// clears play counts for good) read as additive to a client. A write tool
-// missing from here is marked destructive, and fails
-// TestEveryWriteToolIsHinted.
-var changeHints = map[string]hints{
+//
+// Every write tool has an entry, each decided on its own rather than taken
+// from the kind: marked all alike, library_edit (a folder removed drops its
+// items), task_run (a task can delete files), item_artwork_set (Emby deletes
+// the poster file it replaces) and item_set_state (unwatched clears play
+// counts for good) read as additive to a client. A write tool missing from
+// here is marked destructive, and fails TestEveryWriteToolIsHinted.
+var toolHints = map[string]mcpregistry.Hints{
 	// a task can delete files, rewrite lists or install an update; a scan
 	// drops the items whose files are gone
-	"task_run":     {destructive: true},
-	"library_scan": {destructive: true},
+	"task_run":     {},
+	"library_scan": {},
 	// Jellyfin saves nfos by default, over any beside the media
-	"library_create": {destructive: true},
+	"library_create": {},
 	// a folder taken out drops its items; a rename gives a Jellyfin library
 	// a new id
-	"library_edit": {destructive: true},
+	"library_edit": {},
 	// replaces metadata and images, and re-reads an nfo over edits
-	"item_refresh": {destructive: true},
+	"item_refresh": {},
 	// a damaged file is written over, an nfo written again, an empty field
 	// filled; a library's next videos are others the second time
-	"item_previews_regenerate": {destructive: true},
+	"item_previews_regenerate": {},
 	// unwatched clears play counts and dates; a second watched mark on a
 	// watched item adds no play (seen on both servers)
-	"item_set_state": {destructive: true, idempotent: true},
+	"item_set_state": {Idempotent: true},
 	// values written over, the same values again the second time
-	"item_edit":       {destructive: true, idempotent: true},
-	"metadata_rename": {destructive: true, idempotent: true},
+	"item_edit":       {Idempotent: true},
+	"metadata_rename": {Idempotent: true},
 	// replaces every field and image, hand edits included
-	"item_identify_apply": {destructive: true},
+	"item_identify_apply": {},
 	// Emby deletes the poster file it replaces
-	"item_artwork_set": {destructive: true},
+	"item_artwork_set": {},
 	// a download of the same language and format writes over the file
-	"item_subtitle_download": {destructive: true},
+	"item_subtitle_download": {},
 	// what the device was playing stops, and its progress is recorded
-	"session_play":    {destructive: true},
-	"session_command": {destructive: true},
-	"session_message": {},
+	"session_play":    {},
+	"session_command": {},
+	// a message shown on a device takes nothing away
+	"session_message": {Additive: true},
 	// the first playlist made on an Emby server starts a library scan, which
 	// drops the items whose files are gone
-	"playlist_create": {destructive: true},
+	"playlist_create": {},
 	// the first collection made on a server starts a scan of every library
 	// (seen on Emby 4.11 and Jellyfin 12.1)
-	"collection_create": {destructive: true},
+	"collection_create": {},
 	// entries taken out, a name written over, a Jellyfin move that takes
 	// entries out and puts them back; an item appended again is another
 	// entry, where a collection holds an item once
-	"playlist_edit":   {destructive: true},
-	"collection_edit": {destructive: true, idempotent: true},
+	"playlist_edit":   {},
+	"collection_edit": {Idempotent: true},
+
+	// a read tool that writes a file on the machine embyfin-mcp runs on. The
+	// server is only read, so it stays a read tool and a read-only session
+	// keeps it, but it does not claim to change nothing: it only ever writes
+	// a new file, which is additive
+	"library_export": {WritesHere: true},
 }
 
-// hostWriters are the read tools that write a file on the machine
-// embyfin-mcp runs on. The server is only read, so they stay read tools and a
-// read-only session keeps them, but they do not claim to change nothing: each
-// only ever writes a new file, which is additive.
-var hostWriters = map[string]bool{
-	"library_export": true,
-}
-
-// add queues a typed tool for registration. It sets the MCP annotations from
-// kind and the tool's hints so clients can tell read-only from destructive
-// tools without parsing descriptions, and normalises the output so that empty
-// collections serialise as [] rather than null: an AI client reading
-// "people": null cannot tell "none" from "not fetched", and Go leaves
-// un-appended slices nil.
-func add[In, Out any](r *registry, kind toolKind, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
-	f := false
-	switch kind {
-	case readTool:
-		t.Annotations = &mcp.ToolAnnotations{ReadOnlyHint: !hostWriters[t.Name], DestructiveHint: &f, OpenWorldHint: &f}
-	case writeTool:
-		hint, known := changeHints[t.Name]
-		if !known {
-			// the answer that warns, until the tool is given its own
-			hint = hints{destructive: true}
-		}
-		t.Annotations = &mcp.ToolAnnotations{DestructiveHint: new(hint.destructive), IdempotentHint: hint.idempotent, OpenWorldHint: &f}
-	case deleteTool:
-		t.Annotations = &mcp.ToolAnnotations{DestructiveHint: new(true), OpenWorldHint: &f}
+// queued is every tool queued so far, in go-kt's registry, which is made
+// when the first tool is.
+func (r *registry) queued() *mcpregistry.Registry {
+	if r.tools == nil {
+		r.tools = mcpregistry.New(mcpregistry.Config{
+			Toolsets:  Toolsets,
+			Essential: EssentialTools,
+			Hints:     toolHints,
+			LogError:  r.errorLog,
+		})
 	}
 
-	wrapped := func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
+	return r.tools
+}
+
+// add queues a typed tool for registration. go-kt's registry sets the MCP
+// annotations from kind and the tool's hints so clients can tell read-only
+// from destructive tools without parsing descriptions, turns a panic in the
+// handler into an ordinary tool error, and sends empty collections as []
+// rather than null: an AI client reading "people": null cannot tell "none"
+// from "not fetched", and Go leaves un-appended slices nil. What is this
+// application's own is done around the handler here.
+func add[In, Out any](r *registry, kind mcpregistry.Kind, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
+	mcpregistry.Add(r.queued(), kind, t, func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
 		// the account a list is read whole in is chosen again for each call:
 		// one narrowed since the last would read short without a word
 		r.client.ForgetFullViewer()
-		res, out, err := recovered(ctx, r, t.Name, h, req, in)
-		if err == nil {
-			emptyNilSlices(reflect.ValueOf(&out).Elem())
-		}
 		// anything that changes the server may have added, renamed or removed
 		// a series, so the index is read again rather than trusted. Done on a
-		// failure too: a write that errored part way may still have landed.
+		// failure too, and on a panic: a write that failed part way may still
+		// have landed.
 		if kind != readTool {
-			r.seriesCache().invalidate()
+			defer r.seriesCache().invalidate()
 		}
 
-		return res, out, err
-	}
-
-	r.pending = append(r.pending, pending{
-		name:        t.Name,
-		kind:        kind,
-		description: t.Description,
-		register:    func() { mcp.AddTool(r.server, t, wrapped) },
+		return h(ctx, req, in)
 	})
-}
-
-// recovered calls a handler, turning a panic into an ordinary tool error.
-// Nothing above the handler recovers one - not the MCP SDK, not the CLI - so
-// one nil dereference in one tool would otherwise end the whole session. The
-// caller is told which tool failed; the stack goes to the log, which writes
-// to stderr, because in stdio mode stdout carries the protocol itself.
-func recovered[In, Out any](ctx context.Context, r *registry, name string, h mcp.ToolHandlerFor[In, Out], req *mcp.CallToolRequest, in In) (res *mcp.CallToolResult, out Out, err error) {
-	defer func() {
-		if p := recover(); p != nil {
-			r.logError("internal error in %s: %v\n%s", name, p, debug.Stack())
-			var zero Out
-			res, out, err = nil, zero, fmt.Errorf("internal error in %s: %v", name, p)
-		}
-	}()
-
-	return h(ctx, req, in)
-}
-
-// logError writes to the registry's log: the process's own, which writes to
-// stderr, unless a test gave it another.
-func (r *registry) logError(format string, args ...any) {
-	if r.errorLog != nil {
-		r.errorLog(format, args...)
-		return
-	}
-	clog.Log.Errorf(format, args...)
-}
-
-// emptyNilSlices walks v (structs, pointers, slices) and replaces every settable
-// nil slice with an empty one.
-func emptyNilSlices(v reflect.Value) {
-	switch v.Kind() {
-	case reflect.Pointer:
-		if !v.IsNil() {
-			emptyNilSlices(v.Elem())
-		}
-	case reflect.Struct:
-		for _, f := range v.Fields() {
-			emptyNilSlices(f)
-		}
-	case reflect.Slice:
-		if v.IsNil() {
-			if v.CanSet() {
-				v.Set(reflect.MakeSlice(v.Type(), 0, 0))
-			}
-
-			return
-		}
-		for i := range v.Len() {
-			emptyNilSlices(v.Index(i))
-		}
-	default:
-	}
 }
 
 // RegisterAll adds every tool permitted by opts to the MCP server and returns
 // the names registered. It fails when an allow/deny pattern matches no tool,
 // so a typo cannot silently hide one.
 func RegisterAll(server *mcp.Server, client *embyfin.Client, opts Options) ([]string, error) {
-	r := &registry{server: server, client: client, opts: opts}
+	r := &registry{client: client, opts: opts}
 	queueTools(r)
 
-	keep, err := selected(r, opts)
-	if err != nil {
-		return nil, err
-	}
+	return r.queued().Register(server, opts.selection())
+}
 
-	var registered []string
-	for _, p := range r.pending {
-		if !keep[p.name] {
-			continue
-		}
-		p.register()
-		registered = append(registered, p.name)
+// selection is the part of the options that chooses tools, as go-kt's
+// registry takes it.
+func (o *Options) selection() mcpregistry.Selection {
+	return mcpregistry.Selection{
+		ReadOnly:     o.ReadOnly,
+		EnableDelete: o.EnableDelete,
+		Toolsets:     o.Toolsets,
+		Allow:        o.Allow,
+		Deny:         o.Deny,
 	}
-	slices.Sort(registered)
-
-	return registered, nil
 }
 
 // queueTools queues every tool, before any filtering.
@@ -423,289 +345,48 @@ func queueTools(r *registry) {
 	registerCollectionTools(r)
 }
 
-// names lists the queued tools in registration order.
-func (r *registry) names() []string {
-	out := make([]string, 0, len(r.pending))
-	for _, p := range r.pending {
-		out = append(out, p.name)
-	}
-
-	return out
-}
-
-// selected applies the kind gates and the toolset/allow/deny filters, and is
-// shared by RegisterAll and Describe so `embyfin-mcp tools` cannot drift from
-// what the server actually registers.
-func selected(r *registry, opts Options) (map[string]bool, error) {
-	names := r.names()
-	sets, err := compileToolsets(opts.Toolsets, names)
-	if err != nil {
-		return nil, err
-	}
-	allow, err := compilePatterns(opts.Allow, names, "allow")
-	if err != nil {
-		return nil, err
-	}
-	deny, err := compilePatterns(opts.Deny, names, "deny")
-	if err != nil {
-		return nil, err
-	}
-	if len(sets) > 0 {
-		if err := allowedWithin(opts.Allow, sets, opts.Toolsets, names); err != nil {
-			return nil, err
-		}
-	}
-
-	keep := make(map[string]bool, len(r.pending))
-	for _, p := range r.pending {
-		switch {
-		case p.kind == deleteTool && !opts.EnableDelete:
-		case p.kind != readTool && opts.ReadOnly:
-		case len(sets) > 0 && !sets[p.name]:
-		case len(allow) > 0 && !matchesAny(allow, p.name):
-		case matchesAny(deny, p.name):
-		default:
-			keep[p.name] = true
-		}
-	}
-
-	return keep, nil
-}
-
-// compileToolsets turns the requested set names into the tools they hold,
-// always including core. An unknown name aborts startup naming the valid ones,
-// the way an allow/deny pattern that matches nothing does.
-func compileToolsets(raw, known []string) (map[string]bool, error) {
-	var asked []string
-	for _, entry := range raw {
-		for name := range strings.SplitSeq(entry, ",") {
-			if name = strings.TrimSpace(name); name != "" {
-				asked = append(asked, name)
-			}
-		}
-	}
-	if len(asked) == 0 {
-		return nil, nil
-	}
-
-	out := map[string]bool{}
-	for _, name := range asked {
-		if name == "all" {
-			for _, t := range known {
-				out[t] = true
-			}
-			continue
-		}
-		if tools, ok := Toolsets[name]; ok {
-			for _, t := range tools {
-				out[t] = true
-			}
-			continue
-		}
-		// not a named set: a resource family, every tool with that prefix
-		found := false
-		for _, t := range known {
-			if strings.HasPrefix(t, name+"_") {
-				out[t], found = true, true
-			}
-		}
-		if !found {
-			return nil, fmt.Errorf("unknown toolset %q (sets: all, %s; or a resource family: %s)",
-				name, strings.Join(setNames(), ", "), strings.Join(resourceFamilies(known), ", "))
-		}
-	}
-	// core is what every other set assumes: without it there is no way to find
-	// a library or open an item
-	for _, t := range Toolsets["core"] {
-		out[t] = true
-	}
-
-	return out, nil
-}
-
-// setNames lists the curated toolsets, sorted.
-func setNames() []string {
-	out := make([]string, 0, len(Toolsets))
-	for k := range Toolsets {
-		out = append(out, k)
-	}
-	slices.Sort(out)
-
-	return out
-}
-
-// resourceFamilies lists the resource prefixes in use, sorted.
-func resourceFamilies(known []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, t := range known {
-		if i := strings.Index(t, "_"); i > 0 && !seen[t[:i]] {
-			seen[t[:i]] = true
-			out = append(out, t[:i])
-		}
-	}
-	slices.Sort(out)
-
-	return out
-}
-
-// compilePatterns expands the essential preset, splits comma-separated
-// entries, and checks that every pattern matches at least one known tool.
-func compilePatterns(raw, known []string, which string) ([]string, error) {
-	var out []string
-	for _, entry := range raw {
-		for pat := range strings.SplitSeq(entry, ",") {
-			pat = strings.TrimSpace(pat)
-			if pat == "" {
-				continue
-			}
-			if pat == "essential" {
-				out = append(out, EssentialTools...)
-				continue
-			}
-			if !slices.ContainsFunc(known, func(n string) bool { return matchPattern(pat, n) }) {
-				return nil, fmt.Errorf("%s-tools pattern %q matches no tool (have: %s)", which, pat, strings.Join(known, ", "))
-			}
-			out = append(out, pat)
-		}
-	}
-
-	return out, nil
-}
-
-// allowedWithin checks an allow list against the toolsets asked for beside
-// it, which it narrows: a tool it names that none of the sets holds would
-// not be registered, and silently leaving it out read as the tool not
-// existing. --allow-tools essential with the default core registered three
-// of its five. So each name or pattern must reach a tool in the sets, and
-// the error says which set to add.
-func allowedWithin(raw []string, sets map[string]bool, asked, known []string) error {
-	in := func(name string) bool { return sets[name] }
-	for _, entry := range raw {
-		for pat := range strings.SplitSeq(entry, ",") {
-			pat = strings.TrimSpace(pat)
-			if pat == "" {
-				continue
-			}
-			var outside []string
-			switch {
-			case pat == "essential":
-				outside = slices.DeleteFunc(slices.Clone(EssentialTools), in)
-			case !slices.ContainsFunc(known, func(n string) bool { return sets[n] && matchPattern(pat, n) }):
-				outside = slices.DeleteFunc(slices.Clone(known), func(n string) bool { return !matchPattern(pat, n) })
-				slices.Sort(outside)
-			}
-			if len(outside) == 0 {
-				continue
-			}
-			homes := []string{}
-			for _, name := range outside {
-				if set := toolsetOf(name); set != "" && !slices.Contains(homes, set) {
-					homes = append(homes, set)
-				}
-			}
-			slices.Sort(homes)
-			hint := "leave --toolsets out, so the allow list chooses from every tool"
-			if len(homes) > 0 {
-				hint = "add " + strings.Join(homes, ",") + " to --toolsets, or " + hint
-			}
-
-			return fmt.Errorf("allow-tools %q names %s, which the toolsets asked for (%s) do not hold: %s", pat, strings.Join(outside, ", "), strings.Join(asked, ","), hint)
-		}
-	}
-
-	return nil
-}
-
-// toolsetOf is the curated set a tool belongs to, or "" for a name or a
-// pattern no set holds.
-func toolsetOf(name string) string {
-	for set, members := range Toolsets {
-		if slices.Contains(members, name) {
-			return set
-		}
-	}
-
-	return ""
-}
-
-func matchesAny(patterns []string, name string) bool {
-	return slices.ContainsFunc(patterns, func(p string) bool { return matchPattern(p, name) })
-}
-
-// matchPattern supports exact names plus a single leading or trailing '*'.
-func matchPattern(pattern, name string) bool {
-	switch {
-	case pattern == "*":
-		return true
-	case strings.HasSuffix(pattern, "*"):
-		return strings.HasPrefix(name, strings.TrimSuffix(pattern, "*"))
-	case strings.HasPrefix(pattern, "*"):
-		return strings.HasSuffix(name, strings.TrimPrefix(pattern, "*"))
-	default:
-		return pattern == name
-	}
-}
-
 // ToolInfo describes a registered tool without a server to register it on.
-type ToolInfo struct {
-	Name        string
-	Kind        string // read, write or delete
-	Toolset     string // the curated set it belongs to
-	Description string
-}
+type ToolInfo = mcpregistry.Info
 
-// Describe lists the tools opts would register, for `embyfin-mcp tools`. It
-// needs no connectivity: registration never calls the client, only the
-// handlers do.
-func Describe(opts Options) ([]ToolInfo, error) {
+// described is every tool queued with no server behind it, for the answers
+// that need none: registration never calls the client, only the handlers
+// do.
+func described(opts Options) (*mcpregistry.Registry, error) {
 	client, err := embyfin.New(embyfin.Emby, "https://describe.invalid", "describe")
 	if err != nil {
 		return nil, err
 	}
-	server := mcp.NewServer(&mcp.Implementation{Name: "embyfin-mcp", Version: "describe"}, nil)
-
-	r := &registry{server: server, client: client, opts: opts}
+	r := &registry{client: client, opts: opts}
 	queueTools(r)
 
-	keep, err := selected(r, opts)
+	return r.queued(), nil
+}
+
+// Describe lists the tools opts would register, for `embyfin-mcp tools`. It
+// needs no connectivity, and makes the same choice RegisterAll does.
+func Describe(opts Options) ([]ToolInfo, error) {
+	reg, err := described(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	set := map[string]string{}
-	for name, members := range Toolsets {
-		for _, m := range members {
-			// core wins: it is the set a tool is reached through most often
-			if set[m] == "" || name == "core" {
-				set[m] = name
-			}
-		}
-	}
-
-	kinds := map[toolKind]string{readTool: "read", writeTool: "write", deleteTool: "delete"}
-	out := make([]ToolInfo, 0, len(r.pending))
-	for _, p := range r.pending {
-		if !keep[p.name] {
-			continue
-		}
-		out = append(out, ToolInfo{Name: p.name, Kind: kinds[p.kind], Toolset: set[p.name], Description: p.description})
-	}
-	slices.SortFunc(out, func(a, b ToolInfo) int { return cmp.Compare(a.Name, b.Name) })
-
-	return out, nil
+	return reg.Describe(opts.selection())
 }
 
 // ToolsetNames lists the curated toolsets, for help output.
-func ToolsetNames() []string { return setNames() }
+func ToolsetNames() []string {
+	return mcpregistry.New(mcpregistry.Config{Toolsets: Toolsets}).ToolsetNames()
+}
 
 // FamilyNames lists the resource prefixes accepted by --toolsets, for help
 // output.
 func FamilyNames() []string {
-	r := &registry{}
-	queueTools(r)
+	reg, err := described(Options{})
+	if err != nil {
+		return nil
+	}
 
-	return resourceFamilies(r.names())
+	return reg.FamilyNames()
 }
 
 // typeMovie is the MediaBrowser item type for films.
