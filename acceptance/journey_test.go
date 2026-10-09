@@ -860,6 +860,7 @@ func TestLookupsChangeNothing(t *testing.T) {
 		"audit_missing_metadata":   {{"library": "Messy Movies"}, {"library": "Messy Movies", "problems": "provider_id", "missing": "tmdb"}},
 		"audit_multiple_versions":  {{"library": "Messy Movies"}},
 		"audit_orphans":            {nil},
+		"audit_previews":           {nil, {"library": "Movies"}},
 		"audit_provider":           {{"library": "Movies", "checks": "ids", "types": "Movie"}},
 		"audit_quality":            {{"library": "Messy Movies"}},
 		"audit_runtime":            {{"library": "Messy Shows"}},
@@ -928,6 +929,15 @@ func TestLookupsChangeNothing(t *testing.T) {
 			continue
 		}
 		for _, args := range calls {
+			// Jellyfin's trickplay tiles are not read yet, and there the
+			// audit says so (TestPreviewThumbnailsFoundAndMadeAgain)
+			if isJellyfin() && name == "audit_previews" {
+				if msg := suite.CallErr(t, name, args); !strings.Contains(msg, "read on Emby alone so far") {
+					t.Errorf("audit_previews on Jellyfin said: %s", msg)
+				}
+
+				continue
+			}
 			suite.Call(t, name, args)
 		}
 	}

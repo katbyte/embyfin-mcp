@@ -766,7 +766,7 @@ func (c *Client) RefreshItem(ctx context.Context, id string, replaceAll bool) (b
 	if err != nil {
 		return false, err
 	}
-	_, landed, err := c.awaitSave(ctx, id, before)
+	landed, err := c.awaitSave(ctx, id, before)
 	if err != nil {
 		return false, fmt.Errorf("the refresh was asked for and runs whatever happens next, but reading the item back for it failed: %w", err)
 	}

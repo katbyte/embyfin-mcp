@@ -171,6 +171,11 @@ func virtualFolderFromEmby(d *emby.VirtualFolderInfo) VirtualFolder {
 	f := VirtualFolder{Name: d.Name, CollectionType: d.CollectionType, Locations: d.Locations, ItemID: d.ItemId, GUID: d.Guid}
 	if o := d.LibraryOptions; o != nil {
 		f.SavesNfo = slices.Contains(o.MetadataSavers, nfoSaver)
+		// both: extraction on with no interval, or an interval with
+		// extraction off, makes none
+		if pointer.From(o.EnableChapterImageExtraction) && o.ThumbnailImagesIntervalSeconds > 0 {
+			f.PreviewEveryS = o.ThumbnailImagesIntervalSeconds
+		}
 		if len(o.TypeOptions) > 0 {
 			f.MetadataFetchers = make(map[string][]string, len(o.TypeOptions))
 			for _, t := range o.TypeOptions {

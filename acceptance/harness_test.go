@@ -443,6 +443,11 @@ func start() error {
 	if session, err = mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil).Connect(ctx, ct, nil); err != nil {
 		return err
 	}
+	// the preview thumbnail tools read Emby's files, and say so on Jellyfin
+	if isJellyfin() {
+		const why = "Jellyfin keeps trickplay tiles, which the preview thumbnail tools do not read yet: both say so"
+		cannotAnswer["audit_previews"], cannotAnswer["item_previews_regenerate"] = why, why
+	}
 	suite.Ctx, suite.Session, suite.Ready, suite.CannotAnswer = ctx, session, true, cannotAnswer
 
 	return seed()

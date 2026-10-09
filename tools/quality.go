@@ -360,6 +360,11 @@ func readCopy(ctx context.Context, client *embyfin.Client, in copyIn, side strin
 		if !item.HasFile() {
 			return copyFacts{}, nil, nil, fmt.Errorf("copy %s: %q is a record with no file, so there is nothing to compare", side, item.Name)
 		}
+		if facts.Width <= 0 && facts.Height <= 0 && (item.Type == typeMovie || item.Type == typeEpisode) {
+			// a file the server lists and has not read: a scan lists a file
+			// before it reads its streams, and some files it never can
+			return copyFacts{}, nil, nil, fmt.Errorf("copy %s: the server holds no frame size for %q: it lists the file and has not read its video stream - a scan reads a file after it lists it, and some files it cannot read - so there is nothing to compare; audit_quality lists these as unprobed", side, item.Name)
+		}
 		if facts.Width <= 0 && facts.Height <= 0 {
 			// a series or a season holds episodes rather than a file: the
 			// id is one level up from the thing being compared

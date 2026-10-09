@@ -280,6 +280,32 @@ func TestQualityCompareRefusesWhatItCannotAnswer(t *testing.T) {
 	}
 }
 
+// A film the server lists and has not read yet - a scan lists a file before
+// it reads its streams - has no frame size to compare. The refusal says so,
+// and does not call the film a thing that holds episodes: seen on a library
+// in its first scan, where the answer was "is a movie, which has no frame of
+// its own - compare the episodes".
+func TestQualityCompareRefusesAFilmNotReadYet(t *testing.T) {
+	t.Parallel()
+
+	f := newFakeServer(t)
+	f.mux.HandleFunc("GET /Items", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"Items": []map[string]any{{
+			"Id": "f1", "Name": "Some Film (1979)", "Type": "Movie", "LocationType": "FileSystem", "Path": "/media/movies/Some Film (1979)/Some Film (1979).mkv",
+			"MediaSources": []map[string]any{{"Path": "/media/movies/Some Film (1979)/Some Film (1979).mkv", "Container": "mkv", "Size": int64(32_000_000_000)}},
+		}}, "TotalRecordCount": 1})
+	})
+	cs := session(t, f, Options{})
+
+	msg := mustRefuse(t, cs, "quality_compare", map[string]any{
+		"a": map[string]any{"item_id": "f1"},
+		"b": map[string]any{"width": 1920, "height": 1080, "video_codec": "h264", "bitrate": 6000000},
+	})
+	if !strings.Contains(msg, `copy a: the server holds no frame size for "Some Film (1979)"`) || !strings.Contains(msg, "has not read its video stream") || strings.Contains(msg, "compare the episodes") {
+		t.Errorf("a film the server has not read said: %s", msg)
+	}
+}
+
 // One side is usually the library's own copy, and it has to be read the same
 // way the other tools read it or the two sides are not comparable.
 func TestQualityCompareReadsALibraryItem(t *testing.T) {

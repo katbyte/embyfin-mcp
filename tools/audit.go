@@ -1038,7 +1038,7 @@ func auditAllRows() []auditAllKey {
 	}
 	for _, audit := range []string{
 		"audit_file_path", "audit_duplicates", "audit_duplicate_episodes", "audit_disc_folders", "audit_runtime", "audit_quality", "audit_missing_episodes",
-		"audit_spelling", "audit_whitespace", "audit_unwatched", "audit_orphans", "audit_language", "audit_provider", "audit_anime_ids",
+		"audit_spelling", "audit_whitespace", "audit_unwatched", "audit_orphans", "audit_language", "audit_provider", "audit_anime_ids", "audit_previews",
 	} {
 		rows = append(rows, auditAllKey{audit: audit})
 	}
@@ -1167,7 +1167,7 @@ func registerAuditAll(r *registry) {
 	add(r, readTool, &mcp.Tool{
 		Name: "audit_all",
 		Description: "Run every audit and report only the counts, so one call says where a library needs work; start here, then call the audit whose count is not zero for its worklist. " +
-			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_provider asks the provider about each film and each series and is paged, and audit_anime_ids reads the Anime-Lists file. " +
+			"Every audit has a row, the orphans check included when no library is given (it is server-wide). The ones that need more than the server are listed as skipped with why: audit_language needs a language to ask about, audit_provider asks the provider about each film and each series and is paged, audit_anime_ids reads the Anime-Lists file, and audit_previews asks the server about each video's preview thumbnails and is paged. " +
 			"In a music library the audits that apply to music (missing covers and spellings) count its albums, and the rest are skipped as having nothing there to read; over every library, or a mixed one, those two count albums beside films and series. audit_whitespace reads music as it reads the rest, and its row leaves out the file names, which are one row an item, and says how many there are. A library of a kind no audit reads (home videos, music videos, books, photos) has every row skipped as not checked, and over every library each such library is named in libraries_not_checked. A row counted over other types than the audit's default names them in types, and one counted over some of the places an audit reads names them in where, to pass to the audit for its worklist. " +
 			"A row marked partial counted only part of what its audit checks - files with no media facts, shows whose run is not known (the missing-episodes row does not ask TMDB, so it sees only gaps between files unless the server keeps records) - and its note says what was left out: a small count there is not a clean result. " +
 			"Every row that ran says how long it took (took_s). An audit that fails does not end the call: its row says failed with the error, the others still count, and failed lists them - total_findings is then short by whatever they would have found, so run a failed one on its own.",
@@ -1269,6 +1269,7 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 		skip("audit_language", "needs a language to ask about")
 		skip("audit_provider", "asks the provider about each film and each series and is paged: run it on its own")
 		skip("audit_anime_ids", "reads the Anime-Lists file from the web: run it on its own")
+		skip("audit_previews", "asks the server about each video's preview thumbnails, a request or two a video, and is paged: run it on its own")
 	}
 	if music {
 		// the rest read films, series and episodes alone, but for the

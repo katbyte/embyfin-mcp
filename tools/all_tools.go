@@ -92,8 +92,8 @@ var Toolsets = map[string][]string{
 	"curation": {
 		"audit_all", "audit_missing_metadata",
 		"audit_file_path", "audit_duplicates", "audit_multiple_versions", "audit_runtime",
-		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_whitespace", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_disc_folders", "audit_anime_ids", "audit_provider", "provider_cache_clear", "quality_compare", "plan_check",
-		"item_identify", "item_identify_apply", "item_refresh", "item_edit", "metadata_rename",
+		"audit_quality", "audit_missing_episodes", "audit_spelling", "audit_whitespace", "audit_unwatched", "audit_language", "audit_duplicate_episodes", "audit_disc_folders", "audit_previews", "audit_anime_ids", "audit_provider", "provider_cache_clear", "quality_compare", "plan_check",
+		"item_identify", "item_identify_apply", "item_refresh", "item_previews_regenerate", "item_edit", "metadata_rename",
 		"item_artwork", "item_artwork_set", "item_subtitle_search", "item_subtitle_download",
 		"item_similar", "show_seasons", "show_episodes_exist", "show_missing", "show_resolve",
 		"library_episodes", "library_export", "library_filters", "person_get",
@@ -220,6 +220,9 @@ var changeHints = map[string]hints{
 	"library_edit": {destructive: true},
 	// replaces metadata and images, and re-reads an nfo over edits
 	"item_refresh": {destructive: true},
+	// a damaged file is written over, an nfo written again, an empty field
+	// filled; a library's next videos are others the second time
+	"item_previews_regenerate": {destructive: true},
 	// unwatched clears play counts and dates; a second watched mark on a
 	// watched item adds no play (seen on both servers)
 	"item_set_state": {destructive: true, idempotent: true},
@@ -395,6 +398,7 @@ func queueTools(r *registry) {
 	registerDuplicateEpisodesAudit(r)
 	registerFilePathAudit(r)
 	registerDiscAudit(r)
+	registerPreviewTools(r)
 	registerAnimeAudit(r)
 	registerProviderCheckAudit(r)
 	registerProviderCacheTool(r)

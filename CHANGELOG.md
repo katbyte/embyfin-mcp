@@ -27,6 +27,7 @@
 - `audit_anime_ids` says in `note` when an older copy of the anime list answered because it could not be read again
 - `audit_spelling` reads album and artist names off a music library's tracks: an album spelled two ways by one album artist, an artist with and without `The`; `metadata_rename` refuses them, as they are the files' tags
 - `provider_cache_clear` forgets the TMDB answers the tools keep, so the next read asks TMDB again
+- `audit_previews` finds videos whose preview thumbnails - the frames over the seek bar, one BIF file a video on Emby - are missing, damaged or the wrong length, reading each file as it is on disk now; Emby's scheduled task can pass over a video it made them for before, so a file deleted since can stay missing. `item_previews_regenerate` makes them again one video at a time, by id or working through a library, and names anything else the refresh changed. Emby only so far
 
 ### Fixed
 
@@ -38,6 +39,7 @@
 - alternative titles, translations and searches from TMDB are kept an hour, not until a restart
 - `quality_compare` judges a very thinly encoded frame as thin, and gives its bits per pixel to three figures rather than as 0
 - `item_delete`'s note on a scan that was running says Jellyfin can keep the deleted item listed through one more scan, not only until the next
+- `quality_compare` says a film or episode the server has listed and not read yet has no frame size to compare, rather than that it "is a movie, which has no frame of its own"
 - `audit_file_path`'s lookalike row no longer says on Jellyfin that a search misses the title: from 12.2 Jellyfin's search reads a lookalike letter as the Latin one (Emby's still does not)
 - `library_edit` says what a rename does to an account given the library alone on Jellyfin 12.2, which moves the account to the library's new id; before 12.2 the account lost the library, and `access_lost` still names any that do
 

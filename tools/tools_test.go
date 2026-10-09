@@ -87,7 +87,7 @@ func TestRegisterAllKinds(t *testing.T) {
 	}
 }
 
-// The surface is 78 tools, 55 of them reads and 5 deletes, and the essential
+// The surface is 80 tools, 56 of them reads and 5 deletes, and the essential
 // preset is enough to find things, read them and keep watch state in sync. A
 // tool added, merged, removed or moved between kinds changes these on
 // purpose, and this is where that is said.
@@ -102,8 +102,8 @@ func TestSurfaceSize(t *testing.T) {
 	for _, ti := range list {
 		kinds[ti.Kind]++
 	}
-	if len(list) != 78 || kinds["read"] != 55 || kinds["write"] != 18 || kinds["delete"] != 5 {
-		t.Errorf("surface = %d tools: %v, want 78 with 55 read, 18 write, 5 delete", len(list), kinds)
+	if len(list) != 80 || kinds["read"] != 56 || kinds["write"] != 19 || kinds["delete"] != 5 {
+		t.Errorf("surface = %d tools: %v, want 80 with 56 read, 19 write, 5 delete", len(list), kinds)
 	}
 	for _, gone := range []string{
 		"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids", "user_in_progress", "show_episodes",

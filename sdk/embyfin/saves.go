@@ -80,19 +80,16 @@ const savePolls = 240
 
 // awaitSave reads an item until it has been saved since the state given and
 // has then held still for a second or so, for at most savePolls reads. It
-// answers the item as last read and whether the save was seen; an item that
-// stops being there is an error. A server that sends no etag cannot be
-// waited on, and is read once.
-func (c *Client) awaitSave(ctx context.Context, id string, before saveState) (*Item, bool, error) {
+// answers whether the save was seen; an item that stops being there is an
+// error. A server that sends no etag cannot be waited on, and is read once.
+func (c *Client) awaitSave(ctx context.Context, id string, before saveState) (bool, error) {
 	const steady = 4
 	moved, held := false, 0
 	last := before
-	var it *Item
 	for range savePolls {
-		var now saveState
-		var err error
-		if it, now, err = c.savedItem(ctx, id); err != nil || before.etag == "" {
-			return it, false, err
+		_, now, err := c.savedItem(ctx, id)
+		if err != nil || before.etag == "" {
+			return false, err
 		}
 		if now.etag != before.etag {
 			moved = true
@@ -104,16 +101,16 @@ func (c *Client) awaitSave(ctx context.Context, id string, before saveState) (*I
 				held = 0
 			}
 			if held >= steady {
-				return it, true, nil
+				return true, nil
 			}
 		}
 		last = now
 		if err := c.pause(ctx); err != nil {
-			return nil, false, err
+			return false, err
 		}
 	}
 
-	return it, moved, nil
+	return moved, nil
 }
 
 // sleep waits d, or until the context ends.

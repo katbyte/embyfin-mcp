@@ -30,6 +30,10 @@ type VirtualFolder struct {
 	// SavesNfo is whether an edit to one of the library's items is written
 	// back to an nfo beside its media file (see nfoSaver)
 	SavesNfo bool `json:"SavesNfo,omitempty"`
+	// PreviewEveryS is how many seconds apart the preview thumbnails Emby
+	// makes for the library's videos are, and 0 for a library that makes
+	// none (see Preview). Jellyfin's are not read
+	PreviewEveryS int `json:"PreviewEveryS,omitempty"`
 }
 
 // nfoSaver is the metadata saver that writes an item's metadata to an nfo

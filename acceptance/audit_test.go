@@ -1164,7 +1164,7 @@ func TestAuditAll(t *testing.T) {
 
 		return names
 	}
-	if got, want := skippedIn(out), []string{"audit_anime_ids", "audit_language", "audit_orphans", "audit_provider"}; !slices.Equal(got, want) {
+	if got, want := skippedIn(out), []string{"audit_anime_ids", "audit_language", "audit_orphans", "audit_previews", "audit_provider"}; !slices.Equal(got, want) {
 		t.Errorf("skipped for one library = %v, want %v", got, want)
 	}
 	// nothing failed, and every row that ran says how long it took
@@ -1176,8 +1176,8 @@ func TestAuditAll(t *testing.T) {
 			t.Errorf("row %v: a row that ran is timed, a skipped one is not, and none failed", row)
 		}
 	}
-	if len(counts) != len(want)+5 {
-		t.Errorf("audits = %v, want %d rows", counts, len(want)+5)
+	if len(counts) != len(want)+6 {
+		t.Errorf("audits = %v, want %d rows", counts, len(want)+6)
 	}
 	// the total is the defects: what nobody has watched is a row, not a fault
 	total := 0
@@ -1187,10 +1187,11 @@ func TestAuditAll(t *testing.T) {
 	if acc.Num(t, out["total_findings"], "total_findings") != total {
 		t.Errorf("total_findings = %v, want %d", out["total_findings"], total)
 	}
-	// across the server, the orphans check runs and the three that need
-	// more than the server are all that is skipped
+	// across the server, the orphans check runs and the four it does not
+	// run itself are all that is skipped: the three that need more than the
+	// server, and the one that asks it about every video
 	whole := suite.Call(t, "audit_all", nil)
-	if got, want := skippedIn(whole), []string{"audit_anime_ids", "audit_language", "audit_provider"}; !slices.Equal(got, want) {
+	if got, want := skippedIn(whole), []string{"audit_anime_ids", "audit_language", "audit_previews", "audit_provider"}; !slices.Equal(got, want) {
 		t.Errorf("skipped across the server = %v, want %v", got, want)
 	}
 
@@ -1328,7 +1329,7 @@ func TestAuditFamilyIsComplete(t *testing.T) {
 	}
 	want := []string{
 		"audit_all", "audit_anime_ids", "audit_disc_folders", "audit_duplicate_episodes", "audit_duplicates", "audit_file_path", "audit_language",
-		"audit_missing_episodes", "audit_missing_metadata", "audit_multiple_versions", "audit_orphans", "audit_provider", "audit_quality", "audit_runtime", "audit_spelling",
+		"audit_missing_episodes", "audit_missing_metadata", "audit_multiple_versions", "audit_orphans", "audit_previews", "audit_provider", "audit_quality", "audit_runtime", "audit_spelling",
 		"audit_unwatched", "audit_whitespace",
 	}
 	slices.Sort(got)
