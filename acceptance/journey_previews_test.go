@@ -215,15 +215,20 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 		t.Errorf("item_previews_regenerate for a film whose thumbnails are sound = %v", out)
 	}
 
-	// every way a file goes wrong, on the last film's
-	sound, err := os.ReadFile(file(limitless))
-	if err != nil {
-		t.Fatal(err)
+	// every way a file goes wrong, on the last film's. The server wrote the
+	// files as its own user, which on Linux this test can neither read nor
+	// write over: they are read through the server, and a file is replaced
+	// by taking it out of its folder and writing another
+	served := func(id string) []byte {
+		t.Helper()
+		status, raw := api(t, http.MethodGet, "/Videos/"+id+"/index.bif?Width=320", "", nil)
+		if status != http.StatusOK || len(raw) < 10_000 {
+			t.Fatalf("reading the thumbnails of %s from the server: HTTP %d, %d bytes", id, status, len(raw))
+		}
+
+		return raw
 	}
-	other, err := os.ReadFile(file(dune))
-	if err != nil {
-		t.Fatal(err)
-	}
+	sound, other := served(ids[limitless]), served(ids[dune])
 	for _, c := range []struct {
 		what, problem, detail string
 		bytes                 []byte
@@ -235,6 +240,9 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 		// a film an hour longer
 		{"another film's", "length", "thumbnails 10 s apart reach 2 h 4", other},
 	} {
+		if err := os.Remove(file(limitless)); err != nil {
+			t.Fatal(err)
+		}
 		acc.MediaWrite(t, file(limitless), c.bytes)
 		_, found := audit(map[string]any{"ids": []any{ids[limitless]}})
 		if len(found) != 1 || acc.Str(found[0]["problem"]) != c.problem || !strings.Contains(acc.Str(found[0]["detail"]), c.detail) || acc.Str(found[0]["id"]) != ids[limitless] {
@@ -281,8 +289,8 @@ func TestPreviewThumbnailsFoundAndMadeAgain(t *testing.T) {
 		t.Fatalf("worked through, the audit still finds %v", got)
 	}
 	// the file made over another film's is this film's own
-	if now, err := os.ReadFile(file(limitless)); err != nil || len(now) != len(sound) {
-		t.Errorf("the last film's thumbnails are %d bytes, %v: want the %d they were before another film's were put in their place", len(now), err, len(sound))
+	if now, err := os.Stat(file(limitless)); err != nil || now.Size() != int64(len(sound)) {
+		t.Errorf("the last film's thumbnails are %v, %v: want the %d bytes they were before another film's were put in their place", now, err, len(sound))
 	}
 	if out, rows = regenerate(map[string]any{"library": library}); len(rows) != 0 || acc.Num(t, out["made"], "made") != 0 || acc.Num(t, out["videos_checked"], "videos_checked") != len(films) || out["next_offset"] != nil {
 		t.Errorf("with nothing left to make, item_previews_regenerate = %v", out)
