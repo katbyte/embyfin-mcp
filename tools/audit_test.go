@@ -92,7 +92,10 @@ func TestRuntimeAuditReportsOnlyLengthsNoFileCanHave(t *testing.T) {
 		{season: 3, number: 6, name: "Twelve Hours", path: "/m/s3e6.mkv", minutes: 12 * 60},
 	}}
 	film := &fakeSeries{id: "f", name: "Zzyzx Film", film: true, path: "/m/Zzyzx Film (2001)/Zzyzx Film (2001).mkv", year: 2001, filmSeconds: 90}
-	f := tvServer(t, s, film)
+	// a whole DVD in one file, which the server times at a minute and a
+	// half: a title of the disc, or its menu, and no length of the film's
+	disc := &fakeSeries{id: "d", name: "Zzyzx Disc", film: true, path: "/m/Zzyzx Disc (1942)/Zzyzx Disc (1942) - DVD.ISO", year: 1942, filmSeconds: 88}
+	f := tvServer(t, s, film, disc)
 	// audit_all reads the library as an administrator is shown it (for
 	// versions) and every account's watch state: one account, whose view is
 	// the library's
@@ -130,16 +133,27 @@ func TestRuntimeAuditReportsOnlyLengthsNoFileCanHave(t *testing.T) {
 	if n := number(t, out["total_findings"], "total_findings"); n != len(want) {
 		t.Errorf("total_findings = %d, want %d", n, len(want))
 	}
-	// the film is scanned beside the twelve episodes
-	if n := number(t, out["items_scanned"], "items_scanned"); n != 13 {
-		t.Errorf("items_scanned = %d, want the twelve episodes and the film", n)
+	// the film and the disc image are scanned beside the twelve episodes,
+	// and the disc image is counted and not judged
+	if n := number(t, out["items_scanned"], "items_scanned"); n != 14 {
+		t.Errorf("items_scanned = %d, want the twelve episodes, the film and the disc image", n)
+	}
+	if number(t, out["disc_images"], "disc_images") != 1 || number(t, out["unprobed"], "unprobed") != 0 {
+		t.Errorf("disc_images = %v, unprobed = %v, want the one disc image and nothing unprobed", out["disc_images"], out["unprobed"])
 	}
 
 	// audit_all's row is the audit's own count
 	all := mustCall(t, cs, "audit_all", map[string]any{})
 	for _, row := range objects(t, all["audits"], "audits") {
-		if text(row["audit"]) == "audit_runtime" && number(t, row["findings"], "findings") != len(want) {
+		if text(row["audit"]) != "audit_runtime" {
+			continue
+		}
+		if number(t, row["findings"], "findings") != len(want) {
 			t.Errorf("audit_all's audit_runtime row = %v, want %d", row, len(want))
+		}
+		// and says the disc image it did not judge
+		if !boolean(t, row["partial"], "partial") || !strings.Contains(text(row["note"]), "disc images (.iso), not judged either: 1") {
+			t.Errorf("audit_all's audit_runtime row = %v, want it partial for the disc image", row)
 		}
 	}
 }

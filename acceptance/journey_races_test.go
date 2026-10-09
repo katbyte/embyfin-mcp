@@ -154,7 +154,7 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	}
 	// the delete says what the scan it raced may do, and so does the change
 	// of alice's state, which a scan saving the item can undo
-	if note := acc.Str(deleted["note"]); !strings.Contains(note, "was running: it can list this item again") || !strings.Contains(note, "until a later scan lets it go") {
+	if note := acc.Str(deleted["note"]); !strings.Contains(note, "was running: it can list this item again") || !strings.Contains(note, "until a later scan lets it go") || !strings.Contains(note, "if it stays listed, delete it again") {
 		t.Errorf("item_delete during a scan: note = %q, want it to say a scan was running", note)
 	}
 	switch msg := fmt.Sprint(markErr); {
@@ -167,13 +167,14 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 	// Jellyfin's scan, having read the copy's folder before the delete,
 	// can list the copy again when it finishes (seen on a CI runner, not on
 	// every run): the files stay gone and a later scan lets it go - the
-	// next as a rule, the one after at most - which the delete's note says.
-	// Everywhere else the copy must be gone, and on Jellyfin after two scans.
+	// next as a rule, and it has taken more than four run one after another
+	// - which the delete's note says. Everywhere else the copy must be gone,
+	// and on Jellyfin by the last scan.
 	racedBack := func() bool {
 		_, err := suite.Invoke("item_get", map[string]any{"id": staged})
 		return err == nil
 	}
-	stand := func(when string) {
+	stand := func(when string, last bool) {
 		t.Helper()
 		if got := acc.Str(suite.Call(t, "item_get", map[string]any{"id": arrival})["overview"]); got != overview {
 			t.Errorf("%s the messy Arrival's overview is %q", when, got)
@@ -202,7 +203,7 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 		if _, err := os.Stat(copied); !os.IsNotExist(err) {
 			t.Errorf("%s the deleted copy's folder is on disk: %v", when, err)
 		}
-		if when != "after the last scan" && isJellyfin() && racedBack() {
+		if !last && isJellyfin() && racedBack() {
 			t.Logf("%s Jellyfin lists the deleted copy again, its files gone, as the delete's note says it may", when)
 			return
 		}
@@ -213,17 +214,32 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 			t.Errorf("%s the library holds the deleted copy again: %v", when, held)
 		}
 	}
-	stand("once the scan finished")
+	stand("once the scan finished", false)
 	// and the next scans, the first to start after the delete: Jellyfin has
 	// kept the copy through the first of them (twice in a few dozen runs,
-	// with the copy a film of 100 minutes), and must let it go by the
-	// second, as the delete's note says
-	for _, when := range []string{"after another scan", "after the last scan"} {
+	// with the copy a film of 100 minutes), through the second (once, on
+	// 12.2, where the scan after let it go) and through four run within
+	// half a minute (once, on 12.2, where one soon after let it go), which
+	// the delete's note says. Two scans are always run, for the fixes to
+	// stand through; a copy still listed then is given more to go in, and
+	// it is the last of them it must be gone by
+	const mostScans = 12
+	for n := 1; n <= mostScans; n++ {
+		if n > 2 && !racedBack() {
+			break
+		}
 		suite.Call(t, "library_scan", nil)
 		if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
 			t.Fatal(err)
 		}
-		stand(when)
+		stand(fmt.Sprintf("after scan %d", n), n == mostScans)
+	}
+	// whichever scan let the copy go, it is gone, and the library with it
+	if racedBack() {
+		t.Error("after the last scan the deleted copy is still listed")
+	}
+	if held := heldPaths(t, "Messy Movies"); slices.ContainsFunc(held, func(p string) bool { return strings.Contains(p, "/messy-movies/"+name+"/") }) {
+		t.Errorf("after the last scan the library holds the deleted copy: %v", held)
 	}
 }
 

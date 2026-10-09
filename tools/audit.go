@@ -1326,8 +1326,8 @@ func auditAllSteps(ctx context.Context, client *embyfin.Client, library string, 
 		runtimes, err := auditRuntimes(ctx, client, parent, 1)
 
 		return auditAllRow{
-			Findings: runtimes.Found, Scanned: runtimes.Scanned, Partial: runtimes.Unprobed > 0, changed: runtimes.Note,
-			Note: fmt.Sprintf("films and episodes too short (under %d minutes) or too long (%d hours or more) to be one; files the server holds no runtime for (never probed), counted in items_scanned and not judged: %d", shortestRuntimeS/60, absurdRuntimeS/3600, runtimes.Unprobed),
+			Findings: runtimes.Found, Scanned: runtimes.Scanned, Partial: runtimes.Unprobed+runtimes.DiscImages > 0, changed: runtimes.Note,
+			Note: fmt.Sprintf("films and episodes too short (under %d minutes) or too long (%d hours or more) to be one; files the server holds no runtime for (never probed), counted in items_scanned and not judged: %d; disc images (.iso), not judged either: %d", shortestRuntimeS/60, absurdRuntimeS/3600, runtimes.Unprobed, runtimes.DiscImages),
 		}, err
 	})
 	run("audit_quality", func() (auditAllRow, error) {
@@ -1436,6 +1436,17 @@ type runtimeOut struct {
 	// counted in items_scanned and judged by nothing: left unsaid, a library
 	// of never-probed files read as one with nothing wrong in it
 	Unprobed int `json:"unprobed" jsonschema:"files the server holds no runtime for (never probed, an import cut short or a scan that stopped): counted in items_scanned, but with no runtime they are not judged, so none of them is known to be right"`
+	// a disc image's runtime is not the film's to judge: see discImage
+	DiscImages int `json:"disc_images" jsonschema:"files that are a disc image (.iso): counted in items_scanned and not judged, because the runtime a server holds for one can be a single title's or a menu's rather than the film's, so none of them is known to be right"`
+}
+
+// discImage says whether a file is a disc image, a whole DVD or Blu-ray in
+// one file. A server reads a runtime off one as it would off a film, and it
+// is not always the film's: a 42-minute film on a DVD image was timed at 88
+// seconds (seen on Jellyfin 12.2), which read here as "an incomplete, sample
+// or broken file". The disc may be whole, and nothing here can tell.
+func discImage(it *embyfin.Item) bool {
+	return strings.EqualFold(mediapath.Ext(it.Path), ".iso")
 }
 
 func registerRuntimeAudit(r *registry) {
@@ -1445,7 +1456,7 @@ func registerRuntimeAudit(r *registry) {
 		Name: "audit_runtime",
 		Description: fmt.Sprintf("Find films and episodes whose runtime no film or episode can have: under %d minutes, a download cut off, a sample or a broken file; or %d hours or more, broken duration metadata. ", shortestRuntimeS/60, absurdRuntimeS/3600) +
 			"Nothing is judged against its season or its library, whose other files say nothing true about one file's length: a length against TMDB's for that film or episode is audit_provider. " +
-			"A show's extras, which Emby 4.10 holds as episodes when they sit in a season's Extras folder, are left out, and so are the server's records of episodes it has no file for. Files the server holds no runtime for are counted in unprobed and judged by nothing.",
+			"A show's extras, which Emby 4.10 holds as episodes when they sit in a season's Extras folder, are left out, and so are the server's records of episodes it has no file for. Files the server holds no runtime for are counted in unprobed and judged by nothing, and so is a disc image (.iso), counted in disc_images: the runtime a server holds for one can be a single title's or a menu's.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in runtimeIn) (*mcp.CallToolResult, runtimeOut, error) {
 		if in.Limit <= 0 {
 			in.Limit = 100
@@ -1518,6 +1529,11 @@ func auditRuntimes(ctx context.Context, client *embyfin.Client, parent string, l
 				continue
 			}
 			out.Scanned++
+			if discImage(it) {
+				out.DiscImages++
+
+				continue
+			}
 			if it.RunTimeTicks <= 0 {
 				out.Unprobed++
 

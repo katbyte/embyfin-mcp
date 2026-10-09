@@ -355,6 +355,22 @@ func TestTitleScoreFoldsDottedAcronyms(t *testing.T) {
 		}
 	}
 
+	// a number straight after the acronym's last point is a word of its
+	// own, as it is with a space before it or with the dots turned to
+	// spaces: a film named after its own folder read as another film's
+	for _, spelling := range []string{"Zzyzx Invasion - Q.R.S.1", "Zzyzx Invasion - Q.R.S. 1", "Zzyzx Invasion - Q R S 1", "Zzyzx.Invasion.Q.R.S.1"} {
+		if got := Normalise(spelling); got != "zzyzx invasion qrs 1" {
+			t.Errorf("%q folds to %q, want zzyzx invasion qrs 1", spelling, got)
+		}
+		if v := Judge(FormOf(spelling), FormOf("Zzyzx Invasion - Q.R.S.1 (2017)")); v != Same {
+			t.Errorf("%q against the dotted name with its year is %v, want the same", spelling, v)
+		}
+	}
+	// and it is still a number: the acronym alone is another title
+	if v := Judge(FormOf("Zzyzx Invasion - Q.R.S."), FormOf("Zzyzx Invasion - Q.R.S.1")); v == Same {
+		t.Error("an acronym with a number after it reads the same as the acronym alone")
+	}
+
 	// single letters that are words in their own right are not an acronym:
 	// the ampersand in "A&E" becomes "and", which breaks the run
 	if score, _ := Score("24 Hours in A and E", "24 Hours in A&E"); score != 1 {

@@ -820,7 +820,7 @@ func registerItemTools(r *registry) {
 			notes = append(notes, note)
 		}
 		if running := slices.Compact(slices.Sorted(slices.Values(slices.Concat(scanning, after)))); len(running) > 0 {
-			notes = append(notes, strings.Join(running, " and ")+" was running: it can list this item again once it finishes, pointing at files that are gone, until a later scan lets it go - the next one as a rule, though Jellyfin has kept such an item through one more; if it is still listed after two, delete it again")
+			notes = append(notes, strings.Join(running, " and ")+" was running: it can list this item again once it finishes, pointing at files that are gone, until a later scan lets it go - the next one as a rule, though Jellyfin has kept such an item through four more; if it stays listed, delete it again")
 		}
 		out.Removed, out.Note = removed, strings.Join(notes, "; ")
 

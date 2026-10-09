@@ -306,6 +306,11 @@ func TestAuditFilePathReadsAnUnmatchedFilmNamedAfterItsFolder(t *testing.T) {
 		{Type: typeMovie, Name: "Cube (1997)", Path: "/m/Cube (1997)"},
 		{Type: typeMovie, Name: "Cube (1997)", Path: "/m/Cube (1997)/Cube (1997).mkv"},
 		{Type: typeMovie, Name: "Cube", ProductionYear: 1997, Path: "/m/Cube (1997)/Cube (1997).mkv"},
+		// an acronym with a number after its last point reads the same
+		// with its dots as with the spaces the path is read with: it was
+		// "alike but numbered apart" from its own folder
+		{Type: typeMovie, Name: "Zzyzx Invasion - Q.R.S.1 (2017)", Path: "/m/Zzyzx Invasion - Q.R.S.1 (2017)/Zzyzx Invasion - Q.R.S.1 (2017).mp4"},
+		{Type: typeMovie, Name: "Zzyzx Invasion - Q.R.S.1", ProductionYear: 2017, Path: "/m/Zzyzx Invasion - Q.R.S.1 (2017)/Zzyzx Invasion - Q.R.S.1 (2017).mp4"},
 	} {
 		if row, _ := checkPath(&it, want, embyfin.Emby); len(row.Problems) != 0 {
 			t.Errorf("%s at %s: %v", it.Name, it.Path, row.Problems)

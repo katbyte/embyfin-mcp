@@ -541,6 +541,15 @@ var foldScript = map[rune]string{
 // Med, which share a word with it.
 var initialism = regexp.MustCompile(`(?:\b[a-z]\.){2,}`)
 
+// initialismThenNumber is a dotted acronym with a number straight after its
+// last point: "S.W.A.T.2", "Q.R.S.1". With the points dropped the number
+// closed up into the word - "qrs1" - where the same name with its dots
+// turned into spaces keeps it a word of its own - "qrs 1" - and the two read
+// as different titles: a film the server named after its own folder was
+// reported as filed under another film's name. The number is set apart, as
+// it is in "S.W.A.T. 2".
+var initialismThenNumber = regexp.MustCompile(`((?:\b[a-z]\.){2,})(\d)`)
+
 // spacedInitialism is the same acronym after a release name has had its dots
 // turned into spaces: "Marvels.Agents.of.S.H.I.E.L.D" arrives as single
 // letters in a row. Both spellings have to land on the same word as the
@@ -600,6 +609,7 @@ func Normalise(s string) string {
 	s = strings.ReplaceAll(s, "&", " and ")
 	s = strings.NewReplacer("'", "", "’", "", "`", "").Replace(s)
 	s = FoldAccents(s)
+	s = initialismThenNumber.ReplaceAllString(s, "$1 $2")
 	s = initialism.ReplaceAllStringFunc(s, func(m string) string { return strings.ReplaceAll(m, ".", "") })
 	s = combiningMarks.ReplaceAllString(s, "")
 	s = notAlphanumeric.ReplaceAllString(s, " ")

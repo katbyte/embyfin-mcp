@@ -42,7 +42,9 @@
 - `audit_missing_episodes` reads Jellyfin's records of episodes it has no file for (kept with the TheTVDB plugin), which its sweep never asked for
 - alternative titles, translations and searches from TMDB are kept an hour, not until a restart
 - `quality_compare` judges a very thinly encoded frame as thin, and gives its bits per pixel to three figures rather than as 0
-- `item_delete`'s note on a scan that was running says Jellyfin can keep the deleted item listed through one more scan, not only until the next
+- `item_delete`'s note on a scan that was running says Jellyfin can keep the deleted item listed through several more scans, not only until the next
+- `audit_file_path` no longer reports a film named after its own folder when its title holds a dotted acronym with a number after it (`Q.R.S.1`): the acronym folds the same with its dots as with the spaces a path is read with
+- `audit_runtime` leaves a disc image (`.iso`) unjudged and counts it in `disc_images`: the runtime a server holds for one can be a single title's or a menu's, and it was reported as an incomplete or broken file
 - `quality_compare` says a film or episode the server has listed and not read yet has no frame size to compare, rather than that it "is a movie, which has no frame of its own"
 - `audit_file_path`'s lookalike row no longer says on Jellyfin that a search misses the title: from 12.2 Jellyfin's search reads a lookalike letter as the Latin one (Emby's still does not)
 - `library_edit` says what a rename does to an account given the library alone on Jellyfin 12.2, which moves the account to the library's new id; before 12.2 the account lost the library, and `access_lost` still names any that do
