@@ -927,6 +927,28 @@ proxy_ca() {
   chmod 644 "${PROXY_CA}/ca.pem"
 }
 
+# pull_image fetches the server's image when this machine does not have it:
+# from Docker Hub, and when Docker Hub turns the machine away - it limits how
+# much an address may pull, and a CI runner shares its address - from Google's
+# mirror of it, which holds the same image under the same name. An image
+# already here is used as it is, as before: docker pull it to test a newer one.
+pull_image() {
+  docker image inspect "$IMAGE" >/dev/null 2>&1 && return 0
+  docker pull -q "$IMAGE" >/dev/null 2>&1 && return 0
+  case "$IMAGE" in
+    */*/*)
+      echo "could not pull ${IMAGE}" >&2
+      exit 1
+      ;; # names a registry of its own: there is no mirror of it to try
+  esac
+  log "Docker Hub would not give ${IMAGE}: taking it from mirror.gcr.io"
+  docker pull -q "mirror.gcr.io/${IMAGE}" >/dev/null || {
+    echo "could not pull ${IMAGE} from Docker Hub or from mirror.gcr.io" >&2
+    exit 1
+  }
+  docker tag "mirror.gcr.io/${IMAGE}" "$IMAGE"
+}
+
 # retry TRIES COMMAND... - run a command until it succeeds, for the wizard
 # steps: Jellyfin answers its first requests with a 404 or 503 for a moment
 # after it starts listening, while the rest of the app comes up
@@ -980,6 +1002,7 @@ up() {
   fixtures
   proxy_ca
 
+  pull_image
   local proxy_at
   proxy_at="$(proxy_host)"
   log "starting ${IMAGE} as ${NAME} on ${PORT} (providers proxied via ${proxy_at}:${PROXY_PORT})"
