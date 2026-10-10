@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/pandorest/client"
 )
 
 // ActivityRetention is how many days of its activity log the server keeps,

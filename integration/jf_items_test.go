@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
 	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/pandorest/client"
 )
 
 // TestJFItemsQuery drives /Items through every parameter the neutral layer

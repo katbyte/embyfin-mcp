@@ -7,7 +7,8 @@ The vendored OpenAPI documents, the definitions imported from them, and what eac
 The two backends and TMDB publish OpenAPI documents, vendored at the top of
 `api-defs/` as `<server>-openapi-<version>.json`, the reference for
 `sdk/emby`, `sdk/jf` and `sdk/tmdb` - and, unlike Audiobookshelf's, they are
-build inputs. `sdk/pandorest` (see its [README](../sdk/pandorest/README.md))
+build inputs. `sdk/pandorest` (see its [README](../sdk/pandorest/README.md)),
+with [pandorest](https://github.com/katbyte/pandorest),
 imports each into checked-in definitions under `api-defs/<server>-<version>/` beside it,
 fixing the document's known bugs with named workarounds on the way, and
 generates the two clients from those definitions. `make generate` runs both
@@ -42,7 +43,7 @@ server, and the quirks they found are recorded below.
 ## Where the specs are wrong
 
 These are shape bugs, fixed in the generated clients by the importer's
-workarounds (`sdk/pandorest/importer/workarounds`, listed in each
+workarounds (`sdk/pandorest/workarounds`, listed in each
 `api-defs/<server>-<version>/Service.json`). Each checks its bug is still in the
 document and fails the import once it is not.
 

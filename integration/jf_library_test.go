@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
+	"github.com/katbyte/pandorest/client"
 )
 
 // jfLibraryOptions builds the options both fixtures share. The generated

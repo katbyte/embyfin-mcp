@@ -303,8 +303,8 @@ It refuses a folder inside a library or holding one, a folder the server can sti
 ## Using the clients on their own
 
 `sdk/emby` and `sdk/jf` are complete Go clients for the Emby and Jellyfin APIs that depend on
-nothing but the standard library, the shared base client in `sdk/client` and
-`go-kt/version`, and know nothing of MCP. If you only want to talk to one of the servers from
+nothing but the standard library, [pandorest](https://github.com/katbyte/pandorest)'s base
+client and `go-kt`, and know nothing of MCP. If you only want to talk to one of the servers from
 Go, take the package and ignore the rest:
 
 ```go
@@ -330,8 +330,8 @@ found, err := c.FindById(ctx, "tt0137523", tmdb.FindByIdOperationOptions{Externa
 ```
 
 They are generated from the servers' own OpenAPI documents (`docs/`, see
-[api-defs/README.md](api-defs/README.md)) by `sdk/pandorest`, a generator kept in this
-repository and modelled on [hashicorp/pandora](https://github.com/hashicorp/pandora): an
+[api-defs/README.md](api-defs/README.md)) with [pandorest](https://github.com/katbyte/pandorest), a generator that began in this
+repository and is modelled on [hashicorp/pandora](https://github.com/hashicorp/pandora): an
 importer normalises each spec into checked-in definitions (`api-defs/<service>-<version>/`, one file per
 tag) through named workarounds for the spec's known bugs, a differ reports what a spec
 refresh changes, and a generator writes one file per operation and model from the
@@ -341,8 +341,8 @@ status codes the operation documents (anything else is an error), and a `Complet
 every paged list. `make apicheck` proves the coverage claim against the spec, `make gencheck`
 (and the unit tests) fail when the generated code is stale, and the integration suite proves
 the shapes **against a running server** - which is the only thing that catches the server
-changing shape underneath a spec that says otherwise. See
-[sdk/pandorest/README.md](sdk/pandorest/README.md).
+changing shape underneath a spec that says otherwise. This repository's part of it, the
+services and the workarounds for their documents, is in [sdk/pandorest](sdk/pandorest/README.md).
 
 `sdk/embyfin` is the backend-neutral layer the tools use: the handful of item, library, user,
 session and provider operations a curation session needs, answering the same way on both

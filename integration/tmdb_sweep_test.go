@@ -27,6 +27,7 @@ import (
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
 	"github.com/katbyte/embyfin-mcp/sdk/tmdb"
 	"github.com/katbyte/go-kt/test/replayproxy"
+	"github.com/katbyte/pandorest/sweep"
 )
 
 // The ids the sweep starts from, which TMDB's own documentation uses: Fight
@@ -39,9 +40,9 @@ const (
 )
 
 // tmdbCases are the GETs the sweep does not call, and why.
-var tmdbCases = func() map[string]sweepCase {
-	session := sweepCase{Skip: "needs a signed-in user's session, and answers with that user's account: nothing the suite may hold or publish"}
-	cases := map[string]sweepCase{}
+var tmdbCases = func() map[string]sweep.Case {
+	session := sweep.Case{Skip: "needs a signed-in user's session, and answers with that user's account: nothing the suite may hold or publish"}
+	cases := map[string]sweep.Case{}
 	for _, name := range []string{
 		"AccountDetails", "AccountFavoriteTv", "AccountGetFavorites", "AccountLists", "AccountRatedMovies", "AccountRatedTv",
 		"AccountRatedTvEpisodes", "AccountWatchlistMovies", "AccountWatchlistTv",
@@ -52,12 +53,12 @@ var tmdbCases = func() map[string]sweepCase {
 	// the suite rates nothing on TMDB, where a guest's rating counts toward
 	// the film's, and a guest session that has rated nothing is not found
 	for _, name := range []string{"GuestSessionRatedMovies", "GuestSessionRatedTv", "GuestSessionRatedTvEpisodes"} {
-		cases[name] = sweepCase{Status: http.StatusNotFound, Why: "a guest session that has rated nothing answers 404"}
+		cases[name] = sweep.Case{Status: http.StatusNotFound, Why: "a guest session that has rated nothing answers 404"}
 	}
 	// a changes route lists the last day's, and the day these were recorded
 	// the person and the episode had none
-	cases["PersonChanges"] = sweepCase{Empty: "Brad Pitt had no change the day it was recorded"}
-	cases["TvEpisodeChangesById"] = sweepCase{Empty: "the episode had no change the day it was recorded"}
+	cases["PersonChanges"] = sweep.Case{Empty: "Brad Pitt had no change the day it was recorded"}
+	cases["TvEpisodeChangesById"] = sweep.Case{Empty: "the episode had no change the day it was recorded"}
 
 	return cases
 }()
@@ -107,12 +108,12 @@ func TestTMDBSweep(t *testing.T) {
 	c.Client.HTTPClient = &http.Client{Timeout: time.Minute, Transport: p.Transport()}
 
 	fixtures := tmdbFixtures(t, c)
-	sweep(t, "tmdb", c, fixtures, tmdbCases)
+	runSweep(t, "tmdb", c, fixtures, tmdbCases)
 }
 
 // tmdbFixtures resolves the ids no example in the document gives: the fixed
 // ones above, and the rest read off TMDB's own answers about them.
-func tmdbFixtures(t *testing.T, c *tmdb.Client) sweepFixtures {
+func tmdbFixtures(t *testing.T, c *tmdb.Client) sweep.Fixtures {
 	t.Helper()
 
 	ctx := t.Context()
@@ -150,8 +151,8 @@ func tmdbFixtures(t *testing.T, c *tmdb.Client) sweepFixtures {
 		t.Fatal("TMDB's answers about the starting ids no longer hold the ids the sweep reads off them")
 	}
 
-	return sweepFixtures{
-		path: map[string]string{
+	return sweep.Fixtures{
+		Path: map[string]string{
 			"movie_id":            id(tmdbFilm),
 			"series_id":           id(tmdbSeries),
 			"season_number":       "1",
@@ -171,7 +172,7 @@ func tmdbFixtures(t *testing.T, c *tmdb.Client) sweepFixtures {
 			"external_id":         film.Model.ImdbId,
 			"time_window":         "day",
 		},
-		options: map[string]string{
+		Options: map[string]string{
 			"query":           "star wars",
 			"external_source": "imdb_id",
 		},

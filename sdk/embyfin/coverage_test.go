@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/pandorest/client"
 )
 
 // The rest of the neutral methods, against the same canned server as
@@ -67,7 +67,7 @@ func TestAddToCollection(t *testing.T) {
 		t.Errorf("Jellyfin add = %d sends, %v; want the lost item sent again, on its own", len(reqs), reqs)
 	}
 	// a collection the server does not have is the server's 404, not a success
-	if err := c.AddToCollection(t.Context(), "c9", []string{"a"}); !client.IsNotFound(err) {
+	if err := c.AddToCollection(t.Context(), "c9", []string{"a"}); !IsNotFound(err) {
 		t.Errorf("adding to an unknown collection = %v", err)
 	}
 }
@@ -89,7 +89,7 @@ func TestImages(t *testing.T) {
 		if r := f.only("GET /Items/9/Images"); len(r.query) != 0 {
 			t.Errorf("%s asked with %v", backend, r.query)
 		}
-		if _, err := c.Images(t.Context(), "404"); !client.IsNotFound(err) {
+		if _, err := c.Images(t.Context(), "404"); !IsNotFound(err) {
 			t.Errorf("%s images of an unknown item = %v", backend, err)
 		}
 	}
@@ -129,7 +129,7 @@ func TestRemoteImages(t *testing.T) {
 	if q := f.only("GET /Items/9/RemoteImages").query; q.Get("type") != "Backdrop" || q.Has("limit") || q.Has("Type") {
 		t.Errorf("Jellyfin query = %v", q)
 	}
-	if _, _, err := c.RemoteImages(t.Context(), "404", "Primary", 0); !client.IsNotFound(err) {
+	if _, _, err := c.RemoteImages(t.Context(), "404", "Primary", 0); !IsNotFound(err) {
 		t.Errorf("remote images of an unknown item = %v", err)
 	}
 }
@@ -157,7 +157,7 @@ func TestDownloadRemoteImage(t *testing.T) {
 	if r := f.only("POST /Items/9/RemoteImages/Download"); r.query.Get("type") != "Primary" || r.query.Get("imageUrl") != "http://img.test/1.jpg" || r.body != "" {
 		t.Errorf("Jellyfin download = %v %q", r.query, r.body)
 	}
-	if err := c.DownloadRemoteImage(t.Context(), "404", "Primary", "http://img.test/1.jpg"); !client.IsNotFound(err) {
+	if err := c.DownloadRemoteImage(t.Context(), "404", "Primary", "http://img.test/1.jpg"); !IsNotFound(err) {
 		t.Errorf("a download for an unknown item = %v", err)
 	}
 }
@@ -228,10 +228,10 @@ func TestSimilarAndInstantMix(t *testing.T) {
 	if q := f.only("GET /Items/9/InstantMix").query; !slices.Equal(q["fields"], fieldsDefault) || q.Get("limit") != "10" {
 		t.Errorf("Jellyfin instant mix = %v", q)
 	}
-	if _, err := c.Similar(t.Context(), "404", "u1", 0); !client.IsNotFound(err) {
+	if _, err := c.Similar(t.Context(), "404", "u1", 0); !IsNotFound(err) {
 		t.Errorf("similar to an unknown item = %v", err)
 	}
-	if _, err := c.InstantMix(t.Context(), "404", 0); !client.IsNotFound(err) {
+	if _, err := c.InstantMix(t.Context(), "404", 0); !IsNotFound(err) {
 		t.Errorf("a mix from an unknown item = %v", err)
 	}
 }
@@ -275,7 +275,7 @@ func TestDeleteItems(t *testing.T) {
 	if err := c.DeleteItems(t.Context(), nil); err != nil || len(f.requests) != before {
 		t.Errorf("deleting nothing = %v (%d requests)", err, len(f.requests)-before)
 	}
-	if err := c.DeleteItem(t.Context(), "404"); !client.IsNotFound(err) {
+	if err := c.DeleteItem(t.Context(), "404"); !IsNotFound(err) {
 		t.Errorf("deleting an unknown item = %v", err)
 	}
 }
@@ -555,10 +555,10 @@ func TestSeasonsAndEpisodes(t *testing.T) {
 	if q := f.all("GET /Shows/9/Episodes")[1].query; q.Has("season") || q.Has("isMissing") || q.Has("limit") {
 		t.Errorf("Jellyfin episodes with the zero options = %v", q)
 	}
-	if _, err := c.Seasons(t.Context(), "404", ""); !client.IsNotFound(err) {
+	if _, err := c.Seasons(t.Context(), "404", ""); !IsNotFound(err) {
 		t.Errorf("seasons of an unknown series = %v", err)
 	}
-	if _, err := c.Episodes(t.Context(), "404", EpisodeOptions{}); !client.IsNotFound(err) {
+	if _, err := c.Episodes(t.Context(), "404", EpisodeOptions{}); !IsNotFound(err) {
 		t.Errorf("episodes of an unknown series = %v", err)
 	}
 }
@@ -606,7 +606,7 @@ func TestEpisodesAndRecords(t *testing.T) {
 	if len(asked) != 2 || asked[0].query.Has("isMissing") || asked[1].query.Get("isMissing") != "true" {
 		t.Errorf("Jellyfin was asked %v", asked)
 	}
-	if _, err := c.EpisodesAndRecords(t.Context(), "404"); !client.IsNotFound(err) {
+	if _, err := c.EpisodesAndRecords(t.Context(), "404"); !IsNotFound(err) {
 		t.Errorf("records of an unknown series = %v", err)
 	}
 }
@@ -641,7 +641,7 @@ func TestSubtitles(t *testing.T) {
 		if r := f.only("GET /Items/9/RemoteSearch/Subtitles/eng"); len(r.query) != 0 {
 			t.Errorf("%s searched with %v", backend, r.query)
 		}
-		if _, err := c.SearchSubtitles(t.Context(), "404", "eng"); !client.IsNotFound(err) {
+		if _, err := c.SearchSubtitles(t.Context(), "404", "eng"); !IsNotFound(err) {
 			t.Errorf("%s subtitles for an unknown item = %v", backend, err)
 		}
 
@@ -653,7 +653,7 @@ func TestSubtitles(t *testing.T) {
 				t.Errorf("%s downloaded with %v %q", backend, r.query, r.body)
 			}
 		}
-		if err := c.DownloadSubtitle(t.Context(), "9", "gone"); !client.IsNotFound(err) {
+		if err := c.DownloadSubtitle(t.Context(), "9", "gone"); !IsNotFound(err) {
 			t.Errorf("%s downloading an unknown subtitle = %v", backend, err)
 		}
 	}

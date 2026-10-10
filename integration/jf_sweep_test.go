@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
+	"github.com/katbyte/pandorest/sweep"
 )
 
 // TestJFReadSweep calls every Jellyfin GET against the fixtures (see
@@ -89,8 +90,8 @@ func TestJFReadSweep(t *testing.T) {
 		t.Fatalf("the sweep's collection never held %s", alien)
 	}
 
-	fixtures := sweepFixtures{
-		path: map[string]string{
+	fixtures := sweep.Fixtures{
+		Path: map[string]string{
 			"itemId":               movie.Id,
 			"userId":               adminID,
 			"seriesId":             series.Id,
@@ -127,7 +128,7 @@ func TestJFReadSweep(t *testing.T) {
 			"mediaSourceId":         item.MediaSources[0].Id,
 			"language":              "eng",
 		},
-		options: map[string]string{
+		Options: map[string]string{
 			"name":          logs[0].Name,
 			"client":        "emby",
 			"path":          "/media",
@@ -137,40 +138,40 @@ func TestJFReadSweep(t *testing.T) {
 		},
 		// an API key acts as no user, and Jellyfin answers 400 to a
 		// user-scoped read that does not name one
-		always: map[string]string{"userId": adminID},
+		Always: map[string]string{"userId": adminID},
 	}
 
 	cases := maps.Clone(jfSweepCases)
-	cases["GetVideoStream"] = sweepCase{Options: map[string]any{"Container": "mp4", "Static": true}}
-	cases["GetVideoStreamByContainer"] = sweepCase{Options: map[string]any{"Static": true}}
-	cases["GetAudioStream"] = sweepCase{Options: map[string]any{"Container": "mp3", "Static": true}}
-	cases["GetAudioStreamByContainer"] = sweepCase{Path: map[string]string{"container": "mp3"}, Options: map[string]any{"Static": true}}
-	cases["GetUniversalAudioStream"] = sweepCase{Options: map[string]any{"Container": "mp3", "UserId": adminID}}
+	cases["GetVideoStream"] = sweep.Case{Options: map[string]any{"Container": "mp4", "Static": true}}
+	cases["GetVideoStreamByContainer"] = sweep.Case{Options: map[string]any{"Static": true}}
+	cases["GetAudioStream"] = sweep.Case{Options: map[string]any{"Container": "mp3", "Static": true}}
+	cases["GetAudioStreamByContainer"] = sweep.Case{Path: map[string]string{"container": "mp3"}, Options: map[string]any{"Static": true}}
+	cases["GetUniversalAudioStream"] = sweep.Case{Options: map[string]any{"Container": "mp3", "UserId": adminID}}
 	// the genre mix is the one route that takes the genre as a required id
-	cases["GetInstantMixFromMusicGenreById"] = sweepCase{Options: map[string]any{"Id": musicGenre.Id}}
+	cases["GetInstantMixFromMusicGenreById"] = sweep.Case{Options: map[string]any{"Id": musicGenre.Id}}
 	// a mix is made from music, and an album is like another by its
 	// artist's other album
-	cases["GetInstantMixFromItem"] = sweepCase{Path: map[string]string{"itemId": album.Id}}
-	cases["GetInstantMixFromPlaylist"] = sweepCase{Path: map[string]string{"itemId": music.Id}}
-	cases["GetSimilarAlbums"] = sweepCase{Path: map[string]string{"itemId": jfAlbum(t, musicID, darkSide).Id}}
+	cases["GetInstantMixFromItem"] = sweep.Case{Path: map[string]string{"itemId": album.Id}}
+	cases["GetInstantMixFromPlaylist"] = sweep.Case{Path: map[string]string{"itemId": music.Id}}
+	cases["GetSimilarAlbums"] = sweep.Case{Path: map[string]string{"itemId": jfAlbum(t, musicID, darkSide).Id}}
 	// the subtitle routes read the film with one
 	subtitle := map[string]string{"routeItemId": subtitled.Id, "routeMediaSourceId": subtitled.MediaSources[0].Id, "routeIndex": srtIndex, "routeFormat": "srt", "routeStartPositionTicks": "0"}
-	cases["GetSubtitle"] = sweepCase{Path: subtitle}
-	cases["GetSubtitleWithTicks"] = sweepCase{Path: subtitle}
-	cases["GetSubtitlePlaylist"] = sweepCase{
+	cases["GetSubtitle"] = sweep.Case{Path: subtitle}
+	cases["GetSubtitleWithTicks"] = sweep.Case{Path: subtitle}
+	cases["GetSubtitlePlaylist"] = sweep.Case{
 		Path:    map[string]string{"itemId": subtitled.Id, "mediaSourceId": subtitled.MediaSources[0].Id, "index": srtIndex},
 		Options: map[string]any{"SegmentLength": 30},
 	}
 	// a package from the catalogue, and the TMDb plugin's settings (the
 	// first plugin's are one false flag)
-	cases["GetPackageInfo"] = sweepCase{Path: map[string]string{"name": packages[0].Name}}
-	cases["GetPluginConfiguration"] = sweepCase{Path: map[string]string{"pluginId": plugins[tmdbPlugin].Id}}
+	cases["GetPackageInfo"] = sweep.Case{Path: map[string]string{"name": packages[0].Name}}
+	cases["GetPluginConfiguration"] = sweep.Case{Path: map[string]string{"pluginId": plugins[tmdbPlugin].Id}}
 	// the folder listing lists files only unless asked for folders (/media
 	// holds none), and the legacy filters answer for a library
-	cases["GetDirectoryContents"] = sweepCase{Options: map[string]any{"IncludeDirectories": true}}
-	cases["GetQueryFiltersLegacy"] = sweepCase{Options: map[string]any{"ParentId": moviesID}}
+	cases["GetDirectoryContents"] = sweep.Case{Options: map[string]any{"IncludeDirectories": true}}
+	cases["GetQueryFiltersLegacy"] = sweep.Case{Options: map[string]any{"ParentId": moviesID}}
 
-	sweep(t, "jellyfin", jfc, fixtures, cases)
+	runSweep(t, "jellyfin", jfc, fixtures, cases)
 }
 
 // Why a Jellyfin GET does not simply answer in the sweep.
@@ -186,7 +187,7 @@ const (
 )
 
 // jfSweepCases classifies the Jellyfin GETs that do not simply answer.
-var jfSweepCases = map[string]sweepCase{
+var jfSweepCases = map[string]sweep.Case{
 	// Live TV
 	"GetChannel":           {Skip: jfNoTuner},
 	"GetLiveRecordingFile": {Skip: jfNoTuner},

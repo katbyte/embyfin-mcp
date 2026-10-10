@@ -15,7 +15,7 @@
 // The typed clients are generated (make generate) and must not be edited by
 // hand. Where a document is wrong about its server's shape (a parameter it
 // leaves out, a field it lacks) the fix is a workaround in
-// sdk/pandorest's importer, so the generated clients carry it; what
+// sdk/pandorest/workarounds, so the generated clients carry it; what
 // stays here is behaviour no document can express, next to a comment saying
 // which server it is for and the live test that found it.
 package embyfin
@@ -29,9 +29,10 @@ import (
 	"sync"
 	"time"
 
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
+	"github.com/katbyte/go-kt/chttp"
+	apiclient "github.com/katbyte/pandorest/client"
 )
 
 type Backend string
@@ -60,7 +61,10 @@ type Client struct {
 	admin   string
 }
 
-func New(backend Backend, baseURL, token string) (*Client, error) {
+// New returns a client for the server of that kind at baseURL. opts are the
+// shared base client's, for what the application decides rather than the
+// server: a logger to trace its requests to, or a transport of its own.
+func New(backend Backend, baseURL, token string, opts ...apiclient.Option) (*Client, error) {
 	switch backend {
 	case Emby, Jellyfin:
 	default:
@@ -75,15 +79,16 @@ func New(backend Backend, baseURL, token string) (*Client, error) {
 
 	c := &Client{backend: backend, baseURL: strings.TrimRight(baseURL, "/"), settle: 250 * time.Millisecond, saveGrain: time.Second}
 	var err error
+	// this layer's rule for sending a read again, which a caller's own option replaces
+	opts = append([]apiclient.Option{apiclient.WithRetry(readRetry)}, opts...)
 	if backend == Emby {
-		c.emby, err = emby.New(baseURL, token)
+		c.emby, err = emby.New(baseURL, token, opts...)
 	} else {
-		c.jf, err = jf.New(baseURL, token)
+		c.jf, err = jf.New(baseURL, token, opts...)
 	}
 	if err != nil {
 		return nil, err
 	}
-	c.base().Retry = readRetry
 
 	return c, nil
 }
@@ -113,8 +118,21 @@ func (c *Client) isEmby() bool { return c.backend == Emby }
 // four tries in all, two, four and eight seconds apart. A sweep of a large
 // library is thousands of reads over hours, and one gateway hiccup failed all
 // of it (seen against a real Emby behind a proxy: a 502 after nearly three
-// hours). A write or a delete is never sent again (see apiclient.Retry).
-var readRetry = apiclient.Retry{Tries: 4, Wait: apiclient.Backoff(2 * time.Second)}
+// hours). A write or a delete is never sent again (see chttp.Retry).
+var readRetry = chttp.Retry{Tries: 4, Wait: func(attempt int) time.Duration { return 2 * time.Second << attempt }}
+
+// ErrNoResult is a lookup the server answered with nothing at all rather than
+// a 404: Emby answers 204 for a null result on any JSON operation (a lookup
+// that finds nothing among them), which the typed client hands back as a nil
+// model with no error. This layer wraps it into the error it returns for
+// such a lookup, and IsNotFound reads it as not found.
+var ErrNoResult = errors.New("the server answered with nothing")
+
+// IsNotFound reports whether err is a 404 from the server, or a lookup it
+// answered with nothing (ErrNoResult).
+func IsNotFound(err error) bool {
+	return apiclient.IsNotFound(err) || errors.Is(err, ErrNoResult)
+}
 
 // base is the shared client the typed one sends through.
 func (c *Client) base() *apiclient.Client {

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"net/http"
 
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/go-kt/lock"
+	apiclient "github.com/katbyte/pandorest/client"
 )
 
 // configPath is where both servers keep their settings document.

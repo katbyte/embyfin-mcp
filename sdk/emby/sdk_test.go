@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/pandorest/client"
 )
 
 type canned struct {

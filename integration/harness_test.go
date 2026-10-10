@@ -43,9 +43,9 @@ import (
 	"time"
 
 	"github.com/katbyte/embyfin-mcp/lib/testenv"
-	"github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
+	"github.com/katbyte/pandorest/client"
 )
 
 // scanPatience is how long a library scan is given to settle. Three minutes

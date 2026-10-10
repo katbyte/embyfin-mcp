@@ -18,7 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/go-kt/chttp"
+	"github.com/katbyte/pandorest/client"
 )
 
 // The request each neutral method builds per backend and the answer it
@@ -70,16 +71,12 @@ func newFake(t *testing.T, backend Backend, routes map[string]route) (*Client, *
 	}))
 	t.Cleanup(srv.Close)
 
-	c, err := New(backend, srv.URL, "tok")
+	// through the server's own transport, so closing another test's server
+	// cannot close this one's connections, and with this layer's rule for
+	// sending a read again, waiting hardly at all
+	c, err := New(backend, srv.URL, "tok", client.WithTransport(srv.Client().Transport), client.WithRetry(chttp.Retry{Tries: readRetry.Tries, Wait: func(int) time.Duration { return time.Millisecond }}))
 	if err != nil {
 		t.Fatal(err)
-	}
-	// the server's own client, so closing another test's server cannot
-	// close this one's connections
-	if c.emby != nil {
-		c.emby.Client.HTTPClient = srv.Client()
-	} else {
-		c.jf.Client.HTTPClient = srv.Client()
 	}
 
 	return c, f
@@ -178,7 +175,8 @@ func TestNew(t *testing.T) {
 		{"plex", "http://nas", "t", "unknown backend"},
 		{Emby, "", "t", "server URL is required"},
 		{Jellyfin, "http://nas", "", "API token is required"},
-		{Emby, "nas", "t", "must include a scheme and host"},
+		{Emby, "nas", "t", `server url "nas" must be the address Emby answers on, with its scheme and host, e.g. http://nas:8096`},
+		{Jellyfin, "http://quux:sekrit@nas:8096", "t", "must not contain credentials"},
 	} {
 		if _, err := New(tt.backend, tt.url, tt.token); err == nil || !strings.Contains(err.Error(), tt.wantContains) {
 			t.Errorf("New(%s, %q, %q) = %v, want %q", tt.backend, tt.url, tt.token, err, tt.wantContains)
@@ -280,7 +278,7 @@ func TestEmbyNullResults(t *testing.T) {
 		},
 		"Person": func() error { _, err := c.Person(ctx, "Ridley Scott", ""); return err },
 	} {
-		if err := call(name, read); !client.IsNotFound(err) {
+		if err := call(name, read); !IsNotFound(err) {
 			t.Errorf("%s = %v, want an error IsNotFound recognises", name, err)
 		}
 	}
@@ -1566,7 +1564,7 @@ func TestErrorsReachTheCaller(t *testing.T) {
 		"POST /Items/42/Refresh":      answer(http.StatusForbidden, "no"),
 		"GET /Library/VirtualFolders": answer(http.StatusUnauthorized, ""),
 	})
-	if _, err := c.FullItem(t.Context(), "u", "404"); !client.IsNotFound(err) {
+	if _, err := c.FullItem(t.Context(), "u", "404"); !IsNotFound(err) {
 		t.Errorf("a 404 = %v", err)
 	}
 	if _, err := c.RefreshItem(t.Context(), "42", true); client.StatusCode(err) != http.StatusForbidden || !strings.Contains(err.Error(), "lacks permission") {

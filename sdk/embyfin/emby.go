@@ -8,7 +8,6 @@ import (
 
 	"github.com/katbyte/go-kt/pointer"
 
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 )
 
@@ -35,7 +34,7 @@ func orEmpty[T any](model *T) *T {
 // noResult is the error for a single-item lookup Emby answered with its null
 // result, which apiclient.IsNotFound reads as not found, as it does a 404.
 func noResult(format string, args ...any) error {
-	return fmt.Errorf(format+": %w", append(args, apiclient.ErrNoResult)...)
+	return fmt.Errorf(format+": %w", append(args, ErrNoResult)...)
 }
 
 func itemsFromEmby(dtos []emby.BaseItemDto) []Item {

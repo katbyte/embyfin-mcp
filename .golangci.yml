@@ -84,9 +84,8 @@ linters:
       - path: '(tools|sdk/embyfin|sdk/emby|sdk/jf|lib/mediapath|lib/naming|lib/serverlog|acceptance|integration)/.*\.go'
         linters:
           - goconst
-      # media types, type names and HTTP methods are the generator's vocabulary, and the base
-      # client's tests spell out the requests they expect
-      - path: '(sdk/pandorest|sdk/client)/.*\.go'
+      # media types, type names and HTTP methods are the vocabulary of the documents' workarounds
+      - path: 'sdk/pandorest/.*\.go'
         linters:
           - goconst
       # the idiomatic `if err := f(); err != nil` scoping shadows err on purpose; still flag other variables

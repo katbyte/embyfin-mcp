@@ -1113,7 +1113,8 @@
         }
       },
       "ExpectedStatusCodes": [
-        200
+        200,
+        302
       ]
     }
   ]

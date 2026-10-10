@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/go-kt/pointer"
+	"github.com/katbyte/pandorest/client"
 )
 
 // TestEmbyItemsQuery drives /Items and the per-user /Users/{id}/Items

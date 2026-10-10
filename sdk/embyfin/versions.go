@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
 )
 
 // idsPerRead is how many ids one request asks for at once.
@@ -68,7 +66,7 @@ func (c *Client) versionByID(ctx context.Context, id string, none *NoItemError) 
 	}
 	version, err := c.UserItem(ctx, admin.ID, id)
 	switch {
-	case apiclient.IsNotFound(err):
+	case IsNotFound(err):
 		return nil, none
 	case err != nil:
 		return nil, err
@@ -327,7 +325,7 @@ func (c *Client) ShownGroups(ctx context.Context, opts SearchOptions) (groups []
 	}
 	readOne := func(it *Item) (single, error) {
 		one, uerr := c.UserItem(ctx, admin.ID, it.ID)
-		if apiclient.IsNotFound(uerr) {
+		if IsNotFound(uerr) {
 			// removed since the sweep read it, or only kept from this
 			// account's view: the item query, which every item is in,
 			// tells the two apart

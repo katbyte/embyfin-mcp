@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/pandorest/client"
 )
 
 // What else a film or a series is called, and what TMDB's search finds by a

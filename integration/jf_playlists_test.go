@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
+	"github.com/katbyte/pandorest/client"
 )
 
 //nolint:paralleltest // the tests share one server and its libraries

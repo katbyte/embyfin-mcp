@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
+	"github.com/katbyte/pandorest/sweep"
 )
 
 // TestEmbyReadSweep calls every Emby GET against the fixtures (see
@@ -105,8 +106,8 @@ func TestEmbyReadSweep(t *testing.T) {
 		t.Fatal("GetUsersByUserIdHomeSections listed nothing")
 	}
 
-	fixtures := sweepFixtures{
-		path: map[string]string{
+	fixtures := sweep.Fixtures{
+		Path: map[string]string{
 			"Id":                    movie.Id,
 			"ItemId":                movie.Id,
 			"UserId":                adminID,
@@ -145,7 +146,7 @@ func TestEmbyReadSweep(t *testing.T) {
 			"Language":              "eng",
 			"StartPositionTicks":    "0",
 		},
-		options: map[string]string{
+		Options: map[string]string{
 			"UserId":                 adminID,
 			"Name":                   logs[0].Name,
 			"Client":                 "emby",
@@ -171,59 +172,59 @@ func TestEmbyReadSweep(t *testing.T) {
 	cases := maps.Clone(embySweepCases)
 	// the similar-item routes need a user (a 500 without one)
 	for _, name := range []string{"GetItemsByIdSimilar", "GetMoviesByIdSimilar", "GetTrailersByIdSimilar"} {
-		cases[name] = sweepCase{Options: map[string]any{"UserId": adminID}}
+		cases[name] = sweep.Case{Options: map[string]any{"UserId": adminID}}
 	}
-	cases["GetShowsByIdSimilar"] = sweepCase{Options: map[string]any{"UserId": adminID}, Empty: "Emby finds no show like another among the fixtures, two of which are dramas"}
+	cases["GetShowsByIdSimilar"] = sweep.Case{Options: map[string]any{"UserId": adminID}, Empty: "Emby finds no show like another among the fixtures, two of which are dramas"}
 	// an album is like another by its artist's other album, and a mix is
 	// made from music
-	cases["GetAlbumsByIdSimilar"] = sweepCase{Path: map[string]string{"Id": embyAlbum(t, musicID, darkSide).Id}, Options: map[string]any{"UserId": adminID}}
-	cases["GetItemsByIdInstantMix"] = sweepCase{Path: map[string]string{"Id": album.Id}}
+	cases["GetAlbumsByIdSimilar"] = sweep.Case{Path: map[string]string{"Id": embyAlbum(t, musicID, darkSide).Id}, Options: map[string]any{"UserId": adminID}}
+	cases["GetItemsByIdInstantMix"] = sweep.Case{Path: map[string]string{"Id": album.Id}}
 	// the by-name lists answer for a library read recursively: without one
 	// they list the names empty ({} for each), and /Trailers lists the
 	// user's libraries rather than nothing
 	for _, name := range []string{"GetOfficialRatings", "GetContainers", "GetYears"} {
-		cases[name] = sweepCase{Options: map[string]any{"ParentId": moviesID, "Recursive": true}}
+		cases[name] = sweep.Case{Options: map[string]any{"ParentId": moviesID, "Recursive": true}}
 	}
-	cases["GetTags"] = sweepCase{Options: map[string]any{"ParentId": showsID, "Recursive": true}, Empty: "nothing tags a show (Emby does not fill tags from TMDB, and the tag tests tag films)"}
-	cases["GetTrailers"] = sweepCase{Options: map[string]any{"UserId": adminID}}
-	cases["GetDlnaProfilesById"] = sweepCase{Path: map[string]string{"Id": must(embyc.GetDlnaProfileInfos(ctx)).Model[0].Id}}
-	cases["GetEnvironmentDirectoryContents"] = sweepCase{Options: map[string]any{"IncludeDirectories": true}}
-	cases["GetMoviesRecommendations"] = sweepCase{Options: map[string]any{"UserId": adminID}}
-	cases["GetVideosByIdStream"] = sweepCase{Options: map[string]any{"Container": "mp4", "Static": true}}
-	cases["GetVideosByIdStreamByContainer"] = sweepCase{Options: map[string]any{"Static": true}}
-	cases["GetVideosByIdByStreamFileName"] = sweepCase{Options: map[string]any{"Static": true}}
-	cases["GetAudioByIdStream"] = sweepCase{Options: map[string]any{"Container": "mp3", "Static": true}}
-	cases["GetAudioByIdStreamByContainer"] = sweepCase{Path: map[string]string{"Container": "mp3"}, Options: map[string]any{"Static": true}}
-	cases["GetAudioByIdByStreamFileName"] = sweepCase{Path: map[string]string{"StreamFileName": "stream.mp3"}, Options: map[string]any{"Static": true}}
+	cases["GetTags"] = sweep.Case{Options: map[string]any{"ParentId": showsID, "Recursive": true}, Empty: "nothing tags a show (Emby does not fill tags from TMDB, and the tag tests tag films)"}
+	cases["GetTrailers"] = sweep.Case{Options: map[string]any{"UserId": adminID}}
+	cases["GetDlnaProfilesById"] = sweep.Case{Path: map[string]string{"Id": must(embyc.GetDlnaProfileInfos(ctx)).Model[0].Id}}
+	cases["GetEnvironmentDirectoryContents"] = sweep.Case{Options: map[string]any{"IncludeDirectories": true}}
+	cases["GetMoviesRecommendations"] = sweep.Case{Options: map[string]any{"UserId": adminID}}
+	cases["GetVideosByIdStream"] = sweep.Case{Options: map[string]any{"Container": "mp4", "Static": true}}
+	cases["GetVideosByIdStreamByContainer"] = sweep.Case{Options: map[string]any{"Static": true}}
+	cases["GetVideosByIdByStreamFileName"] = sweep.Case{Options: map[string]any{"Static": true}}
+	cases["GetAudioByIdStream"] = sweep.Case{Options: map[string]any{"Container": "mp3", "Static": true}}
+	cases["GetAudioByIdStreamByContainer"] = sweep.Case{Path: map[string]string{"Container": "mp3"}, Options: map[string]any{"Static": true}}
+	cases["GetAudioByIdByStreamFileName"] = sweep.Case{Path: map[string]string{"StreamFileName": "stream.mp3"}, Options: map[string]any{"Static": true}}
 	// universal audio needs a user, the instant mixes the artist or genre they
 	// are made from (UserId and Id, which the emby-undeclared-query workaround
 	// declares)
-	cases["GetAudioByIdUniversal"] = sweepCase{Options: map[string]any{"UserId": adminID}}
-	cases["GetAudioByIdUniversalByContainer"] = sweepCase{Path: map[string]string{"Container": "mp3"}, Options: map[string]any{"UserId": adminID}}
-	cases["GetArtistsInstantMix"] = sweepCase{Options: map[string]any{"Id": musicArtists[0].Id}}
-	cases["GetMusicGenresInstantMix"] = sweepCase{Options: map[string]any{"Id": musicGenres[0].Id}}
+	cases["GetAudioByIdUniversal"] = sweep.Case{Options: map[string]any{"UserId": adminID}}
+	cases["GetAudioByIdUniversalByContainer"] = sweep.Case{Path: map[string]string{"Container": "mp3"}, Options: map[string]any{"UserId": adminID}}
+	cases["GetArtistsInstantMix"] = sweep.Case{Options: map[string]any{"Id": musicArtists[0].Id}}
+	cases["GetMusicGenresInstantMix"] = sweep.Case{Options: map[string]any{"Id": musicGenres[0].Id}}
 	// the subtitle routes read the film with one, and the HLS subtitle
 	// playlist its media source (MediaSourceId, which the workaround declares)
 	for _, name := range []string{
 		"GetItemsByIdByMediaSourceIdSubtitlesByIndexStreamByFormat", "GetItemsByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat",
 		"GetVideosByIdByMediaSourceIdSubtitlesByIndexStreamByFormat", "GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat",
 	} {
-		cases[name] = sweepCase{Path: subtitle}
+		cases[name] = sweep.Case{Path: subtitle}
 	}
-	cases["GetVideosByIdSubtitlesM3u8"] = sweepCase{Path: subtitle, Options: map[string]any{"MediaSourceId": subtitle["MediaSourceId"]}}
+	cases["GetVideosByIdSubtitlesM3u8"] = sweep.Case{Path: subtitle, Options: map[string]any{"MediaSourceId": subtitle["MediaSourceId"]}}
 	// a package from the catalogue, and the web strings of the Webhooks
 	// plugin in the language the wizard chose
-	cases["GetPackagesByName"] = sweepCase{Path: map[string]string{"Name": packages[0].Name}}
-	cases["GetPackagesUpdates"] = sweepCase{MayBeEmpty: "the updates are the recorded catalogue's plugins newer than the ones the image ships, and an image newer than the recording has none"}
-	cases["GetWebStrings"] = sweepCase{Options: map[string]any{"PluginId": plugins[webhooks].Id, "Locale": "en-US"}}
-	cases["GetWebStringset"] = sweepCase{Options: map[string]any{"PluginId": plugins[webhooks].Id}}
+	cases["GetPackagesByName"] = sweep.Case{Path: map[string]string{"Name": packages[0].Name}}
+	cases["GetPackagesUpdates"] = sweep.Case{MayBeEmpty: "the updates are the recorded catalogue's plugins newer than the ones the image ships, and an image newer than the recording has none"}
+	cases["GetWebStrings"] = sweep.Case{Options: map[string]any{"PluginId": plugins[webhooks].Id, "Locale": "en-US"}}
+	cases["GetWebStringset"] = sweep.Case{Options: map[string]any{"PluginId": plugins[webhooks].Id}}
 	// its notifier is keyed by the id GET /Notifications/Services lists, a
 	// route the document leaves out
-	cases["GetNotificationsServicesDefaults"] = sweepCase{Options: map[string]any{"NotifierKey": "webhooknotifications", "UserId": adminID}}
+	cases["GetNotificationsServicesDefaults"] = sweep.Case{Options: map[string]any{"NotifierKey": "webhooknotifications", "UserId": adminID}}
 	// a playlist's sharing is answered only to a user session
-	cases["GetUsersItemAccess"] = sweepCase{Status: 400, Options: map[string]any{"ItemId": playlist}, Why: embyNoUserOfKey}
+	cases["GetUsersItemAccess"] = sweep.Case{Status: 400, Options: map[string]any{"ItemId": playlist}, Why: embyNoUserOfKey}
 
-	sweep(t, "emby", embyc, fixtures, cases)
+	runSweep(t, "emby", embyc, fixtures, cases)
 }
 
 // Why an Emby GET does not simply answer in the sweep.
@@ -247,7 +248,7 @@ const (
 )
 
 // embySweepCases classifies the Emby GETs that do not simply answer.
-var embySweepCases = map[string]sweepCase{
+var embySweepCases = map[string]sweep.Case{
 	// Live TV
 	"GetLiveTvChannelsById":                         {Skip: embyNoTuner},
 	"GetLiveTvProgramsById":                         {Skip: embyNoTuner},

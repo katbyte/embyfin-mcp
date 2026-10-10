@@ -11,6 +11,7 @@ import (
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
 	"github.com/katbyte/embyfin-mcp/tools"
 	"github.com/katbyte/go-kt/clog"
+	apiclient "github.com/katbyte/pandorest/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -200,8 +201,11 @@ func tmdbCredential() string {
 	return ""
 }
 
+// NewClient is the client for the server the flags name. Its requests are
+// traced to the application's log, which shows them at trace level alone
+// (EMBYFIN_LOG=trace), with keys and passwords blanked.
 func (f *FlagData) NewClient() (*embyfin.Client, error) {
-	return embyfin.New(embyfin.Backend(strings.ToLower(f.Backend)), f.Server, f.Token)
+	return embyfin.New(embyfin.Backend(strings.ToLower(f.Backend)), f.Server, f.Token, apiclient.WithLog(clog.Log))
 }
 
 // DefaultToolsets is what the binary registers when neither --toolsets nor

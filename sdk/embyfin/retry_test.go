@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
+	apiclient "github.com/katbyte/pandorest/client"
 )
 
 // Both servers' clients send a read again after a gateway or busy answer,
@@ -16,8 +16,8 @@ import (
 func TestReadsAreRetriedAndWritesAreNot(t *testing.T) {
 	t.Parallel()
 
-	if readRetry.Tries != 4 || readRetry.Wait(1) != 2*time.Second || readRetry.Wait(3) != 8*time.Second {
-		t.Errorf("the read retry = %d tries, waiting %v then %v", readRetry.Tries, readRetry.Wait(1), readRetry.Wait(3))
+	if readRetry.Tries != 4 || readRetry.Wait(0) != 2*time.Second || readRetry.Wait(2) != 8*time.Second {
+		t.Errorf("the read retry = %d tries, waiting %v then %v", readRetry.Tries, readRetry.Wait(0), readRetry.Wait(2))
 	}
 	// failing answers first, then the real one, per route
 	flaky := func(fails int, status int, body string) route {
@@ -39,11 +39,6 @@ func TestReadsAreRetriedAndWritesAreNot(t *testing.T) {
 			"GET /Items": flaky(2, http.StatusOK, `{"Items":[{"Id":"1","Name":"Alien","Type":"Movie"}],"TotalRecordCount":1}`),
 			deletePath:   flaky(1, http.StatusNoContent, ""),
 		})
-		if c.base().Retry.Tries != 4 {
-			t.Fatalf("%s: the client retries %d times", backend, c.base().Retry.Tries)
-		}
-		c.base().Retry.Wait = func(int) time.Duration { return time.Millisecond }
-
 		items, _, err := c.Search(t.Context(), SearchOptions{IDs: "1"})
 		if err != nil || len(items) != 1 || len(f.all("GET /Items")) != 3 {
 			t.Errorf("%s: a read after two gateway answers = %v, %v, after %d requests", backend, items, err, len(f.all("GET /Items")))

@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- `sdk/client` is gone: the three SDKs send through [pandorest](https://github.com/katbyte/pandorest)'s base client, so a Go program that used it imports `github.com/katbyte/pandorest/client`, and each SDK's `New` takes that client's options
+
+### Changed
+
+- the SDKs are generated with pandorest, the generator that began in this repository and is now a library shared with the other MCP servers; `sdk/pandorest` keeps what is embyfin's, the three services and the workarounds for their documents
+- `EMBYFIN_LOG=trace` shows each request to the server and its answer, with keys and passwords blanked
+- a server url that answers with a web page is told so and to check the url, where it was a JSON error; a server that cannot be reached names the request that failed
+
 ## 0.5.0 (2026-10-10)
 
 ### Breaking

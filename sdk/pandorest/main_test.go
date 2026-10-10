@@ -8,8 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/katbyte/embyfin-mcp/sdk/pandorest/config"
-	"github.com/katbyte/embyfin-mcp/sdk/pandorest/generator"
+	"github.com/katbyte/embyfin-mcp/sdk/pandorest/services"
+	"github.com/katbyte/embyfin-mcp/sdk/pandorest/workarounds"
+	"github.com/katbyte/pandorest"
+	"github.com/katbyte/pandorest/config"
+	"github.com/katbyte/pandorest/generator"
 )
 
 // repoRoot is where the config's paths resolve from.
@@ -20,8 +23,8 @@ const repoRoot = "../.."
 func resolvedServices(t *testing.T) []config.Service {
 	t.Helper()
 
-	out := make([]config.Service, 0, len(config.Services))
-	for _, svc := range config.Services {
+	out := make([]config.Service, 0, len(services.All))
+	for _, svc := range services.All {
 		resolved, err := svc.In(repoRoot).Resolve()
 		if err != nil {
 			t.Fatal(err)
@@ -36,26 +39,9 @@ func runCmd(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
 	var out, log bytes.Buffer
-	err = run(args, &out, &log)
+	err = pandorest.Run(pandorest.Config{Services: services.All, Workarounds: workarounds.All}, args, &out, &log)
 
 	return out.String(), log.String(), err
-}
-
-func TestUsage(t *testing.T) {
-	t.Parallel()
-
-	if _, _, err := runCmd(t); err == nil || !strings.Contains(err.Error(), "usage: pandorest") {
-		t.Errorf("no command = %v", err)
-	}
-	if _, _, err := runCmd(t, "frobnicate", "-root", repoRoot); err == nil || !strings.Contains(err.Error(), `unknown command "frobnicate"`) {
-		t.Errorf("unknown command = %v", err)
-	}
-	if _, _, err := runCmd(t, "check", "-service", "plex"); err == nil || !strings.Contains(err.Error(), `unknown service "plex"`) {
-		t.Errorf("unknown service = %v", err)
-	}
-	if _, _, err := runCmd(t, "diff", "-old", "x"); err == nil || !strings.Contains(err.Error(), "pass both -old and -new") {
-		t.Errorf("diff with only -old = %v", err)
-	}
 }
 
 // The checked-in definitions match the vendored specs and the generated
@@ -73,7 +59,7 @@ func TestCheckRepository(t *testing.T) {
 		}
 	}
 	stdout, _, err = runCmd(t, "diff", "-root", repoRoot, "-quiet", "-exit-code")
-	if err != nil || strings.Count(stdout, ": no changes") != len(config.Services) {
+	if err != nil || strings.Count(stdout, ": no changes") != len(services.All) {
 		t.Errorf("diff against the specs = %v:\n%s", err, stdout)
 	}
 }
@@ -84,8 +70,8 @@ func TestImportGenerateReproduces(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	services := resolvedServices(t)
-	for _, svc := range services {
+	resolved := resolvedServices(t)
+	for _, svc := range resolved {
 		src, err := os.ReadFile(filepath.Join(repoRoot, svc.Spec))
 		if err != nil {
 			t.Fatal(err)
@@ -107,7 +93,7 @@ func TestImportGenerateReproduces(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, svc := range services {
+	for _, svc := range resolved {
 		for _, dir := range []string{svc.Definitions, svc.Output} {
 			// (hand-written tests beside the generated code are not regenerated)
 			want := listFiles(t, filepath.Join(repoRoot, dir), dir == svc.Output)
@@ -124,15 +110,15 @@ func TestImportGenerateReproduces(t *testing.T) {
 	}
 
 	// the diff between two copies of the same definitions is empty
-	stdout, _, err := runCmd(t, "diff", "-old", filepath.Join(repoRoot, services[0].Definitions), "-new", filepath.Join(root, services[0].Definitions), "-exit-code")
+	stdout, _, err := runCmd(t, "diff", "-old", filepath.Join(repoRoot, resolved[0].Definitions), "-new", filepath.Join(root, resolved[0].Definitions), "-exit-code")
 	if err != nil || !strings.Contains(stdout, "no changes") {
 		t.Errorf("diff -old -new = %v:\n%s", err, stdout)
 	}
-	if err := os.Remove(filepath.Join(root, services[0].Definitions, "Collection.json")); err != nil {
+	if err := os.Remove(filepath.Join(root, resolved[0].Definitions, "Collection.json")); err != nil {
 		t.Fatal(err)
 	}
-	stdout, _, err = runCmd(t, "diff", "-old", filepath.Join(repoRoot, services[0].Definitions), "-new", filepath.Join(root, services[0].Definitions), "-exit-code")
-	if !errors.Is(err, errChanges) || !strings.Contains(stdout, "- operation PostCollections (POST /Collections) [breaking]") {
+	stdout, _, err = runCmd(t, "diff", "-old", filepath.Join(repoRoot, resolved[0].Definitions), "-new", filepath.Join(root, resolved[0].Definitions), "-exit-code")
+	if !errors.Is(err, pandorest.ErrChanges) || !strings.Contains(stdout, "- operation PostCollections (POST /Collections) [breaking]") {
 		t.Errorf("diff with a group gone = %v:\n%s", err, stdout)
 	}
 }
@@ -155,7 +141,7 @@ func listFiles(t *testing.T, dir string, generatedOnly bool) map[string]string {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if generatedOnly && !strings.HasPrefix(string(b), generator.Header) {
+		if generatedOnly && !generator.Generated(b) {
 			continue
 		}
 		out[e.Name()] = string(b)

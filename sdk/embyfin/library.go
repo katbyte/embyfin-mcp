@@ -10,7 +10,6 @@ import (
 	"github.com/katbyte/go-kt/pointer"
 
 	"github.com/katbyte/embyfin-mcp/lib/mediapath"
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
@@ -449,7 +448,7 @@ func (c *Client) PathExists(ctx context.Context, path string) (bool, error) {
 		switch {
 		case err == nil:
 			return true, nil
-		case !apiclient.IsNotFound(err):
+		case !IsNotFound(err):
 			return false, err
 		}
 	}

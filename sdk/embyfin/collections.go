@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
+	apiclient "github.com/katbyte/pandorest/client"
 
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"

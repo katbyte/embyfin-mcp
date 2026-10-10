@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	apiclient "github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
@@ -918,7 +917,7 @@ func (c *Client) EditItem(ctx context.Context, userID, itemID string, edit func(
 // has is an error.
 func (c *Client) VisibleUserItem(ctx context.Context, userID, itemID string) (*Item, bool, error) {
 	it, err := c.UserItem(ctx, userID, itemID)
-	if apiclient.IsNotFound(err) {
+	if IsNotFound(err) {
 		if _, err := c.ItemByID(ctx, itemID); err != nil {
 			return nil, false, err
 		}

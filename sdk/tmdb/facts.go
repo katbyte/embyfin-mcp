@@ -1,4 +1,4 @@
-package tmdb //nolint:revive // the package comment is in the generated doc.go, which lint skips
+package tmdb
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
+	"github.com/katbyte/pandorest/client"
 )
 
 // Facts is what the audits ask TMDB, through the generated Client, with each

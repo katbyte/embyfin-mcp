@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/katbyte/embyfin-mcp/sdk/client"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
+	"github.com/katbyte/pandorest/client"
 )
 
 // Preview thumbnails: the small frames a player shows over the seek bar as
