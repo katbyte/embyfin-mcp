@@ -7,6 +7,8 @@
 #   eval "$(EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh up)"   # start, export EMBYFIN_*
 #   EMBYFIN_TEST_BACKEND=jellyfin scripts/testenv.sh down            # stop and remove everything
 #   scripts/testenv.sh fixtures                                      # write the media tree only
+#   EMBYFIN_TEST_BACKEND=emby scripts/testenv.sh beside              # a second, empty server; prints EMBYFIN_TEST_BESIDE_*
+#   EMBYFIN_TEST_BACKEND=emby scripts/testenv.sh beside-down         # remove it
 #
 # This script only does what embyfin-mcp cannot: run the container, get through
 # the first-run wizard, create the users, mint the API key, and lay the media
@@ -29,10 +31,14 @@ case "$BACKEND" in
   emby)
     IMAGE="${EMBYFIN_TEST_IMAGE:-emby/embyserver:latest}"
     PORT="${EMBYFIN_TEST_PORT:-18097}"
+    BESIDE_IMAGE="${EMBYFIN_TEST_BESIDE_IMAGE:-emby/embyserver:latest}"
+    BESIDE_PORT="${EMBYFIN_TEST_BESIDE_PORT:-18297}"
     ;;
   jellyfin)
     IMAGE="${EMBYFIN_TEST_IMAGE:-jellyfin/jellyfin:latest}"
     PORT="${EMBYFIN_TEST_PORT:-18096}"
+    BESIDE_IMAGE="${EMBYFIN_TEST_BESIDE_IMAGE:-jellyfin/jellyfin:latest}"
+    BESIDE_PORT="${EMBYFIN_TEST_BESIDE_PORT:-18296}"
     ;;
   "")
     if [ "${1:-up}" != "fixtures" ]; then
@@ -47,6 +53,11 @@ case "$BACKEND" in
 esac
 
 NAME="${EMBYFIN_TEST_CONTAINER:-embyfin-mcp-test-${BACKEND}}"
+# a second server of this backend with nothing in it, on a port of its own
+# (see beside): it takes no name, port, image or data directory from the
+# first, so a run that has the first's in its environment can start one of
+# another kind
+BESIDE_NAME="${EMBYFIN_TEST_BESIDE_CONTAINER:-embyfin-mcp-beside-${BACKEND}}"
 # the port the tests' provider proxy listens on, reached from inside the
 # container via host.docker.internal
 PROXY_PORT="${EMBYFIN_TEST_PROXY_PORT:-18080}"
@@ -1000,35 +1011,11 @@ logs() {
   done
 }
 
-up() {
-  command -v ffmpeg >/dev/null || { echo "ffmpeg is required to generate fixtures" >&2; exit 1; }
-  command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
-  command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
-
-  down >/dev/null 2>&1 || true
-  fixtures
-  proxy_ca
-
-  pull_image
-  local proxy_at
-  proxy_at="$(proxy_host)"
-  log "starting ${IMAGE} as ${NAME} on ${PORT} (providers proxied via ${proxy_at}:${PROXY_PORT})"
-  local mounts=(-v "${DATA}/media:/media" -v "${DATA}/config:/config" -v "${PROXY_CA}/ca.pem:/proxy/ca.pem:ro")
-  [ "$BACKEND" = "jellyfin" ] && mounts+=(-v "${DATA}/cache:/cache")
-  # NO_PROXY carries the container's own name: Emby pings itself over HTTP
-  # on startup, and that has no business going through the proxy
-  docker run -d --name "$NAME" \
-    -p "${PORT}:8096" \
-    --hostname "$NAME" \
-    --add-host "host.docker.internal:host-gateway" \
-    -e "HTTP_PROXY=http://${proxy_at}:${PROXY_PORT}" \
-    -e "HTTPS_PROXY=http://${proxy_at}:${PROXY_PORT}" \
-    -e "http_proxy=http://${proxy_at}:${PROXY_PORT}" \
-    -e "https_proxy=http://${proxy_at}:${PROXY_PORT}" \
-    -e "NO_PROXY=localhost,127.0.0.1,${NAME}" \
-    -e "SSL_CERT_FILE=/proxy/ca.pem" \
-    "${mounts[@]}" \
-    "$IMAGE" >/dev/null
+# start_server DOCKER_ARG... - run the server's container with these mounts
+# and settings, take it through its first-run wizard and mint an API key.
+# API_KEY and ADMIN_ID are set when it returns.
+start_server() {
+  docker run -d --name "$NAME" -p "${PORT}:8096" --hostname "$NAME" "$@" "$IMAGE" >/dev/null
 
   # /System/Info/Public answers before the wizard endpoints do, so wait on
   # the first endpoint the setup actually uses
@@ -1047,7 +1034,7 @@ up() {
   retry 15 api POST /Startup/Complete >/dev/null
 
   log "logging in"
-  local login access user_id
+  local login access user_id key
   login=$(curl -fsS -X POST "${URL}/Users/AuthenticateByName" \
     -H 'Content-Type: application/json' \
     -H 'X-Emby-Authorization: MediaBrowser Client="embyfin-mcp-testenv", Device="testenv", DeviceId="testenv", Version="0"' \
@@ -1062,9 +1049,40 @@ up() {
   # session token
   log "creating an API key"
   api POST "/Auth/Keys?app=embyfin-mcp-test" "" "$access" >/dev/null
-  local key
   key=$(api GET /Auth/Keys "" "$access" | jq -r '.Items[] | select(.AppName == "embyfin-mcp-test") | .AccessToken' | head -1)
   [ -n "$key" ] && [ "$key" != "null" ] || { echo "no API key in the response" >&2; exit 1; }
+
+  API_KEY=$key
+  ADMIN_ID=$user_id
+}
+
+up() {
+  command -v ffmpeg >/dev/null || { echo "ffmpeg is required to generate fixtures" >&2; exit 1; }
+  command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
+  command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
+
+  down >/dev/null 2>&1 || true
+  fixtures
+  proxy_ca
+
+  pull_image
+  local proxy_at
+  proxy_at="$(proxy_host)"
+  log "starting ${IMAGE} as ${NAME} on ${PORT} (providers proxied via ${proxy_at}:${PROXY_PORT})"
+  local mounts=(-v "${DATA}/media:/media" -v "${DATA}/config:/config" -v "${PROXY_CA}/ca.pem:/proxy/ca.pem:ro")
+  [ "$BACKEND" = "jellyfin" ] && mounts+=(-v "${DATA}/cache:/cache")
+  # NO_PROXY carries the container's own name: Emby pings itself over HTTP
+  # on startup, and that has no business going through the proxy
+  start_server \
+    --add-host "host.docker.internal:host-gateway" \
+    -e "HTTP_PROXY=http://${proxy_at}:${PROXY_PORT}" \
+    -e "HTTPS_PROXY=http://${proxy_at}:${PROXY_PORT}" \
+    -e "http_proxy=http://${proxy_at}:${PROXY_PORT}" \
+    -e "https_proxy=http://${proxy_at}:${PROXY_PORT}" \
+    -e "NO_PROXY=localhost,127.0.0.1,${NAME}" \
+    -e "SSL_CERT_FILE=/proxy/ca.pem" \
+    "${mounts[@]}"
+  local key=$API_KEY user_id=$ADMIN_ID
 
   # a second, ordinary user, so user_list has two rows and the user tools
   # can be pointed at someone who is not the key's own account
@@ -1101,11 +1119,51 @@ down() {
   wipe_data
 }
 
+# beside starts a second server of this backend with nothing in it - no
+# media, no second user - and prints where it is and a key for it. The tool
+# suite runs one beside its own server, of the other kind, to prove that two
+# instances of embyfin-mcp, each given a settings file, serve two servers at
+# once. Nothing listens on the port its proxy settings name, so what it would
+# ask of the internet on starting never leaves the container.
+beside() {
+  command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
+  command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
+
+  NAME="$BESIDE_NAME"
+  IMAGE="$BESIDE_IMAGE"
+  PORT="$BESIDE_PORT"
+  URL="http://127.0.0.1:${PORT}"
+  beside_down >/dev/null 2>&1 || true
+
+  pull_image
+  log "starting ${IMAGE} as ${NAME} on ${PORT}, with nothing in it"
+  start_server \
+    -e "HTTP_PROXY=http://127.0.0.1:9" \
+    -e "HTTPS_PROXY=http://127.0.0.1:9" \
+    -e "http_proxy=http://127.0.0.1:9" \
+    -e "https_proxy=http://127.0.0.1:9" \
+    -e "NO_PROXY=localhost,127.0.0.1,${NAME}"
+
+  # appended to what up printed, so none of these is a name up uses
+  echo "export EMBYFIN_TEST_BESIDE_BACKEND='${BACKEND}'"
+  echo "export EMBYFIN_TEST_BESIDE_SERVER='${URL}'"
+  echo "export EMBYFIN_TEST_BESIDE_TOKEN='${API_KEY}'"
+}
+
+# beside_down removes the second server, and with -v the volumes its image
+# made for a config directory nothing was mounted over.
+beside_down() {
+  log "removing ${BESIDE_NAME}"
+  docker rm -f -v "$BESIDE_NAME" >/dev/null 2>&1 || true
+}
+
 case "${1:-up}" in
   up) up ;;
   down) down ;;
+  beside) beside ;;           # a second, empty server for the test of two instances
+  beside-down) beside_down ;;
   fixtures) fixtures ;;  # generate the media tree only, for inspecting the layout
   logs) logs ;;          # what the server wrote about itself, for a failing run
   image) echo "$IMAGE" ;; # the image this backend runs, for a docker pull
-  *) echo "usage: EMBYFIN_TEST_BACKEND=emby|jellyfin $0 [up|down|fixtures|logs|image]" >&2; exit 1 ;;
+  *) echo "usage: EMBYFIN_TEST_BACKEND=emby|jellyfin $0 [up|down|beside|beside-down|fixtures|logs|image]" >&2; exit 1 ;;
 esac

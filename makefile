@@ -205,6 +205,8 @@ test-acceptance: ## Run the tool tests (behaviour, audits, providers) against an
 # each suite gets its own container per backend: the SDK tests create and delete libraries
 # of their own, which would trample the tool suite's fixtures. The SDK containers sit on
 # the acceptance port + 100, so both can run side by side.
+# The tool suite also gets a second server, of the other kind and with nothing in it,
+# for its test that two instances of embyfin-mcp serve two servers at once.
 # live SUITE BACKEND [EXTRA ENV] - start a container, run one suite, tear it down
 define live
 	@echo "==> $(1) on $(2)..."
@@ -213,9 +215,11 @@ define live
 		export EMBYFIN_TEST_BACKEND=$(2) EMBYFIN_TEST_CONTAINER=embyfin-mcp-$(1)-$(2) \
 			EMBYFIN_TEST_DATA=$${HOME}/.cache/embyfin-mcp/testenv/$(1)-$(2) $(3); \
 		[ "$(1)" = "integration" ] && export EMBYFIN_TEST_PORT=$$(( $$( [ $(2) = emby ] && echo 18097 || echo 18096 ) + 100 )) EMBYFIN_TEST_PROXY_PORT=18180 || true; \
+		beside=$$( [ $(2) = emby ] && echo jellyfin || echo emby ); \
 		scripts/testenv.sh up | grep '^export' > "$$env"; \
 		trap 'st=$$?; [ $$st -eq 0 ] || scripts/testenv.sh logs; \
-			scripts/testenv.sh down; rm -f '"$$env"'; exit $$st' EXIT; \
+			scripts/testenv.sh down; [ "$(1)" != "acceptance" ] || EMBYFIN_TEST_BACKEND='"$$beside"' scripts/testenv.sh beside-down; rm -f '"$$env"'; exit $$st' EXIT; \
+		[ "$(1)" != "acceptance" ] || EMBYFIN_TEST_BACKEND=$$beside scripts/testenv.sh beside | grep '^export' >> "$$env"; \
 		. ./"$$env"; \
 		go test -tags integration -count=1 ./$(1)/... -timeout ${TEST_TIMEOUT} -v $(4)
 endef

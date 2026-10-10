@@ -111,3 +111,7 @@ jobs:
           EMBYFIN_TEST_BACKEND=${{ matrix.backend }} EMBYFIN_TEST_CONTAINER=embyfin-mcp-acceptance-${{ matrix.backend }} \
             EMBYFIN_TEST_DATA="$HOME/.cache/embyfin-mcp/testenv/acceptance-${{ matrix.backend }}" \
             scripts/testenv.sh down || true
+          # and the second, empty server the suite runs beside its own, of the other kind
+          for b in emby jellyfin; do
+            EMBYFIN_TEST_BACKEND=$b scripts/testenv.sh beside-down || true
+          done
