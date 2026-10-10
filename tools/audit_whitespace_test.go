@@ -335,3 +335,47 @@ func TestPersonFix(t *testing.T) {
 		t.Errorf("Jellyfin = %q", fix)
 	}
 }
+
+// A value that is spaces and nothing else has no name left once they are put
+// right: the row suggests nothing, and its fix says a name must be given,
+// where it would otherwise say to rename to the suggestion.
+func TestAuditWhitespaceWithNothingLeftToSuggest(t *testing.T) {
+	t.Parallel()
+
+	f := whitespaceLibrary(t, false, []map[string]any{{
+		"Id": "m1", "Type": "Movie", "Name": "Zzyzx Film", "Path": "/zz/lib/Zzyzx Film (2001)/Zzyzx Film (2001).mkv",
+		"Tags": []string{"  ", "Zzyzx  Tag"}, "TagItems": []map[string]any{{"Name": "  "}, {"Name": "Zzyzx  Tag"}},
+	}})
+	rows := objects(t, mustCall(t, session(t, f, Options{}), "audit_whitespace", map[string]any{"where": "tag"})["findings"], "findings")
+	var empty, named int
+	for _, r := range rows {
+		switch text(r["value"]) {
+		case "  ":
+			empty++
+			if text(r["suggest"]) != "" || text(r["fix"]) != nothingLeft {
+				t.Errorf("a tag of two spaces: suggest %q, fix %q", r["suggest"], r["fix"])
+			}
+		case "Zzyzx  Tag":
+			named++
+			if text(r["suggest"]) != "Zzyzx Tag" || text(r["fix"]) != whitespaceFixes["tag"] {
+				t.Errorf("a tag with a name in it: suggest %q, fix %q", r["suggest"], r["fix"])
+			}
+		}
+	}
+	// two spaces are a double space and a space at each end; the named tag a double space alone
+	if empty != 2 || named != 1 {
+		t.Errorf("%d rows for the tag of spaces and %d for the named one, want 2 and 1: %v", empty, named, rows)
+	}
+
+	// a file named with a space and its extension: put right, only the extension is left, which is no name
+	f = whitespaceLibrary(t, false, []map[string]any{{"Id": "m2", "Type": "Movie", "Name": "Zzyzx Other", "Path": "/zz/lib/Zzyzx Other (2002)/ .mkv"}})
+	rows = objects(t, mustCall(t, session(t, f, Options{}), "audit_whitespace", map[string]any{"where": "file"})["findings"], "findings")
+	if len(rows) == 0 {
+		t.Fatal("a file named with a space and an extension was not reported")
+	}
+	for _, r := range rows {
+		if text(r["value"]) != " .mkv" || text(r["suggest"]) != "" || text(r["fix"]) != nothingLeft {
+			t.Errorf("a file of a space and an extension: %v", r)
+		}
+	}
+}

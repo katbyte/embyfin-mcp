@@ -327,3 +327,43 @@ func TestSpellingLeavesAFilmServersTracksAlone(t *testing.T) {
 		t.Errorf("a film server read for music names: asked %v, answer %v", tracksAsked, out)
 	}
 }
+
+// Numbered things are not one name typed two ways: an artist's second and
+// third albums of one name were reported as a spelling to merge, the numeral
+// that grew by an I read as a letter dropped. A real slip beside a numeral
+// is still one, and so is a numeral typed for a word that is no numeral.
+func TestNumberedNamesAreNotSpellings(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		a, b string
+		want bool
+	}{
+		{"zzyzx road ii", "zzyzx road iii", true},
+		{"zzyzx road iii", "zzyzx road iv", true},
+		{"quux ii", "quux iii", true},
+		{"zzyzx road ii", "zzyzx road ii", false}, // the same key is no pair at all
+		{"zzyzx raod ii", "zzyzx road ii", false}, // a slip in a word, the numeral the same
+		{"zzyzx road ii", "zzyzx raod iii", true}, // a slip in a word as well: still the second and the third
+		{"zzyzx road", "zzyzx road ii", false},    // one has a numeral the other lacks: another length
+		{"zzyzx mill", "zzyzx mil", false},        // letters a numeral is made of, and no numeral
+		{"zzyzx road 2", "zzyzx road 3", false},   // digits were never read as a slip
+	} {
+		if got := numeralsApart(tc.a, tc.b); got != tc.want {
+			t.Errorf("numeralsApart(%q, %q) = %v, want %v", tc.a, tc.b, got, tc.want)
+		}
+	}
+
+	// one artist's albums, as audit_spelling groups them
+	field := albumsField("Zzyzx")
+	c := newSpellingCounts([]string{field})
+	for album, tracks := range map[string]int{"Zzyzx Road": 9, "Zzyzx Road II": 9, "Zzyzx Road III": 10, "Zzyzx Raod III": 1} {
+		for range tracks {
+			c.addValue(field, album)
+		}
+	}
+	groups := c.report(field)
+	if len(groups) != 1 || groups[0].Kind != "near" || groups[0].Keep != "Zzyzx Road III" || len(groups[0].Spellings) != 2 || groups[0].Spellings[1].Value != "Zzyzx Raod III" {
+		t.Errorf("groups = %+v, want the one slip (Raod for Road) and the numbered albums left as three", groups)
+	}
+}

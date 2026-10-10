@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -178,6 +179,8 @@ func (c spellingCounts) report(field string) []vocabGroup {
 			switch {
 			case field == fieldStudios && spell.TruncationOf(folded(short), folded(long)):
 				contains = append(contains, pair{short, long})
+			case numeralsApart(fa, fb):
+				// two things, numbered: not one name typed two ways
 			case spell.TypoApart(fa, fb):
 				if ra, rb := find(a), find(b); ra != rb {
 					parent[ra] = rb
@@ -228,6 +231,34 @@ func (c spellingCounts) report(field string) []vocabGroup {
 	}
 
 	return out
+}
+
+// romanNumeral is a roman numeral written as one is, in a folded key's lower
+// case: ii, iv, xii. A word of the same letters that is no numeral (mill,
+// civic) is not one.
+var romanNumeral = regexp.MustCompile(`^m{0,3}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$`)
+
+// numeralsApart says whether two folded keys of as many words hold, in the
+// same place, roman numerals that differ: "led zeppelin ii" and "led
+// zeppelin iii" are two albums, and "richard ii" and "richard iii" two
+// kings, whatever else is or is not spelled alike in them.
+//
+// go-kt's TypoApart reads a numeral that grew by an I as a word with a
+// letter dropped from its middle, and called those a typing slip. This is
+// the guard for it here until go-kt's spelling reads a numeral as a number,
+// when it goes.
+func numeralsApart(a, b string) bool {
+	wa, wb := strings.Fields(a), strings.Fields(b)
+	if len(wa) != len(wb) {
+		return false
+	}
+	for i := range wa {
+		if wa[i] != wb[i] && romanNumeral.MatchString(wa[i]) && romanNumeral.MatchString(wb[i]) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // quotedList is names as a sentence reads them: "A", "A" and "B", or "A",

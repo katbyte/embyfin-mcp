@@ -49,6 +49,11 @@ var whitespaceFixes = map[string]string{
 	"file":           renamedOnDisk,
 }
 
+// nothingLeft is the fix for a name that is spaces and nothing else, or a
+// file's that is spaces and its extension: put right, nothing is left of it,
+// so there is no name to suggest and none to rename to.
+const nothingLeft = "nothing is left of this once its spaces are put right, so there is no name to suggest: it needs a name given to it, not its spaces tidied"
+
 // personFix is how to put a person's name right, which the two servers take
 // differently. Emby renames the person and every item keeps them (seen on
 // 4.10). Jellyfin 12.1 credits a person by name: a renamed one drops off
@@ -393,6 +398,11 @@ func (w *whitespaceSweep) report(limit int) whitespaceOut {
 			cmp.Compare(a.ID, b.ID),
 		)
 	})
+	for i := range rows {
+		if rows[i].Suggest == "" {
+			rows[i].Fix = nothingLeft
+		}
+	}
 	for _, row := range rows {
 		switch row.Problem {
 		case "odd_space":
