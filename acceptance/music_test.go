@@ -301,8 +301,14 @@ func TestAMusicRenameSurvivesAScan(t *testing.T) {
 	}
 
 	out := suite.Call(t, "metadata_rename", map[string]any{"field": "genre", "from": "Electronica", "to": "Electronic", "library": "Music"})
-	if acc.Num(t, out["updated"], "updated") != len(sirens) || acc.Str(out["field"]) != "genres" || out["still_listed"] != nil {
-		t.Errorf("metadata_rename = %v, want the %d items that carried it, none still shown with it", out, len(sirens))
+	// Emby gives the artist its albums' genres by itself, and at times has
+	// done so by the time the rename reaches the artist (seen on 4.10.1, in
+	// a whole run and not alone): the artist is then not one the rename
+	// changed, and it changed the album and its tracks alone. Either way
+	// every one of them reads right below
+	updated := acc.Num(t, out["updated"], "updated")
+	if followed := !isJellyfin() && updated == len(sirens)-1; (updated != len(sirens) && !followed) || acc.Str(out["field"]) != "genres" || out["still_listed"] != nil {
+		t.Errorf("metadata_rename = %v, want the %d items that carried it (or on Emby one fewer, the artist having followed its album), none still shown with it", out, len(sirens))
 	}
 	// right after the answer, every item read on its own - the album too,
 	// whose genres Emby gives it from its tracks - has the new genre alone

@@ -166,10 +166,10 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 
 	// Jellyfin's scan, having read the copy's folder before the delete,
 	// can list the copy again when it finishes (seen on a CI runner, not on
-	// every run): the files stay gone and a later scan lets it go - the
-	// next as a rule, and it has taken more than four run one after another
-	// - which the delete's note says. Everywhere else the copy must be gone,
-	// and on Jellyfin by the last scan.
+	// every run): the files stay gone and the server lets it go later - at
+	// the next scan as a rule, and otherwise within a minute or so of more
+	// scans - which the delete's note says. Everywhere else the copy must
+	// be gone, and on Jellyfin in the end.
 	racedBack := func() bool {
 		_, err := suite.Invoke("item_get", map[string]any{"id": staged})
 		return err == nil
@@ -215,32 +215,30 @@ func TestFixingWhileAScanRuns(t *testing.T) {
 		}
 	}
 	stand("once the scan finished", false)
-	// and the next scans, the first to start after the delete: Jellyfin has
-	// kept the copy through the first of them (twice in a few dozen runs,
-	// with the copy a film of 100 minutes), through the second (once, on
-	// 12.2, where the scan after let it go) and through four run within
-	// half a minute (once, on 12.2, where one soon after let it go), which
-	// the delete's note says. Two scans are always run, for the fixes to
-	// stand through; a copy still listed then is given more to go in, and
-	// it is the last of them it must be gone by
-	const mostScans = 12
-	for n := 1; n <= mostScans; n++ {
-		if n > 2 && !racedBack() {
-			break
-		}
+	// and the next two scans, the first to start after the delete, which
+	// the fixes must stand through
+	for n := 1; n <= 2; n++ {
 		suite.Call(t, "library_scan", nil)
 		if err := suite.WaitForExpectedScan(isJellyfin()); err != nil {
 			t.Fatal(err)
 		}
-		stand(fmt.Sprintf("after scan %d", n), n == mostScans)
+		stand(fmt.Sprintf("after scan %d", n), false)
 	}
-	// whichever scan let the copy go, it is gone, and the library with it
+	// Jellyfin has kept the copy through the first of them (twice in a few
+	// dozen runs, with the copy a film of 100 minutes), through the second
+	// (once, on 12.2), and through twelve run one after another in forty
+	// seconds (once, on 12.2): it is not the number of scans that lets the
+	// copy go. Each time it went a little later, with scans still being
+	// asked for, which is what the delete's note says and what is waited
+	// for here
 	if racedBack() {
-		t.Error("after the last scan the deleted copy is still listed")
+		began := time.Now()
+		if err := suite.ScanUntilTrue("", func() bool { return !racedBack() }); err != nil {
+			t.Fatalf("the deleted copy is still listed %s after two scans, with scans asked for throughout: %v", time.Since(began).Round(time.Second), err)
+		}
+		t.Logf("Jellyfin let the deleted copy go %s after the second scan", time.Since(began).Round(time.Second))
 	}
-	if held := heldPaths(t, "Messy Movies"); slices.ContainsFunc(held, func(p string) bool { return strings.Contains(p, "/messy-movies/"+name+"/") }) {
-		t.Errorf("after the last scan the library holds the deleted copy: %v", held)
-	}
+	stand("after the last scan", true)
 }
 
 // An edit made straight after item_refresh answers stays. It did not:
