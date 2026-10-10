@@ -1,19 +1,33 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-10-10)
+
+### Breaking
+
+- `--allow-tools` beside `--toolsets` adds the tools it names to the sets: `--toolsets curation --allow-tools task_list` is curation and `task_list` as well. It used to keep only what both held, and refused a name the sets did not hold. On its own it is still only the tools it names. Narrow a set with `--deny-tools`
 
 ### Added
 
-- `server_log_search` searches the server's log instead of tailing it: between two times or over the last stretch before its end, across the files a window spans, filtered by text and level, and answered as entries, as counts with the same message as one row, as a histogram, as the gaps a freeze leaves, or as the slow answers and the requests still waiting. Tokens and API keys are blanked; Emby's log is read anonymised unless `raw` is set
-- `task_list` says how far a running task has got, what starts each task (`daily 06:00`, `every 12h`, `at startup`), how long its last run took and the error it failed with; `task_get` gives one task with the failure in full
-- `task_stop` stops a running task, and `task_edit` changes when a task starts by itself
-- `session_list` says how each device is playing (the file as it is, or transcoded: into what, on what, and why), how far through, and when it last spoke; `details` adds the file's facts and the whole transcode
-- `server_config` gives the server's own settings in groups; `server_config_edit` changes the ones that tune Jellyfin's trickplay images and scanning, and no others
-- `--config` (or `EMBYFIN_CONFIG`) names the settings file to read, in place of the usual ones, so two instances can serve two servers side by side
-- `server_info` says whether a restart is pending or an update is out, and what the server's log says of its machine at startup: processors, architecture, when it started, where it keeps its data, logs, cache and metadata
-- `server_health` says how the server is doing in one call: the tasks running and how far each has got, the tasks whose last run failed, who is playing what and whether it is being re-encoded, and what the last stretch of the log shows (entries by level, errors by message, gaps, slow answers, requests still waiting, and how long since it was last written to)
-- `library_options` gives every library's settings side by side, one row a setting: the value they share, or each library's own where they differ, with `differ_from` to hold the others against one
-- `server_plugins` lists what is installed into the server, and on Jellyfin whether each is running and whether it came with the server
+- `server_health` says how the server is doing in one call: tasks running and failed, who is playing and how, and what the last stretch of the log shows
+- `server_log_search` searches the log between two times or over its last stretch, as entries, counts by message, a histogram, the gaps of a freeze, or the slow answers and requests still waiting
+- `task_get`, `task_stop` and `task_edit`; `task_list` gives progress, what starts each task and how its last run went
+- `session_list` says how each device plays, as the file is or transcoded and why; `details` adds the file and the whole transcode
+- `server_config` reads the server's settings in groups; `server_config_edit` changes the ones that tune Jellyfin's trickplay images and scanning
+- `library_options` puts every library's settings side by side, and says which libraries are set differently
+- `server_plugins` lists what is installed into the server
+- `server_info` says whether a restart is pending or an update is out, and what the log says of the machine
+- `--config` (or `EMBYFIN_CONFIG`) names the settings file, so two instances can serve two servers side by side
+- 89 tools: 62 read, 22 write, 5 delete
+
+### Changed
+
+- built on go-kt 0.5.1: `audit_whitespace` sees a space before the extension when spaces trail the name too, and counts a no-break space beside an ordinary one as a double space
+- test servers and builds take their images from Google's mirror of Docker Hub first
+
+### Fixed
+
+- `audit_spelling` reported an artist's numbered albums, "II" beside "III", as one name typed two ways
+- `audit_whitespace` gave an empty suggestion for a name that is nothing but spaces, and said to rename to it
 
 ## 0.4.1 (2026-10-09)
 
