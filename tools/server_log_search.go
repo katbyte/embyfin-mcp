@@ -40,6 +40,12 @@ const (
 	logPastUntil = 5 * time.Minute
 )
 
+// embyTimedNote is what Emby's log can show of how long answers took, as
+// seen on 4.10.1: a GET asked of a server at its default logging left no
+// line at all, a POST its request and its timed answer, and with debug
+// logging on the GET both as well, at debug level.
+const embyTimedNote = "Emby logs a request that only reads (a GET) with debug logging on alone: with it off, the answers timed and the requests that can show as waiting are the ones it does log, those that change something (a POST)"
+
 // logInstant reads a date the server gives for a log file.
 func logInstant(s string) (time.Time, bool) {
 	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.9999999", "2006-01-02T15:04:05"} {
@@ -69,18 +75,22 @@ func logsFor(files []embyfin.LogFile, since, until time.Time, last time.Duration
 	if since.IsZero() && until.IsZero() && last == 0 {
 		return []embyfin.LogFile{newest}
 	}
+	slack := logWindowSlack
 	if last > 0 {
 		// the stretch before the newest log's end, which an earlier log
-		// holds the start of when the server restarted inside it
+		// holds the start of when the server restarted inside it. It is
+		// counted from an instant, the newest log's last writing, and a
+		// file's dates are instants too: no zone comes into it, so an
+		// earlier log is read only if it was still being written then
 		if end, ok := logInstant(newest.DateModified); ok {
-			since = end.Add(-last)
+			since, slack = end.Add(-last), logPastUntil
 		}
 	}
 
 	var picked []embyfin.LogFile
 	for _, f := range own {
 		written, ok := logInstant(f.DateModified)
-		if ok && !since.IsZero() && written.Before(since.Add(-logWindowSlack)) {
+		if ok && !since.IsZero() && written.Before(since.Add(-slack)) {
 			continue // last written before the window opens
 		}
 		begun, ok := logInstant(f.DateCreated)
@@ -452,7 +462,7 @@ func registerLogSearchTool(r *registry) {
 		Description: "Search the server's log instead of reading its tail: entries between two times or in the last stretch before its end, filtered by text and level, and answered as the entries themselves, as counts (by level, and by message with the same message logged many times as one row), as a histogram by the minute or hour, as the gaps in which nothing was logged (how a freeze shows), or as the slow answers and the requests still waiting for one. " +
 			"A window is searched across every log file that could hold it: a server starts a new file at midnight and at each restart. Each file is read whole through the server, which serves no part of one, so a wide window on a busy server takes a while; files says what was read, with each one's first and last time. " +
 			"An entry is a line and the lines under it that have no time of their own, so an error report or a stack is one entry, given on one line unless expand is set. Tokens and API keys in a url are blanked. " +
-			"Emby's lines carry no zone: its times are the server's own clock, and utc_offset on each file says how far that ran from UTC when it can be judged. Emby times every answer it gives; Jellyfin logs an answer's time only when it was slow and debug logging is on, so slow finding nothing on Jellyfin does not mean nothing was slow.",
+			"Emby's lines carry no zone: its times are the server's own clock, and utc_offset on each file says how far that ran from UTC when it can be judged. Emby times each answer it logs, and at its default logging it logs a request that changes something (a POST) and not one that only reads (a GET), which debug logging adds; Jellyfin logs an answer's time only when it was slow and debug logging is on. So slow finding nothing does not mean nothing was slow.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in logSearchIn) (*mcp.CallToolResult, logSearchOut, error) {
 		emby := client.Backend() == embyfin.Emby
 		s, err := newLogSearch(&in, emby)
@@ -540,7 +550,9 @@ func registerLogSearchTool(r *registry) {
 			for _, w := range waiting {
 				out.Waiting = append(out.Waiting, logWaitingRow(w))
 			}
-			if !emby {
+			if emby {
+				notes = append(notes, embyTimedNote)
+			} else {
 				notes = append(notes, "Jellyfin logs an answer's time only when it was slow and debug logging is on, and never a request before its answer: none found here does not mean none was slow, and nothing can show as waiting")
 			}
 		default:

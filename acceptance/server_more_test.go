@@ -86,8 +86,10 @@ func TestLogSearch(t *testing.T) {
 		t.Errorf("gaps of a hundredth of a second = %v", gaps)
 	}
 
-	// Emby times every answer it gives, and this suite has asked it a great
-	// deal; Jellyfin logs none unless debug logging is on, and says so
+	// Emby times each answer it logs - at its default logging the ones to
+	// requests that change something, of which this suite has made a great
+	// many - and says what it leaves out; Jellyfin logs none unless debug
+	// logging is on, and says so
 	slow := suite.Call(t, "server_log_search", map[string]any{"mode": "slow", "seconds": 0.001, "limit": 5})
 	if isJellyfin() {
 		if acc.Num(t, slow["answers_timed"], "answers_timed") != 0 || !strings.Contains(acc.Str(slow["note"]), "only when it was slow and debug logging is on") {
@@ -97,6 +99,12 @@ func TestLogSearch(t *testing.T) {
 		slowest := acc.Rows(t, slow["slowest"], "slowest")
 		if acc.Num(t, slow["answers_timed"], "answers_timed") == 0 || len(slowest) != 5 || acc.Num(t, slowest[0]["ms"], "ms") < acc.Num(t, slowest[4]["ms"], "ms") || !strings.HasPrefix(acc.Str(slowest[0]["path"]), "/") || strings.ContainsAny(acc.Str(slowest[0]["path"]), "? ") || acc.Num(t, slowest[0]["status"], "status") < 100 {
 			t.Errorf("slow on Emby = %v", slow)
+		}
+		// what it leaves out, it says, and it is so: server_info has been asked for all through this suite, a request that
+		// only reads, and at its default logging Emby has logged none of them
+		reads := suite.Call(t, "server_log_search", map[string]any{"include": []any{`http/1\.1 GET \S*/System/Info\b`}, "mode": "count"})
+		if !strings.Contains(acc.Str(slow["note"]), "Emby logs a request that only reads (a GET) with debug logging on alone") || acc.Num(t, reads["matched"], "matched") != 0 {
+			t.Errorf("slow on Emby says %q, and its log holds %v requests for /System/Info", slow["note"], reads["matched"])
 		}
 	}
 }

@@ -154,6 +154,14 @@ func TestLogSearchReadsAWindowAcrossFiles(t *testing.T) {
 	if lines := logLines(t, out); len(lines) != 2 || !strings.Contains(lines[0], "Time: 141832ms") || !strings.Contains(lines[1], "Slow going") {
 		t.Errorf("the last 30 seconds = %q", lines)
 	}
+	// and an earlier log is read only when it was still being written inside the stretch: each is read whole, and a busy day's is large
+	if names := logNames(t, out); !slices.Equal(names, []string{"embyserver.txt"}) {
+		t.Errorf("the last 30 seconds read %v, want today's log alone", names)
+	}
+	out = mustCall(t, cs, "server_log_search", map[string]any{"last": "9h", "include": []any{"App: Stopping|TaskManager"}})
+	if names, lines := logNames(t, out), logLines(t, out); !slices.Equal(names, []string{"embyserver-63900000000.txt", "embyserver.txt"}) || len(lines) != 2 || !strings.Contains(lines[0], "23:59:59.000 Info App: Stopping") || !strings.Contains(lines[1], "Calculate statistics") {
+		t.Errorf("the last nine hours read %v and found %q, want yesterday's log too and the one line of it inside the stretch", names, lines)
+	}
 	out = mustCall(t, cs, "server_log_search", map[string]any{"last": "3m", "include": []any{"httpclient"}, "exclude": []any{"2941"}})
 	if lines := logLines(t, out); len(lines) != 1 || !strings.Contains(lines[0], "tv/2940") {
 		t.Errorf("the last three minutes, filtered = %q", lines)

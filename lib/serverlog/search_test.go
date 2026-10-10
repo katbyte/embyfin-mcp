@@ -181,7 +181,7 @@ func TestGaps(t *testing.T) {
 	}
 }
 
-// Emby times every answer it gives, so the slow ones are read off its log
+// Emby times each answer it logs, so the slow ones are read off its log
 // with what was asked and by whom; a request it logged and never answered
 // is one still waiting. Jellyfin logs only its slow answers.
 func TestSlow(t *testing.T) {
