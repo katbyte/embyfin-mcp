@@ -217,7 +217,7 @@ define live
 		[ "$(1)" = "integration" ] && export EMBYFIN_TEST_PORT=$$(( $$( [ $(2) = emby ] && echo 18097 || echo 18096 ) + 100 )) EMBYFIN_TEST_PROXY_PORT=18180 || true; \
 		beside=$$( [ $(2) = emby ] && echo jellyfin || echo emby ); \
 		scripts/testenv.sh up | grep '^export' > "$$env"; \
-		trap 'st=$$?; [ $$st -eq 0 ] || scripts/testenv.sh logs; \
+		trap 'st=$$?; [ $$st -eq 0 ] || scripts/testenv.sh logs || true; \
 			scripts/testenv.sh down; [ "$(1)" != "acceptance" ] || EMBYFIN_TEST_BACKEND='"$$beside"' scripts/testenv.sh beside-down; rm -f '"$$env"'; exit $$st' EXIT; \
 		[ "$(1)" != "acceptance" ] || EMBYFIN_TEST_BACKEND=$$beside scripts/testenv.sh beside | grep '^export' >> "$$env"; \
 		. ./"$$env"; \

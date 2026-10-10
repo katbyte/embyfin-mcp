@@ -999,15 +999,19 @@ wait_for() {
 # almost nothing of what went wrong; Jellyfin writes /config/log/*.log.
 logs() {
   echo "==> docker logs ${NAME}" >&2
-  docker logs "$NAME" 2>&1 | tail -40 >&2
+  docker logs "$NAME" 2>&1 | tail -40 >&2 || true
   for f in "${DATA}"/config/logs/*.txt "${DATA}"/config/log/*.log; do
     [ -f "$f" ] || continue
     # the errors first: the tail of an Emby log is its codec report, and what
     # went wrong is usually hundreds of lines above it
     echo "==> ${f} (errors)" >&2
-    grep -iE 'error|warn|exception|cancel|refused|timed out|certificate' "$f" | tail -60 >&2
+    # a file with none of these is no failure: one that ended this script left
+    # the caller's teardown undone, and the servers running
+    grep -iE 'error|warn|exception|cancel|refused|timed out|certificate' "$f" | tail -60 >&2 || true
     echo "==> ${f} (tail)" >&2
     tail -40 "$f" >&2
+    # a log may end without a newline, which would run the next heading onto its last line
+    echo >&2
   done
 }
 
