@@ -11,6 +11,8 @@
 - the SDKs are generated with pandorest, the generator that began in this repository and is now a library shared with the other MCP servers; `sdk/pandorest` keeps what is embyfin's, the three services and the workarounds for their documents
 - `EMBYFIN_LOG=trace` shows each request to the server and its answer, with keys and passwords blanked
 - a server url that answers with a web page is told so and to check the url, where it was a JSON error; a server that cannot be reached names the request that failed
+- `EMBYFIN_LOG=info` writes a line for every call of a write or delete tool: the tool, what the call sent, and whether it was refused, failed or answered
+- a call with an argument the tool does not take is told which arguments it does take
 
 ## 0.5.0 (2026-10-10)
 

@@ -270,28 +270,44 @@ func (p *Proxy) Misses() []string {
 // podcast feed whose episodes it adds as it goes - which have no service to
 // record: nothing for such a host is recorded, replayed or counted as a miss.
 // The host needs no DNS: the container sends the whole url to the proxy.
-func (p *Proxy) Serve(host string, h http.Handler) (stop func()) {
-	host = strings.ToLower(host)
+//
+// A host and a path, written as Trim's keys are ("clock.example.org/v1/time"),
+// is that one path alone: an answer no recording can hold, the time of day,
+// from a service whose other paths replay as they were recorded.
+func (p *Proxy) Serve(target string, h http.Handler) (stop func()) {
+	host, path, _ := strings.Cut(target, "/")
+	target = strings.ToLower(host)
+	if path != "" {
+		target += "/" + path
+	}
+
 	p.localMu.Lock()
-	p.local[host] = h
+	p.local[target] = h
 	p.localMu.Unlock()
 
 	return func() {
 		p.localMu.Lock()
-		delete(p.local, host)
+		delete(p.local, target)
 		p.localMu.Unlock()
 	}
 }
 
-// localHandler is the handler a test put in front of host, if any.
-func (p *Proxy) localHandler(host string) http.Handler {
+// localHandler is the handler a test put in front of this path of host, or
+// of the whole of host, if any.
+func (p *Proxy) localHandler(host, path string) http.Handler {
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
 	}
+	host = strings.ToLower(host)
+
 	p.localMu.RLock()
 	defer p.localMu.RUnlock()
 
-	return p.local[strings.ToLower(host)]
+	if h := p.local[host+path]; h != nil {
+		return h
+	}
+
+	return p.local[host]
 }
 
 // Close stops the proxy, writing any newly recorded cassettes.
@@ -406,7 +422,7 @@ func (p *Proxy) respond(w http.ResponseWriter, r *http.Request, host string) {
 	if r.Body != nil {
 		defer func() { _ = r.Body.Close() }()
 	}
-	if h := p.localHandler(host); h != nil {
+	if h := p.localHandler(host, r.URL.Path); h != nil {
 		// buffered, so it goes out with a length: inside a tunnel nothing
 		// else would tell the client where the body ends
 		rec := httptest.NewRecorder()

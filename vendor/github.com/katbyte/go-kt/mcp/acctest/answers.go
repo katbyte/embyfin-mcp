@@ -138,6 +138,16 @@ func NumOr0(v any) int {
 	return 0
 }
 
+// DecimalOr0 pulls a fractional JSON number out of a decoded field, 0 when it
+// was omitted: a size limit of 1.5, which NumOr0 would read as 1.
+func DecimalOr0(v any) float64 {
+	if f, ok := v.(float64); ok {
+		return f
+	}
+
+	return 0
+}
+
 // BoolOf pulls a JSON boolean out of a decoded field, false when it was
 // omitted.
 func BoolOf(v any) bool {

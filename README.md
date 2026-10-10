@@ -80,11 +80,11 @@ All options can be passed as command-line flags, environment variables, or via a
 | `EMBYFIN_READ_ONLY` | `--read-only` | register only tools that never change server state |
 | `EMBYFIN_ENABLE_DELETE` | `--enable-delete` | register `item_delete` (removes the item's files, and a film's or series' whole folder), `item_orphans_delete`, `library_delete`, `playlist_delete` and `collection_delete`, and allows `library_edit`'s `remove_paths` and `task_run` of anything but a scan |
 | `EMBYFIN_TOOLSETS` | `--toolsets` | groups of tools to register, default `core`: `all`, `core`, `curation`, `watching`, `organise`, `remote`, `admin`, or a resource family like `item` (`core` is always included) |
-| `EMBYFIN_ALLOW_TOOLS` | `--allow-tools` | only register these tools (names, `library_*` globs, or `essential`), chosen from every tool unless toolsets are given too |
+| `EMBYFIN_ALLOW_TOOLS` | `--allow-tools` | register these tools (names, `library_*` globs, or `essential`): on its own only these, beside `--toolsets` these as well as the sets |
 | `EMBYFIN_DENY_TOOLS` | `--deny-tools` | never register these tools (names or globs such as `*_delete`) |
 | `EMBYFIN_TMDB_TOKEN` | `--tmdb-token` | TMDB API Read Access Token, or the older API Key; enables `audit_provider` (films' ids and runtimes, and episodes' runtimes, checked against TMDB), `audit_missing_episodes` with `provider: true` (each series' whole run), the episode TMDB gives a file's title to, a film's alternative titles and what TMDB's search finds by a path's title in `audit_file_path`, and `show_missing` on servers that keep no record of a series' run. Answers are kept an hour; `provider_cache_clear` forgets them at once. `EMBYFIN_TMDB_KEY` / `--tmdb-key` still work |
 | `EMBYFIN_ANIME_LIST` | `--anime-list` | where `audit_anime_ids` reads the Anime-Lists mapping: a URL or a file. Default the list on GitHub, fetched once a day |
-| `EMBYFIN_LOG` | | log level (`WARN` default; `DEBUG`, `TRACE`, ...) |
+| `EMBYFIN_LOG` | | log level (`WARN` default): `INFO` adds a line for every call of a write or delete tool, `TRACE` every request to the server and its answer, with keys blanked |
 | `EMBYFIN_LISTEN` | `--listen` | serve MCP over HTTP on this address (e.g. `:8080`) instead of stdio |
 | `EMBYFIN_AUTH_TOKEN` | `--auth-token` | bearer token required on the HTTP endpoint (required with `--listen`) |
 | `EMBYFIN_ALLOW_NO_AUTH` | `--allow-no-auth` | serve HTTP with no bearer token at all: anyone who can reach the port can use every tool |

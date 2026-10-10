@@ -121,6 +121,22 @@ func (e Env) ProxyPort() (int, error) {
 // (APP_TEST_CONTAINER), "" when the server under test is not one of ours.
 func (e Env) Container() string { return e.Get("TEST_CONTAINER") }
 
+// DefaultHost is the name a container reaches the machine it runs on by when
+// the environment names none.
+const DefaultHost = "host.docker.internal"
+
+// Host is the name the container reaches this machine by (APP_TEST_HOST),
+// DefaultHost when the test script exports none. On Linux a script may hand
+// the container the bridge gateway's address instead, so that a runtime
+// preferring an IPv6 answer cannot pick a route the host does not listen on.
+func (e Env) Host() string {
+	if h := e.Get("TEST_HOST"); h != "" {
+		return h
+	}
+
+	return DefaultHost
+}
+
 // Proxy is the record/replay proxy a suite runs for the length of its run,
 // and what it saw once stopped.
 type Proxy struct {
@@ -134,8 +150,33 @@ type Proxy struct {
 }
 
 // StartProxy brings up the record/replay proxy the container's HTTPS_PROXY
-// already points at, and proves the container can reach it, saying on stderr
-// what the container sees of the network.
+// already points at (ListenProxy), and proves the container can reach it,
+// saying on stderr what the container sees of the network. The container has
+// to be running: a suite that starts it only once the proxy is up calls
+// ListenProxy, starts it, and then CheckReachable.
+func (e Env) StartProxy(ctx context.Context, opts replayproxy.Options) (*Proxy, error) {
+	p, err := e.ListenProxy(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	network, err := e.CheckReachable(ctx, "the replay proxy", p.proxy.Port())
+	if network != "" {
+		_, _ = fmt.Fprintf(os.Stderr, "container network: %s\n", network)
+	}
+	if err != nil {
+		_ = p.Stop() //nolint:contextcheck // closing takes no context
+
+		return nil, err
+	}
+
+	return p, nil
+}
+
+// ListenProxy brings the proxy up and asks the container nothing, for a
+// server that calls out as it starts: a call made before the proxy listens is
+// neither recorded nor replayed, so the suite starts the container only once
+// this returns.
 //
 // The environment decides how it runs and where it listens: opts.Mode is
 // Env.Mode whatever it was set to; an empty opts.Addr is every interface on
@@ -144,7 +185,7 @@ type Proxy struct {
 // minted one in and mounted into the container. The addresses the server
 // reaches itself on (ContainerAddresses) are added to opts.IgnoreHosts. The
 // rest - the cassettes, what to redact, what else to ignore - is the suite's.
-func (e Env) StartProxy(ctx context.Context, opts replayproxy.Options) (*Proxy, error) {
+func (e Env) ListenProxy(ctx context.Context, opts replayproxy.Options) (*Proxy, error) {
 	opts, err := e.proxyOptions(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -152,15 +193,6 @@ func (e Env) StartProxy(ctx context.Context, opts replayproxy.Options) (*Proxy, 
 
 	p, err := replayproxy.New(opts) //nolint:contextcheck // the proxy outlives this call: it runs for the whole suite
 	if err != nil {
-		return nil, err
-	}
-	network, err := e.CheckProxyReachable(ctx, p.Port())
-	if network != "" {
-		_, _ = fmt.Fprintf(os.Stderr, "container network: %s\n", network)
-	}
-	if err != nil {
-		_ = p.Close() //nolint:contextcheck // closing takes no context
-
 		return nil, err
 	}
 
@@ -178,9 +210,9 @@ func (e Env) proxyOptions(ctx context.Context, opts replayproxy.Options) (replay
 	opts.Mode = e.Mode()
 	if opts.Addr == "" {
 		// every interface and both stacks: the container reaches this
-		// through host.docker.internal, which docker maps to the host
-		// gateway, and a runner that hands the container an IPv6 route as
-		// well would find nothing listening on an IPv4-only socket
+		// through Host, by default a name docker maps to the host gateway,
+		// and a runner that hands the container an IPv6 route as well
+		// would find nothing listening on an IPv4-only socket
 		opts.Addr = ":" + strconv.Itoa(port)
 	}
 	if ca := e.Get("TEST_PROXY_CA"); ca != "" && opts.CACert == "" && opts.CAKey == "" {
@@ -203,9 +235,10 @@ func (p *Proxy) Addr() string { return p.proxy.Addr() }
 // proxy's certificates (replayproxy.Proxy.Transport).
 func (p *Proxy) Transport() *http.Transport { return p.proxy.Transport() }
 
-// Serve answers every request for host with h rather than a recording, until
-// the returned func is called (replayproxy.Proxy.Serve).
-func (p *Proxy) Serve(host string, h http.Handler) (stop func()) { return p.proxy.Serve(host, h) }
+// Serve answers every request for a host, or for one path of it when target
+// names a path too, with h rather than a recording, until the returned func
+// is called (replayproxy.Proxy.Serve).
+func (p *Proxy) Serve(target string, h http.Handler) (stop func()) { return p.proxy.Serve(target, h) }
 
 // Stop closes the proxy and keeps what it saw, returning what closing it
 // failed with. Stopping twice, or stopping what never started, is harmless.
@@ -255,8 +288,9 @@ func (p *Proxy) Report() string {
 // ContainerAddresses are the addresses the server reaches itself on: its
 // container's addresses and hostname. A server that pings its own address at
 // startup sends that through the proxy, because NO_PROXY is set before docker
-// hands the container an address. It is nil when the environment names no
-// container, or docker cannot say.
+// hands the container an address - which it does when the container starts,
+// so one not yet started has only its hostname. It is nil when the
+// environment names no container, or docker cannot say.
 func (e Env) ContainerAddresses(ctx context.Context) []string {
 	name := e.Container()
 	if name == "" {
@@ -271,25 +305,30 @@ func (e Env) ContainerAddresses(ctx context.Context) []string {
 	return strings.Fields(string(out))
 }
 
-// CheckProxyReachable proves, from inside the container, that the server can
-// reach the proxy, and says what the container sees of the network: its hosts
-// entry for the gateway and its proxy setting. A server that cannot reach the
-// proxy fails every lookup with a timeout of its own, which reads as dozens
-// of unrelated assertion failures rather than the one plumbing problem it is
-// - so say it plainly, once, before the suite runs. With no container named
-// there is nothing to check.
-func (e Env) CheckProxyReachable(ctx context.Context, port int) (network string, err error) {
+// reachScript says what a container sees of the network and probes a port of
+// the machine it runs on: $1 is the name it reaches that machine by and $2
+// the port. Exit 3 says the image has no probe tool, which is not a failure.
+// The hosts entries come too: a container handed an IPv6 route to the host
+// gateway can reach the host with one address and not the other.
+const reachScript = `grep -iF -- "$1" /etc/hosts; echo "proxy env: ${HTTPS_PROXY:-unset}"; command -v nc >/dev/null || exit 3; nc -z -w 5 "$1" "$2"`
+
+// CheckReachable proves, from inside the container, that the server can reach
+// what this machine serves on port - the proxy, a fake indexer - by the name
+// it was given for this machine (Host), and says what the container sees of
+// the network: its hosts entry for that name and its proxy setting. A server
+// that cannot reach the proxy fails every lookup with a timeout of its own,
+// which reads as dozens of unrelated assertion failures rather than the one
+// plumbing problem it is - so say it plainly, once, before the suite runs,
+// naming what could not be reached. With no container named there is nothing
+// to check.
+func (e Env) CheckReachable(ctx context.Context, what string, port int) (network string, err error) {
 	name := e.Container()
 	if name == "" {
 		return "", nil // not a container this suite started
 	}
-	// exit 3 says the image has no probe tool, which is not a failure. The
-	// hosts entries come too: a container handed an IPv6 route to the host
-	// gateway can reach the proxy with one address and not the other.
-	script := fmt.Sprintf(
-		"grep -i host.docker.internal /etc/hosts; echo \"proxy env: ${HTTPS_PROXY:-unset}\"; "+
-			"command -v nc >/dev/null || exit 3; nc -z -w 5 host.docker.internal %d", port)
-	out, err := exec.CommandContext(ctx, "docker", "exec", name, "sh", "-c", script).CombinedOutput() //nolint:gosec // the container the test script started, and a script of this file's own
+
+	host := e.Host()
+	out, err := exec.CommandContext(ctx, "docker", "exec", name, "sh", "-c", reachScript, "sh", host, strconv.Itoa(port)).CombinedOutput() //nolint:gosec // the container the test script started, and a script of this file's own
 	network = strings.TrimSpace(string(out))
 	switch {
 	case err == nil:
@@ -297,7 +336,6 @@ func (e Env) CheckProxyReachable(ctx context.Context, port int) (network string,
 	case strings.Contains(err.Error(), "exit status 3"):
 		return network, nil
 	default:
-		return network, fmt.Errorf("%s cannot reach the replay proxy on host.docker.internal:%d, so every lookup the server makes will time out: %w: %s",
-			name, port, err, out)
+		return network, fmt.Errorf("%s cannot reach %s on %s:%d, so every call the server makes to it will time out: %w: %s", name, what, host, port, err, out)
 	}
 }
