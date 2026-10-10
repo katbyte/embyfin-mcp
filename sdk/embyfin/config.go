@@ -83,7 +83,7 @@ func (c *Client) EditServerConfig(ctx context.Context, change func(doc map[strin
 	if c.isEmby() {
 		return nil, nil, ErrConfigNotEditable
 	}
-	unlock := lock.ByName("server settings", c.baseURL)
+	unlock := lock.ByString(c.baseURL + " server settings")
 	defer unlock()
 
 	if before, err = c.ServerConfig(ctx); err != nil {

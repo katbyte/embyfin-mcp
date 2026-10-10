@@ -229,36 +229,59 @@ func TestRegisterAllFilters(t *testing.T) {
 	}
 }
 
-// Beside toolsets an allow list narrows them, and a name or pattern reaching
-// no tool they hold is refused: the binary's default core narrowed
-// essential to three of its five tools, and user_* to none, and said nothing.
+// Beside toolsets an allow list adds the tools it names to them, these sets
+// and these tools as well, whatever set holds them; on its own it is only
+// the tools it names, with no core put beside it. It gets nothing past the
+// read-only switch or the delete gate, and a set is narrowed with a deny
+// list.
 func TestAnAllowListBesideToolsets(t *testing.T) {
 	t.Parallel()
 
-	refused := func(opts Options) string {
-		t.Helper()
-		_, err := RegisterAll(mcp.NewServer(&mcp.Implementation{Name: "t", Version: "0"}, nil), newTestClient(t), opts)
-		if err == nil {
-			t.Errorf("%+v was accepted", opts)
-			return ""
+	with := func(base []string, more ...string) []string {
+		out := slices.Clone(base)
+		for _, name := range more {
+			if !slices.Contains(out, name) {
+				out = append(out, name)
+			}
 		}
-		return err.Error()
+		slices.Sort(out)
+
+		return out
 	}
-	if msg := refused(Options{Toolsets: []string{"core"}, Allow: []string{"essential"}}); !strings.Contains(msg, `allow-tools "essential" names user_next_up, item_set_state, which the toolsets asked for (core) do not hold: add watching to --toolsets`) {
-		t.Errorf("essential beside core = %q", msg)
+	core := register(t, Options{Toolsets: []string{"core"}})
+
+	// core and the essential five, two of which no part of core is
+	if got, want := register(t, Options{Toolsets: []string{"core"}, Allow: []string{"essential"}}), with(core, EssentialTools...); !slices.Equal(got, want) || !slices.Contains(got, "user_next_up") || !slices.Contains(got, "item_set_state") {
+		t.Errorf("essential beside core = %v, want %v", got, want)
 	}
-	if msg := refused(Options{Toolsets: []string{"core"}, Allow: []string{"library_*,item_get,user_*"}}); !strings.Contains(msg, `allow-tools "user_*" names user_get, user_history, user_list, user_next_up, user_stats`) || !strings.Contains(msg, "add watching to --toolsets") {
-		t.Errorf("user_* beside core = %q", msg)
+	// a pattern adds every tool it names, and nothing else comes with them
+	if got, want := register(t, Options{Toolsets: []string{"core"}, Allow: []string{"user_*"}}), with(core, "user_get", "user_history", "user_list", "user_next_up", "user_stats"); !slices.Equal(got, want) {
+		t.Errorf("user_* beside core = %v, want %v", got, want)
 	}
-	if msg := refused(Options{Toolsets: []string{"core"}, Allow: []string{"item_delete"}}); !strings.Contains(msg, "add admin to --toolsets") {
-		t.Errorf("item_delete beside core = %q", msg)
+	// a tool of another set's, by name
+	if got, want := register(t, Options{Toolsets: []string{"watching"}, Allow: []string{"task_list"}}), with(register(t, Options{Toolsets: []string{"watching"}}), "task_list"); !slices.Equal(got, want) {
+		t.Errorf("task_list beside watching = %v, want %v", got, want)
 	}
-	// what the sets do hold is narrowed to, as before
-	if got := register(t, Options{Toolsets: []string{"watching"}, Allow: []string{"essential"}}); len(got) != len(EssentialTools) {
-		t.Errorf("essential beside watching = %v", got)
+
+	// naming a tool does not get it past the delete gate or the read-only switch
+	if got := register(t, Options{Toolsets: []string{"core"}, Allow: []string{"item_delete"}}); !slices.Equal(got, core) {
+		t.Errorf("item_delete beside core, deletes not enabled = %v, want core alone", got)
 	}
-	if got := register(t, Options{Toolsets: []string{"core"}, Allow: []string{"library_*"}}); !slices.Equal(got, []string{"library_get", "library_items", "library_list"}) {
-		t.Errorf("library_* beside core = %v, want core's three", got)
+	if got := register(t, Options{Toolsets: []string{"core"}, Allow: []string{"item_delete"}, EnableDelete: true}); !slices.Equal(got, with(core, "item_delete")) {
+		t.Errorf("item_delete beside core, deletes enabled = %v", got)
+	}
+	if got := register(t, Options{Toolsets: []string{"core"}, Allow: []string{"library_scan"}, ReadOnly: true}); !slices.Equal(got, core) {
+		t.Errorf("library_scan beside core, read only = %v, want core alone", got)
+	}
+
+	// on its own an allow list is the whole of what loads
+	if got := register(t, Options{Allow: []string{"task_list"}}); !slices.Equal(got, []string{"task_list"}) {
+		t.Errorf("task_list alone = %v", got)
+	}
+	// and a set is narrowed by denying, which takes from whatever asked
+	narrowed := register(t, Options{Toolsets: []string{"watching"}, Allow: []string{"task_list"}, Deny: []string{"user_*", "task_*"}})
+	if slices.ContainsFunc(narrowed, func(n string) bool { return strings.HasPrefix(n, "user_") || strings.HasPrefix(n, "task_") }) || !slices.Contains(narrowed, "item_last_watched") {
+		t.Errorf("watching and task_list, user_* and task_* denied = %v", narrowed)
 	}
 }
 

@@ -79,6 +79,21 @@ func (k Text) odd(r rune) bool {
 	return Odd(r) && (k != Foreign || !Typographic(r))
 }
 
+// plain is a text with every space that is odd in this kind of text made an
+// ordinary one. An odd space doubles, ends a name and stands before a colon
+// or an extension as an ordinary one does, so those are looked for in the
+// text read this way: two no-break spaces are a double space, and one before
+// a colon is a space before a colon.
+func (k Text) plain(name string) string {
+	return strings.Map(func(r rune) rune {
+		if k.odd(r) {
+			return ' '
+		}
+
+		return r
+	}, name)
+}
+
 // StartsWithSpace says whether a text begins with a space of any kind.
 func StartsWithSpace(s string) bool {
 	r, _ := utf8.DecodeRuneInString(s)
@@ -95,8 +110,11 @@ func EndsWithSpace(s string) bool {
 
 // SplitExt parts a file name into its stem and its extension; a name whose
 // last dot starts no plausible extension (longer than five letters, or with
-// a space in it) is all stem.
+// a space in it) is all stem. The name is read without the spaces after it,
+// which are no part of either: "Chapter 1 .mp3 " is "Chapter 1 " and ".mp3",
+// so a space after the extension hides none before it.
 func SplitExt(name string) (stem, ext string) {
+	name = strings.TrimRightFunc(name, Any)
 	ext = path.Ext(name)
 	if ext == "" || ext == name || len(ext) > 6 || strings.ContainsFunc(ext, Any) {
 		return name, ""
@@ -112,63 +130,61 @@ func Problems(name string, k Text) []string {
 	if strings.ContainsFunc(name, k.odd) {
 		out = append(out, OddSpace)
 	}
-	if strings.Contains(name, "  ") {
+	// an odd space is out of place where an ordinary one would be, too
+	plain := k.plain(name)
+	if strings.Contains(plain, "  ") {
 		out = append(out, DoubleSpace)
-	}
-	stem, ext := name, ""
-	if k == File {
-		stem, ext = SplitExt(name)
 	}
 	// an odd space at an end is at the end all the same
 	if StartsWithSpace(name) || EndsWithSpace(name) {
 		out = append(out, EdgeSpace)
 	}
-	if ext != "" && EndsWithSpace(stem) {
-		out = append(out, BeforeExtension)
+	if k == File {
+		if stem, ext := SplitExt(plain); ext != "" && strings.HasSuffix(stem, " ") {
+			out = append(out, BeforeExtension)
+		}
 	}
-	if k != Foreign && colon.MatchString(name) {
+	if k != Foreign && colon.MatchString(plain) {
 		out = append(out, BeforeColon)
 	}
 
 	return out
 }
 
-// Visible writes a text with the offending spaces made visible: ␣ for a
-// space in a run, at an end, before a colon or before the extension, and
-// [U+00A0] for a space that is not the ordinary one.
+// Visible writes a text with the offending spaces made visible: ␣ for an
+// ordinary space in a run, at an end, before a colon or before the
+// extension, and [U+00A0] for a space that is not the ordinary one, wherever
+// it is. An odd space makes a run with the spaces beside it, so the ordinary
+// one next to it is marked too.
 func Visible(name string, k Text) string {
-	runes := []rune(name)
-	extAt := len(runes)
+	runes, plain := []rune(name), []rune(k.plain(name))
+	extAt := -1
 	if k == File {
-		if _, ext := SplitExt(name); ext != "" {
-			extAt = len(runes) - utf8.RuneCountInString(ext)
+		if stem, ext := SplitExt(string(plain)); ext != "" {
+			extAt = utf8.RuneCountInString(stem)
 		}
 	}
 	var b strings.Builder
 	for i := 0; i < len(runes); {
-		r := runes[i]
-		if k.odd(r) {
-			fmt.Fprintf(&b, "[U+%04X]", r)
-			i++
-
-			continue
-		}
-		if r != ' ' {
-			b.WriteRune(r)
+		if plain[i] != ' ' {
+			b.WriteRune(runes[i])
 			i++
 
 			continue
 		}
 		end := i
-		for end < len(runes) && runes[end] == ' ' {
+		for end < len(plain) && plain[end] == ' ' {
 			end++
 		}
-		beforeColon := k != Foreign && end < len(runes) && (runes[end] == ':' || runes[end] == '꞉')
-		mark := end-i > 1 || i == 0 || end == len(runes) || end == extAt || beforeColon
+		beforeColon := k != Foreign && end < len(plain) && (plain[end] == ':' || plain[end] == '꞉')
+		mark := end-i > 1 || i == 0 || end == len(plain) || end == extAt || beforeColon
 		for ; i < end; i++ {
-			if mark {
+			switch {
+			case k.odd(runes[i]):
+				fmt.Fprintf(&b, "[U+%04X]", runes[i])
+			case mark:
 				b.WriteRune('␣')
-			} else {
+			default:
 				b.WriteRune(' ')
 			}
 		}
@@ -179,25 +195,24 @@ func Visible(name string, k Text) string {
 
 // Fixed is a text with its spaces put right: an odd space made an ordinary
 // one, runs made one, the ends and the space before a colon or the extension
-// dropped.
+// dropped. It is "" when nothing is left of the name but spaces, or its
+// extension: there is no name to suggest, and ".mkv" for " .mkv" would be a
+// file the next reader takes for a hidden one.
 func Fixed(name string, k Text) string {
-	s := strings.Map(func(r rune) rune {
-		if k.odd(r) {
-			return ' '
-		}
-
-		return r
-	}, name)
-	stem, ext := s, ""
+	stem, ext := k.plain(name), ""
 	if k == File {
-		stem, ext = SplitExt(s)
+		stem, ext = SplitExt(stem)
 	}
 	stem = run.ReplaceAllString(stem, " ")
 	if k != Foreign {
 		stem = colon.ReplaceAllString(stem, "$1")
 	}
+	stem = strings.TrimFunc(stem, Any)
+	if stem == "" {
+		return ""
+	}
 
-	return strings.TrimFunc(stem, Any) + ext
+	return stem + ext
 }
 
 // DroppedAt is what a title holds where a name has two spaces in a row,

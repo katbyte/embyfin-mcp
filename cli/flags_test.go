@@ -57,10 +57,9 @@ func TestExplicitToolsetsOverrideTheDefault(t *testing.T) {
 	}
 }
 
-// An allow list with no --toolsets chooses from every tool: it says which to
-// load. Narrowed by the default core as well, --allow-tools essential loaded
-// three of its five tools, and the README's library_*,item_get,user_* none of
-// the user_ tools, all in silence.
+// An allow list with no --toolsets is the whole of what loads, chosen from
+// every tool, with the default core not put beside it. Beside --toolsets it
+// adds the tools it names to the sets.
 func TestAnAllowListChoosesFromEveryTool(t *testing.T) {
 	t.Parallel()
 
@@ -98,17 +97,29 @@ func TestAnAllowListChoosesFromEveryTool(t *testing.T) {
 			t.Errorf("library_*,item_get,user_* registered %s", name)
 		}
 	}
-	// beside --toolsets it narrows them, and one naming what they do not
-	// hold is refused, saying which set to add
-	if got := names(FlagData{Toolsets: []string{"watching"}, AllowTools: essential}); !slices.Equal(got, want) {
-		t.Errorf("--toolsets watching --allow-tools essential = %v, want %v", got, want)
+	// beside --toolsets it adds to them: the sets, and the tools named as well
+	with := func(base []string, more ...string) []string {
+		out := slices.Clone(base)
+		for _, name := range more {
+			if !slices.Contains(out, name) {
+				out = append(out, name)
+			}
+		}
+		slices.Sort(out)
+
+		return out
 	}
-	if got := names(FlagData{Toolsets: organise, AllowTools: []string{"playlist_*"}}); len(got) == 0 || slices.ContainsFunc(got, func(n string) bool { return !strings.HasPrefix(n, "playlist_") }) {
-		t.Errorf("--toolsets organise --allow-tools playlist_* = %v", got)
+	watching := names(FlagData{Toolsets: []string{"watching"}})
+	if got := names(FlagData{Toolsets: []string{"watching"}, AllowTools: essential}); !slices.Equal(got, with(watching, want...)) {
+		t.Errorf("--toolsets watching --allow-tools essential = %v, want %v", got, with(watching, want...))
 	}
-	_, err := tools.Describe((&FlagData{Toolsets: organise, AllowTools: essential}).ToolOptions())
-	if err == nil || !strings.Contains(err.Error(), "user_next_up, item_set_state") || !strings.Contains(err.Error(), "add watching to --toolsets") {
-		t.Errorf("--toolsets organise --allow-tools essential = %v", err)
+	organised := names(FlagData{Toolsets: organise})
+	if got := names(FlagData{Toolsets: organise, AllowTools: []string{"task_list"}}); !slices.Equal(got, with(organised, "task_list")) {
+		t.Errorf("--toolsets organise --allow-tools task_list = %v", got)
+	}
+	// the five beside a set that holds none of the two it lacked: once refused, now the set and the five
+	if got := names(FlagData{Toolsets: organise, AllowTools: essential}); !slices.Equal(got, with(organised, want...)) || !slices.Contains(got, "user_next_up") {
+		t.Errorf("--toolsets organise --allow-tools essential = %v", got)
 	}
 	// with neither, the default is still core
 	if opts := (&FlagData{}).ToolOptions(); !slices.Equal(opts.Toolsets, DefaultToolsets) {

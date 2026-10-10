@@ -547,9 +547,9 @@ func TestTheBinary(t *testing.T) {
 		})
 	})
 
-	// the sets and families --toolsets takes, and the patterns
-	// --allow-tools and --deny-tools narrow them with; core comes with every
-	// set
+	// the sets and families --toolsets takes, the names and patterns
+	// --allow-tools adds to them or, with no set asked for, loads alone, and
+	// the ones --deny-tools takes away; core comes with every set
 	t.Run("choosing tools", func(t *testing.T) {
 		withCore := func(keep func(string) bool) []string {
 			return matching(every, func(n string) bool { return keep(n) || slices.Contains(core, n) })
@@ -565,16 +565,23 @@ func TestTheBinary(t *testing.T) {
 				return strings.HasPrefix(n, "show_") || strings.HasPrefix(n, "user_")
 			})},
 			{"a family from the environment", []string{"EMBYFIN_TOOLSETS=session"}, nil, withCore(func(n string) bool { return strings.HasPrefix(n, "session_") })},
-			{"allowed by name and glob", nil, []string{"--toolsets", "all", "--allow-tools", "library_*,item_get"}, matching(every, func(n string) bool {
+			{"allowed by name and glob", nil, []string{"--allow-tools", "library_*,item_get"}, matching(every, func(n string) bool {
 				return (strings.HasPrefix(n, "library_") && n != "library_delete") || n == "item_get"
 			})},
-			{"allowed from the environment", []string{"EMBYFIN_TOOLSETS=all", "EMBYFIN_ALLOW_TOOLS=user_get,*_list"}, nil, matching(every, func(n string) bool {
+			{"allowed from the environment", []string{"EMBYFIN_ALLOW_TOOLS=user_get,*_list"}, nil, matching(every, func(n string) bool {
 				return n == "user_get" || strings.HasSuffix(n, "_list")
 			})},
 			{"denied by glob and name", nil, []string{"--toolsets", "all", "--enable-delete", "--deny-tools", "*_delete,audit_*,server_info"}, matching(every, func(n string) bool {
 				return !strings.HasSuffix(n, "_delete") && !strings.HasPrefix(n, "audit_") && n != "server_info"
 			})},
-			{"allowed and then denied", nil, []string{"--toolsets", "all", "--allow-tools", "show_*", "--deny-tools", "show_missing"}, []string{"show_episodes_exist", "show_resolve", "show_seasons"}},
+			{"allowed and then denied", nil, []string{"--allow-tools", "show_*", "--deny-tools", "show_missing"}, []string{"show_episodes_exist", "show_resolve", "show_seasons"}},
+			// beside a set an allow list adds to it: the set, core, and the tools named from another set
+			{"allowed beside a set", nil, []string{"--toolsets", "show", "--allow-tools", "task_list,server_stats"}, withCore(func(n string) bool {
+				return strings.HasPrefix(n, "show_") || n == "task_list" || n == "server_stats"
+			})},
+			{"a set narrowed by denying", nil, []string{"--toolsets", "show", "--deny-tools", "show_missing"}, withCore(func(n string) bool {
+				return strings.HasPrefix(n, "show_") && n != "show_missing"
+			})},
 		} {
 			t.Run(c.name, func(t *testing.T) {
 				if got := listed(t, bin.serveStdio(t, c.env, c.args...)); !slices.Equal(got, c.want) {

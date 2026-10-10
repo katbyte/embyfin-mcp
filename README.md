@@ -261,16 +261,18 @@ embyfin-mcp tools --read-only -q    # names only
 
 ### Narrowing further
 
-`--allow-tools` and `--deny-tools` take comma-separated tool names, globs with a leading or trailing `*`, or the `essential` preset (`library_list`, `library_items`, `item_get`, `user_next_up`, `item_set_state`). An allow list with no `--toolsets` chooses from every tool, so it is the whole list; beside `--toolsets` it narrows what the sets hold. `--deny-tools` takes away from either.
+`--allow-tools` and `--deny-tools` take comma-separated tool names, globs with a leading or trailing `*`, or the `essential` preset (`library_list`, `library_items`, `item_get`, `user_next_up`, `item_set_state`). An allow list with no `--toolsets` is the whole of what loads: only the tools it names. Beside `--toolsets` it adds to them: the sets, and the tools named as well. `--deny-tools` takes tools out of whatever was asked for, which is how a set is narrowed.
 
 ```sh
 EMBYFIN_ALLOW_TOOLS=essential                      # exactly those five
 EMBYFIN_ALLOW_TOOLS=library_*,item_get,user_*      # every library_ and user_ tool, and item_get
-EMBYFIN_TOOLSETS=curation EMBYFIN_ALLOW_TOOLS=audit_*   # the audits alone
+EMBYFIN_ALLOW_TOOLS=audit_*                        # the audits alone
+EMBYFIN_TOOLSETS=curation EMBYFIN_ALLOW_TOOLS=task_list,task_run   # curation, and two tools from admin as well
+EMBYFIN_TOOLSETS=curation EMBYFIN_DENY_TOOLS=audit_*   # curation without its audits
 EMBYFIN_DENY_TOOLS=*_delete,session_*
 ```
 
-A pattern that matches no tool aborts startup and names it, so a typo cannot silently hide a tool. So does an allow list naming a tool the toolsets asked for do not hold, and it says which set to add.
+A pattern that matches no tool aborts startup and names it, so a typo cannot silently hide a tool. Neither list gets a tool past `--read-only` or the delete switch.
 
 ### A typical curation session
 

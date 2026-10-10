@@ -17,10 +17,11 @@ import (
 // same server in it; another client of that server is not covered.
 //
 // An id is an item's within its server, so the server is part of what is
-// locked. Jellyfin reads a GUID with or without its dashes and in either
+// locked: its address and the id, a space between them, which no address
+// holds. Jellyfin reads a GUID with or without its dashes and in either
 // case, so the id is locked in one spelling: two edits that name one item
 // differently still wait for each other. (Emby's ids are numbers, which the
 // spelling leaves as they are.)
 func (c *Client) lockItem(id string) (unlock func()) {
-	return lock.ByName(strings.ToLower(strings.ReplaceAll(id, "-", "")), c.baseURL)
+	return lock.ByString(c.baseURL + " " + strings.ToLower(strings.ReplaceAll(id, "-", "")))
 }

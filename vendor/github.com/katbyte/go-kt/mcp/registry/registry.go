@@ -6,8 +6,9 @@
 // write tool does, and a delete tool removes what cannot be put back. A
 // read-only session gets the read tools alone; the delete tools are held
 // back until the operator asks for them; toolsets pick the groups a session
-// needs, so a client loads a working subset rather than every definition;
-// and allow and deny lists narrow whatever is left.
+// needs, so a client loads a working subset rather than every definition; an
+// allow list adds tools by name to whatever the toolsets hold; and a deny
+// list takes tools out of what is left.
 //
 // What is shared is the machinery. The tools, the toolsets they sit in and
 // the hints each carries are the application's, given in a Config.
@@ -101,12 +102,15 @@ type Selection struct {
 	// by commas: a curated set, All, or a resource family (every tool whose
 	// name begins with it, "library" for library_*). None is every tool.
 	Toolsets []string
-	// Allow keeps only the tools it names: exact names, a pattern with one
-	// "*" at either end (library_*, *_delete), or Essential. Beside
-	// Toolsets it narrows them.
+	// Allow asks for tools by name: exact names, a pattern with one "*" at
+	// either end (library_*, *_delete), or Essential. Beside Toolsets it
+	// adds to them, "these sets and these tools as well"; on its own it is
+	// only the tools it names, with no Core added. It lets nothing past
+	// ReadOnly or EnableDelete.
 	Allow []string
-	// Deny takes out the tools it names, the same way, from whatever is
-	// left.
+	// Deny takes out the tools it names, the same way, from whatever the
+	// toolsets and the allow list asked for: it is how a toolset is
+	// narrowed.
 	Deny []string
 }
 
@@ -303,7 +307,10 @@ func (r *Registry) ToolsetNames() []string {
 // read off the tools added, so they cannot go stale.
 func (r *Registry) FamilyNames() []string { return families(r.Names()) }
 
-// selected applies the kind gates and the toolset, allow and deny filters.
+// selected applies the kind gates, then what the toolsets and the allow list
+// ask for between them, then the deny list. Toolsets and an allow list both
+// ask for tools, and a session gets what either names; with neither it gets
+// every tool.
 func (r *Registry) selected(sel Selection) (map[string]bool, error) {
 	names := r.Names()
 	sets, err := r.compileToolsets(sel.Toolsets, names)
@@ -318,19 +325,17 @@ func (r *Registry) selected(sel Selection) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(sets) > 0 {
-		if err := r.allowedWithin(sel.Allow, sets, sel.Toolsets, names); err != nil {
-			return nil, err
-		}
-	}
+	// what was asked for is read off the lists as they were given: an allow
+	// list of a preset the application left empty asks for nothing, which
+	// is not the same as no allow list
+	everything := len(entries(sel.Toolsets)) == 0 && len(entries(sel.Allow)) == 0
 
 	keep := make(map[string]bool, len(r.pending))
 	for _, p := range r.pending {
 		switch {
 		case p.kind == Delete && !sel.EnableDelete:
 		case p.kind != Read && sel.ReadOnly:
-		case len(sets) > 0 && !sets[p.name]:
-		case len(allow) > 0 && !matchesAny(allow, p.name):
+		case !everything && !sets[p.name] && !matchesAny(allow, p.name):
 		case matchesAny(deny, p.name):
 		default:
 			keep[p.name] = true
@@ -433,56 +438,6 @@ func (r *Registry) compilePatterns(raw, known []string, which string) ([]string,
 	}
 
 	return out, nil
-}
-
-// allowedWithin checks an allow list against the toolsets asked for beside
-// it, which it narrows: a tool it names that none of the sets holds would
-// not be registered, and leaving it out without a word read as the tool not
-// existing - an allow list of the essential preset beside the default core
-// registered three of its five. So each name or pattern must reach a tool in
-// the sets, and the error says which set to add.
-func (r *Registry) allowedWithin(raw []string, sets map[string]bool, asked, known []string) error {
-	in := func(name string) bool { return sets[name] }
-	for _, pat := range entries(raw) {
-		var outside []string
-		switch {
-		case pat == Essential:
-			outside = slices.DeleteFunc(slices.Clone(r.cfg.Essential), in)
-		case !slices.ContainsFunc(known, func(n string) bool { return sets[n] && matchPattern(pat, n) }):
-			outside = slices.DeleteFunc(slices.Clone(known), func(n string) bool { return !matchPattern(pat, n) })
-			slices.Sort(outside)
-		}
-		if len(outside) == 0 {
-			continue
-		}
-		homes := []string{}
-		for _, name := range outside {
-			if set := r.toolsetOf(name); set != "" && !slices.Contains(homes, set) {
-				homes = append(homes, set)
-			}
-		}
-		slices.Sort(homes)
-		hint := "leave --toolsets out, so the allow list chooses from every tool"
-		if len(homes) > 0 {
-			hint = "add " + strings.Join(homes, ",") + " to --toolsets, or " + hint
-		}
-
-		return fmt.Errorf("allow-tools %q names %s, which the toolsets asked for (%s) do not hold: %s", pat, strings.Join(outside, ", "), strings.Join(entries(asked), ","), hint)
-	}
-
-	return nil
-}
-
-// toolsetOf is the curated set a tool belongs to, or "" for one no set
-// holds; the first by name, for a tool held by more than one.
-func (r *Registry) toolsetOf(name string) string {
-	for _, set := range r.ToolsetNames() {
-		if slices.Contains(r.cfg.Toolsets[set], name) {
-			return set
-		}
-	}
-
-	return ""
 }
 
 func matchesAny(patterns []string, name string) bool {

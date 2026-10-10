@@ -4,10 +4,10 @@
 // tags arrive as people and taggers typed them: "Sci-Fi" and "sci fi",
 // "Amélie" and "Amelie", "Warner Bros." and "Warner Bros. Pictures",
 // "Noir" and "Nior". Key folds the spellings that mean the same thing onto
-// one string, and TypoApart and TruncationOf say when two keys that still
-// differ are a slip of the keyboard or a name cut short rather than two
-// names. Detection is all this does; which spelling to keep is the caller's
-// to decide.
+// one string, and TypoApart, TruncationOf and InitialsOf say when two keys
+// that still differ are a slip of the keyboard, a name cut short or a first
+// name reduced to its initial rather than two names. Detection is all this
+// does; which spelling to keep is the caller's to decide.
 //
 // The detectors were found in real libraries first (abs-mcp's and
 // embyfin-mcp's spelling audits), and each rule says what it was for.
@@ -128,6 +128,32 @@ func TruncationOf(short, long string) bool {
 	}
 
 	return strings.HasPrefix(long, short+" ")
+}
+
+// InitialsOf reports whether two keys (Key) are one person's name, one of
+// them with the first name reduced to its initial, middle names and initials
+// aside: "c z dunn" is "christian dunn", and "j k rowling" is "joanne
+// rowling". The last name has to be the same and at least three letters, and
+// the reduced first name a single letter: "joe hill" is not "joey w hill",
+// those are two people, and "chris dunn" is a shortened name, not an initial.
+// Either may be the one with the initial.
+func InitialsOf(short, long string) bool {
+	sw, lw := strings.Fields(short), strings.Fields(long)
+	if len(sw) < 2 || len(lw) < 2 || short == long {
+		return false
+	}
+
+	last := sw[len(sw)-1]
+	if Letters(last) < 3 || last != lw[len(lw)-1] {
+		return false
+	}
+
+	a, b := sw[0], lw[0]
+	if Letters(a) > Letters(b) {
+		a, b = b, a
+	}
+
+	return Letters(a) == 1 && Letters(b) > 1 && strings.HasPrefix(b, a)
 }
 
 // TypoApart reports whether two keys (Key) differ by a slip of the keyboard:
