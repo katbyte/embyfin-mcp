@@ -297,7 +297,8 @@ wipe_data() {
   rm -rf "${DATA}" 2>/dev/null && return 0
 
   log "removing container-owned files"
-  docker run --rm -v "${DATA}:/data" alpine:3 sh -c 'rm -rf /data/..?* /data/.[!.]* /data/*' >/dev/null 2>&1 || true
+  docker run --rm -v "${DATA}:/data" mirror.gcr.io/library/alpine:3 sh -c 'rm -rf /data/..?* /data/.[!.]* /data/*' >/dev/null 2>&1 ||
+    docker run --rm -v "${DATA}:/data" alpine:3 sh -c 'rm -rf /data/..?* /data/.[!.]* /data/*' >/dev/null 2>&1 || true
   rm -rf "${DATA}" 2>/dev/null || true
 }
 
