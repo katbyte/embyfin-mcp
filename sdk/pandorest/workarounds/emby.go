@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
+	pandorest "github.com/katbyte/pandorest/importer/workarounds"
 	"github.com/katbyte/pandorest/openapi"
 )
 
@@ -16,192 +16,133 @@ import (
 
 const emby = "emby"
 
-// embyUndeclaredResponses declares what the GETs without a response schema
-// answer. A file is a content type; json is JSON of no declared schema; any
-// other value is the component schema the JSON decodes into.
-type embyUndeclaredResponses struct{}
+// queryResult is the model most of Emby's lists come in.
+const queryResult = "QueryResult_BaseItemDto"
 
-const (
-	answersJSON = "json"
-	imageAny    = "image/*"
-	audioAny    = "audio/*"
-	videoAny    = "video/*"
-	textAny     = "text/*"
-	textXML     = "text/xml"
-	octetStream = "application/octet-stream"
-	hlsPlaylist = "application/x-mpegURL"
-	queryResult = "QueryResult_BaseItemDto"
+// What the GETs without a declared answer give: JSON of no declared shape, or
+// a file of a kind.
+var (
+	anyJSON  = pandorest.JSON()
+	image    = pandorest.File("image/*")
+	audio    = pandorest.File("audio/*")
+	video    = pandorest.File("video/*")
+	subtitle = pandorest.File("text/*")
+	xml      = pandorest.File("text/xml")
+	download = pandorest.File("application/octet-stream")
+	playlist = pandorest.File("application/x-mpegURL")
 )
 
-var embyUndeclared = map[string]string{
+// embyUndeclaredResponses declares what the GETs without a response schema
+// answer: JSON, the model the JSON decodes into, a file, or, for the one that
+// is a word or two, text read whole.
+var embyUndeclaredResponses = pandorest.UndeclaredAnswers(pandorest.About{Name: "emby-undeclared-responses", Service: emby, Bug: "about 95 GETs declare a 200 with no content, so nothing says whether they answer JSON (and in what shape) or a file"}, map[string]pandorest.Answer{
 	// JSON
-	"/Auth/Keys":                          answersJSON,
-	"/Collections/{Id}/Missing":           queryResult,
-	"/Collections/{Id}/ProviderItems":     answersJSON,
-	"/Connect/Pending":                    answersJSON,
-	"/LiveTv/ChannelMappingOptions":       answersJSON,
-	"/LiveTv/ChannelMappings":             answersJSON,
-	"/LiveTv/Programs":                    queryResult,
-	"/LiveTv/Recordings":                  queryResult,
-	"/Parties":                            answersJSON,
-	"/Plugins/{Id}/Configuration":         answersJSON,
-	"/Shows/Missing":                      queryResult,
-	"/Shows/Upcoming":                     queryResult,
-	"/Shows/{Id}/Episodes":                queryResult,
-	"/System/Configuration/{Key}":         answersJSON,
-	"/Users/{UserId}/TypedSettings/{Key}": answersJSON,
-	"/web/strings":                        answersJSON,
+	"GET /Auth/Keys":                          anyJSON,
+	"GET /Collections/{Id}/Missing":           pandorest.Model(queryResult),
+	"GET /Collections/{Id}/ProviderItems":     anyJSON,
+	"GET /Connect/Pending":                    anyJSON,
+	"GET /LiveTv/ChannelMappingOptions":       anyJSON,
+	"GET /LiveTv/ChannelMappings":             anyJSON,
+	"GET /LiveTv/Programs":                    pandorest.Model(queryResult),
+	"GET /LiveTv/Recordings":                  pandorest.Model(queryResult),
+	"GET /Parties":                            anyJSON,
+	"GET /Plugins/{Id}/Configuration":         anyJSON,
+	"GET /Shows/Missing":                      pandorest.Model(queryResult),
+	"GET /Shows/Upcoming":                     pandorest.Model(queryResult),
+	"GET /Shows/{Id}/Episodes":                pandorest.Model(queryResult),
+	"GET /System/Configuration/{Key}":         anyJSON,
+	"GET /Users/{UserId}/TypedSettings/{Key}": anyJSON,
+	"GET /web/strings":                        anyJSON,
 
 	// text
-	"/Branding/Css":          "text/css",
-	"/Branding/Css.css":      "text/css",
-	"/System/Logs/{Name}":    "text/plain",
-	"/System/Ping":           "text/plain",
-	"/web/ConfigurationPage": "text/html",
+	"GET /Branding/Css":          pandorest.File("text/css"),
+	"GET /Branding/Css.css":      pandorest.File("text/css"),
+	"GET /System/Logs/{Name}":    pandorest.File("text/plain"),
+	"GET /System/Ping":           pandorest.Text("text/plain"),
+	"GET /web/ConfigurationPage": pandorest.File("text/html"),
 
 	// images
-	"/Artists/{Name}/Images/{Type}":            imageAny,
-	"/Artists/{Name}/Images/{Type}/{Index}":    imageAny,
-	"/Dlna/icons/{Filename}":                   imageAny,
-	"/Dlna/{UuId}/icons/{Filename}":            imageAny,
-	"/GameGenres/{Name}/Images/{Type}":         imageAny,
-	"/GameGenres/{Name}/Images/{Type}/{Index}": imageAny,
-	"/Genres/{Name}/Images/{Type}":             imageAny,
-	"/Genres/{Name}/Images/{Type}/{Index}":     imageAny,
-	"/Images/Remote":                           imageAny,
-	"/Items/RemoteSearch/Image":                imageAny,
-	"/Items/{Id}/Images/{Type}":                imageAny,
-	"/Items/{Id}/Images/{Type}/{Index}":        imageAny,
-	"/Items/{Id}/Images/{Type}/{Index}/{Tag}/{Format}/{MaxWidth}/{MaxHeight}/{PercentPlayed}/{UnPlayedCount}": imageAny,
-	"/MusicGenres/{Name}/Images/{Type}":         imageAny,
-	"/MusicGenres/{Name}/Images/{Type}/{Index}": imageAny,
-	"/Persons/{Name}/Images/{Type}":             imageAny,
-	"/Persons/{Name}/Images/{Type}/{Index}":     imageAny,
-	"/Plugins/{Id}/Thumb":                       imageAny,
-	"/Studios/{Name}/Images/{Type}":             imageAny,
-	"/Studios/{Name}/Images/{Type}/{Index}":     imageAny,
-	"/Users/{Id}/Images/{Type}":                 imageAny,
-	"/Users/{Id}/Images/{Type}/{Index}":         imageAny,
+	"GET /Artists/{Name}/Images/{Type}":            image,
+	"GET /Artists/{Name}/Images/{Type}/{Index}":    image,
+	"GET /Dlna/icons/{Filename}":                   image,
+	"GET /Dlna/{UuId}/icons/{Filename}":            image,
+	"GET /GameGenres/{Name}/Images/{Type}":         image,
+	"GET /GameGenres/{Name}/Images/{Type}/{Index}": image,
+	"GET /Genres/{Name}/Images/{Type}":             image,
+	"GET /Genres/{Name}/Images/{Type}/{Index}":     image,
+	"GET /Images/Remote":                           image,
+	"GET /Items/RemoteSearch/Image":                image,
+	"GET /Items/{Id}/Images/{Type}":                image,
+	"GET /Items/{Id}/Images/{Type}/{Index}":        image,
+	"GET /Items/{Id}/Images/{Type}/{Index}/{Tag}/{Format}/{MaxWidth}/{MaxHeight}/{PercentPlayed}/{UnPlayedCount}": image,
+	"GET /MusicGenres/{Name}/Images/{Type}":         image,
+	"GET /MusicGenres/{Name}/Images/{Type}/{Index}": image,
+	"GET /Persons/{Name}/Images/{Type}":             image,
+	"GET /Persons/{Name}/Images/{Type}/{Index}":     image,
+	"GET /Plugins/{Id}/Thumb":                       image,
+	"GET /Studios/{Name}/Images/{Type}":             image,
+	"GET /Studios/{Name}/Images/{Type}/{Index}":     image,
+	"GET /Users/{Id}/Images/{Type}":                 image,
+	"GET /Users/{Id}/Images/{Type}/{Index}":         image,
 
 	// media
-	"/Audio/{Id}/{StreamFileName}":                    audioAny,
-	"/Audio/{Id}/stream":                              audioAny,
-	"/Audio/{Id}/stream.{Container}":                  audioAny,
-	"/Audio/{Id}/universal":                           audioAny,
-	"/Audio/{Id}/universal.{Container}":               audioAny,
-	"/LiveTv/LiveRecordings/{Id}/stream":              videoAny,
-	"/LiveTv/LiveStreamFiles/{Id}/stream.{Container}": videoAny,
-	"/Videos/{Id}/{StreamFileName}":                   videoAny,
-	"/Videos/{Id}/stream":                             videoAny,
-	"/Videos/{Id}/stream.{Container}":                 videoAny,
+	"GET /Audio/{Id}/{StreamFileName}":                    audio,
+	"GET /Audio/{Id}/stream":                              audio,
+	"GET /Audio/{Id}/stream.{Container}":                  audio,
+	"GET /Audio/{Id}/universal":                           audio,
+	"GET /Audio/{Id}/universal.{Container}":               audio,
+	"GET /LiveTv/LiveRecordings/{Id}/stream":              video,
+	"GET /LiveTv/LiveStreamFiles/{Id}/stream.{Container}": video,
+	"GET /Videos/{Id}/{StreamFileName}":                   video,
+	"GET /Videos/{Id}/stream":                             video,
+	"GET /Videos/{Id}/stream.{Container}":                 video,
 
 	// HLS playlists and segments
-	"/Audio/{Id}/live.m3u8":                                         hlsPlaylist,
-	"/Audio/{Id}/main.m3u8":                                         hlsPlaylist,
-	"/Audio/{Id}/master.m3u8":                                       hlsPlaylist,
-	"/LiveTv/LiveRecordings/{Id}/hls/live.m3u8":                     hlsPlaylist,
-	"/LiveTv/LiveRecordings/{Id}/hls/master.m3u8":                   hlsPlaylist,
-	"/LiveTv/LiveStreamFiles/{Id}/hls/live.m3u8":                    hlsPlaylist,
-	"/LiveTv/LiveStreamFiles/{Id}/hls/master.m3u8":                  hlsPlaylist,
-	"/Videos/{Id}/live.m3u8":                                        hlsPlaylist,
-	"/Videos/{Id}/live_subtitles.m3u8":                              hlsPlaylist,
-	"/Videos/{Id}/main.m3u8":                                        hlsPlaylist,
-	"/Videos/{Id}/master.m3u8":                                      hlsPlaylist,
-	"/Videos/{Id}/subtitles.m3u8":                                   hlsPlaylist,
-	"/Audio/{Id}/hls/{PlaylistId}/{SegmentId}.{SegmentContainer}":   octetStream,
-	"/Audio/{Id}/hls1/{PlaylistId}/{SegmentId}.{SegmentContainer}":  octetStream,
-	"/LiveTv/LiveRecordings/{Id}/hls/{Segment}":                     octetStream,
-	"/LiveTv/LiveStreamFiles/{Id}/hls/{Segment}":                    octetStream,
-	"/Videos/{Id}/hls/{PlaylistId}/{SegmentId}.{SegmentContainer}":  octetStream,
-	"/Videos/{Id}/hls1/{PlaylistId}/{SegmentId}.{SegmentContainer}": octetStream,
+	"GET /Audio/{Id}/live.m3u8":                                         playlist,
+	"GET /Audio/{Id}/main.m3u8":                                         playlist,
+	"GET /Audio/{Id}/master.m3u8":                                       playlist,
+	"GET /LiveTv/LiveRecordings/{Id}/hls/live.m3u8":                     playlist,
+	"GET /LiveTv/LiveRecordings/{Id}/hls/master.m3u8":                   playlist,
+	"GET /LiveTv/LiveStreamFiles/{Id}/hls/live.m3u8":                    playlist,
+	"GET /LiveTv/LiveStreamFiles/{Id}/hls/master.m3u8":                  playlist,
+	"GET /Videos/{Id}/live.m3u8":                                        playlist,
+	"GET /Videos/{Id}/live_subtitles.m3u8":                              playlist,
+	"GET /Videos/{Id}/main.m3u8":                                        playlist,
+	"GET /Videos/{Id}/master.m3u8":                                      playlist,
+	"GET /Videos/{Id}/subtitles.m3u8":                                   playlist,
+	"GET /Audio/{Id}/hls/{PlaylistId}/{SegmentId}.{SegmentContainer}":   download,
+	"GET /Audio/{Id}/hls1/{PlaylistId}/{SegmentId}.{SegmentContainer}":  download,
+	"GET /LiveTv/LiveRecordings/{Id}/hls/{Segment}":                     download,
+	"GET /LiveTv/LiveStreamFiles/{Id}/hls/{Segment}":                    download,
+	"GET /Videos/{Id}/hls/{PlaylistId}/{SegmentId}.{SegmentContainer}":  download,
+	"GET /Videos/{Id}/hls1/{PlaylistId}/{SegmentId}.{SegmentContainer}": download,
 
 	// subtitles and attachments
-	"/Items/{Id}/{MediaSourceId}/Subtitles/{Index}/Stream.{Format}":                       textAny,
-	"/Items/{Id}/{MediaSourceId}/Subtitles/{Index}/{StartPositionTicks}/Stream.{Format}":  textAny,
-	"/Videos/{Id}/{MediaSourceId}/Subtitles/{Index}/Stream.{Format}":                      textAny,
-	"/Videos/{Id}/{MediaSourceId}/Subtitles/{Index}/{StartPositionTicks}/Stream.{Format}": textAny,
-	"/Videos/{Id}/{MediaSourceId}/Attachments/{Index}/Stream":                             octetStream,
+	"GET /Items/{Id}/{MediaSourceId}/Subtitles/{Index}/Stream.{Format}":                       subtitle,
+	"GET /Items/{Id}/{MediaSourceId}/Subtitles/{Index}/{StartPositionTicks}/Stream.{Format}":  subtitle,
+	"GET /Videos/{Id}/{MediaSourceId}/Subtitles/{Index}/Stream.{Format}":                      subtitle,
+	"GET /Videos/{Id}/{MediaSourceId}/Subtitles/{Index}/{StartPositionTicks}/Stream.{Format}": subtitle,
+	"GET /Videos/{Id}/{MediaSourceId}/Attachments/{Index}/Stream":                             download,
 
 	// DLNA descriptions
-	"/Dlna/{UuId}/connectionmanager/connectionmanager":     textXML,
-	"/Dlna/{UuId}/connectionmanager/connectionmanager.xml": textXML,
-	"/Dlna/{UuId}/contentdirectory/contentdirectory":       textXML,
-	"/Dlna/{UuId}/contentdirectory/contentdirectory.xml":   textXML,
-	"/Dlna/{UuId}/description":                             textXML,
-	"/Dlna/{UuId}/description.xml":                         textXML,
+	"GET /Dlna/{UuId}/connectionmanager/connectionmanager":     xml,
+	"GET /Dlna/{UuId}/connectionmanager/connectionmanager.xml": xml,
+	"GET /Dlna/{UuId}/contentdirectory/contentdirectory":       xml,
+	"GET /Dlna/{UuId}/contentdirectory/contentdirectory.xml":   xml,
+	"GET /Dlna/{UuId}/description":                             xml,
+	"GET /Dlna/{UuId}/description.xml":                         xml,
 
 	// downloads
-	"/Items/{Id}/Download":                octetStream,
-	"/Items/{Id}/File":                    octetStream,
-	"/Playback/BitrateTest":               octetStream,
-	"/Providers/Subtitles/Subtitles/{Id}": octetStream,
-	"/Sync/JobItems/{Id}/AdditionalFiles": octetStream,
-	"/Sync/JobItems/{Id}/File":            octetStream,
-	"/Videos/{Id}/index.bif":              octetStream,
-}
+	"GET /Items/{Id}/Download":                download,
+	"GET /Items/{Id}/File":                    download,
+	"GET /Playback/BitrateTest":               download,
+	"GET /Providers/Subtitles/Subtitles/{Id}": download,
+	"GET /Sync/JobItems/{Id}/AdditionalFiles": download,
+	"GET /Sync/JobItems/{Id}/File":            download,
+	"GET /Videos/{Id}/index.bif":              download,
+})
 
-func (embyUndeclaredResponses) Name() string    { return "emby-undeclared-responses" }
-func (embyUndeclaredResponses) Service() string { return emby }
-func (embyUndeclaredResponses) Bug() string {
-	return "about 95 GETs declare a 200 with no content, so nothing says whether they answer JSON (and in what shape) or a file"
-}
-
-func (embyUndeclaredResponses) Apply(spec *openapi.Spec) error {
-	var declared []string
-	for _, path := range openapi.SortedKeys(embyUndeclared) {
-		op, err := operation(spec, http.MethodGet, path)
-		if err != nil {
-			return err
-		}
-		ok := op.Responses["200"]
-		if ok == nil {
-			return fmt.Errorf("GET %s has no 200 response", path)
-		}
-		if len(ok.Content) > 0 {
-			declared = append(declared, path)
-			continue
-		}
-		switch answer := embyUndeclared[path]; {
-		case answer == answersJSON:
-			ok.Content = map[string]*openapi.MediaType{"application/json": {}}
-		case strings.Contains(answer, "/"):
-			ok.Content = map[string]*openapi.MediaType{answer: {Schema: &openapi.Schema{Type: openapi.TypeString, Format: "binary"}}}
-		default:
-			if spec.Components.Schemas[answer] == nil {
-				return fmt.Errorf("GET %s: schema %s is not in the document", path, answer)
-			}
-			ok.Content = map[string]*openapi.MediaType{"application/json": {Schema: &openapi.Schema{Ref: openapi.SchemaRefPrefix + answer}}}
-		}
-	}
-	if len(declared) > 0 {
-		return fmt.Errorf("these now declare their response, so take them out of the table: %s", strings.Join(declared, ", "))
-	}
-
-	return nil
-}
-
-type embyUndeclaredPathParameters struct{}
-
-func (embyUndeclaredPathParameters) Name() string    { return "emby-undeclared-path-parameters" }
-func (embyUndeclaredPathParameters) Service() string { return emby }
-func (embyUndeclaredPathParameters) Bug() string {
-	return "POST /Users/{Id}/Images/{Type}/{Index} has an {Index} placeholder but declares no path parameter for it (the item image route beside it does)"
-}
-
-func (embyUndeclaredPathParameters) Apply(spec *openapi.Spec) error {
-	op, err := operation(spec, http.MethodPost, "/Users/{Id}/Images/{Type}/{Index}")
-	if err != nil {
-		return err
-	}
-	if op.Parameter(openapi.InPath, "Index") != nil {
-		return errors.New("the {Index} path parameter is declared")
-	}
-	op.Parameters = append(op.Parameters, &openapi.Parameter{
-		Name: "Index", In: openapi.InPath, Required: true, Description: "Image Index", Schema: &openapi.Schema{Type: openapi.TypeInteger, Format: "int32"},
-	})
-
-	return nil
-}
+var embyUndeclaredPathParameters = pandorest.UndeclaredParameters(pandorest.About{Name: "emby-undeclared-path-parameters", Service: emby, Bug: "POST /Users/{Id}/Images/{Type}/{Index} has an {Index} placeholder but declares no path parameter for it (the item image route beside it does)"}, []string{"POST /Users/{Id}/Images/{Type}/{Index}"}, param{Name: "Index", In: openapi.InPath, Type: openapi.TypeInteger, Description: "Image Index"})
 
 type embyNoContentStatus struct{}
 
@@ -231,45 +172,11 @@ func (embyNoContentStatus) Apply(spec *openapi.Spec) error {
 	return nil
 }
 
-type embyPlaylistCreateUserID struct{}
+var embyPlaylistCreateUserID = pandorest.UndeclaredParameters(pandorest.About{Name: "emby-playlist-create-user-id", Service: emby, Bug: "POST /Playlists does not declare UserId, which names the playlist's owner"}, []string{"POST /Playlists"}, param{Name: "UserId", In: openapi.InQuery, Type: openapi.TypeString, Description: "The user who owns the playlist"})
 
-func (embyPlaylistCreateUserID) Name() string    { return "emby-playlist-create-user-id" }
-func (embyPlaylistCreateUserID) Service() string { return emby }
-func (embyPlaylistCreateUserID) Bug() string {
-	return "POST /Playlists does not declare UserId, which names the playlist's owner"
-}
+var embyLibraryAvailableOptionsQuery = pandorest.UndeclaredParameters(pandorest.About{Name: "emby-library-available-options-query", Service: emby, Bug: "GET /Libraries/AvailableOptions declares no parameters; without LibraryContentType the server answers for every item type at once"}, []string{"GET /Libraries/AvailableOptions"}, param{Name: "LibraryContentType", In: openapi.InQuery, Type: openapi.TypeString, Description: "The collection type of the library (movies, tvshows, music, ...)"}, param{Name: "IsNewLibrary", In: openapi.InQuery, Type: openapi.TypeBoolean, Description: "Whether the options are for a library being created, which is when the defaults are enabled"})
 
-func (embyPlaylistCreateUserID) Apply(spec *openapi.Spec) error {
-	return addParameters(spec, []string{"POST /Playlists"},
-		param{Name: "UserId", In: openapi.InQuery, Type: openapi.TypeString, Description: "The user who owns the playlist"})
-}
-
-type embyLibraryAvailableOptionsQuery struct{}
-
-func (embyLibraryAvailableOptionsQuery) Name() string    { return "emby-library-available-options-query" }
-func (embyLibraryAvailableOptionsQuery) Service() string { return emby }
-func (embyLibraryAvailableOptionsQuery) Bug() string {
-	return "GET /Libraries/AvailableOptions declares no parameters; without LibraryContentType the server answers for every item type at once"
-}
-
-func (embyLibraryAvailableOptionsQuery) Apply(spec *openapi.Spec) error {
-	return addParameters(spec, []string{"GET /Libraries/AvailableOptions"},
-		param{Name: "LibraryContentType", In: openapi.InQuery, Type: openapi.TypeString, Description: "The collection type of the library (movies, tvshows, music, ...)"},
-		param{Name: "IsNewLibrary", In: openapi.InQuery, Type: openapi.TypeBoolean, Description: "Whether the options are for a library being created, which is when the defaults are enabled"})
-}
-
-type embyNextUpLegacy struct{}
-
-func (embyNextUpLegacy) Name() string    { return "emby-next-up-legacy" }
-func (embyNextUpLegacy) Service() string { return emby }
-func (embyNextUpLegacy) Bug() string {
-	return "GET /Shows/NextUp does not declare LegacyNextUp, the per-series next-unwatched mode (4.10's default mode lists nothing for an episode marked played through the API)"
-}
-
-func (embyNextUpLegacy) Apply(spec *openapi.Spec) error {
-	return addParameters(spec, []string{"GET /Shows/NextUp"},
-		param{Name: "LegacyNextUp", In: openapi.InQuery, Type: openapi.TypeBoolean, Description: "Use the per-series next unwatched episode mode"})
-}
+var embyNextUpLegacy = pandorest.UndeclaredParameters(pandorest.About{Name: "emby-next-up-legacy", Service: emby, Bug: "GET /Shows/NextUp does not declare LegacyNextUp, the per-series next-unwatched mode (4.10's default mode lists nothing for an episode marked played through the API)"}, []string{"GET /Shows/NextUp"}, param{Name: "LegacyNextUp", In: openapi.InQuery, Type: openapi.TypeBoolean, Description: "Use the per-series next unwatched episode mode"})
 
 type embyUndeclaredQuery struct{}
 
@@ -437,82 +344,20 @@ func (embyNullResultNoContent) Apply(spec *openapi.Spec) error {
 	return nil
 }
 
-type embyOpenAPIDocuments struct{}
+var embyOpenAPIDocuments = pandorest.WrongAnswers(pandorest.About{Name: "emby-openapi-documents", Service: emby, Bug: "GET /openapi, /openapi.json, /swagger and /swagger.json declare a JSON string; they answer the API document itself, a JSON object"}, map[string]pandorest.Correction{
+	"GET /openapi":      {Declared: pandorest.JSONString(), Answers: pandorest.JSON()},
+	"GET /openapi.json": {Declared: pandorest.JSONString(), Answers: pandorest.JSON()},
+	"GET /swagger":      {Declared: pandorest.JSONString(), Answers: pandorest.JSON()},
+	"GET /swagger.json": {Declared: pandorest.JSONString(), Answers: pandorest.JSON()},
+})
 
-func (embyOpenAPIDocuments) Name() string    { return "emby-openapi-documents" }
-func (embyOpenAPIDocuments) Service() string { return emby }
-func (embyOpenAPIDocuments) Bug() string {
-	return "GET /openapi, /openapi.json, /swagger and /swagger.json declare a JSON string; they answer the API document itself, a JSON object"
-}
+var embyRecordingFoldersQueryResult = pandorest.WrongAnswers(pandorest.About{Name: "emby-recording-folders-query-result", Service: emby, Bug: "GET /LiveTv/Recordings/Folders declares an array of BaseItemDto; the server answers a QueryResult_BaseItemDto"}, map[string]pandorest.Correction{
+	"GET /LiveTv/Recordings/Folders": {Declared: pandorest.ListOf("BaseItemDto"), Answers: pandorest.Model(queryResult)},
+})
 
-func (embyOpenAPIDocuments) Apply(spec *openapi.Spec) error {
-	for _, path := range []string{"/openapi", "/openapi.json", "/swagger", "/swagger.json"} {
-		op, err := operation(spec, http.MethodGet, path)
-		if err != nil {
-			return err
-		}
-		media, err := jsonResponse(op, "GET "+path)
-		if err != nil {
-			return err
-		}
-		if media.Schema == nil || media.Schema.Type != openapi.TypeString {
-			return fmt.Errorf("GET %s no longer declares a string", path)
-		}
-		media.Schema = nil
-	}
-
-	return nil
-}
-
-type embyRecordingFoldersQueryResult struct{}
-
-func (embyRecordingFoldersQueryResult) Name() string    { return "emby-recording-folders-query-result" }
-func (embyRecordingFoldersQueryResult) Service() string { return emby }
-func (embyRecordingFoldersQueryResult) Bug() string {
-	return "GET /LiveTv/Recordings/Folders declares an array of BaseItemDto; the server answers a QueryResult_BaseItemDto"
-}
-
-func (embyRecordingFoldersQueryResult) Apply(spec *openapi.Spec) error {
-	op, err := operation(spec, http.MethodGet, "/LiveTv/Recordings/Folders")
-	if err != nil {
-		return err
-	}
-	media, err := jsonResponse(op, "GET /LiveTv/Recordings/Folders")
-	if err != nil {
-		return err
-	}
-	if media.Schema == nil || media.Schema.Type != openapi.TypeArray {
-		return errors.New("it no longer declares an array")
-	}
-	media.Schema = &openapi.Schema{Ref: openapi.SchemaRefPrefix + queryResult}
-
-	return nil
-}
-
-type embyParentPathText struct{}
-
-func (embyParentPathText) Name() string    { return "emby-parent-path-text" }
-func (embyParentPathText) Service() string { return emby }
-func (embyParentPathText) Bug() string {
-	return "GET /Environment/ParentPath declares a JSON string; the server answers the bare path as text"
-}
-
-func (embyParentPathText) Apply(spec *openapi.Spec) error {
-	op, err := operation(spec, http.MethodGet, "/Environment/ParentPath")
-	if err != nil {
-		return err
-	}
-	media, err := jsonResponse(op, "GET /Environment/ParentPath")
-	if err != nil {
-		return err
-	}
-	if media.Schema == nil || media.Schema.Type != openapi.TypeString {
-		return errors.New("it no longer declares a JSON string")
-	}
-	op.Responses["200"].Content = map[string]*openapi.MediaType{"text/plain": {Schema: &openapi.Schema{Type: openapi.TypeString, Format: "binary"}}}
-
-	return nil
-}
+var embyParentPathText = pandorest.WrongAnswers(pandorest.About{Name: "emby-parent-path-text", Service: emby, Bug: "GET /Environment/ParentPath declares a JSON string; the server answers the bare path (/media, not \"/media\") and still labels it application/json, so it is read as text whatever it is called"}, map[string]pandorest.Correction{
+	"GET /Environment/ParentPath": {Declared: pandorest.JSONString(), Answers: pandorest.Text("text/plain")},
+})
 
 type embyCommaSeparatedArrays struct{}
 

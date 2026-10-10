@@ -22,6 +22,7 @@ type GetDownloadOperationResponse struct {
 // GetDownload calls GET /Items/{itemId}/Download. Downloads item media.
 func (c Client) GetDownload(ctx context.Context, itemId string) (result GetDownloadOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "audio/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

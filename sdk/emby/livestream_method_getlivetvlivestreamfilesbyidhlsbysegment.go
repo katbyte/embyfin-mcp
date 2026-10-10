@@ -22,6 +22,7 @@ type GetLiveTvLiveStreamFilesByIdHlsBySegmentOperationResponse struct {
 // GetLiveTvLiveStreamFilesByIdHlsBySegment calls GET /LiveTv/LiveStreamFiles/{Id}/hls/{Segment}. Gets a live tv channel.
 func (c Client) GetLiveTvLiveStreamFilesByIdHlsBySegment(ctx context.Context, id string, segment string) (result GetLiveTvLiveStreamFilesByIdHlsBySegmentOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -170,6 +170,7 @@ func (o GetAudioByIdStreamByContainerOperationOptions) ToQuery() *client.QueryPa
 // GetAudioByIdStreamByContainer calls GET /Audio/{Id}/stream.{Container}. Gets an audio stream.
 func (c Client) GetAudioByIdStreamByContainer(ctx context.Context, id string, container string, options GetAudioByIdStreamByContainerOperationOptions) (result GetAudioByIdStreamByContainerOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "audio/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

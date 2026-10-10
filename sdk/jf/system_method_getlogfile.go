@@ -41,6 +41,7 @@ func (o GetLogFileOperationOptions) ToQuery() *client.QueryParams {
 // GetLogFile calls GET /System/Logs/Log. Gets a log file.
 func (c Client) GetLogFile(ctx context.Context, options GetLogFileOperationOptions) (result GetLogFileOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/plain",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

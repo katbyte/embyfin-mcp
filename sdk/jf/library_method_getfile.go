@@ -22,6 +22,7 @@ type GetFileOperationResponse struct {
 // GetFile calls GET /Items/{itemId}/File. Get the original file of an item.
 func (c Client) GetFile(ctx context.Context, itemId string) (result GetFileOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "audio/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

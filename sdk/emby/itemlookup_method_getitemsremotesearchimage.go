@@ -45,6 +45,7 @@ func (o GetItemsRemoteSearchImageOperationOptions) ToQuery() *client.QueryParams
 // GetItemsRemoteSearchImage calls GET /Items/RemoteSearch/Image. Gets a remote image.
 func (c Client) GetItemsRemoteSearchImage(ctx context.Context, options GetItemsRemoteSearchImageOperationOptions) (result GetItemsRemoteSearchImageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

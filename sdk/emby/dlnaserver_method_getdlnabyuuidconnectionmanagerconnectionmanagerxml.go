@@ -22,6 +22,7 @@ type GetDlnaByUuIdConnectionmanagerConnectionmanagerXmlOperationResponse struct 
 // GetDlnaByUuIdConnectionmanagerConnectionmanagerXml calls GET /Dlna/{UuId}/connectionmanager/connectionmanager.xml. Gets dlna connection manager xml.
 func (c Client) GetDlnaByUuIdConnectionmanagerConnectionmanagerXml(ctx context.Context, uuId string) (result GetDlnaByUuIdConnectionmanagerConnectionmanagerXmlOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/xml",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -22,6 +22,7 @@ type GetFallbackFontOperationResponse struct {
 // GetFallbackFont calls GET /FallbackFont/Fonts/{name}. Gets a fallback font file.
 func (c Client) GetFallbackFont(ctx context.Context, name string) (result GetFallbackFontOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "font/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

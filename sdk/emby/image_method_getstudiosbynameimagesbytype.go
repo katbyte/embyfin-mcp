@@ -122,6 +122,7 @@ func (o GetStudiosByNameImagesByTypeOperationOptions) ToQuery() *client.QueryPar
 // GetStudiosByNameImagesByType calls GET /Studios/{Name}/Images/{Type}. Requires authentication as user.
 func (c Client) GetStudiosByNameImagesByType(ctx context.Context, name string, typeParam ImageType, options GetStudiosByNameImagesByTypeOperationOptions) (result GetStudiosByNameImagesByTypeOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

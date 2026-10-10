@@ -122,6 +122,7 @@ func (o GetArtistImageOperationOptions) ToQuery() *client.QueryParams {
 // GetArtistImage calls GET /Artists/{name}/Images/{imageType}/{imageIndex}. Get artist image by name.
 func (c Client) GetArtistImage(ctx context.Context, name string, imageType ImageType, imageIndex int, options GetArtistImageOperationOptions) (result GetArtistImageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

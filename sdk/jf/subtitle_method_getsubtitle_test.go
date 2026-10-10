@@ -5,6 +5,7 @@ package jf
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -38,6 +39,9 @@ func TestOperationGetSubtitle(t *testing.T) {
 	expectQuery(t, r, "copyTimestamps", "true")
 	expectQuery(t, r, "addVttTimeMap", "true")
 	expectQuery(t, r, "startPositionTicks", "7")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "text/*") {
+		t.Errorf("Accept = %q, want text/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

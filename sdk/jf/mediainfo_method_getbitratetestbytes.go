@@ -42,6 +42,7 @@ func (o GetBitrateTestBytesOperationOptions) ToQuery() *client.QueryParams {
 // GetBitrateTestBytes calls GET /Playback/BitrateTest. Tests the network with a request with the size of the bitrate.
 func (c Client) GetBitrateTestBytes(ctx context.Context, options GetBitrateTestBytesOperationOptions) (result GetBitrateTestBytesOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

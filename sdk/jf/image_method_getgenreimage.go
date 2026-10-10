@@ -128,6 +128,7 @@ func (o GetGenreImageOperationOptions) ToQuery() *client.QueryParams {
 // GetGenreImage calls GET /Genres/{name}/Images/{imageType}. Get genre image by name.
 func (c Client) GetGenreImage(ctx context.Context, name string, imageType ImageType, options GetGenreImageOperationOptions) (result GetGenreImageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

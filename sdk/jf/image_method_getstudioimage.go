@@ -128,6 +128,7 @@ func (o GetStudioImageOperationOptions) ToQuery() *client.QueryParams {
 // GetStudioImage calls GET /Studios/{name}/Images/{imageType}. Get studio image by name.
 func (c Client) GetStudioImage(ctx context.Context, name string, imageType ImageType, options GetStudioImageOperationOptions) (result GetStudioImageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

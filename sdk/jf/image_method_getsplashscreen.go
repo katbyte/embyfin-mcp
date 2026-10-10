@@ -47,6 +47,7 @@ func (o GetSplashscreenOperationOptions) ToQuery() *client.QueryParams {
 // GetSplashscreen calls GET /Branding/Splashscreen. Generates or gets the splashscreen.
 func (c Client) GetSplashscreen(ctx context.Context, options GetSplashscreenOperationOptions) (result GetSplashscreenOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

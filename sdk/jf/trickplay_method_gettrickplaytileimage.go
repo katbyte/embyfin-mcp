@@ -43,6 +43,7 @@ func (o GetTrickplayTileImageOperationOptions) ToQuery() *client.QueryParams {
 // GetTrickplayTileImage calls GET /Videos/{itemId}/Trickplay/{width}/{index}.jpg. Gets a trickplay tile image.
 func (c Client) GetTrickplayTileImage(ctx context.Context, itemId string, width int, index int, options GetTrickplayTileImageOperationOptions) (result GetTrickplayTileImageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

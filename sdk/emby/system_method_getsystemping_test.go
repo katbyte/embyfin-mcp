@@ -3,8 +3,8 @@
 package emby
 
 import (
-	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -13,7 +13,7 @@ import (
 func TestOperationGetSystemPing(t *testing.T) {
 	t.Parallel()
 
-	c, s := newOperationServer(t, 200, "text/plain", "file bytes")
+	c, s := newOperationServer(t, 200, "application/json", "some text, as sent\n")
 	result, err := c.GetSystemPing(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -21,13 +21,14 @@ func TestOperationGetSystemPing(t *testing.T) {
 	r, body := s.only(t)
 	_ = body
 	expectRequest(t, r, http.MethodGet, "/System/Ping")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "text/plain") {
+		t.Errorf("Accept = %q, want text/plain asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}
-	streamed, _ := io.ReadAll(result.HttpResponse.Body)
-	_ = result.HttpResponse.Body.Close()
-	if string(streamed) != "file bytes" {
-		t.Errorf("streamed body = %q", streamed)
+	if result.Model == nil || *result.Model != "some text, as sent\n" {
+		t.Errorf("the text was not held as it was sent: %v", result.Model)
 	}
 
 	// a status the operation does not document is an error, with the response

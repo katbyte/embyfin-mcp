@@ -176,6 +176,7 @@ func (o GetVideosByIdByStreamFileNameOperationOptions) ToQuery() *client.QueryPa
 // GetVideosByIdByStreamFileName calls GET /Videos/{Id}/{StreamFileName}. Gets a video stream.
 func (c Client) GetVideosByIdByStreamFileName(ctx context.Context, id string, streamFileName string, options GetVideosByIdByStreamFileNameOperationOptions) (result GetVideosByIdByStreamFileNameOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "video/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -5,6 +5,7 @@ package emby
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -26,6 +27,9 @@ func TestOperationGetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTic
 	expectRequest(t, r, http.MethodGet, "/Videos/p%2Fid/p%2FmediaSourceId/Subtitles/7/7/Stream.p%2Fformat")
 	expectQuery(t, r, "EndPositionTicks", "7")
 	expectQuery(t, r, "CopyTimestamps", "true")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "text/*") {
+		t.Errorf("Accept = %q, want text/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

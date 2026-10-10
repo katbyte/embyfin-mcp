@@ -57,10 +57,8 @@ func TestEmbySystem(t *testing.T) {
 	if pub.Id != info.Id || pub.Version != info.Version || pub.ServerName == "" {
 		t.Errorf("GetSystemInfoPublic = %+v, want to match %+v", pub, info)
 	}
-	ping := must(embyc.GetSystemPing(ctx))
-	defer func() { _ = ping.HttpResponse.Body.Close() }()
-	if body, err := io.ReadAll(ping.HttpResponse.Body); err != nil || string(body) != "Emby Server" {
-		t.Errorf("GetSystemPing = %q, %v", body, err)
+	if ping := pointer.From(must(embyc.GetSystemPing(ctx)).Model); ping != "Emby Server" {
+		t.Errorf("GetSystemPing = %q", ping)
 	}
 	if ep := must(embyc.GetSystemEndpoint(ctx)).Model; !pointer.From(ep.IsInNetwork) {
 		t.Errorf("GetSystemEndpoint = %+v, want IsInNetwork from the docker bridge", ep)
@@ -171,12 +169,11 @@ func TestEmbyConfiguration(t *testing.T) {
 	if drives := must(embyc.GetEnvironmentDrives(ctx)).Model; len(drives) == 0 {
 		t.Error("GetEnvironmentDrives listed nothing")
 	}
-	// /Environment/ParentPath answers the bare path as text, not the JSON
-	// string the spec promises (the emby-parent-path-text workaround)
-	parent := must(embyc.GetEnvironmentParentPath(ctx, emby.GetEnvironmentParentPathOperationOptions{Path: "/media/movies"}))
-	defer func() { _ = parent.HttpResponse.Body.Close() }()
-	if text, err := io.ReadAll(parent.HttpResponse.Body); err != nil || string(text) != "/media" {
-		t.Errorf("GetEnvironmentParentPath(/media/movies) = %q, %v", text, err)
+	// /Environment/ParentPath answers the bare path, not the JSON string the
+	// spec promises, and labels it JSON all the same: the model is the text
+	// as it was sent (the emby-parent-path-text workaround)
+	if parent := pointer.From(must(embyc.GetEnvironmentParentPath(ctx, emby.GetEnvironmentParentPathOperationOptions{Path: "/media/movies"})).Model); parent != "/media" {
+		t.Errorf("GetEnvironmentParentPath(/media/movies) = %q", parent)
 	}
 
 	prefs := must(embyc.GetDisplayPreferencesById(ctx, "usersettings", emby.GetDisplayPreferencesByIdOperationOptions{UserId: adminID, Client: "emby"})).Model

@@ -5,6 +5,7 @@ package emby
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -21,6 +22,9 @@ func TestOperationGetLiveTvLiveStreamFilesByIdStreamByContainer(t *testing.T) {
 	r, body := s.only(t)
 	_ = body
 	expectRequest(t, r, http.MethodGet, "/LiveTv/LiveStreamFiles/p%2Fid/stream.p%2Fcontainer")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "video/*") {
+		t.Errorf("Accept = %q, want video/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

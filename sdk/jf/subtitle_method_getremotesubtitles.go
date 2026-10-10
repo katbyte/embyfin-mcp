@@ -22,6 +22,7 @@ type GetRemoteSubtitlesOperationResponse struct {
 // GetRemoteSubtitles calls GET /Providers/Subtitles/Subtitles/{subtitleId}. Gets the remote subtitles.
 func (c Client) GetRemoteSubtitles(ctx context.Context, subtitleId string) (result GetRemoteSubtitlesOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

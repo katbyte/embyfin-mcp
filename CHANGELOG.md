@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- the Emby SDK's `GetSystemPing` and `GetEnvironmentParentPath` give their text as `Model`, a string, where a caller had to read and close the response body
+
+### Changed
+
+- built on pandorest 0.6.0: a call that answers a file, an image or a stream asks the server for that type, where every call asked for JSON
+- eight of the workarounds for Emby's document are pandorest's ready-made ones, which say what the document declares and what the server really answers
+
 ## 0.6.0 (2026-10-10)
 
 ### Breaking

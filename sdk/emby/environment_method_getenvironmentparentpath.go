@@ -11,10 +11,10 @@ import (
 
 // GetEnvironmentParentPathOperationResponse is the result of GetEnvironmentParentPath.
 //
-// The operation answers text/plain, left unread in HttpResponse.Body, which
-// the caller must close.
+// The operation answers text (text/plain), which Model holds as it was sent.
 type GetEnvironmentParentPathOperationResponse struct {
 	HttpResponse *http.Response
+	Model        *string
 }
 
 // GetEnvironmentParentPathOperationOptions holds the query and header parameters of GetEnvironmentParentPath.
@@ -40,14 +40,14 @@ func (o GetEnvironmentParentPathOperationOptions) ToQuery() *client.QueryParams 
 // GetEnvironmentParentPath calls GET /Environment/ParentPath. Gets the parent path of a given path.
 func (c Client) GetEnvironmentParentPath(ctx context.Context, options GetEnvironmentParentPathOperationOptions) (result GetEnvironmentParentPathOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/plain",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 			http.StatusNoContent,
 		},
-		HTTPMethod:     http.MethodGet,
-		OptionsObject:  options,
-		Path:           "/Environment/ParentPath",
-		StreamResponse: true,
+		HTTPMethod:    http.MethodGet,
+		OptionsObject: options,
+		Path:          "/Environment/ParentPath",
 	}
 
 	req, err := c.Client.NewRequest(ctx, opts)
@@ -61,6 +61,16 @@ func (c Client) GetEnvironmentParentPath(ctx context.Context, options GetEnviron
 		result.HttpResponse = resp.Response
 	}
 	if err != nil {
+		return
+	}
+
+	if resp.StatusCode == http.StatusNoContent {
+		return
+	}
+
+	var model string
+	result.Model = &model
+	if err = resp.Text(result.Model); err != nil {
 		return
 	}
 

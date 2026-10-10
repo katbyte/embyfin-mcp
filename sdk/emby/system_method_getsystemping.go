@@ -11,21 +11,21 @@ import (
 
 // GetSystemPingOperationResponse is the result of GetSystemPing.
 //
-// The operation answers text/plain, left unread in HttpResponse.Body, which
-// the caller must close.
+// The operation answers text (text/plain), which Model holds as it was sent.
 type GetSystemPingOperationResponse struct {
 	HttpResponse *http.Response
+	Model        *string
 }
 
 // GetSystemPing calls GET /System/Ping. Requires authentication as user.
 func (c Client) GetSystemPing(ctx context.Context) (result GetSystemPingOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/plain",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
-		HTTPMethod:     http.MethodGet,
-		Path:           "/System/Ping",
-		StreamResponse: true,
+		HTTPMethod: http.MethodGet,
+		Path:       "/System/Ping",
 	}
 
 	req, err := c.Client.NewRequest(ctx, opts)
@@ -39,6 +39,12 @@ func (c Client) GetSystemPing(ctx context.Context) (result GetSystemPingOperatio
 		result.HttpResponse = resp.Response
 	}
 	if err != nil {
+		return
+	}
+
+	var model string
+	result.Model = &model
+	if err = resp.Text(result.Model); err != nil {
 		return
 	}
 

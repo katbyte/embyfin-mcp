@@ -22,6 +22,7 @@ type GetLiveTvLiveRecordingsByIdHlsLiveM3u8OperationResponse struct {
 // GetLiveTvLiveRecordingsByIdHlsLiveM3u8 calls GET /LiveTv/LiveRecordings/{Id}/hls/live.m3u8. Gets a live recording.
 func (c Client) GetLiveTvLiveRecordingsByIdHlsLiveM3u8(ctx context.Context, id string) (result GetLiveTvLiveRecordingsByIdHlsLiveM3u8OperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/x-mpegURL",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

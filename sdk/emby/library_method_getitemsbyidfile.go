@@ -22,6 +22,7 @@ type GetItemsByIdFileOperationResponse struct {
 // GetItemsByIdFile calls GET /Items/{Id}/File. Gets the original file of an item.
 func (c Client) GetItemsByIdFile(ctx context.Context, id string) (result GetItemsByIdFileOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

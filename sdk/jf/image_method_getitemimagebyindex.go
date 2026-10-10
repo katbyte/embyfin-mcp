@@ -122,6 +122,7 @@ func (o GetItemImageByIndexOperationOptions) ToQuery() *client.QueryParams {
 // GetItemImageByIndex calls GET /Items/{itemId}/Images/{imageType}/{imageIndex}. Gets the item's image.
 func (c Client) GetItemImageByIndex(ctx context.Context, itemId string, imageType ImageType, imageIndex int, options GetItemImageByIndexOperationOptions) (result GetItemImageByIndexOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

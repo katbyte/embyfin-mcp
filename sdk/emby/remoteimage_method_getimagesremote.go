@@ -41,6 +41,7 @@ func (o GetImagesRemoteOperationOptions) ToQuery() *client.QueryParams {
 // GetImagesRemote calls GET /Images/Remote. Gets a remote image.
 func (c Client) GetImagesRemote(ctx context.Context, options GetImagesRemoteOperationOptions) (result GetImagesRemoteOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

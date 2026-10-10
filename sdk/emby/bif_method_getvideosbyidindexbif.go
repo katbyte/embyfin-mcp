@@ -43,6 +43,7 @@ func (o GetVideosByIdIndexBifOperationOptions) ToQuery() *client.QueryParams {
 // GetVideosByIdIndexBif calls GET /Videos/{Id}/index.bif. Requires authentication as user.
 func (c Client) GetVideosByIdIndexBif(ctx context.Context, id string, options GetVideosByIdIndexBifOperationOptions) (result GetVideosByIdIndexBifOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

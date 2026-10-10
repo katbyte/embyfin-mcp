@@ -22,6 +22,7 @@ type GetDlnaByUuIdIconsByFilenameOperationResponse struct {
 // GetDlnaByUuIdIconsByFilename calls GET /Dlna/{UuId}/icons/{Filename}. Gets a server icon.
 func (c Client) GetDlnaByUuIdIconsByFilename(ctx context.Context, uuId string, filename string) (result GetDlnaByUuIdIconsByFilenameOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

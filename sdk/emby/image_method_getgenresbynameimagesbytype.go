@@ -122,6 +122,7 @@ func (o GetGenresByNameImagesByTypeOperationOptions) ToQuery() *client.QueryPara
 // GetGenresByNameImagesByType calls GET /Genres/{Name}/Images/{Type}. Requires authentication as user.
 func (c Client) GetGenresByNameImagesByType(ctx context.Context, name string, typeParam ImageType, options GetGenresByNameImagesByTypeOperationOptions) (result GetGenresByNameImagesByTypeOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

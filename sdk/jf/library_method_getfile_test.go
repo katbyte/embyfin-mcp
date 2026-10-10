@@ -5,6 +5,7 @@ package jf
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -21,6 +22,9 @@ func TestOperationGetFile(t *testing.T) {
 	r, body := s.only(t)
 	_ = body
 	expectRequest(t, r, http.MethodGet, "/Items/p%2FitemId/File")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "audio/*") {
+		t.Errorf("Accept = %q, want audio/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

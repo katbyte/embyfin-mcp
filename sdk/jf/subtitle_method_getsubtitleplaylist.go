@@ -44,6 +44,7 @@ func (o GetSubtitlePlaylistOperationOptions) ToQuery() *client.QueryParams {
 // GetSubtitlePlaylist calls GET /Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/subtitles.m3u8. Gets an HLS subtitle playlist.
 func (c Client) GetSubtitlePlaylist(ctx context.Context, itemId string, mediaSourceId string, index int, options GetSubtitlePlaylistOperationOptions) (result GetSubtitlePlaylistOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/x-mpegURL",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

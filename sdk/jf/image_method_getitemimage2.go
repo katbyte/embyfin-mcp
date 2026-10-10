@@ -86,6 +86,7 @@ func (o GetItemImage2OperationOptions) ToQuery() *client.QueryParams {
 // GetItemImage2 calls GET /Items/{itemId}/Images/{imageType}/{imageIndex}/{tag}/{format}/{maxWidth}/{maxHeight}/{percentPlayed}/{unplayedCount}. Gets the item's image.
 func (c Client) GetItemImage2(ctx context.Context, itemId string, imageType ImageType, imageIndex int, tag string, format ImageFormat, maxWidth int, maxHeight int, percentPlayed float64, unplayedCount int, options GetItemImage2OperationOptions) (result GetItemImage2OperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -5,6 +5,7 @@ package emby
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -21,6 +22,9 @@ func TestOperationGetLiveTvLiveRecordingsByIdHlsMasterM3u8(t *testing.T) {
 	r, body := s.only(t)
 	_ = body
 	expectRequest(t, r, http.MethodGet, "/LiveTv/LiveRecordings/p%2Fid/hls/master.m3u8")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "application/x-mpegURL") {
+		t.Errorf("Accept = %q, want application/x-mpegURL asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

@@ -22,6 +22,7 @@ type GetItemsByIdDownloadOperationResponse struct {
 // GetItemsByIdDownload calls GET /Items/{Id}/Download. Downloads item media.
 func (c Client) GetItemsByIdDownload(ctx context.Context, id string) (result GetItemsByIdDownloadOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

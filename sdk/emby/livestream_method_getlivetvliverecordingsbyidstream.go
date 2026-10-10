@@ -22,6 +22,7 @@ type GetLiveTvLiveRecordingsByIdStreamOperationResponse struct {
 // GetLiveTvLiveRecordingsByIdStream calls GET /LiveTv/LiveRecordings/{Id}/stream. Gets a live tv channel.
 func (c Client) GetLiveTvLiveRecordingsByIdStream(ctx context.Context, id string) (result GetLiveTvLiveRecordingsByIdStreamOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "video/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

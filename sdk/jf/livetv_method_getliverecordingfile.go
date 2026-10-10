@@ -22,6 +22,7 @@ type GetLiveRecordingFileOperationResponse struct {
 // GetLiveRecordingFile calls GET /LiveTv/LiveRecordings/{recordingId}/stream. Gets a live tv recording stream.
 func (c Client) GetLiveRecordingFile(ctx context.Context, recordingId string) (result GetLiveRecordingFileOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "video/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -5,6 +5,7 @@ package emby
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -50,6 +51,9 @@ func TestOperationGetItemsByIdImagesByType(t *testing.T) {
 	expectQuery(t, r, "AutoOrient", "true")
 	expectQuery(t, r, "KeepAnimation", "true")
 	expectQuery(t, r, "Index", "7")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "image/*") {
+		t.Errorf("Accept = %q, want image/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

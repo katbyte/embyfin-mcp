@@ -43,6 +43,7 @@ func (o GetSyncJobItemsByIdAdditionalFilesOperationOptions) ToQuery() *client.Qu
 // GetSyncJobItemsByIdAdditionalFiles calls GET /Sync/JobItems/{Id}/AdditionalFiles. Gets a sync job item file.
 func (c Client) GetSyncJobItemsByIdAdditionalFiles(ctx context.Context, id string, options GetSyncJobItemsByIdAdditionalFilesOperationOptions) (result GetSyncJobItemsByIdAdditionalFilesOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

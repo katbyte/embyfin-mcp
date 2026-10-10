@@ -5,6 +5,7 @@ package jf
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -117,6 +118,9 @@ func TestOperationGetAudioStreamByContainer(t *testing.T) {
 	expectQuery(t, r, "streamOptions[a]", "b")
 	expectQuery(t, r, "streamOptions[k]", "v")
 	expectQuery(t, r, "enableAudioVbrEncoding", "true")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "audio/*") {
+		t.Errorf("Accept = %q, want audio/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

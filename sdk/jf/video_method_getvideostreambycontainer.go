@@ -332,6 +332,7 @@ func (o GetVideoStreamByContainerOperationOptions) ToQuery() *client.QueryParams
 // GetVideoStreamByContainer calls GET /Videos/{itemId}/stream.{container}. Gets a video stream.
 func (c Client) GetVideoStreamByContainer(ctx context.Context, itemId string, container string, options GetVideoStreamByContainerOperationOptions) (result GetVideoStreamByContainerOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "video/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

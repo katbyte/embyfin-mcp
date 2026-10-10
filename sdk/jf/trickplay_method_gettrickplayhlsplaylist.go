@@ -43,6 +43,7 @@ func (o GetTrickplayHlsPlaylistOperationOptions) ToQuery() *client.QueryParams {
 // GetTrickplayHlsPlaylist calls GET /Videos/{itemId}/Trickplay/{width}/tiles.m3u8. Gets an image tiles playlist for trickplay.
 func (c Client) GetTrickplayHlsPlaylist(ctx context.Context, itemId string, width int, options GetTrickplayHlsPlaylistOperationOptions) (result GetTrickplayHlsPlaylistOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/x-mpegURL",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -20,6 +20,7 @@ type GetBrandingCssCssOperationResponse struct {
 // GetBrandingCssCss calls GET /Branding/Css.css. Gets custom css.
 func (c Client) GetBrandingCssCss(ctx context.Context) (result GetBrandingCssCssOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/css",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

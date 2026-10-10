@@ -92,6 +92,7 @@ func (o GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPerce
 // GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCount calls GET /Items/{Id}/Images/{Type}/{Index}/{Tag}/{Format}/{MaxWidth}/{MaxHeight}/{PercentPlayed}/{UnPlayedCount}. Requires authentication as user.
 func (c Client) GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCount(ctx context.Context, id string, typeParam ImageType, index int, tag string, format string, maxWidth int, maxHeight int, percentPlayed int, unPlayedCount int, options GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCountOperationOptions) (result GetItemsByIdImagesByTypeByIndexByTagByFormatByMaxWidthByMaxHeightByPercentPlayedByUnPlayedCountOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

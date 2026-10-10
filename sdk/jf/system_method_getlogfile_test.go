@@ -5,6 +5,7 @@ package jf
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -24,6 +25,9 @@ func TestOperationGetLogFile(t *testing.T) {
 	_ = body
 	expectRequest(t, r, http.MethodGet, "/System/Logs/Log")
 	expectQuery(t, r, "name", "v-Name")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "text/plain") {
+		t.Errorf("Accept = %q, want text/plain asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

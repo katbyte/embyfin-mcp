@@ -5,6 +5,7 @@ package jf
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -56,6 +57,9 @@ func TestOperationGetUniversalAudioStream(t *testing.T) {
 	expectQuery(t, r, "enableRemoteMedia", "true")
 	expectQuery(t, r, "enableAudioVbrEncoding", "true")
 	expectQuery(t, r, "enableRedirection", "true")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "audio/*") {
+		t.Errorf("Accept = %q, want audio/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

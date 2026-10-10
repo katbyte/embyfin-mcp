@@ -22,6 +22,7 @@ type GetAttachmentOperationResponse struct {
 // GetAttachment calls GET /Videos/{videoId}/{mediaSourceId}/Attachments/{index}. Get video attachment.
 func (c Client) GetAttachment(ctx context.Context, videoId string, mediaSourceId string, index int) (result GetAttachmentOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

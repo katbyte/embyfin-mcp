@@ -22,6 +22,7 @@ type GetVideosByIdByMediaSourceIdAttachmentsByIndexStreamOperationResponse struc
 // GetVideosByIdByMediaSourceIdAttachmentsByIndexStream calls GET /Videos/{Id}/{MediaSourceId}/Attachments/{Index}/Stream. Gets subtitles in a specified format.
 func (c Client) GetVideosByIdByMediaSourceIdAttachmentsByIndexStream(ctx context.Context, id string, mediaSourceId string, index int) (result GetVideosByIdByMediaSourceIdAttachmentsByIndexStreamOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

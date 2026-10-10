@@ -128,6 +128,7 @@ func (o GetPersonImageOperationOptions) ToQuery() *client.QueryParams {
 // GetPersonImage calls GET /Persons/{name}/Images/{imageType}. Get person image by name.
 func (c Client) GetPersonImage(ctx context.Context, name string, imageType ImageType, options GetPersonImageOperationOptions) (result GetPersonImageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

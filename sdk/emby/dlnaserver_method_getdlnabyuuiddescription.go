@@ -22,6 +22,7 @@ type GetDlnaByUuIdDescriptionOperationResponse struct {
 // GetDlnaByUuIdDescription calls GET /Dlna/{UuId}/description. Gets dlna server info.
 func (c Client) GetDlnaByUuIdDescription(ctx context.Context, uuId string) (result GetDlnaByUuIdDescriptionOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/xml",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -116,6 +116,7 @@ func (o GetGameGenresByNameImagesByTypeByIndexOperationOptions) ToQuery() *clien
 // GetGameGenresByNameImagesByTypeByIndex calls GET /GameGenres/{Name}/Images/{Type}/{Index}. Requires authentication as user.
 func (c Client) GetGameGenresByNameImagesByTypeByIndex(ctx context.Context, name string, typeParam ImageType, index int, options GetGameGenresByNameImagesByTypeByIndexOperationOptions) (result GetGameGenresByNameImagesByTypeByIndexOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

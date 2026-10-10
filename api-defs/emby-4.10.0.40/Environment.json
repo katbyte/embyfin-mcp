@@ -164,7 +164,7 @@
       "Response": {
         "ContentType": "text/plain",
         "Type": {
-          "Type": "RawFile"
+          "Type": "String"
         }
       },
       "ExpectedStatusCodes": [

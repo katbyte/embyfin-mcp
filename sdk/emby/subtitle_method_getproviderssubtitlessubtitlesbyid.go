@@ -22,6 +22,7 @@ type GetProvidersSubtitlesSubtitlesByIdOperationResponse struct {
 // GetProvidersSubtitlesSubtitlesById calls GET /Providers/Subtitles/Subtitles/{Id}. Requires authentication as user.
 func (c Client) GetProvidersSubtitlesSubtitlesById(ctx context.Context, id string) (result GetProvidersSubtitlesSubtitlesByIdOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

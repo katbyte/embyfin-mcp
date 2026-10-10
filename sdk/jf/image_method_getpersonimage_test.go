@@ -5,6 +5,7 @@ package jf
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -52,6 +53,9 @@ func TestOperationGetPersonImage(t *testing.T) {
 	expectQuery(t, r, "backgroundColor", "v-BackgroundColor")
 	expectQuery(t, r, "foregroundLayer", "v-ForegroundLayer")
 	expectQuery(t, r, "imageIndex", "7")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "image/*") {
+		t.Errorf("Accept = %q, want image/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

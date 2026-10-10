@@ -140,6 +140,7 @@ func (o GetUniversalAudioStreamOperationOptions) ToQuery() *client.QueryParams {
 // GetUniversalAudioStream calls GET /Audio/{itemId}/universal. Gets an audio stream.
 func (c Client) GetUniversalAudioStream(ctx context.Context, itemId string, options GetUniversalAudioStreamOperationOptions) (result GetUniversalAudioStreamOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "audio/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 			http.StatusFound,

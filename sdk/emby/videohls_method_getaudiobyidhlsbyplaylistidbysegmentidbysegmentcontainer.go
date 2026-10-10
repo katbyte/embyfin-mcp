@@ -22,6 +22,7 @@ type GetAudioByIdHlsByPlaylistIdBySegmentIdBySegmentContainerOperationResponse s
 // GetAudioByIdHlsByPlaylistIdBySegmentIdBySegmentContainer calls GET /Audio/{Id}/hls/{PlaylistId}/{SegmentId}.{SegmentContainer}. Requires authentication as user.
 func (c Client) GetAudioByIdHlsByPlaylistIdBySegmentIdBySegmentContainer(ctx context.Context, id string, playlistId string, segmentId string, segmentContainer string) (result GetAudioByIdHlsByPlaylistIdBySegmentIdBySegmentContainerOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

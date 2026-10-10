@@ -176,6 +176,7 @@ func (o GetVideosByIdMainM3u8OperationOptions) ToQuery() *client.QueryParams {
 // GetVideosByIdMainM3u8 calls GET /Videos/{Id}/main.m3u8. Gets a video stream using HTTP live streaming.
 func (c Client) GetVideosByIdMainM3u8(ctx context.Context, id string, options GetVideosByIdMainM3u8OperationOptions) (result GetVideosByIdMainM3u8OperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/x-mpegURL",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

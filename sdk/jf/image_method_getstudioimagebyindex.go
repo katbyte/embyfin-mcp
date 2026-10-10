@@ -122,6 +122,7 @@ func (o GetStudioImageByIndexOperationOptions) ToQuery() *client.QueryParams {
 // GetStudioImageByIndex calls GET /Studios/{name}/Images/{imageType}/{imageIndex}. Get studio image by name.
 func (c Client) GetStudioImageByIndex(ctx context.Context, name string, imageType ImageType, imageIndex int, options GetStudioImageByIndexOperationOptions) (result GetStudioImageByIndexOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

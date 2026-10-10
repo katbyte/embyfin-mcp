@@ -50,6 +50,7 @@ func (o GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamBy
 // GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat calls GET /Videos/{Id}/{MediaSourceId}/Subtitles/{Index}/{StartPositionTicks}/Stream.{Format}. Gets subtitles in a specified format.
 func (c Client) GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormat(ctx context.Context, id string, mediaSourceId string, index int, startPositionTicks int64, format string, options GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormatOperationOptions) (result GetVideosByIdByMediaSourceIdSubtitlesByIndexByStartPositionTicksStreamByFormatOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

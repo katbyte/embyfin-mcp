@@ -43,6 +43,7 @@ func (o GetDlnaIconsByFilenameOperationOptions) ToQuery() *client.QueryParams {
 // GetDlnaIconsByFilename calls GET /Dlna/icons/{Filename}. Gets a server icon.
 func (c Client) GetDlnaIconsByFilename(ctx context.Context, filename string, options GetDlnaIconsByFilenameOperationOptions) (result GetDlnaIconsByFilenameOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

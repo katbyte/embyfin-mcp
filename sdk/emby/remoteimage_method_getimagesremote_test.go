@@ -5,6 +5,7 @@ package emby
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -24,6 +25,9 @@ func TestOperationGetImagesRemote(t *testing.T) {
 	_ = body
 	expectRequest(t, r, http.MethodGet, "/Images/Remote")
 	expectQuery(t, r, "ImageUrl", "v-ImageUrl")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "image/*") {
+		t.Errorf("Accept = %q, want image/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

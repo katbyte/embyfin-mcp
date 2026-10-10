@@ -122,6 +122,7 @@ func (o GetArtistsByNameImagesByTypeOperationOptions) ToQuery() *client.QueryPar
 // GetArtistsByNameImagesByType calls GET /Artists/{Name}/Images/{Type}. Requires authentication as user.
 func (c Client) GetArtistsByNameImagesByType(ctx context.Context, name string, typeParam ImageType, options GetArtistsByNameImagesByTypeOperationOptions) (result GetArtistsByNameImagesByTypeOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

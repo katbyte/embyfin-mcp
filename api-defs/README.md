@@ -62,10 +62,8 @@ document and fails the import once it is not.
     library's `Id`.
   - Array query parameters declare one key per value; the server reads one
     comma-separated value.
-  - `/openapi.json` and its siblings declare a JSON string and answer the
-    document; `/Environment/ParentPath` declares a JSON string and answers
-    the bare path as text; `/LiveTv/Recordings/Folders` declares an array and
-    answers a `QueryResult`.
+  - `/openapi.json` and its siblings declare a JSON string and answer the document; `/LiveTv/Recordings/Folders` declares an array and answers a `QueryResult`.
+  - `/Environment/ParentPath` declares a JSON string and answers the bare path (`/media`, not `"/media"`), labelled JSON all the same. It is read as text whatever it is called, and the method's `Model` is the path; `/System/Ping`, which declares nothing, is read the same way.
   - `/Encoding/CodecInformation/Video` declares its bit rates and resolution
     rates as objects and answers display text (`"781 Mbit/s"`); an option
     editor's `PropertyCondition.Value` declares an object and answers a

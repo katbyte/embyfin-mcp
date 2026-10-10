@@ -56,6 +56,7 @@ func (o GetAudioByIdUniversalByContainerOperationOptions) ToQuery() *client.Quer
 // GetAudioByIdUniversalByContainer calls GET /Audio/{Id}/universal.{Container}. Gets an audio stream.
 func (c Client) GetAudioByIdUniversalByContainer(ctx context.Context, id string, container string, options GetAudioByIdUniversalByContainerOperationOptions) (result GetAudioByIdUniversalByContainerOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "audio/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

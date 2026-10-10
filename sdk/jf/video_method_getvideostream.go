@@ -340,6 +340,7 @@ func (o GetVideoStreamOperationOptions) ToQuery() *client.QueryParams {
 // GetVideoStream calls GET /Videos/{itemId}/stream. Gets a video stream.
 func (c Client) GetVideoStream(ctx context.Context, itemId string, options GetVideoStreamOperationOptions) (result GetVideoStreamOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "video/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

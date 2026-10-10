@@ -20,6 +20,7 @@ type GetWebConfigurationPageOperationResponse struct {
 // GetWebConfigurationPage calls GET /web/ConfigurationPage. Requires authentication as user.
 func (c Client) GetWebConfigurationPage(ctx context.Context) (result GetWebConfigurationPageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/html",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

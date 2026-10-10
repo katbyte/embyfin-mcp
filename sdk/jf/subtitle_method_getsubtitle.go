@@ -94,6 +94,7 @@ func (o GetSubtitleOperationOptions) ToQuery() *client.QueryParams {
 // GetSubtitle calls GET /Videos/{routeItemId}/{routeMediaSourceId}/Subtitles/{routeIndex}/Stream.{routeFormat}. Gets subtitles in a specified format.
 func (c Client) GetSubtitle(ctx context.Context, routeItemId string, routeMediaSourceId string, routeIndex int, routeFormat string, options GetSubtitleOperationOptions) (result GetSubtitleOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

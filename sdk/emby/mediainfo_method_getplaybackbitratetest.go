@@ -42,6 +42,7 @@ func (o GetPlaybackBitrateTestOperationOptions) ToQuery() *client.QueryParams {
 // GetPlaybackBitrateTest calls GET /Playback/BitrateTest. Requires authentication as user.
 func (c Client) GetPlaybackBitrateTest(ctx context.Context, options GetPlaybackBitrateTestOperationOptions) (result GetPlaybackBitrateTestOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

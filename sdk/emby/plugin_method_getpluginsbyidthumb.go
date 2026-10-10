@@ -22,6 +22,7 @@ type GetPluginsByIdThumbOperationResponse struct {
 // GetPluginsByIdThumb calls GET /Plugins/{Id}/Thumb. Gets a plugin thumb image.
 func (c Client) GetPluginsByIdThumb(ctx context.Context, id string) (result GetPluginsByIdThumbOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

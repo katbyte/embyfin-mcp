@@ -122,6 +122,7 @@ func (o GetItemsByIdImagesByTypeOperationOptions) ToQuery() *client.QueryParams 
 // GetItemsByIdImagesByType calls GET /Items/{Id}/Images/{Type}. Requires authentication as user.
 func (c Client) GetItemsByIdImagesByType(ctx context.Context, id string, typeParam ImageType, options GetItemsByIdImagesByTypeOperationOptions) (result GetItemsByIdImagesByTypeOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -22,6 +22,7 @@ type GetSyncJobItemsByIdFileOperationResponse struct {
 // GetSyncJobItemsByIdFile calls GET /Sync/JobItems/{Id}/File. Gets a sync job item file.
 func (c Client) GetSyncJobItemsByIdFile(ctx context.Context, id string) (result GetSyncJobItemsByIdFileOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/octet-stream",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

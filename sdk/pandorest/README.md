@@ -28,7 +28,9 @@ How a document is imported, what the definitions hold, how the diff reads and wh
 
 ## Workarounds
 
-A document bug is fixed with a workaround in `workarounds`: a type with a `Name` (`emby-search-term`), the `Service` it is for, the `Bug` it fixes in a sentence, and `Apply`, which patches the loaded document. Add it to `All`.
+A document bug is fixed with a workaround in `workarounds`, added to `All`. For the bugs most documents have, it is one of pandorest's ready-made ones, which says only what is wrong and why: `WrongAnswers` for an operation that declares one answer and gives another (`/Environment/ParentPath` declares a JSON string and answers bare text), `UndeclaredAnswers` for one that declares none, `UndeclaredParameters` for a parameter the server reads and the document leaves out. pandorest does the patching and checks the bug is still there.
+
+Anything else is a type with a `Name` (`emby-search-term`), the `Service` it is for, the `Bug` it fixes in a sentence, and `Apply`, which patches the loaded document.
 
 `Apply` must first check the bug is there, and return an error when it is not: the parameter it adds already declared, the operation gone, the schema already carrying the field. A refreshed document that fixes the bug then fails the import, naming the workaround to delete, instead of the workaround silently doing nothing forever. The unit tests enforce this: every workaround must apply to its vendored document and must fail when applied a second time.
 

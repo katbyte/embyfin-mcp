@@ -122,6 +122,7 @@ func (o GetPersonImageByIndexOperationOptions) ToQuery() *client.QueryParams {
 // GetPersonImageByIndex calls GET /Persons/{name}/Images/{imageType}/{imageIndex}. Get person image by name.
 func (c Client) GetPersonImageByIndex(ctx context.Context, name string, imageType ImageType, imageIndex int, options GetPersonImageByIndexOperationOptions) (result GetPersonImageByIndexOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

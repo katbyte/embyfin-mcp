@@ -96,6 +96,7 @@ func (o GetSubtitleWithTicksOperationOptions) ToQuery() *client.QueryParams {
 // GetSubtitleWithTicks calls GET /Videos/{routeItemId}/{routeMediaSourceId}/Subtitles/{routeIndex}/{routeStartPositionTicks}/Stream.{routeFormat}. Gets subtitles in a specified format.
 func (c Client) GetSubtitleWithTicks(ctx context.Context, routeItemId string, routeMediaSourceId string, routeIndex int, routeStartPositionTicks int64, routeFormat string, options GetSubtitleWithTicksOperationOptions) (result GetSubtitleWithTicksOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

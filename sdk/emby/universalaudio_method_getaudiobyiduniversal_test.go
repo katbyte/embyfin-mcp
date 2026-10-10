@@ -5,6 +5,7 @@ package emby
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -28,6 +29,9 @@ func TestOperationGetAudioByIdUniversal(t *testing.T) {
 	expectQuery(t, r, "DeviceId", "v-DeviceId")
 	expectQuery(t, r, "StartTimeTicks", "7")
 	expectQuery(t, r, "UserId", "v-UserId")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "audio/*") {
+		t.Errorf("Accept = %q, want audio/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

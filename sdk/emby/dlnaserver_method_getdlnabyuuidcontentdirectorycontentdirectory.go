@@ -22,6 +22,7 @@ type GetDlnaByUuIdContentdirectoryContentdirectoryOperationResponse struct {
 // GetDlnaByUuIdContentdirectoryContentdirectory calls GET /Dlna/{UuId}/contentdirectory/contentdirectory. Gets dlna content directory xml.
 func (c Client) GetDlnaByUuIdContentdirectoryContentdirectory(ctx context.Context, uuId string) (result GetDlnaByUuIdContentdirectoryContentdirectoryOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/xml",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -53,6 +53,7 @@ func (o GetUserImageOperationOptions) ToQuery() *client.QueryParams {
 // GetUserImage calls GET /UserImage. Get user profile image.
 func (c Client) GetUserImage(ctx context.Context, options GetUserImageOperationOptions) (result GetUserImageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "image/*",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

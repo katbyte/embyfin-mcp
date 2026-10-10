@@ -176,6 +176,7 @@ func (o GetAudioByIdLiveM3u8OperationOptions) ToQuery() *client.QueryParams {
 // GetAudioByIdLiveM3u8 calls GET /Audio/{Id}/live.m3u8. Requires authentication as user.
 func (c Client) GetAudioByIdLiveM3u8(ctx context.Context, id string, options GetAudioByIdLiveM3u8OperationOptions) (result GetAudioByIdLiveM3u8OperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/x-mpegURL",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

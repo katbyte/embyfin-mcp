@@ -41,6 +41,7 @@ func (o GetDashboardConfigurationPageOperationOptions) ToQuery() *client.QueryPa
 // GetDashboardConfigurationPage calls GET /web/ConfigurationPage. Gets a dashboard configuration page.
 func (c Client) GetDashboardConfigurationPage(ctx context.Context, options GetDashboardConfigurationPageOperationOptions) (result GetDashboardConfigurationPageOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "application/x-javascript",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},

@@ -5,6 +5,7 @@ package jf
 import (
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/katbyte/pandorest/client"
@@ -123,6 +124,9 @@ func TestOperationGetVideoStream(t *testing.T) {
 	expectQuery(t, r, "streamOptions[a]", "b")
 	expectQuery(t, r, "streamOptions[k]", "v")
 	expectQuery(t, r, "enableAudioVbrEncoding", "true")
+	if got := r.Header.Get("Accept"); !strings.HasPrefix(got, "video/*") {
+		t.Errorf("Accept = %q, want video/* asked for first", got)
+	}
 	if result.HttpResponse == nil || result.HttpResponse.StatusCode != 200 {
 		t.Fatalf("HttpResponse = %+v", result.HttpResponse)
 	}

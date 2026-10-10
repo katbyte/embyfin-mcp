@@ -44,6 +44,7 @@ func (o GetSystemLogsByNameOperationOptions) ToQuery() *client.QueryParams {
 // GetSystemLogsByName calls GET /System/Logs/{Name}. Gets a log file.
 func (c Client) GetSystemLogsByName(ctx context.Context, name string, options GetSystemLogsByNameOperationOptions) (result GetSystemLogsByNameOperationResponse, err error) {
 	opts := client.RequestOptions{
+		Accept: "text/plain",
 		ExpectedStatusCodes: []int{
 			http.StatusOK,
 		},
