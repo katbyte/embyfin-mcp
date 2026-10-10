@@ -410,6 +410,10 @@ func start() error {
 		const why = "Jellyfin keeps trickplay tiles, which the preview thumbnail tools do not read yet: both say so"
 		cannotAnswer["audit_previews"], cannotAnswer["item_previews_regenerate"] = why, why
 	}
+	// and the server settings that can be changed are Jellyfin's
+	if !isJellyfin() {
+		cannotAnswer["server_config_edit"] = "none of Emby's server settings is on the list it changes, and it says so"
+	}
 	connected.CannotAnswer = cannotAnswer
 	suite.Suite = connected
 

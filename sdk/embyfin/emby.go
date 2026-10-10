@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/katbyte/go-kt/pointer"
 
@@ -217,23 +218,54 @@ func userFromEmby(d *emby.UserDto) User {
 
 func sessionFromEmby(d *emby.SessionSessionInfo) Session {
 	s := Session{
-		ID: d.Id, UserName: d.UserName, Client: d.Client, DeviceName: d.DeviceName, LastActivityDate: d.LastActivityDate,
+		ID: d.Id, UserName: d.UserName, Client: d.Client, AppVersion: d.ApplicationVersion, DeviceName: d.DeviceName,
+		RemoteEndPoint: d.RemoteEndPoint, LastActivityDate: d.LastActivityDate,
 	}
 	if d.NowPlayingItem != nil {
 		it := itemFromEmby(d.NowPlayingItem)
 		s.NowPlayingItem = &it
 	}
 	if d.PlayState != nil {
-		s.PlayState = PlayState{PositionTicks: d.PlayState.PositionTicks, IsPaused: pointer.From(d.PlayState.IsPaused)}
+		s.PlayState = PlayState{
+			PositionTicks: d.PlayState.PositionTicks, IsPaused: pointer.From(d.PlayState.IsPaused),
+			PlayMethod: string(d.PlayState.PlayMethod), MediaSourceID: d.PlayState.MediaSourceId,
+		}
+	}
+	if t := d.TranscodingInfo; t != nil {
+		s.Transcoding = &Transcoding{
+			Container: t.Container, VideoCodec: t.VideoCodec, AudioCodec: t.AudioCodec,
+			VideoDirect: pointer.From(t.IsVideoDirect), AudioDirect: pointer.From(t.IsAudioDirect),
+			Bitrate: t.Bitrate, Width: t.Width, Height: t.Height, AudioChannels: t.AudioChannels,
+			Framerate: float64(t.Framerate), Completion: t.CompletionPercentage,
+			VideoDecoder: t.VideoDecoder, VideoEncoder: t.VideoEncoder,
+			DecoderHardware: t.VideoDecoderIsHardware, EncoderHardware: t.VideoEncoderIsHardware,
+			HardwareAcceleration: cmp.Or(t.VideoEncoderHwAccel, t.VideoDecoderHwAccel),
+		}
+		for _, r := range t.TranscodeReasons {
+			s.Transcoding.Reasons = append(s.Transcoding.Reasons, string(r))
+		}
 	}
 
 	return s
 }
 
 func taskFromEmby(d *emby.TaskInfo) Task {
-	t := Task{ID: d.Id, Key: d.Key, Name: d.Name, Category: d.Category, Description: d.Description, State: string(d.State)}
+	t := Task{
+		ID: d.Id, Key: d.Key, Name: d.Name, Category: d.Category, Description: d.Description, State: string(d.State),
+		Progress: d.CurrentProgressPercentage, Hidden: d.IsHidden != nil && *d.IsHidden,
+	}
+	for i := range d.Triggers {
+		tr := &d.Triggers[i]
+		t.Triggers = append(t.Triggers, TaskTrigger{
+			Type: tr.Type, DayOfWeek: string(tr.DayOfWeek), SystemEvent: string(tr.SystemEvent), TimeOfDay: time.Duration(tr.TimeOfDayTicks) * tick,
+			Interval: time.Duration(tr.IntervalTicks) * tick, MaxRuntime: time.Duration(tr.MaxRuntimeTicks) * tick,
+		})
+	}
 	if r := d.LastExecutionResult; r != nil {
-		t.LastExecutionResult = &TaskResult{Status: string(r.Status), StartTimeUtc: r.StartTimeUtc, EndTimeUtc: r.EndTimeUtc, ErrorMessage: r.ErrorMessage}
+		t.LastExecutionResult = &TaskResult{
+			Status: string(r.Status), StartTimeUtc: r.StartTimeUtc, EndTimeUtc: r.EndTimeUtc,
+			ErrorMessage: r.ErrorMessage, LongErrorMessage: r.LongErrorMessage,
+		}
 	}
 
 	return t
@@ -254,11 +286,16 @@ func deviceFromEmby(d *emby.DevicesDeviceInfo) Device {
 }
 
 func logFileFromEmby(d *emby.LogFile) LogFile {
-	return LogFile{Name: d.Name, Size: d.Size, DateModified: d.DateModified}
+	return LogFile{Name: d.Name, Size: d.Size, DateCreated: d.DateCreated, DateModified: d.DateModified}
 }
 
 func systemInfoFromEmby(d *emby.SystemInfo) *SystemInfo {
-	return &SystemInfo{ServerName: d.ServerName, Version: d.Version, ID: d.Id, OperatingSystem: d.OperatingSystem}
+	return &SystemInfo{
+		ServerName: d.ServerName, Version: d.Version, ID: d.Id, OperatingSystem: d.OperatingSystem,
+		HasPendingRestart: pointer.From(d.HasPendingRestart), HasUpdateAvailable: pointer.From(d.HasUpdateAvailable),
+		IsShuttingDown: pointer.From(d.IsShuttingDown), CanSelfRestart: pointer.From(d.CanSelfRestart),
+		Paths: systemPaths(d.ProgramDataPath, d.LogPath, d.CachePath, d.InternalMetadataPath, d.TranscodingTempPath),
+	}
 }
 
 func countsFromEmby(d *emby.ItemCounts) *ItemCounts {

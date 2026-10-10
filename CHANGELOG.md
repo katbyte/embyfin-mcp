@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `server_log_search` searches the server's log instead of tailing it: between two times or over the last stretch before its end, across the files a window spans, filtered by text and level, and answered as entries, as counts with the same message as one row, as a histogram, as the gaps a freeze leaves, or as the slow answers and the requests still waiting. Tokens and API keys are blanked; Emby's log is read anonymised unless `raw` is set
+- `task_list` says how far a running task has got, what starts each task (`daily 06:00`, `every 12h`, `at startup`), how long its last run took and the error it failed with; `task_get` gives one task with the failure in full
+- `task_stop` stops a running task, and `task_edit` changes when a task starts by itself
+- `session_list` says how each device is playing (the file as it is, or transcoded: into what, on what, and why), how far through, and when it last spoke; `details` adds the file's facts and the whole transcode
+- `server_config` gives the server's own settings in groups; `server_config_edit` changes the ones that tune Jellyfin's trickplay images and scanning, and no others
+- `--config` (or `EMBYFIN_CONFIG`) names the settings file to read, in place of the usual ones, so two instances can serve two servers side by side
+- `server_info` says whether a restart is pending or an update is out, and what the server's log says of its machine at startup: processors, architecture, when it started, where it keeps its data, logs, cache and metadata
+
 ## 0.4.1 (2026-10-09)
 
 ### Fixed

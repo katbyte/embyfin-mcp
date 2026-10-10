@@ -29,10 +29,7 @@ func serverLog(files []embyfin.LogFile) (name string, own bool) {
 
 		return pick
 	}
-	if pick := latest(func(n string) bool {
-		n = strings.ToLower(n)
-		return strings.HasPrefix(n, "embyserver") || strings.HasPrefix(n, "log_")
-	}); pick != "" {
+	if pick := latest(func(n string) bool { return (&embyfin.LogFile{Name: n}).ServerOwn() }); pick != "" {
 		return pick, true
 	}
 
@@ -54,24 +51,64 @@ func registerServerTools(r *registry) {
 		SDKAPIVersion     string `json:"sdk_api_version"     jsonschema:"the server API version this MCP server's client was generated from; a server ahead of it may answer with fields the client does not read"`
 		OperatingSystem   string `json:"operating_system"`
 		EmbyfinMCPVersion string `json:"embyfin_mcp_version" jsonschema:"the build of this MCP server answering, e.g. v0.1.1+4@g8909c7c: the tag, the commits since it, and the commit"`
+
+		PendingRestart  bool `json:"pending_restart"            jsonschema:"a change is waiting for the server to be restarted: a plugin installed or updated, a setting only a start reads"`
+		UpdateAvailable bool `json:"update_available"           jsonschema:"the server says a newer version of itself is out"`
+		ShuttingDown    bool `json:"shutting_down,omitempty"`
+		CanSelfRestart  bool `json:"can_self_restart,omitempty" jsonschema:"the server can restart itself when asked, rather than only stop"`
+
+		Architecture string            `json:"architecture,omitempty" jsonschema:"the server process's, from its log's startup lines. Jellyfin's API has a field for it that says X64 on an arm64 machine, so that is not used"`
+		Processors   int               `json:"processors,omitempty"   jsonschema:"how many processors the server counted when it started. Neither server's API gives this: it is read from the startup lines of the server's log, and absent when no recent log begins with a start"`
+		Started      string            `json:"started,omitempty"      jsonschema:"when the server last started, as its log wrote it: Jellyfin's lines carry the zone, Emby's are its own clock with none"`
+		Paths        map[string]string `json:"paths,omitempty"        jsonschema:"where the server keeps things on its own disk, by kind (data, logs, cache, metadata, transcodes): from the server where it says, else from its log's startup lines"`
+		Note         string            `json:"note,omitempty"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "server_info",
-		Description: "Check connectivity to the media server and return its name and version, the API version this MCP server's client was built against, and the version of this MCP server.",
+		Description: "Check connectivity to the media server and return its name and version, the API version this MCP server's client was built against, and the version of this MCP server; whether the server is waiting for a restart or has an update out; and what it says of the machine it runs on - processors, architecture, when it started, where it keeps its data, logs, cache and metadata - which it writes at the top of its log as it starts and gives no other way.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, serverInfoOut, error) {
 		info, err := client.SystemInfo(ctx)
 		if err != nil {
 			return nil, serverInfoOut{}, err
 		}
-
-		return nil, serverInfoOut{
+		out := serverInfoOut{
 			Backend:           string(client.Backend()),
 			ServerName:        info.ServerName,
 			ServerVersion:     info.Version,
 			SDKAPIVersion:     client.APIVersion(),
 			OperatingSystem:   info.OperatingSystem,
 			EmbyfinMCPVersion: version.Version,
-		}, nil
+			PendingRestart:    info.HasPendingRestart,
+			UpdateAvailable:   info.HasUpdateAvailable,
+			ShuttingDown:      info.IsShuttingDown,
+			CanSelfRestart:    info.CanSelfRestart,
+			Paths:             info.Paths,
+		}
+		// the rest is in the log alone, and the server is reachable and
+		// described without it: a log that cannot be read is said, not fatal
+		start, err := client.LogStartup(ctx)
+		switch {
+		case err != nil:
+			out.Note = "the server's log could not be read for what it says of itself at startup (processors, when it started): " + err.Error()
+		case start == nil:
+			out.Note = "none of the server's recent logs begins with a start, so the processors it counted and when it started are not known: it begins a new log each midnight, and has been up longer than the logs looked at"
+		default:
+			out.Processors, out.Started, out.Architecture = start.Processors, start.At, start.Architecture
+			// Jellyfin 12.2's API names no operating system; its log does
+			if out.OperatingSystem == "" {
+				out.OperatingSystem = start.OperatingSystem
+			}
+			for kind, path := range start.Paths {
+				if out.Paths == nil {
+					out.Paths = map[string]string{}
+				}
+				if out.Paths[kind] == "" {
+					out.Paths[kind] = path
+				}
+			}
+		}
+
+		return nil, out, nil
 	})
 
 	type serverStatsOut struct {
@@ -344,20 +381,12 @@ func registerServerTools(r *registry) {
 		return nil, logOut{Name: name, Tail: tail, Files: rows, Note: note}, nil
 	})
 
-	type taskOut struct {
-		ID         string `json:"id"                    jsonschema:"what task_run takes, as well as the name"`
-		Name       string `json:"name"`
-		Category   string `json:"category,omitempty"`
-		State      string `json:"state"`
-		LastStatus string `json:"last_status,omitempty"`
-		LastRun    string `json:"last_run,omitempty"`
-	}
 	type tasksOut struct {
-		Tasks []taskOut `json:"tasks"`
+		Tasks []taskRow `json:"tasks"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "task_list",
-		Description: "List the server's scheduled tasks (library scan, metadata refresh, backups...) with their ids, state and last result.",
+		Description: "List the server's scheduled tasks (library scan, metadata refresh, backups...) with their ids and state, how far a running one has got, what starts each without being asked (daily 06:00, every 12h, at startup: times of day are the server's own clock), and how its last run went: when, how long it took, and the error it failed with. task_get gives one task whole, with the failure's full text.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, tasksOut, error) {
 		tasks, err := client.Tasks(ctx)
 		if err != nil {
@@ -365,13 +394,8 @@ func registerServerTools(r *registry) {
 		}
 
 		out := tasksOut{}
-		for _, t := range tasks {
-			row := taskOut{ID: t.ID, Name: t.Name, Category: t.Category, State: t.State}
-			if t.LastExecutionResult != nil {
-				row.LastStatus = t.LastExecutionResult.Status
-				row.LastRun = t.LastExecutionResult.EndTimeUtc
-			}
-			out.Tasks = append(out.Tasks, row)
+		for i := range tasks {
+			out.Tasks = append(out.Tasks, taskRowOf(&tasks[i]))
 		}
 
 		return nil, out, nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -70,37 +71,153 @@ func resolveSession(ctx context.Context, client *embyfin.Client, target string) 
 	return nil, fmt.Errorf("no session matching %q (have: %s)", target, strings.Join(descs, ", "))
 }
 
+// sessionSource is the file a session is playing, as the server read it.
+type sessionSource struct {
+	Container  string       `json:"container,omitempty"`
+	Bitrate    int64        `json:"bitrate,omitempty"     jsonschema:"bits per second: the video's, falling back to the whole file's"`
+	Width      int          `json:"width,omitempty"`
+	Height     int          `json:"height,omitempty"`
+	VideoCodec string       `json:"video_codec,omitempty"`
+	FrameRate  float64      `json:"frame_rate,omitempty"`
+	HDR        string       `json:"hdr,omitempty"         jsonschema:"the dynamic range as the server read it: sdr, hdr10, hdr10plus, hlg, dovi"`
+	Audio      []audioTrack `json:"audio,omitempty"       jsonschema:"every audio track the file has"`
+	Versions   int          `json:"versions,omitempty"    jsonschema:"set when the item is held in several files: these are the best one's facts, which may not be the one playing"`
+}
+
+// sessionSourceOf reads the facts of the file behind what a session is
+// playing. A session names its item with no files under it, so the item is
+// read again for them; one the server no longer lists has none to give.
+func sessionSourceOf(ctx context.Context, client *embyfin.Client, playing *embyfin.Item) (*sessionSource, error) {
+	it := playing
+	if len(it.MediaSources) == 0 {
+		read, err := client.ItemByID(ctx, playing.ID)
+		if err != nil {
+			// the item went while it played: there is no file to read
+			if _, gone := errors.AsType[*embyfin.NoItemError](err); gone {
+				return nil, nil
+			}
+
+			return nil, fmt.Errorf("reading the file behind %s (id %s): %w", playing.Name, playing.ID, err)
+		}
+		it = read
+	}
+	if it.BestSource() == nil {
+		return nil, nil
+	}
+	q := qualityOf(it)
+	src := &sessionSource{Container: q.Container, Bitrate: q.Bitrate, Width: q.Width, Height: q.Height, VideoCodec: q.VideoCodec, FrameRate: q.FrameRate, HDR: q.HDR, Audio: q.Audio}
+	if len(it.MediaSources) > 1 {
+		src.Versions = len(it.MediaSources)
+	}
+
+	return src, nil
+}
+
+// transcodeSummary says on one line what a server is doing to a stream:
+// what it re-encodes, into what, on what, and why. "" when it is doing
+// nothing to it.
+func transcodeSummary(t *embyfin.Transcoding) string {
+	if t == nil {
+		return ""
+	}
+	var parts []string
+	video := "video copied"
+	if !t.VideoDirect {
+		video = "video to " + t.VideoCodec
+		if t.Width > 0 && t.Height > 0 {
+			video += fmt.Sprintf(" %dx%d", t.Width, t.Height)
+		}
+		switch {
+		case t.EncoderHardware != nil && *t.EncoderHardware:
+			video += " on hardware"
+			if t.HardwareAcceleration != "" {
+				video += " (" + t.HardwareAcceleration + ")"
+			}
+		case t.EncoderHardware != nil:
+			video += " in software"
+		case t.HardwareAcceleration != "" && !strings.EqualFold(t.HardwareAcceleration, "none"):
+			video += " on hardware (" + t.HardwareAcceleration + ")"
+		case strings.EqualFold(t.HardwareAcceleration, "none"):
+			video += " in software"
+		}
+	}
+	parts = append(parts, video)
+	if t.AudioDirect {
+		parts = append(parts, "audio copied")
+	} else if t.AudioCodec != "" {
+		parts = append(parts, "audio to "+t.AudioCodec)
+	}
+	out := strings.Join(parts, ", ")
+	if len(t.Reasons) > 0 {
+		out += ": " + strings.Join(t.Reasons, ", ")
+	}
+
+	return out
+}
+
 func registerSessionTools(r *registry) {
 	client := r.client
+	type sessionTranscode struct {
+		Container       string   `json:"container,omitempty"`
+		VideoCodec      string   `json:"video_codec,omitempty"`
+		AudioCodec      string   `json:"audio_codec,omitempty"`
+		VideoDirect     bool     `json:"video_direct"                    jsonschema:"the video is passed on as it is, not re-encoded"`
+		AudioDirect     bool     `json:"audio_direct"                    jsonschema:"the audio is passed on as it is, not re-encoded"`
+		Bitrate         int      `json:"bitrate,omitempty"               jsonschema:"bits per second, of the stream being made"`
+		Width           int      `json:"width,omitempty"`
+		Height          int      `json:"height,omitempty"`
+		FrameRate       float64  `json:"frame_rate,omitempty"`
+		AudioChannels   int      `json:"audio_channels,omitempty"`
+		Completion      float64  `json:"completion_percent,omitempty"    jsonschema:"how much of the file the server has transcoded so far"`
+		Reasons         []string `json:"reasons"                         jsonschema:"why the server is transcoding, in its own words: ContainerBitrateExceedsLimit, VideoCodecNotSupported, SubtitleCodecNotSupported..."`
+		VideoDecoder    string   `json:"video_decoder,omitempty"         jsonschema:"Emby: what decodes the video"`
+		VideoEncoder    string   `json:"video_encoder,omitempty"         jsonschema:"Emby: what encodes it"`
+		DecoderHardware *bool    `json:"decoder_hardware,omitempty"      jsonschema:"Emby: whether the decoder is hardware (a GPU). Absent when the server does not say, as Jellyfin does not"`
+		EncoderHardware *bool    `json:"encoder_hardware,omitempty"      jsonschema:"Emby: whether the encoder is hardware"`
+		Hardware        string   `json:"hardware_acceleration,omitempty" jsonschema:"the kind of hardware acceleration in use, as the server names it (Jellyfin: none, nvenc, qsv, vaapi...); absent when it does not say"`
+	}
+	type sessionDetails struct {
+		AppVersion    string            `json:"app_version,omitempty"`
+		RemoteAddress string            `json:"remote_address,omitempty" jsonschema:"where the device connects from"`
+		Source        *sessionSource    `json:"source,omitempty"         jsonschema:"the file being played, as the server read it"`
+		Transcode     *sessionTranscode `json:"transcode,omitempty"      jsonschema:"what the server is turning the file into for this device; absent when the file goes out as it is"`
+	}
 	type sessionRow struct {
-		ID           string `json:"id"`
-		User         string `json:"user,omitempty"`
-		Device       string `json:"device"`
-		App          string `json:"app,omitempty"`
-		NowPlaying   string `json:"now_playing,omitempty"    jsonschema:"what is playing: an episode by its series and number (Breaking Bad S01E01 Pilot), anything else by its name"`
-		NowPlayingID string `json:"now_playing_id,omitempty" jsonschema:"the library item playing"`
-		Position     string `json:"position,omitempty"`
-		Paused       bool   `json:"paused,omitempty"`
+		ID           string          `json:"id"`
+		User         string          `json:"user,omitempty"`
+		Device       string          `json:"device"`
+		App          string          `json:"app,omitempty"`
+		LastActivity string          `json:"last_activity,omitempty"  jsonschema:"when the device last spoke to the server: a session long silent is one left open, not one in use"`
+		NowPlaying   string          `json:"now_playing,omitempty"    jsonschema:"what is playing: an episode by its series and number (Breaking Bad S01E01 Pilot), anything else by its name"`
+		NowPlayingID string          `json:"now_playing_id,omitempty" jsonschema:"the library item playing"`
+		Position     string          `json:"position,omitempty"`
+		Progress     *float64        `json:"progress,omitempty"       jsonschema:"how far through it is, in percent"`
+		Paused       bool            `json:"paused,omitempty"`
+		PlayMethod   string          `json:"play_method,omitempty"    jsonschema:"how what is playing reaches the device: DirectPlay (the file as it is), DirectStream (its streams repacked, none re-encoded) or Transcode (re-encoded by the server). Absent when the device has not said"`
+		Transcoding  string          `json:"transcoding,omitempty"    jsonschema:"set while the server is making a stream for the device: what it re-encodes, into what, on what, and why. details has each part"`
+		Details      *sessionDetails `json:"details,omitempty"        jsonschema:"with details: the device's app version and address, the file being played, and the stream being made from it"`
+	}
+	type sessionsIn struct {
+		Details bool `json:"details,omitempty" jsonschema:"give each session's details: the file being played (container, codec, size, bitrate, range, audio tracks) and, when the server is transcoding, what into, why, how far it has got and whether hardware is doing it"`
 	}
 	type sessionsOut struct {
 		Sessions []sessionRow `json:"sessions"`
 	}
 	add(r, readTool, &mcp.Tool{
 		Name:        "session_list",
-		Description: "Live sessions: which devices are connected and what each is playing right now.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, sessionsOut, error) {
+		Description: "Live sessions: which devices are connected, when each last spoke, what each is playing right now and how - played as the file is, or transcoded, and then into what and why. details adds the file's own facts and the whole of what the server says about the transcode, hardware included.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in sessionsIn) (*mcp.CallToolResult, sessionsOut, error) {
 		sessions, err := client.Sessions(ctx)
 		if err != nil {
 			return nil, sessionsOut{}, err
 		}
 
 		out := sessionsOut{}
-		for _, s := range sessions {
-			row := sessionRow{
-				ID:     s.ID,
-				User:   s.UserName,
-				Device: s.DeviceName,
-				App:    s.Client,
+		for i := range sessions {
+			s := &sessions[i]
+			row := sessionRow{ID: s.ID, User: s.UserName, Device: s.DeviceName, App: s.Client, LastActivity: s.LastActivityDate}
+			if in.Details {
+				row.Details = &sessionDetails{AppVersion: s.AppVersion, RemoteAddress: s.RemoteEndPoint}
 			}
 			if it := s.NowPlayingItem; it != nil {
 				// an episode's own title alone is one of a dozen "Pilot"s
@@ -108,10 +225,27 @@ func registerSessionTools(r *registry) {
 				if it.Type == typeEpisode && it.SeriesName != "" {
 					row.NowPlaying = fmt.Sprintf("%s %s %s", it.SeriesName, episodeCode(it), it.Name)
 				}
-				row.Paused = s.PlayState.IsPaused
+				row.Paused, row.PlayMethod = s.PlayState.IsPaused, s.PlayState.PlayMethod
 				pos := time.Duration(s.PlayState.PositionTicks * 100)
-				total := time.Duration(s.NowPlayingItem.RunTimeTicks * 100)
+				total := time.Duration(it.RunTimeTicks * 100)
 				row.Position = fmt.Sprintf("%s / %s", pos.Round(time.Second), total.Round(time.Second))
+				if total > 0 {
+					row.Progress = new(math.Round(float64(pos)/float64(total)*1000) / 10)
+				}
+				row.Transcoding = transcodeSummary(s.Transcoding)
+				if in.Details {
+					if row.Details.Source, err = sessionSourceOf(ctx, client, it); err != nil {
+						return nil, sessionsOut{}, err
+					}
+					if t := s.Transcoding; t != nil {
+						row.Details.Transcode = &sessionTranscode{
+							Container: t.Container, VideoCodec: t.VideoCodec, AudioCodec: t.AudioCodec, VideoDirect: t.VideoDirect, AudioDirect: t.AudioDirect,
+							Bitrate: t.Bitrate, Width: t.Width, Height: t.Height, FrameRate: math.Round(t.Framerate*1000) / 1000, AudioChannels: t.AudioChannels,
+							Completion: math.Round(t.Completion*10) / 10, Reasons: t.Reasons, VideoDecoder: t.VideoDecoder, VideoEncoder: t.VideoEncoder,
+							DecoderHardware: t.DecoderHardware, EncoderHardware: t.EncoderHardware, Hardware: t.HardwareAcceleration,
+						}
+					}
+				}
 			}
 			out.Sessions = append(out.Sessions, row)
 		}

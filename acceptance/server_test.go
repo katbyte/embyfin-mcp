@@ -33,14 +33,21 @@ func TestServerInfo(t *testing.T) {
 	if got := acc.Str(out["sdk_api_version"]); got != want {
 		t.Errorf("sdk_api_version = %q, want %q", got, want)
 	}
-	// Emby says what it runs on; Jellyfin 12.1 answers with an empty
-	// operating system, which the tool passes on rather than guessing
-	wantOS := "Linux"
-	if isJellyfin() {
-		wantOS = ""
+	// Emby says what it runs on; Jellyfin 12.2 answers with an empty
+	// operating system, and the one its log names at startup is given
+	if got := acc.Str(out["operating_system"]); got != "Linux" && (!isJellyfin() || !strings.Contains(got, "Linux")) {
+		t.Errorf("operating_system = %q, want Linux, or on Jellyfin the Linux its log names", got)
 	}
-	if got := acc.Str(out["operating_system"]); got != wantOS {
-		t.Errorf("operating_system = %q, want %q", got, wantOS)
+	// what neither server's API gives is read from the top of its log, which
+	// a container started for this suite begins with: the processors it
+	// counted, its architecture, when it started and where it keeps things
+	paths, _ := out["paths"].(map[string]any)
+	if acc.Num(t, out["processors"], "processors") < 1 || acc.Str(out["architecture"]) == "" || acc.Str(out["started"]) == "" || acc.Str(paths["data"]) != "/config" || acc.Str(paths["logs"]) == "" || out["note"] != nil {
+		t.Errorf("what the server says of its machine = processors %v, architecture %v, started %v, paths %v, note %v", out["processors"], out["architecture"], out["started"], paths, out["note"])
+	}
+	// a server just set up waits for no restart, and both say so
+	if out["pending_restart"] != false || out["update_available"] == nil {
+		t.Errorf("pending_restart = %v, update_available = %v", out["pending_restart"], out["update_available"])
 	}
 	// this binary's own build, so a session can tell it is not running the
 	// fix it thinks it is; a test build stamps nothing and reports dev or the

@@ -11,16 +11,56 @@ import (
 type PlayState struct {
 	PositionTicks int64 `json:"PositionTicks,omitempty"`
 	IsPaused      bool  `json:"IsPaused"`
+	// PlayMethod is how what is playing reaches the device: DirectPlay (the
+	// file as it is), DirectStream (its streams repacked, none re-encoded)
+	// or Transcode
+	PlayMethod string `json:"PlayMethod,omitempty"`
+	// MediaSourceID is which of the item's files is playing, for an item
+	// held in several versions
+	MediaSourceID string `json:"MediaSourceId,omitempty"`
+}
+
+// Transcoding is what a server says about the stream it is making for a
+// session: what it turns the file into, why, and what does the work.
+type Transcoding struct {
+	Container  string `json:"Container,omitempty"`
+	VideoCodec string `json:"VideoCodec,omitempty"`
+	AudioCodec string `json:"AudioCodec,omitempty"`
+	// VideoDirect and AudioDirect say a stream is passed on as it is, not
+	// re-encoded
+	VideoDirect   bool    `json:"IsVideoDirect"`
+	AudioDirect   bool    `json:"IsAudioDirect"`
+	Bitrate       int     `json:"Bitrate,omitempty"`
+	Width         int     `json:"Width,omitempty"`
+	Height        int     `json:"Height,omitempty"`
+	AudioChannels int     `json:"AudioChannels,omitempty"`
+	Framerate     float64 `json:"Framerate,omitempty"`
+	// Completion is how much of the file has been transcoded, in percent
+	Completion float64  `json:"CompletionPercentage,omitempty"`
+	Reasons    []string `json:"TranscodeReasons,omitempty"`
+	// What does the work, as each server says it. Emby names the decoder
+	// and the encoder and says of each whether it is hardware; Jellyfin
+	// names the kind of hardware acceleration, "none" for software
+	VideoDecoder         string `json:"VideoDecoder,omitempty"`
+	VideoEncoder         string `json:"VideoEncoder,omitempty"`
+	DecoderHardware      *bool  `json:"VideoDecoderIsHardware,omitempty"`
+	EncoderHardware      *bool  `json:"VideoEncoderIsHardware,omitempty"`
+	HardwareAcceleration string `json:"HardwareAccelerationType,omitempty"`
 }
 
 type Session struct {
 	ID               string    `json:"Id"`
 	UserName         string    `json:"UserName,omitempty"`
 	Client           string    `json:"Client,omitempty"`
+	AppVersion       string    `json:"ApplicationVersion,omitempty"`
 	DeviceName       string    `json:"DeviceName,omitempty"`
+	RemoteEndPoint   string    `json:"RemoteEndPoint,omitempty"`
 	LastActivityDate string    `json:"LastActivityDate,omitempty"`
 	NowPlayingItem   *Item     `json:"NowPlayingItem,omitempty"`
 	PlayState        PlayState `json:"PlayState"`
+	// Transcoding is set while the server is making a stream for the
+	// session, and nil when the file goes out as it is
+	Transcoding *Transcoding `json:"TranscodingInfo,omitempty"`
 }
 
 func (c *Client) Sessions(ctx context.Context) ([]Session, error) {

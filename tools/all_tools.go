@@ -113,8 +113,8 @@ var Toolsets = map[string][]string{
 	// scheduled tasks, scans, libraries, what a removed library leaves behind,
 	// and the tools that remove things
 	"admin": {
-		"server_stats", "server_activity", "server_devices", "server_log",
-		"task_list", "task_run", "library_scan", "library_create", "library_edit", "library_delete", "item_delete", "audit_orphans", "item_orphans_delete",
+		"server_stats", "server_activity", "server_devices", "server_log", "server_log_search", "server_config", "server_config_edit",
+		"task_list", "task_get", "task_run", "task_stop", "task_edit", "library_scan", "library_create", "library_edit", "library_delete", "item_delete", "audit_orphans", "item_orphans_delete",
 	},
 }
 
@@ -200,7 +200,14 @@ func (r *registry) pause(ctx context.Context) error {
 var toolHints = map[string]mcpregistry.Hints{
 	// a task can delete files, rewrite lists or install an update; a scan
 	// drops the items whose files are gone
-	"task_run":     {},
+	"task_run": {},
+	// settings written over, the same ones again the second time
+	"server_config_edit": {Idempotent: true},
+	// a task stops where it is, part of its work done; asked again of a
+	// task that has stopped, nothing more happens
+	"task_stop": {Idempotent: true},
+	// triggers written over, the same ones again the second time
+	"task_edit":    {Idempotent: true},
 	"library_scan": {},
 	// Jellyfin saves nfos by default, over any beside the media
 	"library_create": {},
@@ -312,6 +319,9 @@ func (o *Options) selection() mcpregistry.Selection {
 // queueTools queues every tool, before any filtering.
 func queueTools(r *registry) {
 	registerServerTools(r)
+	registerLogSearchTool(r)
+	registerTaskTools(r)
+	registerConfigTools(r)
 	registerLibraryTools(r)
 	registerEpisodeTools(r)
 	registerQualityTools(r)

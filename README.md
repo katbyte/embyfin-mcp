@@ -27,7 +27,7 @@ differences between them live in one package, and every tool is tested against b
 
 ### What else is in the box
 
-- **80 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about two thousand tokens of context by default rather than thirty thousand.
+- **86 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about two thousand tokens of context by default rather than thirty-five thousand.
 - **Three Go SDKs.** `sdk/emby`, `sdk/jf` and `sdk/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents (each package's `APIVersion` says which), standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `sdk/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
@@ -88,6 +88,7 @@ All options can be passed as command-line flags, environment variables, or via a
 | `EMBYFIN_LISTEN` | `--listen` | serve MCP over HTTP on this address (e.g. `:8080`) instead of stdio |
 | `EMBYFIN_AUTH_TOKEN` | `--auth-token` | bearer token required on the HTTP endpoint (required with `--listen`) |
 | `EMBYFIN_ALLOW_NO_AUTH` | `--allow-no-auth` | serve HTTP with no bearer token at all: anyone who can reach the port can use every tool |
+| `EMBYFIN_CONFIG` | `--config` | read settings from this file and no other, in place of `./.embyfin-mcp` or `~/.embyfin-mcp` |
 
 An API key acts as the server, not as a user, so the tools that read or change watch state
 take a `user` (name or id) and default to the first administrator.
@@ -106,6 +107,23 @@ TMDB_TOKEN=...
 ```
 
 A two-word flag takes an underscore: `TMDB_TOKEN` for `--tmdb-token`. A flag or an environment variable still wins over the file.
+
+`--config` (or `EMBYFIN_CONFIG`) names the file to read, and it is then the only one read: nothing in `~/.embyfin-mcp` reaches that run. A file that is named and is not there stops the server from starting.
+
+### Two servers at once
+
+Run one instance a server, each with a settings file of its own, and register each under its own name. A client keeps their tools apart by that name, so the same question can be put to both:
+
+```json
+{
+  "mcpServers": {
+    "emby": { "command": "embyfin-mcp", "args": ["serve"] },
+    "jellyfin": { "command": "embyfin-mcp", "args": ["serve", "--config", "~/.embyfin-mcp-jf"] }
+  }
+}
+```
+
+The first reads `~/.embyfin-mcp` as usual; the second reads `~/.embyfin-mcp-jf`, which sets `BACKEND=jellyfin` with its own `SERVER` and `TOKEN`.
 
 ## Usage
 
@@ -182,8 +200,8 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 
 | Resource | Tools |
 |---|---|
-| server | `server_info`, `server_stats`, `server_activity` (the log, or the entries about one item or one user), `server_devices`, `server_log` (the newest log's tail, and every log file) |
-| tasks | `task_list`, `task_run` |
+| server | `server_info` (with whether a restart is pending, and the machine as the server's log describes it), `server_stats`, `server_activity` (the log, or the entries about one item or one user), `server_devices`, `server_log` (the newest log's tail, and every log file), `server_log_search` (the log between two times or over its last stretch, filtered, and as entries, counts, a histogram, the gaps of a freeze, or the slow answers), `server_config` (the server's own settings, in groups), `server_config_edit` (Jellyfin: the settings that tune trickplay images and scanning, and no others) |
+| tasks | `task_list` (with progress, what starts each, and how its last run went), `task_get` (one task, with its last failure in full), `task_run`, `task_stop`, `task_edit` (when a task starts by itself) |
 | libraries | `library_list`, `library_get` (counts by type), `library_items` (a title search, a structured filter by genre, tag, studio, rating, year, person and watch state, or both, sorted and paged; `added_since` for what came in after a moment), `library_filters` (every genre, tag, studio, rating and year, with counts), `library_episodes` (every episode of a show, one season of it, or a whole library, paged, with quality), `library_export` (a whole library to a new file on the machine embyfin-mcp runs on, never over an existing one), `library_scan` (every library, or one), `library_create`, `library_edit` (rename, add and remove folders, switch nfo saving), `library_delete` |
 | audits | `audit_all` and the 17 audits in [the table above](#the-audits) |
 | items | `item_get` (every version the server shows it in, and a warning when a film's file names another film), `item_find_by_metadata_id` (the definitive "do I already have this?"), `item_similar`, `item_refresh` (waits for the refresh to land), `item_previews_regenerate` (makes a video's preview thumbnails again, one video at a time, and names anything else the refresh changed; Emby only so far), `item_edit` (one item's fields, or the same genres, tags, studios or rating across many; `add_*` and `remove_*` edit each item's own list), `item_instant_mix`, `item_last_watched`, `item_set_state` (watched, favourite and resume point, any or all) |
@@ -196,7 +214,7 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 | users | `user_list`, `user_get` (permissions, libraries, playback preferences), `user_history`, `user_next_up` (the next episode of each series, and everything part way through, with positions), `user_stats` (films and episodes watched, in progress and favourited, hours, series finished, top genres and series, in one pass) |
 | quality | `quality_compare` (which of two copies is better, by how much, and why) |
 | plan | `plan_check` (before writing files: what is at each destination path now, which series it would join, which entries collide) |
-| sessions | `session_list`, `session_play`, `session_command`, `session_message` |
+| sessions | `session_list` (what each device plays and how; `details` for the file and the transcode), `session_play`, `session_command`, `session_message` |
 | playlists | `playlist_list`, `playlist_get`, `playlist_create`, `playlist_edit` (rename, `add_items`, `remove_entries`, move an entry; a removal and a move name an entry by its entry id and the item it holds, plus the playlist's `fingerprint` when an item is held twice), `playlist_delete` |
 | collections | `collection_list`, `collection_get`, `collection_create`, `collection_edit` (rename, sort name, overview, `add_items`, `remove_items`), `collection_delete` |
 
@@ -204,19 +222,19 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 
 ### Choosing which tools load
 
-**The default is `core`: six read-only tools, about 1,900 tokens.** The whole surface is around 32,100 tokens of tool definitions before anyone asks a question, which is a poor way to spend a client's context by default. `--toolsets` / `EMBYFIN_TOOLSETS` loads the groups a session actually needs, and `core` comes along with whatever else is asked for, because nothing else can find a library or open an item.
+**The default is `core`: six read-only tools, about 2,000 tokens.** The whole surface is around 34,600 tokens of tool definitions before anyone asks a question, which is a poor way to spend a client's context by default. `--toolsets` / `EMBYFIN_TOOLSETS` loads the groups a session actually needs, and `core` comes along with whatever else is asked for, because nothing else can find a library or open an item.
 
 **Curating a library needs `EMBYFIN_TOOLSETS=curation`** - every audit but `audit_orphans`, and everything that fixes what they find. Cleaning up after a removed library is in `admin` ([below](#cleaning-up-after-a-removed-library)). `EMBYFIN_TOOLSETS=all` restores every tool.
 
 | toolset | tools | with core | ~tokens |
 |---|---|---|---|
-| `core` *(default)* | 6 | 6 | 1,900 |
-| `remote` | 4 | 10 | 2,500 |
-| `admin` | 13 | 19 | 6,000 |
-| `watching` | 8 | 14 | 3,700 |
-| `organise` | 10 | 16 | 5,000 |
-| `curation` | 39 | 45 | 22,400 |
-| `all` | 80 | 80 | 32,100 |
+| `core` *(default)* | 6 | 6 | 2,000 |
+| `remote` | 4 | 10 | 2,700 |
+| `admin` | 19 | 25 | 8,400 |
+| `watching` | 8 | 14 | 3,800 |
+| `organise` | 10 | 16 | 5,100 |
+| `curation` | 39 | 45 | 22,500 |
+| `all` | 86 | 86 | 34,600 |
 
 Tokens are what the model sees: each tool's name, description and input schema, measured over a real `tools/list` at four bytes a token, with `--enable-delete`. Every tool also carries an output schema, another 59,000 tokens across `all`, but clients keep that to themselves to validate results rather than sending it to the model.
 

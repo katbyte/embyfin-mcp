@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
@@ -14,18 +15,120 @@ type TaskResult struct {
 	StartTimeUtc string `json:"StartTimeUtc,omitempty"`
 	EndTimeUtc   string `json:"EndTimeUtc,omitempty"`
 	ErrorMessage string `json:"ErrorMessage,omitempty"`
+	// LongErrorMessage is the failure with its stack, which names the code
+	// at fault where the short one only says that something failed
+	LongErrorMessage string `json:"LongErrorMessage,omitempty"`
+}
+
+// Took is how long the run lasted, and whether both its ends are known.
+func (r *TaskResult) Took() (time.Duration, bool) {
+	start, err1 := time.Parse(time.RFC3339Nano, r.StartTimeUtc)
+	end, err2 := time.Parse(time.RFC3339Nano, r.EndTimeUtc)
+	if err1 != nil || err2 != nil || end.Before(start) {
+		return 0, false
+	}
+
+	return end.Sub(start), true
+}
+
+// The kinds of trigger both servers have.
+const (
+	TriggerDaily    = "DailyTrigger"
+	TriggerWeekly   = "WeeklyTrigger"
+	TriggerInterval = "IntervalTrigger"
+	TriggerStartup  = "StartupTrigger"
+	// TriggerSystemEvent is Emby's alone: a task run when the server wakes
+	TriggerSystemEvent = "SystemEventTrigger"
+)
+
+// TaskTrigger is one of the things that start a task without being asked.
+type TaskTrigger struct {
+	Type string `json:"Type"`
+	// TimeOfDay is when a daily or weekly trigger fires, by the server's
+	// own clock, as the time since its midnight
+	TimeOfDay time.Duration `json:"TimeOfDay,omitempty"`
+	// DayOfWeek is a weekly trigger's day, in English
+	DayOfWeek string `json:"DayOfWeek,omitempty"`
+	// Interval is how long an interval trigger waits between runs
+	Interval time.Duration `json:"Interval,omitempty"`
+	// MaxRuntime stops a run the trigger started once it has run this long;
+	// zero is no limit
+	MaxRuntime time.Duration `json:"MaxRuntime,omitempty"`
+	// SystemEvent is what a system-event trigger waits for (Emby)
+	SystemEvent string `json:"SystemEvent,omitempty"`
+}
+
+// tick is the unit both servers give a trigger's times in: a hundred
+// nanoseconds.
+const tick = 100 * time.Nanosecond
+
+// clock is a time of day as hh:mm, with seconds when it has any.
+func clock(d time.Duration) string {
+	d = d.Round(time.Second)
+	h, m, s := int(d.Hours()), int(d.Minutes())%60, int(d.Seconds())%60
+	if s != 0 {
+		return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+	}
+
+	return fmt.Sprintf("%02d:%02d", h, m)
+}
+
+// span is a length of time in the largest units that hold it whole: 12h,
+// 1h30m, 45s.
+func span(d time.Duration) string {
+	out := d.Round(time.Second).String()
+	if strings.HasSuffix(out, "m0s") {
+		out = strings.TrimSuffix(out, "0s")
+	}
+	if strings.HasSuffix(out, "h0m") {
+		out = strings.TrimSuffix(out, "0m")
+	}
+
+	return out
+}
+
+// String is the trigger as a person would say it: "daily 06:00", "weekly
+// Sunday 04:15", "every 12h", "at startup", with the most a run may take
+// after it. A time of day is the server's own clock's.
+func (t TaskTrigger) String() string {
+	var what string
+	switch t.Type {
+	case TriggerDaily:
+		what = "daily " + clock(t.TimeOfDay)
+	case TriggerWeekly:
+		what = "weekly " + t.DayOfWeek + " " + clock(t.TimeOfDay)
+	case TriggerInterval:
+		what = "every " + span(t.Interval)
+	case TriggerStartup:
+		what = "at startup"
+	case TriggerSystemEvent:
+		what = "on " + strings.ToLower(t.SystemEvent)
+	default:
+		what = t.Type
+	}
+	if t.MaxRuntime > 0 {
+		what += ", for at most " + span(t.MaxRuntime)
+	}
+
+	return what
 }
 
 type Task struct {
 	ID string `json:"Id"`
 	// Key names what the task is, the same on both servers for the ones they
 	// share (RefreshLibrary is the library scan), whatever it is called
-	Key                 string      `json:"Key,omitempty"`
-	Name                string      `json:"Name"`
-	Category            string      `json:"Category,omitempty"`
-	Description         string      `json:"Description,omitempty"`
-	State               string      `json:"State,omitempty"` // Idle, Running, Cancelling
-	LastExecutionResult *TaskResult `json:"LastExecutionResult,omitempty"`
+	Key         string `json:"Key,omitempty"`
+	Name        string `json:"Name"`
+	Category    string `json:"Category,omitempty"`
+	Description string `json:"Description,omitempty"`
+	State       string `json:"State,omitempty"` // Idle, Running, Cancelling
+	// Progress is how far a running task says it has got, in percent; a
+	// task that is not running has none
+	Progress float64 `json:"CurrentProgressPercentage,omitempty"`
+	// Hidden is a task the server's own dashboard does not list
+	Hidden              bool          `json:"IsHidden,omitempty"`
+	Triggers            []TaskTrigger `json:"Triggers,omitempty"`
+	LastExecutionResult *TaskResult   `json:"LastExecutionResult,omitempty"`
 }
 
 // LibraryScanKey is the key of the scheduled task both servers call "Scan
@@ -181,6 +284,124 @@ func (c *Client) StartTask(ctx context.Context, task *Task) error {
 	}
 
 	return err
+}
+
+// StopTask asks the server to stop a running task. The server answers once
+// it has taken the ask: the task goes on cancelling until it has stopped,
+// which the task list shows.
+func (c *Client) StopTask(ctx context.Context, task *Task) error {
+	var err error
+	if c.isEmby() {
+		_, err = c.emby.DeleteScheduledTasksRunningById(ctx, task.ID)
+	} else {
+		_, err = c.jf.StopTask(ctx, task.ID)
+	}
+
+	return err
+}
+
+// SetTaskTriggers replaces everything that starts a task without being
+// asked: the server keeps exactly the triggers given, and none when given
+// none.
+func (c *Client) SetTaskTriggers(ctx context.Context, task *Task, triggers []TaskTrigger) error {
+	if c.isEmby() {
+		in := make([]emby.TaskTriggerInfo, 0, len(triggers))
+		for _, t := range triggers {
+			in = append(in, emby.TaskTriggerInfo{
+				Type: t.Type, DayOfWeek: emby.DayOfWeek(t.DayOfWeek), SystemEvent: emby.SystemEvent(t.SystemEvent),
+				TimeOfDayTicks: int64(t.TimeOfDay / tick), IntervalTicks: int64(t.Interval / tick), MaxRuntimeTicks: int64(t.MaxRuntime / tick),
+			})
+		}
+		_, err := c.emby.PostScheduledTasksByIdTriggers(ctx, task.ID, in)
+
+		return err
+	}
+	in := make([]jf.TaskTriggerInfo, 0, len(triggers))
+	for _, t := range triggers {
+		if t.Type == TriggerSystemEvent {
+			return fmt.Errorf("a trigger on a system event (%s) is Emby's alone: Jellyfin's tasks start daily, weekly, at an interval or at startup", t.SystemEvent)
+		}
+		in = append(in, jf.TaskTriggerInfo{
+			Type: jf.TaskTriggerInfoType(t.Type), DayOfWeek: jf.DayOfWeek(t.DayOfWeek),
+			TimeOfDayTicks: int64(t.TimeOfDay / tick), IntervalTicks: int64(t.Interval / tick), MaxRuntimeTicks: int64(t.MaxRuntime / tick),
+		})
+	}
+	_, err := c.jf.UpdateTask(ctx, task.ID, in)
+
+	return err
+}
+
+var weekdays = []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+
+// timeOfDay reads "06:00", "6:00" or "23:59:30" as the time since midnight.
+func timeOfDay(s string) (time.Duration, error) {
+	for _, layout := range []string{"15:04", "15:04:05"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute + time.Duration(t.Second())*time.Second, nil
+		}
+	}
+
+	return 0, fmt.Errorf("%q is not a time of day such as 06:00", s)
+}
+
+// ParseTaskTrigger reads a trigger written as String writes one: "daily
+// 06:00", "weekly Sunday 04:15", "every 12h", "at startup", each with ", for
+// at most 4h" after it for the most a run may take, and on Emby "on
+// wakefromsleep". Case and spacing are free.
+func ParseTaskTrigger(s string) (TaskTrigger, error) {
+	const help = `write it as "daily 06:00", "weekly Sunday 04:15", "every 12h" or "at startup", with ", for at most 4h" after it to stop a run that takes longer`
+	var t TaskTrigger
+	what, limit, limited := strings.Cut(strings.ToLower(strings.Join(strings.Fields(s), " ")), ", for at most ")
+	if limited {
+		d, err := time.ParseDuration(strings.ReplaceAll(limit, " ", ""))
+		if err != nil || d <= 0 {
+			return t, fmt.Errorf("trigger %q: %q is not a length of time such as 4h or 90m; %s", s, limit, help)
+		}
+		t.MaxRuntime = d
+	}
+
+	words := strings.Fields(what)
+	var err error
+	switch {
+	case len(words) == 2 && words[0] == "daily":
+		t.Type = TriggerDaily
+		t.TimeOfDay, err = timeOfDay(words[1])
+	case len(words) == 3 && words[0] == "weekly":
+		t.Type = TriggerWeekly
+		for _, day := range weekdays {
+			if strings.EqualFold(day, words[1]) {
+				t.DayOfWeek = day
+			}
+		}
+		if t.DayOfWeek == "" {
+			return t, fmt.Errorf("trigger %q: %q is not a day of the week; %s", s, words[1], help)
+		}
+		t.TimeOfDay, err = timeOfDay(words[2])
+	case len(words) == 2 && words[0] == "every":
+		t.Type = TriggerInterval
+		if t.Interval, err = time.ParseDuration(words[1]); err == nil && t.Interval < time.Minute {
+			err = fmt.Errorf("%q is less than a minute", words[1])
+		}
+	case what == "at startup":
+		t.Type = TriggerStartup
+	case len(words) == 2 && words[0] == "on":
+		t.Type = TriggerSystemEvent
+		for _, event := range []string{"WakeFromSleep", "DisplayConfigurationChange", "NetworkChange"} {
+			if strings.EqualFold(event, words[1]) {
+				t.SystemEvent = event
+			}
+		}
+		if t.SystemEvent == "" {
+			return t, fmt.Errorf("trigger %q: %q is not a system event Emby has (wakefromsleep, displayconfigurationchange, networkchange)", s, words[1])
+		}
+	default:
+		return t, fmt.Errorf("trigger %q is not one this reads: %s", s, help)
+	}
+	if err != nil {
+		return t, fmt.Errorf("trigger %q: %w; %s", s, err, help)
+	}
+
+	return t, nil
 }
 
 // RefreshLibrary triggers a scan of all libraries.

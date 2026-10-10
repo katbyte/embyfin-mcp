@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/katbyte/embyfin-mcp/sdk/embyfin"
@@ -71,6 +72,7 @@ func configureFlags(root *cobra.Command) error {
 	pflags.String("tmdb-token", "", "TMDB API Read Access Token, or the older API Key, enables the provider-backed audits and show_missing's fallback (consider exporting to EMBYFIN_TMDB_TOKEN instead)")
 	pflags.String("tmdb-key", "", "the same as --tmdb-token, by its older name")
 	pflags.String("anime-list", "", "where audit_anime_ids reads the Anime-Lists mapping from: a URL or a file (default the list on GitHub)")
+	pflags.String("config", "", "read settings from this file and no other, in place of ./.embyfin-mcp or ~/.embyfin-mcp: how a second instance serves a second server (or export EMBYFIN_CONFIG)")
 
 	persistent = pflags
 	m := envNames
@@ -87,18 +89,58 @@ func configureFlags(root *cobra.Command) error {
 		}
 	}
 
-	viper.SetConfigName(".embyfin-mcp")
-	viper.SetConfigType("env")
-	// viper reads the first file it finds, so the working directory comes
-	// first: a per-project .embyfin-mcp overrides the one in $HOME
-	viper.AddConfigPath(".")
-	if home, err := os.UserHomeDir(); err == nil {
-		viper.AddConfigPath(home)
+	return nil
+}
+
+// configEnv names the settings file from the environment, as --config does
+// on the command line.
+const configEnv = "EMBYFIN_CONFIG"
+
+// configPath is the settings file a run was told to read, "" for none: the
+// flag's, then the environment's. A leading ~/ is the home directory, for a
+// client that hands its arguments over without a shell to expand it.
+func configPath() string {
+	path := os.Getenv(configEnv)
+	if persistent != nil {
+		if fl := persistent.Lookup("config"); fl != nil && fl.Changed {
+			path = fl.Value.String()
+		}
+	}
+	if rest, ok := strings.CutPrefix(path, "~/"); ok {
+		if home, err := os.UserHomeDir(); err == nil {
+			path = filepath.Join(home, rest)
+		}
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); !ok {
-			clog.Log.Errorf("Error reading config file: %v", err)
+	return path
+}
+
+// loadConfig reads the settings file, once the flags are parsed: the one
+// --config or EMBYFIN_CONFIG names and no other, or else the first
+// .embyfin-mcp found in the working directory and then in $HOME.
+//
+// A file that was named and cannot be read is an error: an instance meant
+// for one server must not come up with another's settings, or with none. One
+// merely absent from the usual places is not.
+func loadConfig() error {
+	viper.SetConfigType("env")
+	if path := configPath(); path != "" {
+		viper.SetConfigFile(path)
+		if err := viper.ReadInConfig(); err != nil {
+			return fmt.Errorf("reading the settings file %s (--config / %s): %w", path, configEnv, err)
+		}
+	} else {
+		viper.SetConfigName(".embyfin-mcp")
+		// viper reads the first file it finds, so the working directory comes
+		// first: a per-project .embyfin-mcp overrides the one in $HOME
+		viper.AddConfigPath(".")
+		if home, err := os.UserHomeDir(); err == nil {
+			viper.AddConfigPath(home)
+		}
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := errors.AsType[viper.ConfigFileNotFoundError](err); !ok {
+				clog.Log.Errorf("Error reading config file: %v", err)
+			}
 		}
 	}
 
@@ -106,7 +148,7 @@ func configureFlags(root *cobra.Command) error {
 	// the prefix - TMDB_TOKEN for --tmdb-token - and viper only matches a key
 	// spelled as the flag is, so every two-word setting was ignored. Carried
 	// across as defaults, they still lose to a flag or the environment.
-	for name := range m {
+	for name := range envNames {
 		if alt := strings.ReplaceAll(name, "-", "_"); alt != name && viper.InConfig(alt) {
 			viper.SetDefault(name, viper.Get(alt))
 		}

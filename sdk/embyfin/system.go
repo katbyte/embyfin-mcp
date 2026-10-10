@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/katbyte/embyfin-mcp/lib/serverlog"
 	"github.com/katbyte/embyfin-mcp/sdk/emby"
 	"github.com/katbyte/embyfin-mcp/sdk/jf"
 )
@@ -19,6 +21,81 @@ type SystemInfo struct {
 	Version         string `json:"Version"`
 	ID              string `json:"Id"`
 	OperatingSystem string `json:"OperatingSystem"`
+	// HasPendingRestart says a change is waiting for the server to be
+	// restarted: a plugin installed or updated, a setting that only a
+	// start reads
+	HasPendingRestart  bool `json:"HasPendingRestart"`
+	HasUpdateAvailable bool `json:"HasUpdateAvailable"`
+	IsShuttingDown     bool `json:"IsShuttingDown"`
+	CanSelfRestart     bool `json:"CanSelfRestart"`
+	// Paths are where the server says it keeps things, by kind: data, logs,
+	// cache, metadata, transcodes. Emby 4.10 sends none
+	Paths map[string]string `json:"Paths,omitempty"`
+}
+
+// systemPaths gathers the paths a server names, leaving out the ones it
+// does not.
+func systemPaths(data, logs, cache, metadata, transcodes string) map[string]string {
+	paths := map[string]string{}
+	for name, path := range map[string]string{"data": data, "logs": logs, "cache": cache, "metadata": metadata, "transcodes": transcodes} {
+		if path != "" {
+			paths[name] = path
+		}
+	}
+
+	return paths
+}
+
+// LogStartup reads what the server wrote of itself at the top of its log as
+// it started (serverlog.Startup): the processors it counted, when it
+// started, where it keeps things. The newest of its own logs that begins
+// with a start is read, looking no further back than a few: a server begins
+// a new log each midnight, and those begin with none. nil when none of them
+// does.
+func (c *Client) LogStartup(ctx context.Context) (*serverlog.Startup, error) {
+	files, err := c.LogFiles(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var own []LogFile
+	for i := range files {
+		if files[i].ServerOwn() {
+			own = append(own, files[i])
+		}
+	}
+	slices.SortStableFunc(own, func(a, b LogFile) int { return strings.Compare(b.DateModified, a.DateModified) })
+	format := serverlog.Jellyfin
+	if c.isEmby() {
+		format = serverlog.Emby
+	}
+	for i, f := range own {
+		if i >= startupLogsMost {
+			break
+		}
+		start, err := c.readStartup(ctx, f.Name, format)
+		if err != nil {
+			return nil, fmt.Errorf("reading the start of log %s: %w", f.Name, err)
+		}
+		if start != nil {
+			return start, nil
+		}
+	}
+
+	return nil, nil //nolint:nilnil // no log that begins with a start is an answer, not a failure
+}
+
+// startupLogsMost is how many logs back a start is looked for: a server up
+// for a week has seven logs since its last.
+const startupLogsMost = 12
+
+func (c *Client) readStartup(ctx context.Context, name string, format serverlog.Format) (*serverlog.Startup, error) {
+	body, err := c.LogStream(ctx, name, false)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = body.Close() }()
+
+	return serverlog.ReadStartup(body, format)
 }
 
 func (c *Client) SystemInfo(ctx context.Context) (*SystemInfo, error) {
@@ -158,9 +235,23 @@ func (c *Client) Devices(ctx context.Context) ([]Device, error) {
 }
 
 type LogFile struct {
-	Name         string `json:"Name"`
-	Size         int64  `json:"Size"`
+	Name string `json:"Name"`
+	Size int64  `json:"Size"`
+	// DateCreated and DateModified are when the server says the file was
+	// begun and last written to, as instants: the log's own lines may
+	// carry no zone, and these do
+	DateCreated  string `json:"DateCreated,omitempty"`
 	DateModified string `json:"DateModified"`
+}
+
+// ServerOwn says whether the file is the server's own log - Emby's
+// embyserver.txt and the embyserver-<n>.txt it leaves at each restart and
+// midnight, Jellyfin's log_<date>.log - and not a transcode's or a hardware
+// probe's beside it.
+func (f *LogFile) ServerOwn() bool {
+	n := strings.ToLower(f.Name)
+
+	return strings.HasPrefix(n, "embyserver") || strings.HasPrefix(n, "log_")
 }
 
 func (c *Client) LogFiles(ctx context.Context) ([]LogFile, error) {
@@ -190,25 +281,44 @@ func (c *Client) LogFiles(ctx context.Context) ([]LogFile, error) {
 	return files, nil
 }
 
+// LogStream opens a named server log to be read from its start to its end.
+// Neither server serves a part of one, so a reader that wants its last hour
+// reads it all.
+//
+// Emby hands a log out with the hosts and addresses in it replaced by
+// placeholders (host1, host2) and its tokens blanked, unless raw asks for it
+// as it is on disk: then it names the clients, and wraps each address in
+// marks no screen shows. Jellyfin has the one form, as on disk.
+func (c *Client) LogStream(ctx context.Context, name string, raw bool) (io.ReadCloser, error) {
+	if c.isEmby() {
+		var opts emby.GetSystemLogsByNameOperationOptions
+		if raw {
+			opts.Sanitize = new(false)
+		}
+		res, err := c.emby.GetSystemLogsByName(ctx, name, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		return res.HttpResponse.Body, nil
+	}
+	res, err := c.jf.GetLogFile(ctx, jf.GetLogFileOperationOptions{Name: name})
+	if err != nil {
+		return nil, err
+	}
+
+	return res.HttpResponse.Body, nil
+}
+
 // LogTail is the last lines of a named server log file, at most n of them.
 // The log is read through to its end keeping only its tail (tailLines), so a
 // log of any size answers its true last lines: a cap on how much of it is read
 // would answer lines from the middle of a big one, and could cut the last of
 // them in two.
 func (c *Client) LogTail(ctx context.Context, name string, n int) (string, error) {
-	var body io.ReadCloser
-	if c.isEmby() {
-		res, err := c.emby.GetSystemLogsByName(ctx, name, emby.GetSystemLogsByNameOperationOptions{})
-		if err != nil {
-			return "", err
-		}
-		body = res.HttpResponse.Body
-	} else {
-		res, err := c.jf.GetLogFile(ctx, jf.GetLogFileOperationOptions{Name: name})
-		if err != nil {
-			return "", err
-		}
-		body = res.HttpResponse.Body
+	body, err := c.LogStream(ctx, name, false)
+	if err != nil {
+		return "", err
 	}
 	defer func() { _ = body.Close() }()
 

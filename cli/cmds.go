@@ -176,6 +176,9 @@ Needs no server: it reports what would be registered, not what a server accepts.
 	if err := configureFlags(root); err != nil {
 		return nil, fmt.Errorf("unable to configure flags: %w", err)
 	}
+	// the settings file is read once the flags are parsed, since a flag can
+	// name it; before any command's own checks, which read what it holds
+	root.PersistentPreRunE = func(*cobra.Command, []string) error { return loadConfig() }
 
 	return root, nil
 }

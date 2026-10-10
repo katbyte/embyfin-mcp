@@ -423,8 +423,8 @@ func TestTheBinary(t *testing.T) {
 					t.Errorf("%s, a %s tool, is hinted read-only %v, destructive %v", tool.Name, kind, a.ReadOnlyHint, *a.DestructiveHint)
 				}
 			}
-			if len(kinds["read"]) != 56 || len(kinds["write"]) != 19 || len(kinds["delete"]) != 5 {
-				t.Errorf("read %d, write %d, delete %d, want 56, 19 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
+			if len(kinds["read"]) != 59 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
+				t.Errorf("read %d, write %d, delete %d, want 59, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
 			}
 			if want := []string{"collection_delete", "item_delete", "item_orphans_delete", "library_delete", "playlist_delete"}; !slices.Equal(acc.Sorted(kinds["delete"]), want) {
 				t.Errorf("delete tools = %v, want %v", kinds["delete"], want)
@@ -618,6 +618,27 @@ func TestTheBinary(t *testing.T) {
 		if got, want := serve("--toolsets", "user"), toolsFor(t, tools.Options{Toolsets: []string{"user"}, ReadOnly: true}); !slices.Equal(got, want) || slices.ContainsFunc(got, func(n string) bool { return strings.HasPrefix(n, "show_") }) {
 			t.Errorf("with --toolsets user over the file's show, tools = %v\nwant %v", got, want)
 		}
+		// a file named with --config, or by the environment, is read in
+		// place of the one in $HOME: nothing of that one reaches the run, so
+		// it is not read-only, which is how a second instance serves a
+		// second server
+		second := filepath.Join(t.TempDir(), "second.env")
+		if err := os.WriteFile(second, []byte("TOOLSETS=user\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		want := toolsFor(t, tools.Options{Toolsets: []string{"user"}})
+		if got := serve("--config", second); !slices.Equal(got, want) {
+			t.Errorf("with --config naming another file, tools = %v\nwant %v", got, want)
+		}
+		byEnv, stderr := bin.command(t, []string{"EMBYFIN_CONFIG=" + second}, "serve")
+		if err := os.WriteFile(filepath.Join(byEnv.Dir, ".embyfin-mcp"), []byte(strings.Join(config, "\n")+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cs := connect(t, &mcp.CommandTransport{Command: byEnv}, stderr)
+		defer func() { _ = cs.Close() }()
+		if got := listed(t, cs); !slices.Equal(got, want) {
+			t.Errorf("with EMBYFIN_CONFIG naming another file, tools = %v\nwant %v", got, want)
+		}
 	})
 
 	// the binary is given no TMDB token here, so show_missing cannot read a
@@ -701,6 +722,10 @@ func TestTheBinary(t *testing.T) {
 			{"with a toolset that is none", nil, []string{"serve", "--toolsets", "core,zzyzx"}, `unknown toolset "zzyzx" (sets: all, `},
 			{"with an allow pattern that matches no tool", nil, []string{"serve", "--allow-tools", "zzyzx_*"}, `allow-tools pattern "zzyzx_*" matches no tool`},
 			{"with a deny pattern that matches no tool", []string{"EMBYFIN_DENY_TOOLS=item_zzyzx"}, []string{"serve"}, `deny-tools pattern "item_zzyzx" matches no tool`},
+			// an instance told to read a settings file that is not there must
+			// not come up on whatever the environment happens to hold
+			{"with a settings file that is not there", nil, []string{"serve", "--config", "/no/such/embyfin-settings"}, "reading the settings file /no/such/embyfin-settings"},
+			{"with a settings file the environment names that is not there", []string{"EMBYFIN_CONFIG=/no/such/embyfin-settings"}, []string{"serve"}, "reading the settings file /no/such/embyfin-settings"},
 		} {
 			t.Run(c.name, func(t *testing.T) { bin.refusesToStart(t, c.env, c.want, c.args...) })
 		}
