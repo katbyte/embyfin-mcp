@@ -11,6 +11,9 @@
 - `server_config` gives the server's own settings in groups; `server_config_edit` changes the ones that tune Jellyfin's trickplay images and scanning, and no others
 - `--config` (or `EMBYFIN_CONFIG`) names the settings file to read, in place of the usual ones, so two instances can serve two servers side by side
 - `server_info` says whether a restart is pending or an update is out, and what the server's log says of its machine at startup: processors, architecture, when it started, where it keeps its data, logs, cache and metadata
+- `server_health` says how the server is doing in one call: the tasks running and how far each has got, the tasks whose last run failed, who is playing what and whether it is being re-encoded, and what the last stretch of the log shows (entries by level, errors by message, gaps, slow answers, requests still waiting, and how long since it was last written to)
+- `library_options` gives every library's settings side by side, one row a setting: the value they share, or each library's own where they differ, with `differ_from` to hold the others against one
+- `server_plugins` lists what is installed into the server, and on Jellyfin whether each is running and whether it came with the server
 
 ## 0.4.1 (2026-10-09)
 

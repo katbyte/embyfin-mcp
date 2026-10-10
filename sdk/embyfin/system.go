@@ -234,6 +234,49 @@ func (c *Client) Devices(ctx context.Context) ([]Device, error) {
 	return devices, nil
 }
 
+// Plugin is something installed into the server that is not part of it.
+type Plugin struct {
+	ID          string `json:"Id"`
+	Name        string `json:"Name"`
+	Version     string `json:"Version"`
+	Description string `json:"Description,omitempty"`
+	// Status is Jellyfin's word for whether the plugin is running: Active,
+	// Restart (waiting for one), Disabled, NotSupported, Malfunctioned,
+	// Superseded, Deleted. Emby has none
+	Status string `json:"Status,omitempty"`
+	// Bundled says the plugin came with the server and cannot be taken
+	// out, which Jellyfin alone says
+	Bundled bool `json:"Bundled,omitempty"`
+}
+
+// Plugins lists what is installed into the server.
+func (c *Client) Plugins(ctx context.Context) ([]Plugin, error) {
+	if c.isEmby() {
+		res, err := c.emby.GetPlugins(ctx)
+		if err != nil {
+			return nil, err
+		}
+		plugins := make([]Plugin, 0, len(res.Model))
+		for i := range res.Model {
+			d := &res.Model[i]
+			plugins = append(plugins, Plugin{ID: d.Id, Name: d.Name, Version: d.Version, Description: d.Description})
+		}
+
+		return plugins, nil
+	}
+	res, err := c.jf.GetPlugins(ctx)
+	if err != nil {
+		return nil, err
+	}
+	plugins := make([]Plugin, 0, len(res.Model))
+	for i := range res.Model {
+		d := &res.Model[i]
+		plugins = append(plugins, Plugin{ID: d.Id, Name: d.Name, Version: d.Version, Description: d.Description, Status: string(d.Status), Bundled: d.CanUninstall != nil && !*d.CanUninstall})
+	}
+
+	return plugins, nil
+}
+
 type LogFile struct {
 	Name string `json:"Name"`
 	Size int64  `json:"Size"`

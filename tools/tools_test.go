@@ -101,8 +101,8 @@ func TestSurfaceSize(t *testing.T) {
 	for _, ti := range list {
 		kinds[ti.Kind]++
 	}
-	if len(list) != 86 || kinds["read"] != 59 || kinds["write"] != 22 || kinds["delete"] != 5 {
-		t.Errorf("surface = %d tools: %v, want 86 with 59 read, 22 write, 5 delete", len(list), kinds)
+	if len(list) != 89 || kinds["read"] != 62 || kinds["write"] != 22 || kinds["delete"] != 5 {
+		t.Errorf("surface = %d tools: %v, want 89 with 62 read, 22 write, 5 delete", len(list), kinds)
 	}
 	for _, gone := range []string{
 		"library_search", "user_favourites", "item_set_watched", "item_set_favourite", "item_set_progress", "item_batch_edit", "library_people", "audit_year_mismatch", "audit_title_mismatch", "audit_media_facts", "audit_unprobed", "audit_movie_ids", "user_in_progress", "show_episodes",

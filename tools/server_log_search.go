@@ -21,6 +21,10 @@ const (
 	logModeHistogram = "histogram"
 	logModeGaps      = "gaps"
 	logModeSlow      = "slow"
+	// logModeHealth is server_health's and no caller's to ask for: the
+	// gaps, the slow answers, the entries by level and the errors by
+	// message, from one reading
+	logModeHealth = "health"
 )
 
 const (
@@ -243,6 +247,15 @@ type logSearch struct {
 	// held is the entries of the stretch before the log's end, kept until
 	// the end is known (last)
 	held []*serverlog.Entry
+
+	// what logModeHealth gathers besides: every entry by level, and the
+	// first and last it was offered, as written
+	byLevel         map[string]int
+	firstAt, lastAt string
+	// lastEntry is when the last entry offered was written, and whether
+	// its line carried a zone and so names an instant
+	lastEntry time.Time
+	lastZoned bool
 }
 
 // offer takes an entry that is in the window and passes the filters.
@@ -257,6 +270,20 @@ func (s *logSearch) offer(e *serverlog.Entry) {
 		s.gaps.Add(e)
 	case logModeSlow:
 		s.slow.Add(e)
+	case logModeHealth:
+		s.gaps.Add(e)
+		s.slow.Add(e)
+		if s.byLevel == nil {
+			s.byLevel = map[string]int{}
+		}
+		s.byLevel[e.LevelWord()]++
+		if e.Level >= serverlog.Error {
+			s.counts.Add(e)
+		}
+		if s.firstAt == "" {
+			s.firstAt = e.Stamp()
+		}
+		s.lastAt, s.lastEntry, s.lastZoned = e.Stamp(), e.Time, e.Zoned
 	default:
 		s.lines.Add(e)
 	}

@@ -235,6 +235,17 @@ func TestTaskStop(t *testing.T) {
 	// a scan slowed by files that take the server a while to read
 	slowScan(t)
 	suite.Call(t, "task_run", map[string]any{"task": "Scan Media Library"})
+	// while it runs, the server's health names it among the running, with how far it has got
+	var running []map[string]any
+	if !acc.Eventually(func() bool {
+		running = acc.RowsOf(acc.Object(t, suite.Call(t, "server_health", map[string]any{"last": "1m"})["tasks"], "tasks")["running"])
+
+		return slices.ContainsFunc(running, func(task map[string]any) bool {
+			return strings.EqualFold(acc.Str(task["name"]), "Scan media library") && task["progress"] != nil
+		})
+	}) {
+		t.Errorf("the scan was never among the running in server_health: %v", running)
+	}
 	var stopped map[string]any
 	if !acc.Eventually(func() bool {
 		stopped = suite.Call(t, "task_stop", map[string]any{"task": "Scan Media Library"})
@@ -397,5 +408,218 @@ func TestServerConfig(t *testing.T) {
 	}
 	if now := flat(acc.Object(t, suite.Call(t, "server_config", nil)["groups"], "groups")); !reflect.DeepEqual(now, after) {
 		t.Error("a refused change left the settings different")
+	}
+}
+
+// What is installed into the server is listed by name. Both servers come
+// with plugins of their own; Jellyfin says of each whether it is running
+// and that it came with the server, and Emby says neither.
+func TestServerPlugins(t *testing.T) {
+	out := suite.Call(t, "server_plugins", nil)
+	rows := acc.Rows(t, out["plugins"], "plugins")
+	if acc.Str(out["backend"]) != string(backend) || len(rows) == 0 || acc.Num(t, out["count"], "count") != len(rows) {
+		t.Fatalf("server_plugins = %v", out)
+	}
+	names := make([]string, 0, len(rows))
+	var notRunning, bundled int
+	for _, p := range rows {
+		names = append(names, strings.ToLower(acc.Str(p["name"])))
+		if acc.Str(p["name"]) == "" || acc.Str(p["version"]) == "" {
+			t.Errorf("a plugin with no name or no version: %v", p)
+		}
+		if status := acc.Str(p["status"]); isJellyfin() == (status == "") {
+			t.Errorf("status on %s = %q: %v", backend, status, p)
+		} else if status != "" && status != "Active" {
+			notRunning++
+		}
+		if acc.BoolOf(p["bundled"]) {
+			bundled++
+		}
+	}
+	if !slices.IsSorted(names) {
+		t.Errorf("plugins are not in order of name: %v", names)
+	}
+	// the ones a server just set up has all came with it, which Jellyfin says and Emby does not
+	if isJellyfin() != (bundled > 0) {
+		t.Errorf("%d of %d plugins said to have come with %s", bundled, len(rows), backend)
+	}
+	if note := acc.Str(out["note"]); (notRunning > 0) != strings.HasPrefix(note, "not running: ") {
+		t.Errorf("%d plugins not running, and the note is %q", notRunning, note)
+	}
+}
+
+// A library's settings are read side by side. The suite's own libraries
+// differ where it made them differ: Movies fetches metadata and Messy
+// Movies was made to fetch none.
+func TestLibraryOptions(t *testing.T) {
+	out := suite.Call(t, "library_options", nil)
+	var names []string
+	for _, l := range acc.Rows(t, out["libraries"], "libraries") {
+		names = append(names, acc.Str(l["name"]))
+		if acc.Str(l["id"]) == "" || acc.Str(l["type"]) == "" {
+			t.Errorf("a library with no id or no kind: %v", l)
+		}
+	}
+	for _, want := range []string{"Movies", "Messy Movies", "Shows", "Messy Shows", "Music"} {
+		if !slices.Contains(names, want) {
+			t.Errorf("libraries compared = %v, want %s among them", names, want)
+		}
+	}
+	rows := map[string]map[string]any{}
+	for _, row := range acc.Rows(t, out["options"], "options") {
+		rows[acc.Str(row["option"])] = row
+		// a row is one value, or each library's own
+		if (row["value"] == nil) == (row["values"] == nil) {
+			t.Errorf("a row with both or neither of value and values: %v", row)
+		}
+	}
+	if acc.Str(out["backend"]) != string(backend) || len(rows) < 30 || acc.Num(t, out["alike"], "alike")+acc.Num(t, out["differing"], "differing") != len(rows) {
+		t.Fatalf("library_options = %d rows, %v alike and %v differing", len(rows), out["alike"], out["differing"])
+	}
+	// both servers keep these for a library, and each the images it makes from a video its own way
+	own := "ThumbnailImagesIntervalSeconds"
+	if isJellyfin() {
+		own = "EnableTrickplayImageExtraction"
+	}
+	for _, want := range []string{"SaveLocalMetadata", "EnableRealtimeMonitor", "EnableChapterImageExtraction", own} {
+		if rows[want] == nil {
+			t.Errorf("no row for %s", want)
+		}
+	}
+	// a library's folders and kind are not settings
+	for _, never := range []string{"PathInfos", "TypeOptions", "ContentType"} {
+		if rows[never] != nil {
+			t.Errorf("%s is given as a setting: %v", never, rows[never])
+		}
+	}
+
+	// held against Movies, Messy Movies differs in what fetches a film's metadata: it was made with none, which Emby
+	// lists as an empty list beside Movies' own and Jellyfin as an empty list where Movies has no list at all
+	pair := suite.Call(t, "library_options", map[string]any{"libraries": []any{"messy movies", "Movies"}, "differ_from": "Movies", "differing": true})
+	differ := acc.Object(t, pair["differ_from"], "differ_from")
+	others := acc.Rows(t, differ["others"], "others")
+	if acc.Str(differ["library"]) != "Movies" || len(others) != 1 || acc.Str(others[0]["library"]) != "Messy Movies" || !slices.Contains(acc.Texts(others[0]["differs"]), "Movie.MetadataFetchers") {
+		t.Fatalf("Messy Movies held against Movies = %v", differ)
+	}
+	var fetchers map[string]any
+	for _, row := range acc.Rows(t, pair["options"], "options") {
+		if row["values"] == nil {
+			t.Errorf("asked for the differing alone, and given %v", row)
+		}
+		if acc.Str(row["option"]) == "Movie.MetadataFetchers" {
+			fetchers = row
+		}
+	}
+	values := acc.Object(t, fetchers["values"], "values")
+	if none, ok := values["Messy Movies"]; !ok || len(acc.Texts(none)) != 0 {
+		t.Errorf("Messy Movies' fetchers = %v", fetchers)
+	}
+	if isJellyfin() {
+		if !slices.Equal(acc.Texts(fetchers["unset"]), []string{"Movies"}) || values["Movies"] != nil {
+			t.Errorf("on Jellyfin Movies lists no fetchers and uses the server's own: %v", fetchers)
+		}
+	} else if len(acc.Texts(values["Movies"])) == 0 || fetchers["unset"] != nil {
+		t.Errorf("on Emby Movies lists its fetchers: %v", fetchers)
+	}
+	// a library of shows is not held against one of films on a film's settings
+	for _, other := range acc.Rows(t, acc.Object(t, suite.Call(t, "library_options", map[string]any{"differ_from": "Movies"})["differ_from"], "differ_from")["others"], "others") {
+		if acc.Str(other["library"]) == "Shows" && slices.ContainsFunc(acc.Texts(other["differs"]), func(o string) bool { return strings.HasPrefix(o, "Movie.") || strings.HasPrefix(o, "Series.") }) {
+			t.Errorf("Shows held against Movies on a kind's own settings: %v", other)
+		}
+	}
+
+	// narrowed by a part of a setting's name, whatever its case
+	only := acc.Rows(t, suite.Call(t, "library_options", map[string]any{"options": []any{"savelocal"}})["options"], "options")
+	if len(only) == 0 || slices.ContainsFunc(only, func(row map[string]any) bool {
+		return !strings.Contains(strings.ToLower(acc.Str(row["option"])), "savelocal")
+	}) {
+		t.Errorf("settings named savelocal = %v", only)
+	}
+	if msg := suite.CallErr(t, "library_options", map[string]any{"libraries": []any{"no such library"}}); !strings.Contains(msg, `no library named "no such library" or with that id`) {
+		t.Errorf("an unknown library = %q", msg)
+	}
+}
+
+// One call says how the server is doing: who it is, what its tasks and
+// devices are at, and what the end of its log shows. While something plays
+// it is among the playing. (TestTaskStop sees a running task in it.)
+func TestServerHealth(t *testing.T) {
+	device, token := signInPlayer(t)
+	dune := findItem(t, "Movies", "Movie", "Dune: Part Two")
+	p := startPlaying(t, token, dune)
+	half := int64(5010) * 10_000_000
+	p.report("/Sessions/Playing/Progress", half, false)
+
+	var out, playing map[string]any
+	if !acc.Eventually(func() bool {
+		out = suite.Call(t, "server_health", nil)
+		for _, s := range acc.RowsOf(acc.Object(t, out["sessions"], "sessions")["playing"]) {
+			if acc.Str(s["device"]) == device {
+				playing = s
+			}
+		}
+
+		return playing != nil && playing["progress"] != nil
+	}) {
+		t.Fatalf("the player is not among the playing: %v", out["sessions"])
+	}
+	p.stop(half)
+	sessions := acc.Object(t, out["sessions"], "sessions")
+	if acc.Str(playing["now_playing"]) != "Dune: Part Two" || acc.Str(playing["play_method"]) != "DirectPlay" || acc.Decimal(t, playing["progress"], "progress") != 50 || playing["transcoding"] != nil || acc.Num(t, sessions["connected"], "connected") < 1 || acc.Num(t, sessions["transcoding"], "transcoding") != 0 {
+		t.Errorf("the session = %v of %v", playing, sessions)
+	}
+
+	info := suite.Call(t, "server_info", nil)
+	if acc.Str(out["backend"]) != string(backend) || out["server_name"] != info["server_name"] || out["server_version"] != info["server_version"] || out["pending_restart"] != info["pending_restart"] {
+		t.Errorf("the server = %v, and server_info says %v", out, info)
+	}
+
+	// the tasks said to have failed are the ones task_list says failed
+	var failed []string
+	for _, task := range acc.Rows(t, suite.Call(t, "task_list", nil)["tasks"], "tasks") {
+		if status := acc.Str(task["last_status"]); acc.Str(task["state"]) == "Idle" && (status == "Failed" || status == "Aborted") {
+			failed = append(failed, acc.Str(task["name"]))
+		}
+	}
+	tasks := acc.Object(t, out["tasks"], "tasks")
+	var said []string
+	for _, task := range acc.RowsOf(tasks["failed"]) {
+		said = append(said, acc.Str(task["name"]))
+	}
+	slices.Sort(failed)
+	slices.Sort(said)
+	if !slices.Equal(said, failed) || tasks["running"] == nil {
+		t.Errorf("tasks = %v, and task_list has these failed: %v", tasks, failed)
+	}
+
+	// the log's last stretch: read, with entries that add up by level, and counted back from a last entry that is given
+	log := acc.Object(t, out["log"], "log")
+	entries, byLevel := acc.Num(t, log["entries"], "entries"), 0
+	for level := range acc.Object(t, log["by_level"], "by_level") {
+		byLevel += acc.Num(t, acc.Object(t, log["by_level"], "by_level")[level], level)
+	}
+	if log["error"] != nil || len(acc.Texts(log["files"])) == 0 || entries < 1 || byLevel != entries || acc.Str(log["from"]) == "" || acc.Str(log["to"]) == "" || acc.Str(log["quiet_for"]) == "" {
+		t.Errorf("the log read = %v", log)
+	}
+	// Emby times the answers to requests that change something, and the player above just made some; Jellyfin times none unless set to
+	if timed := acc.Num(t, log["answers_timed"], "answers_timed"); isJellyfin() == (timed > 0) {
+		t.Errorf("%d answers timed on %s", timed, backend)
+	}
+	if summary := acc.Str(out["summary"]); !strings.Contains(summary, "1 playing of ") || !strings.Contains(summary, "in the last 15m0s of the log: ") {
+		t.Errorf("summary = %q", summary)
+	}
+
+	// asked for less of the log there is no more in it, each list is cut at limit, and no silence in fifteen minutes is a day long
+	narrow := acc.Object(t, suite.Call(t, "server_health", map[string]any{"last": "1s", "limit": 1})["log"], "log")
+	wide := acc.Object(t, suite.Call(t, "server_health", map[string]any{"last": "1h", "gap_seconds": 86400, "slow_seconds": 0.001, "limit": 1})["log"], "log")
+	if n, w := acc.Num(t, narrow["entries"], "entries"), acc.Num(t, wide["entries"], "entries"); n < 1 || n > w || w < entries || len(acc.RowsOf(narrow["errors"])) > 1 || len(acc.RowsOf(wide["slowest"])) > 1 || acc.Num(t, wide["gaps_found"], "gaps_found") != 0 {
+		t.Errorf("the last second = %v\nthe last hour = %v", narrow, wide)
+	}
+	// every answer Emby timed took a thousandth of a second or more, or near enough: the slow ones are counted whole, past the one row given
+	if !isJellyfin() && (acc.Num(t, wide["slow_found"], "slow_found") < 1 || len(acc.RowsOf(wide["slowest"])) != 1) {
+		t.Errorf("answers of a millisecond or more in the last hour = %v", wide)
+	}
+	if msg := suite.CallErr(t, "server_health", map[string]any{"last": "2d"}); !strings.Contains(msg, "is not a length of time") {
+		t.Errorf("a stretch in days = %q", msg)
 	}
 }

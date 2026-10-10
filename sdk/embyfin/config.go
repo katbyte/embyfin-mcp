@@ -24,30 +24,42 @@ const configPath = "/System/Configuration"
 // newer server's other settings would be dropped on the way in, and reset on
 // the way back.
 func (c *Client) ServerConfig(ctx context.Context) (map[string]any, error) {
-	req, err := c.base().NewRequest(ctx, apiclient.RequestOptions{
-		ExpectedStatusCodes: []int{http.StatusOK},
-		HTTPMethod:          http.MethodGet,
-		Path:                configPath,
-	})
-	if err != nil {
-		return nil, err
-	}
-	resp, err := req.Execute(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var raw json.RawMessage
-	if err := resp.Unmarshal(&raw); err != nil {
-		return nil, err
-	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
 	var doc map[string]any
-	if err := dec.Decode(&doc); err != nil {
-		return nil, fmt.Errorf("the server's settings are not a JSON document: %w", err)
+	if err := c.document(ctx, configPath, "the server's settings", &doc); err != nil {
+		return nil, err
 	}
 
 	return doc, nil
+}
+
+// document reads what the server answers a GET of path with into out as the
+// server's own JSON, a number keeping its digits (json.Number), and not
+// through the typed client's model of it. what names it for the error said
+// when it is not the JSON out takes.
+func (c *Client) document(ctx context.Context, path, what string, out any) error {
+	req, err := c.base().NewRequest(ctx, apiclient.RequestOptions{
+		ExpectedStatusCodes: []int{http.StatusOK},
+		HTTPMethod:          http.MethodGet,
+		Path:                path,
+	})
+	if err != nil {
+		return err
+	}
+	resp, err := req.Execute(ctx)
+	if err != nil {
+		return err
+	}
+	var raw json.RawMessage
+	if err := resp.Unmarshal(&raw); err != nil {
+		return err
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	if err := dec.Decode(out); err != nil {
+		return fmt.Errorf("%s are not the JSON document expected: %w", what, err)
+	}
+
+	return nil
 }
 
 // ErrConfigNotEditable is what EditServerConfig answers on a server whose

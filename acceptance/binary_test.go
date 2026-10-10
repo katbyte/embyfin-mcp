@@ -423,8 +423,8 @@ func TestTheBinary(t *testing.T) {
 					t.Errorf("%s, a %s tool, is hinted read-only %v, destructive %v", tool.Name, kind, a.ReadOnlyHint, *a.DestructiveHint)
 				}
 			}
-			if len(kinds["read"]) != 59 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
-				t.Errorf("read %d, write %d, delete %d, want 59, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
+			if len(kinds["read"]) != 62 || len(kinds["write"]) != 22 || len(kinds["delete"]) != 5 {
+				t.Errorf("read %d, write %d, delete %d, want 62, 22 and 5", len(kinds["read"]), len(kinds["write"]), len(kinds["delete"]))
 			}
 			if want := []string{"collection_delete", "item_delete", "item_orphans_delete", "library_delete", "playlist_delete"}; !slices.Equal(acc.Sorted(kinds["delete"]), want) {
 				t.Errorf("delete tools = %v, want %v", kinds["delete"], want)

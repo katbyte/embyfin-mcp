@@ -113,8 +113,8 @@ var Toolsets = map[string][]string{
 	// scheduled tasks, scans, libraries, what a removed library leaves behind,
 	// and the tools that remove things
 	"admin": {
-		"server_stats", "server_activity", "server_devices", "server_log", "server_log_search", "server_config", "server_config_edit",
-		"task_list", "task_get", "task_run", "task_stop", "task_edit", "library_scan", "library_create", "library_edit", "library_delete", "item_delete", "audit_orphans", "item_orphans_delete",
+		"server_health", "server_stats", "server_activity", "server_devices", "server_plugins", "server_log", "server_log_search", "server_config", "server_config_edit",
+		"task_list", "task_get", "task_run", "task_stop", "task_edit", "library_scan", "library_options", "library_create", "library_edit", "library_delete", "item_delete", "audit_orphans", "item_orphans_delete",
 	},
 }
 
@@ -322,6 +322,9 @@ func queueTools(r *registry) {
 	registerLogSearchTool(r)
 	registerTaskTools(r)
 	registerConfigTools(r)
+	registerPluginsTool(r)
+	registerHealthTool(r)
+	registerLibraryOptionsTool(r)
 	registerLibraryTools(r)
 	registerEpisodeTools(r)
 	registerQualityTools(r)

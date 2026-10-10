@@ -155,6 +155,29 @@ func transcodeSummary(t *embyfin.Transcoding) string {
 	return out
 }
 
+// playingOf is what a session is playing, where in it, and how far through
+// in percent. A session playing nothing gives no name.
+func playingOf(s *embyfin.Session) (name, position string, progress *float64) {
+	it := s.NowPlayingItem
+	if it == nil {
+		return "", "", nil
+	}
+
+	// an episode's own title alone is one of a dozen "Pilot"s
+	name = it.Name
+	if it.Type == typeEpisode && it.SeriesName != "" {
+		name = fmt.Sprintf("%s %s %s", it.SeriesName, episodeCode(it), it.Name)
+	}
+	pos := time.Duration(s.PlayState.PositionTicks * 100)
+	total := time.Duration(it.RunTimeTicks * 100)
+	position = fmt.Sprintf("%s / %s", pos.Round(time.Second), total.Round(time.Second))
+	if total > 0 {
+		progress = new(math.Round(float64(pos)/float64(total)*1000) / 10)
+	}
+
+	return name, position, progress
+}
+
 func registerSessionTools(r *registry) {
 	client := r.client
 	type sessionTranscode struct {
@@ -220,18 +243,8 @@ func registerSessionTools(r *registry) {
 				row.Details = &sessionDetails{AppVersion: s.AppVersion, RemoteAddress: s.RemoteEndPoint}
 			}
 			if it := s.NowPlayingItem; it != nil {
-				// an episode's own title alone is one of a dozen "Pilot"s
-				row.NowPlaying, row.NowPlayingID = it.Name, it.ID
-				if it.Type == typeEpisode && it.SeriesName != "" {
-					row.NowPlaying = fmt.Sprintf("%s %s %s", it.SeriesName, episodeCode(it), it.Name)
-				}
-				row.Paused, row.PlayMethod = s.PlayState.IsPaused, s.PlayState.PlayMethod
-				pos := time.Duration(s.PlayState.PositionTicks * 100)
-				total := time.Duration(it.RunTimeTicks * 100)
-				row.Position = fmt.Sprintf("%s / %s", pos.Round(time.Second), total.Round(time.Second))
-				if total > 0 {
-					row.Progress = new(math.Round(float64(pos)/float64(total)*1000) / 10)
-				}
+				row.NowPlaying, row.Position, row.Progress = playingOf(s)
+				row.NowPlayingID, row.Paused, row.PlayMethod = it.ID, s.PlayState.IsPaused, s.PlayState.PlayMethod
 				row.Transcoding = transcodeSummary(s.Transcoding)
 				if in.Details {
 					if row.Details.Source, err = sessionSourceOf(ctx, client, it); err != nil {

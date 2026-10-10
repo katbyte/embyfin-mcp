@@ -27,7 +27,7 @@ differences between them live in one package, and every tool is tested against b
 
 ### What else is in the box
 
-- **86 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about two thousand tokens of context by default rather than thirty-five thousand.
+- **89 tools, in toolsets.** Search, browse and inspect, read a whole library's episodes at once, resolve a release name to a series, identify and re-identify, batch edits and renames, artwork, subtitles, watch state, people, playlists, collections, remote control, scans, tasks, logs and libraries. Each sits in a toolset a session can load on its own, so a client spends about two thousand tokens of context by default rather than thirty-five thousand.
 - **Three Go SDKs.** `sdk/emby`, `sdk/jf` and `sdk/tmdb` are complete typed clients for the Emby, Jellyfin and TMDB APIs - all 499, 346 and 152 operations, generated from their own OpenAPI documents (each package's `APIVersion` says which), standard library only, no knowledge of MCP. Useful on their own, whether or not you care about AI. `sdk/embyfin` is the thin layer that makes the two servers answer alike.
 - **Tested against real servers.** Every tool runs against a real Emby and a real Jellyfin in Docker, the suite fails if a registered tool has no test, and the servers' calls out to TMDB and TheTVDB are recorded once and replayed, so CI needs no network.
 
@@ -200,9 +200,9 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 
 | Resource | Tools |
 |---|---|
-| server | `server_info` (with whether a restart is pending, and the machine as the server's log describes it), `server_stats`, `server_activity` (the log, or the entries about one item or one user), `server_devices`, `server_log` (the newest log's tail, and every log file), `server_log_search` (the log between two times or over its last stretch, filtered, and as entries, counts, a histogram, the gaps of a freeze, or the slow answers), `server_config` (the server's own settings, in groups), `server_config_edit` (Jellyfin: the settings that tune trickplay images and scanning, and no others) |
+| server | `server_info` (with whether a restart is pending, and the machine as the server's log describes it), `server_health` (how the server is doing in one call: tasks running and failed, who is playing and how, and what the last stretch of the log shows), `server_stats`, `server_activity` (the log, or the entries about one item or one user), `server_devices`, `server_plugins` (what is installed into the server, and on Jellyfin whether each is running), `server_log` (the newest log's tail, and every log file), `server_log_search` (the log between two times or over its last stretch, filtered, and as entries, counts, a histogram, the gaps of a freeze, or the slow answers), `server_config` (the server's own settings, in groups), `server_config_edit` (Jellyfin: the settings that tune trickplay images and scanning, and no others) |
 | tasks | `task_list` (with progress, what starts each, and how its last run went), `task_get` (one task, with its last failure in full), `task_run`, `task_stop`, `task_edit` (when a task starts by itself) |
-| libraries | `library_list`, `library_get` (counts by type), `library_items` (a title search, a structured filter by genre, tag, studio, rating, year, person and watch state, or both, sorted and paged; `added_since` for what came in after a moment), `library_filters` (every genre, tag, studio, rating and year, with counts), `library_episodes` (every episode of a show, one season of it, or a whole library, paged, with quality), `library_export` (a whole library to a new file on the machine embyfin-mcp runs on, never over an existing one), `library_scan` (every library, or one), `library_create`, `library_edit` (rename, add and remove folders, switch nfo saving), `library_delete` |
+| libraries | `library_list`, `library_get` (counts by type), `library_options` (every library's settings side by side, and which libraries are set differently), `library_items` (a title search, a structured filter by genre, tag, studio, rating, year, person and watch state, or both, sorted and paged; `added_since` for what came in after a moment), `library_filters` (every genre, tag, studio, rating and year, with counts), `library_episodes` (every episode of a show, one season of it, or a whole library, paged, with quality), `library_export` (a whole library to a new file on the machine embyfin-mcp runs on, never over an existing one), `library_scan` (every library, or one), `library_create`, `library_edit` (rename, add and remove folders, switch nfo saving), `library_delete` |
 | audits | `audit_all` and the 17 audits in [the table above](#the-audits) |
 | items | `item_get` (every version the server shows it in, and a warning when a film's file names another film), `item_find_by_metadata_id` (the definitive "do I already have this?"), `item_similar`, `item_refresh` (waits for the refresh to land), `item_previews_regenerate` (makes a video's preview thumbnails again, one video at a time, and names anything else the refresh changed; Emby only so far), `item_edit` (one item's fields, or the same genres, tags, studios or rating across many; `add_*` and `remove_*` edit each item's own list), `item_instant_mix`, `item_last_watched`, `item_set_state` (watched, favourite and resume point, any or all) |
 | metadata | `metadata_rename` (a genre, tag or studio, everywhere it is used; renaming onto an existing value merges, `remove` drops it) |
@@ -222,7 +222,7 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 
 ### Choosing which tools load
 
-**The default is `core`: six read-only tools, about 2,000 tokens.** The whole surface is around 34,600 tokens of tool definitions before anyone asks a question, which is a poor way to spend a client's context by default. `--toolsets` / `EMBYFIN_TOOLSETS` loads the groups a session actually needs, and `core` comes along with whatever else is asked for, because nothing else can find a library or open an item.
+**The default is `core`: six read-only tools, about 2,000 tokens.** The whole surface is around 35,600 tokens of tool definitions before anyone asks a question, which is a poor way to spend a client's context by default. `--toolsets` / `EMBYFIN_TOOLSETS` loads the groups a session actually needs, and `core` comes along with whatever else is asked for, because nothing else can find a library or open an item.
 
 **Curating a library needs `EMBYFIN_TOOLSETS=curation`** - every audit but `audit_orphans`, and everything that fixes what they find. Cleaning up after a removed library is in `admin` ([below](#cleaning-up-after-a-removed-library)). `EMBYFIN_TOOLSETS=all` restores every tool.
 
@@ -230,11 +230,11 @@ back as an error listing what exists. Timeframe-taking tools default to the last
 |---|---|---|---|
 | `core` *(default)* | 6 | 6 | 2,000 |
 | `remote` | 4 | 10 | 2,700 |
-| `admin` | 19 | 25 | 8,400 |
+| `admin` | 22 | 28 | 9,400 |
 | `watching` | 8 | 14 | 3,800 |
 | `organise` | 10 | 16 | 5,100 |
 | `curation` | 39 | 45 | 22,500 |
-| `all` | 86 | 86 | 34,600 |
+| `all` | 89 | 89 | 35,600 |
 
 Tokens are what the model sees: each tool's name, description and input schema, measured over a real `tools/list` at four bytes a token, with `--enable-delete`. Every tool also carries an output schema, another 59,000 tokens across `all`, but clients keep that to themselves to validate results rather than sending it to the model.
 

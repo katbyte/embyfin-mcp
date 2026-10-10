@@ -246,6 +246,17 @@ func (l *Lines) Kept() []string {
 	return l.kept
 }
 
+// LevelWord is the entry's level as counts name it: debug, info, warn, error
+// or fatal, and a level this package does not know as the log wrote it, in
+// lower case.
+func (e *Entry) LevelWord() string {
+	if e.Level == Unknown {
+		return strings.ToLower(e.LevelName)
+	}
+
+	return e.Level.String()
+}
+
 // PatternCount is one message and how often it was logged.
 type PatternCount struct {
 	Pattern string
@@ -275,10 +286,7 @@ func (c *Counts) Add(e *Entry) {
 		c.ByLevel, c.patterns = map[string]int{}, map[string]*PatternCount{}
 	}
 	c.Total++
-	level := e.Level.String()
-	if e.Level == Unknown {
-		level = strings.ToLower(e.LevelName)
-	}
+	level := e.LevelWord()
 	c.ByLevel[level]++
 
 	key := e.Pattern()

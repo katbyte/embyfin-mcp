@@ -38,6 +38,15 @@ func embyLogServer(t *testing.T) *fakeServer {
 	t.Helper()
 
 	f := newFakeServer(t)
+	serveEmbyLogs(t, f)
+
+	return f
+}
+
+// serveEmbyLogs gives a server the made-up Emby's log files.
+func serveEmbyLogs(t *testing.T, f *fakeServer) {
+	t.Helper()
+
 	f.mux.HandleFunc("GET /System/Logs/Query", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, page(
 			map[string]any{"Name": "ffmpeg-transcode-0badc0de.txt", "Size": 5, "DateCreated": "2026-01-05T08:35:00Z", "DateModified": "2026-01-05T08:36:00Z"},
@@ -56,8 +65,6 @@ func embyLogServer(t *testing.T) *fakeServer {
 			_, _ = io.WriteString(w, "not a log line\n")
 		}
 	})
-
-	return f
 }
 
 func logNames(t *testing.T, out map[string]any) []string {
