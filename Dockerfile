@@ -2,13 +2,14 @@
 # so you can `docker exec -it embyfin-mcp sh` to poke at things. runs as a non-root user.
 # make docker passes VERSION/COMMIT from git; a bare `docker build .` reports "dev".
 #
-# REGISTRY is where the two base images come from: Docker Hub, unless a build says otherwise. CI
-# builds again from Google's mirror of it (mirror.gcr.io/library) when Docker Hub turns its
-# runner away. Nothing here needs a newer Dockerfile syntax than every builder has, so no syntax
-# image is named: that was a third thing to fetch from Docker Hub before the build could start.
+# REGISTRY is where the two base images come from: Google's mirror of Docker Hub, which holds
+# the same images, unless a build says otherwise. Docker Hub itself (docker.io/library) limits
+# how much an address may pull, which a CI runner's shared address runs into; CI builds again
+# from it when the mirror gives nothing. Nothing here needs a newer Dockerfile syntax than every
+# builder has, so no syntax image is named: that was a third thing to fetch before a build.
 ARG GO_VERSION=1.27
 ARG ALPINE_VERSION=3.24
-ARG REGISTRY=docker.io/library
+ARG REGISTRY=mirror.gcr.io/library
 
 FROM ${REGISTRY}/golang:${GO_VERSION}-alpine AS build
 ARG VERSION=dev

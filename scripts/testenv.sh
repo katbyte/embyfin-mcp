@@ -928,25 +928,31 @@ proxy_ca() {
 }
 
 # pull_image fetches the server's image when this machine does not have it:
-# from Docker Hub, and when Docker Hub turns the machine away - it limits how
-# much an address may pull, and a CI runner shares its address - from Google's
-# mirror of it, which holds the same image under the same name. An image
-# already here is used as it is, as before: docker pull it to test a newer one.
+# from Google's mirror of Docker Hub (mirror.gcr.io), which holds the same
+# image under the same name, and from Docker Hub itself when the mirror does
+# not give it. Docker Hub limits how much an address may pull and a CI runner
+# shares its address, so it is the one asked second. The mirror can be a
+# while behind a newly published image. An image already here is used as it
+# is, as before: docker pull it to test a newer one.
 pull_image() {
   docker image inspect "$IMAGE" >/dev/null 2>&1 && return 0
-  docker pull -q "$IMAGE" >/dev/null 2>&1 && return 0
   case "$IMAGE" in
     */*/*)
+      # names a registry of its own: there is no mirror of it to try
+      docker pull -q "$IMAGE" >/dev/null && return 0
       echo "could not pull ${IMAGE}" >&2
       exit 1
-      ;; # names a registry of its own: there is no mirror of it to try
+      ;;
   esac
-  log "Docker Hub would not give ${IMAGE}: taking it from mirror.gcr.io"
-  docker pull -q "mirror.gcr.io/${IMAGE}" >/dev/null || {
-    echo "could not pull ${IMAGE} from Docker Hub or from mirror.gcr.io" >&2
+  if docker pull -q "mirror.gcr.io/${IMAGE}" >/dev/null 2>&1; then
+    docker tag "mirror.gcr.io/${IMAGE}" "$IMAGE"
+    return 0
+  fi
+  log "mirror.gcr.io would not give ${IMAGE}: taking it from Docker Hub"
+  docker pull -q "$IMAGE" >/dev/null || {
+    echo "could not pull ${IMAGE} from mirror.gcr.io or from Docker Hub" >&2
     exit 1
   }
-  docker tag "mirror.gcr.io/${IMAGE}" "$IMAGE"
 }
 
 # retry TRIES COMMAND... - run a command until it succeeds, for the wizard
